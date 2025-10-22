@@ -1,12 +1,20 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
-import { Badge } from "@/components/ui/Badge";
-import { KpiSparkline } from "@/components/ui/KpiSparkline";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { KpiRow } from "@/components/scorecard/KpiRow";
+import { IssueModal } from "@/components/scorecard/IssueModal";
+import { AddKpiModal } from "@/components/scorecard/AddKpiModal";
 
 const Scorecard = () => {
-  const { data: kpis, isLoading } = useQuery({
+  const [issueModalOpen, setIssueModalOpen] = useState(false);
+  const [addKpiModalOpen, setAddKpiModalOpen] = useState(false);
+  const [issuePrefillData, setIssuePrefillData] = useState<any>(null);
+
+  const { data: kpis, isLoading, refetch } = useQuery({
     queryKey: ["kpis-detailed"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -21,34 +29,52 @@ const Scorecard = () => {
     },
   });
 
-  const formatValue = (value: number, unit: string) => {
-    if (unit === "$") return `$${value.toLocaleString()}`;
-    if (unit === "%") return `${value}%`;
-    if (unit === "count") return value.toString();
-    return `${value} ${unit}`;
-  };
+  const { data: users } = useQuery({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, full_name")
+        .order("full_name");
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  const getStatus = (kpi: any) => {
-    const latestReading = kpi.kpi_readings?.[0];
-    if (!latestReading || !kpi.target) return "muted";
-    
-    const value = parseFloat(latestReading.value);
-    const target = parseFloat(kpi.target);
-    
-    if (kpi.direction === ">=") {
-      return value >= target ? "success" : "warning";
-    } else if (kpi.direction === "<=") {
-      return value <= target ? "success" : "warning";
-    } else {
-      return value === target ? "success" : "warning";
-    }
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return null;
+
+      const { data, error } = await supabase
+        .from("users")
+        .select("team_id")
+        .eq("email", authData.user.email)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleCreateIssue = (kpiName: string, week: string, value: number, target: number) => {
+    setIssuePrefillData({ kpiName, week, value, target });
+    setIssueModalOpen(true);
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Scorecard</h1>
-        <p className="text-muted-foreground">Track your key performance indicators</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Scorecard</h1>
+          <p className="text-muted-foreground">Track and manage your key performance indicators</p>
+        </div>
+        <Button onClick={() => setAddKpiModalOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add KPI
+        </Button>
       </div>
 
       <Card>
@@ -58,46 +84,62 @@ const Scorecard = () => {
         <CardContent>
           {isLoading ? (
             <p className="text-muted-foreground">Loading metrics...</p>
+          ) : kpis && kpis.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>KPI</TableHead>
+                    <TableHead>Target</TableHead>
+                    <TableHead>Owner</TableHead>
+                    <TableHead>This Week</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Trend (Last 8 Weeks)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {kpis.map((kpi) => (
+                    <KpiRow
+                      key={kpi.id}
+                      kpi={kpi}
+                      users={users || []}
+                      onUpdate={refetch}
+                      onCreateIssue={handleCreateIssue}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Metric</TableHead>
-                  <TableHead>Target</TableHead>
-                  <TableHead>Actual</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Trend (Last 7 Weeks)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {kpis?.map((kpi) => {
-                  const latestReading = kpi.kpi_readings?.[0];
-                  const trendData = kpi.kpi_readings?.slice(0, 7).reverse().map((r: any) => parseFloat(r.value)) || [];
-                  const status = getStatus(kpi);
-                  
-                  return (
-                    <TableRow key={kpi.id}>
-                      <TableCell className="font-medium">{kpi.name}</TableCell>
-                      <TableCell>{formatValue(parseFloat(String(kpi.target)), kpi.unit)}</TableCell>
-                      <TableCell>{latestReading ? formatValue(parseFloat(String(latestReading.value)), kpi.unit) : "—"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{kpi.users?.full_name || "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant={status as "success" | "warning" | "muted"}>
-                          {status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <KpiSparkline data={trendData} className="h-8" />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <div className="text-center py-8">
+              <p className="text-muted-foreground mb-4">No KPIs yet. Add your first KPI to start tracking.</p>
+              <Button onClick={() => setAddKpiModalOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Your First KPI
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
+
+      <IssueModal
+        open={issueModalOpen}
+        onClose={() => {
+          setIssueModalOpen(false);
+          setIssuePrefillData(null);
+        }}
+        prefillData={issuePrefillData}
+        users={users || []}
+        teamId={currentUser?.team_id || null}
+        onSuccess={refetch}
+      />
+
+      <AddKpiModal
+        open={addKpiModalOpen}
+        onClose={() => setAddKpiModalOpen(false)}
+        users={users || []}
+        onSuccess={refetch}
+      />
     </div>
   );
 };
