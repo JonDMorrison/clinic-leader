@@ -4,6 +4,7 @@ import { KpiSparkline } from "@/components/ui/KpiSparkline";
 import { TrendingUp, Users, Target, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { WeeklyHighlights } from "@/components/dashboard/WeeklyHighlights";
 
 const Home = () => {
   const { data: kpis } = useQuery({
@@ -140,6 +141,8 @@ const Home = () => {
           </CardContent>
         </Card>
       </div>
+
+      <WeeklyHighlights />
     </div>
   );
 };

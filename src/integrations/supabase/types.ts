@@ -53,6 +53,80 @@ export type Database = {
           },
         ]
       }
+      ai_agendas: {
+        Row: {
+          agenda: Json
+          created_at: string
+          id: string
+          team_id: string | null
+          week_start: string
+        }
+        Insert: {
+          agenda: Json
+          created_at?: string
+          id?: string
+          team_id?: string | null
+          week_start: string
+        }
+        Update: {
+          agenda?: Json
+          created_at?: string
+          id?: string
+          team_id?: string | null
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agendas_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_insights: {
+        Row: {
+          created_at: string
+          id: string
+          summary: Json
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          summary: Json
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          summary?: Json
+          week_start?: string
+        }
+        Relationships: []
+      }
+      ai_logs: {
+        Row: {
+          created_at: string
+          id: string
+          payload: Json
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payload: Json
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          type?: string
+        }
+        Relationships: []
+      }
       ar_aging: {
         Row: {
           amount: number
@@ -788,6 +862,38 @@ export type Database = {
             columns: ["value_id"]
             isOneToOne: false
             referencedRelation: "core_values"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vector_docs: {
+        Row: {
+          chunk: string
+          created_at: string
+          doc_id: string | null
+          embedding: string | null
+          id: string
+        }
+        Insert: {
+          chunk: string
+          created_at?: string
+          doc_id?: string | null
+          embedding?: string | null
+          id?: string
+        }
+        Update: {
+          chunk?: string
+          created_at?: string
+          doc_id?: string | null
+          embedding?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vector_docs_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "docs"
             referencedColumns: ["id"]
           },
         ]

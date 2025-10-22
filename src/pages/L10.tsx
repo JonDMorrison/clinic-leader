@@ -11,6 +11,7 @@ import { HeadlinesCapture } from "@/components/l10/HeadlinesCapture";
 import { TodoReview } from "@/components/l10/TodoReview";
 import { IDSSection } from "@/components/l10/IDSSection";
 import { exportMeetingMinutes } from "@/utils/exportMinutes";
+import { AgendaSuggestions } from "@/components/l10/AgendaSuggestions";
 
 const L10 = () => {
   const [headlines, setHeadlines] = useState<string[]>([]);
@@ -231,6 +232,8 @@ const L10 = () => {
           </Button>
         </div>
       </div>
+
+      <AgendaSuggestions teamId={currentTeam?.team_id || null} />
 
       <div className="space-y-4">
         <AgendaTimer sectionName="Segue (Good News)" defaultMinutes={5} />

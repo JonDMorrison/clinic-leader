@@ -1,1 +1,19 @@
 project_id = "uyfsfmxwrbukfhkskizu"
+
+[functions.ai-generate-insights]
+verify_jwt = false
+
+[functions.ai-generate-agenda]
+verify_jwt = false
+
+[functions.ai-create-issues]
+verify_jwt = false
+
+[functions.ai-query-data]
+verify_jwt = false
+
+[functions.etl-nightly-upsert]
+verify_jwt = false
+
+[functions.rules-weekly]
+verify_jwt = false
