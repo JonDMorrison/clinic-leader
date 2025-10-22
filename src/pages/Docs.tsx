@@ -1,89 +1,241 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { FileText, CheckCircle } from "lucide-react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, FileText } from "lucide-react";
+import { DocList } from "@/components/docs/DocList";
+import { DocEditor } from "@/components/docs/DocEditor";
+import { AckPanel } from "@/components/docs/AckPanel";
+import { ManagerDashboard } from "@/components/docs/ManagerDashboard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Card, CardContent } from "@/components/ui/Card";
 
 const Docs = () => {
-  const { data: docs, isLoading } = useQuery({
-    queryKey: ["docs"],
+  const [selectedDoc, setSelectedDoc] = useState<any>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [kindFilter, setKindFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState("all");
+
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user"],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
       const { data, error } = await supabase
-        .from("docs")
-        .select("*, users(full_name), acknowledgements(id)")
-        .order("updated_at", { ascending: false });
-      
+        .from("users")
+        .select("*")
+        .eq("email", user.email)
+        .maybeSingle();
+
       if (error) throw error;
       return data;
     },
   });
 
-  const getStatusBadge = (status: string) => {
-    if (status === "approved") return { variant: "success", label: "Approved" };
-    if (status === "draft") return { variant: "muted", label: "Draft" };
-    return { variant: "warning", label: "Archived" };
+  const { data: docs, refetch: refetchDocs } = useQuery({
+    queryKey: ["docs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("docs")
+        .select("*, users(full_name), acknowledgements(user_id, quiz_score)")
+        .order("updated_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: users } = useQuery({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, full_name, team_id")
+        .order("full_name");
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: teams } = useQuery({
+    queryKey: ["teams"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("teams")
+        .select("id, name")
+        .order("name");
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const filteredDocs = useMemo(() => {
+    if (!docs) return [];
+    return docs.filter((doc) => {
+      if (kindFilter !== "all" && doc.kind !== kindFilter) return false;
+      if (ownerFilter !== "all" && doc.owner_id !== ownerFilter) return false;
+      return true;
+    });
+  }, [docs, kindFilter, ownerFilter]);
+
+  const isManager = currentUser?.role === "manager" || currentUser?.role === "director" || currentUser?.role === "owner";
+
+  const handleCreateDoc = () => {
+    setSelectedDoc(null);
+    setIsEditorOpen(true);
+  };
+
+  const handleEditDoc = (doc: any) => {
+    setSelectedDoc(doc);
+    setIsEditorOpen(true);
+  };
+
+  const handleViewDoc = (doc: any) => {
+    setSelectedDoc(doc);
+    setIsViewerOpen(true);
+  };
+
+  const handleCloseEditor = () => {
+    setIsEditorOpen(false);
+    setSelectedDoc(null);
+  };
+
+  const handleCloseViewer = () => {
+    setIsViewerOpen(false);
+    setSelectedDoc(null);
+  };
+
+  const handleSuccess = () => {
+    refetchDocs();
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Documents</h1>
-        <p className="text-muted-foreground">Process documentation and resources</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Documents</h1>
+          <p className="text-muted-foreground">SOPs, policies, and training materials</p>
+        </div>
+        {isManager && (
+          <Button onClick={handleCreateDoc}>
+            <Plus className="w-4 h-4 mr-2" />
+            New Document
+          </Button>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Documents</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading documents...</p>
+      <Tabs defaultValue="docs" className="w-full">
+        <TabsList>
+          <TabsTrigger value="docs">Documents</TabsTrigger>
+          {isManager && <TabsTrigger value="dashboard">Manager Dashboard</TabsTrigger>}
+        </TabsList>
+
+        <TabsContent value="docs" className="space-y-4 mt-6">
+          {filteredDocs.length === 0 ? (
+            <EmptyState
+              icon={<FileText className="w-12 h-12" />}
+              title="No documents found"
+              description="No documents match the selected filters."
+              action={
+                isManager ? (
+                  <Button onClick={handleCreateDoc}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create First Document
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
-            <div className="space-y-4">
-              {docs?.map((doc) => {
-                const statusBadge = getStatusBadge(doc.status);
-                return (
-                  <div
-                    key={doc.id}
-                    className="flex items-start gap-4 p-4 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer border border-border"
-                  >
-                    <FileText className="w-5 h-5 text-brand mt-1 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-foreground">{doc.title}</h4>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {doc.kind} • Version {doc.version} • Owner: {doc.users?.full_name || "Unassigned"}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Updated {new Date(doc.updated_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <Badge variant={statusBadge.variant as "success" | "warning" | "muted"}>
-                            {statusBadge.label}
-                          </Badge>
-                          {doc.requires_ack && (
-                            <Badge variant="brand" className="flex items-center gap-1">
-                              <CheckCircle className="w-3 h-3" />
-                              Requires Ack
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      {doc.acknowledgements && doc.acknowledgements.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {doc.acknowledgements.length} acknowledgement(s)
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <DocList
+              docs={filteredDocs}
+              currentUserId={currentUser?.id || null}
+              kindFilter={kindFilter}
+              ownerFilter={ownerFilter}
+              onKindFilterChange={setKindFilter}
+              onOwnerFilterChange={setOwnerFilter}
+              onSelectDoc={handleViewDoc}
+              users={users || []}
+            />
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        {isManager && (
+          <TabsContent value="dashboard" className="mt-6">
+            <ManagerDashboard
+              docs={docs || []}
+              teams={teams || []}
+              users={users || []}
+            />
+          </TabsContent>
+        )}
+      </Tabs>
+
+      {isManager && (
+        <DocEditor
+          open={isEditorOpen}
+          onClose={handleCloseEditor}
+          doc={selectedDoc}
+          users={users || []}
+          onSuccess={handleSuccess}
+        />
+      )}
+
+      <Dialog open={isViewerOpen} onOpenChange={handleCloseViewer}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedDoc?.title}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <div className="flex gap-2 text-sm text-muted-foreground">
+              <span className="capitalize">{selectedDoc?.kind}</span>
+              <span>•</span>
+              <span>v{selectedDoc?.version}</span>
+              <span>•</span>
+              <span>
+                Updated {selectedDoc?.updated_at && new Date(selectedDoc.updated_at).toLocaleDateString()}
+              </span>
+            </div>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="prose prose-sm max-w-none whitespace-pre-wrap">
+                  {selectedDoc?.body}
+                </div>
+              </CardContent>
+            </Card>
+
+            {selectedDoc?.requires_ack && (
+              <AckPanel
+                docId={selectedDoc.id}
+                docTitle={selectedDoc.title}
+                isAcknowledged={selectedDoc.acknowledgements?.some(
+                  (ack: any) => ack.user_id === currentUser?.id
+                )}
+                withQuiz={true}
+                onAcknowledged={handleSuccess}
+              />
+            )}
+
+            {isManager && (
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => {
+                  handleCloseViewer();
+                  handleEditDoc(selectedDoc);
+                }}>
+                  Edit Document
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
