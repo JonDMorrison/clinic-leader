@@ -18,6 +18,8 @@ import Imports from "./pages/Imports";
 import Copilot from "./pages/Copilot";
 import AILog from "./pages/AILog";
 import AISettings from "./pages/AISettings";
+import Reports from "./pages/Reports";
+import ReportView from "./pages/ReportView";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +48,8 @@ const App = () => (
           <Route path="/docs" element={<AppLayout><Docs /></AppLayout>} />
           <Route path="/people" element={<AppLayout><People /></AppLayout>} />
           <Route path="/imports" element={<AppLayout><Imports /></AppLayout>} />
+          <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
+          <Route path="/reports/:id" element={<AppLayout><ReportView /></AppLayout>} />
           <Route path="/copilot" element={<AppLayout><Copilot /></AppLayout>} />
           <Route path="/ai-log" element={<AppLayout><AILog /></AppLayout>} />
           <Route path="/ai-settings" element={<AppLayout><AISettings /></AppLayout>} />

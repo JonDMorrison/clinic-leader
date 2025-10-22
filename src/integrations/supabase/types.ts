@@ -593,6 +593,50 @@ export type Database = {
           },
         ]
       }
+      reports: {
+        Row: {
+          created_at: string
+          file_url: string | null
+          id: string
+          period: string
+          sent_at: string | null
+          summary: Json
+          team_id: string | null
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          period: string
+          sent_at?: string | null
+          summary: Json
+          team_id?: string | null
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          period?: string
+          sent_at?: string | null
+          summary?: Json
+          team_id?: string | null
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rocks: {
         Row: {
           confidence: number | null
