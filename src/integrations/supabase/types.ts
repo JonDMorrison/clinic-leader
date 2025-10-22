@@ -696,7 +696,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_user_id: { Args: never; Returns: string }
+      current_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      current_user_team: { Args: never; Returns: string }
+      is_admin: { Args: never; Returns: boolean }
+      is_billing: { Args: never; Returns: boolean }
+      is_manager: { Args: never; Returns: boolean }
+      is_same_team: { Args: { check_team_id: string }; Returns: boolean }
     }
     Enums: {
       ar_bucket: "30-60" | "60-90" | "90-120" | "120+"
