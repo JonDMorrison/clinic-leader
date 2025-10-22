@@ -1,101 +1,93 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
-import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { IDSBoard } from "@/components/issues/IDSBoard";
+import { NewIssueModal } from "@/components/issues/NewIssueModal";
 
 const Issues = () => {
-  const { data: issues, isLoading } = useQuery({
+  const [newIssueModalOpen, setNewIssueModalOpen] = useState(false);
+
+  const { data: issues, isLoading, refetch } = useQuery({
     queryKey: ["issues"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("issues")
-        .select("*, users(full_name), todos(id)")
-        .order("priority");
+        .select("*, users(full_name), todos(id, title, done_at)")
+        .order("priority")
+        .order("created_at", { ascending: false });
       
       if (error) throw error;
       return data;
     },
   });
 
-  const getPriorityBadge = (priority: number) => {
-    if (priority === 1) return { variant: "danger", label: "High" };
-    if (priority === 2) return { variant: "warning", label: "Medium" };
-    return { variant: "muted", label: "Low" };
-  };
+  const { data: teams } = useQuery({
+    queryKey: ["teams"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("teams")
+        .select("id, name")
+        .order("name");
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  const getStatusLabel = (status: string) => {
-    return status.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase());
-  };
+  const { data: users } = useQuery({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, full_name")
+        .order("full_name");
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Issues</h1>
-        <p className="text-muted-foreground">Track and resolve operational challenges</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Issues</h1>
+          <p className="text-muted-foreground">
+            Identify, discuss, and solve operational challenges
+          </p>
+        </div>
+        <Button onClick={() => setNewIssueModalOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          New Issue
+        </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Issues</CardTitle>
+          <CardTitle>IDS Board</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Drag issues to reorder by priority. Higher priority issues appear first.
+          </p>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <p className="text-muted-foreground">Loading issues...</p>
-          ) : issues && issues.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Issue</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Todos</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {issues.map((issue) => {
-                  const priorityBadge = getPriorityBadge(issue.priority);
-                  return (
-                    <TableRow key={issue.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{issue.title}</p>
-                          {issue.context && (
-                            <p className="text-xs text-muted-foreground mt-1">{issue.context}</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={priorityBadge.variant as "danger" | "warning" | "muted"}>
-                          {priorityBadge.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">{issue.users?.full_name || "Unassigned"}</TableCell>
-                      <TableCell>
-                        <Badge variant={issue.status === "solved" ? "success" : "muted"}>
-                          {getStatusLabel(issue.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {issue.todos?.length || 0} todos
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
           ) : (
-            <EmptyState
-              icon={<AlertCircle className="w-12 h-12" />}
-              title="No issues"
-              description="Great job! There are no issues at the moment."
-            />
+            <IDSBoard issues={issues || []} onUpdate={refetch} />
           )}
         </CardContent>
       </Card>
+
+      <NewIssueModal
+        open={newIssueModalOpen}
+        onClose={() => setNewIssueModalOpen(false)}
+        teams={teams || []}
+        users={users || []}
+        onSuccess={refetch}
+      />
     </div>
   );
 };
