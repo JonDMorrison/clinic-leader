@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Settings, Upload, Sparkles, Activity } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Settings, Upload, Sparkles, Activity, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
   { title: "Imports", path: "/imports", icon: Upload },
   { title: "Copilot", path: "/copilot", icon: Sparkles },
   { title: "AI Log", path: "/ai-log", icon: Activity },
+  { title: "AI Settings", path: "/ai-settings", icon: Gauge },
   { title: "Settings", path: "/settings", icon: Settings },
 ];
 

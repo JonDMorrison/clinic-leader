@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import Imports from "./pages/Imports";
 import Copilot from "./pages/Copilot";
 import AILog from "./pages/AILog";
+import AISettings from "./pages/AISettings";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/imports" element={<AppLayout><Imports /></AppLayout>} />
           <Route path="/copilot" element={<AppLayout><Copilot /></AppLayout>} />
           <Route path="/ai-log" element={<AppLayout><AILog /></AppLayout>} />
+          <Route path="/ai-settings" element={<AppLayout><AISettings /></AppLayout>} />
           <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>

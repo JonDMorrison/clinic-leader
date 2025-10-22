@@ -101,6 +101,20 @@ Provide a JSON response:
         const aiData = await aiResponse.json();
         const analysis = JSON.parse(aiData.choices[0].message.content);
 
+        // Track usage
+        const tokensUsed = aiData.usage?.total_tokens || 0;
+        const costEstimate = (tokensUsed / 1000000) * 0.15;
+
+        await supabase.from("ai_usage").upsert({
+          date: new Date().toISOString().split("T")[0],
+          tokens_used: tokensUsed,
+          api_calls: 1,
+          cost_estimate: costEstimate,
+        }, {
+          onConflict: "date",
+          ignoreDuplicates: false,
+        });
+
         // Create issue
         const { data: newIssue, error: issueError } = await supabase
           .from("issues")

@@ -109,21 +109,51 @@ export type Database = {
       ai_logs: {
         Row: {
           created_at: string
+          feedback: Json | null
           id: string
           payload: Json
           type: string
         }
         Insert: {
           created_at?: string
+          feedback?: Json | null
           id?: string
           payload: Json
           type: string
         }
         Update: {
           created_at?: string
+          feedback?: Json | null
           id?: string
           payload?: Json
           type?: string
+        }
+        Relationships: []
+      }
+      ai_usage: {
+        Row: {
+          api_calls: number
+          cost_estimate: number
+          created_at: string
+          date: string
+          id: string
+          tokens_used: number
+        }
+        Insert: {
+          api_calls?: number
+          cost_estimate?: number
+          created_at?: string
+          date: string
+          id?: string
+          tokens_used?: number
+        }
+        Update: {
+          api_calls?: number
+          cost_estimate?: number
+          created_at?: string
+          date?: string
+          id?: string
+          tokens_used?: number
         }
         Relationships: []
       }

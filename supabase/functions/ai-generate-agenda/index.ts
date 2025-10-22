@@ -20,6 +20,28 @@ serve(async (req) => {
 
     const { team_id } = await req.json();
 
+    // Get current week start
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const weekStart = new Date(now.setDate(diff)).toISOString().split("T")[0];
+
+    // Check if agenda already exists for this week/team (caching)
+    const { data: existingAgenda, error: checkError } = await supabase
+      .from("ai_agendas")
+      .select("id")
+      .eq("team_id", team_id)
+      .eq("week_start", weekStart)
+      .single();
+
+    if (existingAgenda) {
+      console.log("Using cached agenda for week:", weekStart);
+      return new Response(
+        JSON.stringify({ success: true, cached: true, agenda: existingAgenda }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get off-track KPIs
     const { data: kpis, error: kpisError } = await supabase
       .from("kpis")
@@ -109,11 +131,19 @@ Create 3-5 topics prioritizing the most critical issues and KPI misses. Keep des
     const aiData = await aiResponse.json();
     const agenda = JSON.parse(aiData.choices[0].message.content);
 
-    // Get current week start
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    const weekStart = new Date(now.setDate(diff)).toISOString().split("T")[0];
+    // Track usage
+    const tokensUsed = aiData.usage?.total_tokens || 0;
+    const costEstimate = (tokensUsed / 1000000) * 0.15;
+
+    await supabase.from("ai_usage").upsert({
+      date: new Date().toISOString().split("T")[0],
+      tokens_used: tokensUsed,
+      api_calls: 1,
+      cost_estimate: costEstimate,
+    }, {
+      onConflict: "date",
+      ignoreDuplicates: false,
+    });
 
     // Save agenda
     const { data: savedAgenda, error: insertError } = await supabase

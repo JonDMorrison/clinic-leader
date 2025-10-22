@@ -18,6 +18,27 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Get current week start (Monday)
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const weekStart = new Date(now.setDate(diff)).toISOString().split("T")[0];
+
+    // Check if insights already exist for this week (caching)
+    const { data: existingInsight, error: checkError } = await supabase
+      .from("ai_insights")
+      .select("id")
+      .eq("week_start", weekStart)
+      .single();
+
+    if (existingInsight) {
+      console.log("Using cached insights for week:", weekStart);
+      return new Response(
+        JSON.stringify({ success: true, cached: true, insight: existingInsight }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get last 2 weeks of KPI readings
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
@@ -91,11 +112,19 @@ Keep each item concise (under 100 characters). Focus on numeric insights and act
     const aiData = await aiResponse.json();
     const summary = JSON.parse(aiData.choices[0].message.content);
 
-    // Get current week start (Monday)
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    const weekStart = new Date(now.setDate(diff)).toISOString().split("T")[0];
+    // Track usage
+    const tokensUsed = aiData.usage?.total_tokens || 0;
+    const costEstimate = (tokensUsed / 1000000) * 0.15; // Approximate cost for gemini-2.5-flash
+
+    await supabase.from("ai_usage").upsert({
+      date: new Date().toISOString().split("T")[0],
+      tokens_used: tokensUsed,
+      api_calls: 1,
+      cost_estimate: costEstimate,
+    }, {
+      onConflict: "date",
+      ignoreDuplicates: false,
+    });
 
     // Save insight
     const { data: insight, error: insertError } = await supabase

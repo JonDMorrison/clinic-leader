@@ -100,6 +100,20 @@ Provide a clear, concise answer based only on the data provided. If you don't ha
     const aiData = await aiResponse.json();
     const answer = aiData.choices[0].message.content;
 
+    // Track usage
+    const tokensUsed = aiData.usage?.total_tokens || 0;
+    const costEstimate = (tokensUsed / 1000000) * 0.15;
+
+    await supabase.from("ai_usage").upsert({
+      date: new Date().toISOString().split("T")[0],
+      tokens_used: tokensUsed,
+      api_calls: 1,
+      cost_estimate: costEstimate,
+    }, {
+      onConflict: "date",
+      ignoreDuplicates: false,
+    });
+
     // Log activity
     await supabase.from("ai_logs").insert({
       type: "chat",
