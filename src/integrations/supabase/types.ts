@@ -230,6 +230,59 @@ export type Database = {
           },
         ]
       }
+      branding: {
+        Row: {
+          accent_color: string | null
+          created_at: string
+          custom_domain: string | null
+          favicon_url: string | null
+          font_family: string | null
+          id: string
+          logo_url: string | null
+          organization_id: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          subdomain: string | null
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string | null
+          created_at?: string
+          custom_domain?: string | null
+          favicon_url?: string | null
+          font_family?: string | null
+          id?: string
+          logo_url?: string | null
+          organization_id?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          subdomain?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string | null
+          created_at?: string
+          custom_domain?: string | null
+          favicon_url?: string | null
+          font_family?: string | null
+          id?: string
+          logo_url?: string | null
+          organization_id?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          subdomain?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branding_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       core_values: {
         Row: {
           created_at: string
@@ -460,6 +513,50 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      licenses: {
+        Row: {
+          active: boolean
+          ai_calls_limit: number | null
+          created_at: string
+          id: string
+          organization_id: string | null
+          plan: string
+          renewal_date: string | null
+          updated_at: string
+          users_limit: number | null
+        }
+        Insert: {
+          active?: boolean
+          ai_calls_limit?: number | null
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          plan?: string
+          renewal_date?: string | null
+          updated_at?: string
+          users_limit?: number | null
+        }
+        Update: {
+          active?: boolean
+          ai_calls_limit?: number | null
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          plan?: string
+          renewal_date?: string | null
+          updated_at?: string
+          users_limit?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "licenses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]

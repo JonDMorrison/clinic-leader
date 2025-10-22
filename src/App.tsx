@@ -20,6 +20,8 @@ import AILog from "./pages/AILog";
 import AISettings from "./pages/AISettings";
 import Reports from "./pages/Reports";
 import ReportView from "./pages/ReportView";
+import Branding from "./pages/Branding";
+import Licensing from "./pages/Licensing";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +56,8 @@ const App = () => (
           <Route path="/ai-log" element={<AppLayout><AILog /></AppLayout>} />
           <Route path="/ai-settings" element={<AppLayout><AISettings /></AppLayout>} />
           <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
+          <Route path="/branding" element={<AppLayout><Branding /></AppLayout>} />
+          <Route path="/licensing" element={<AppLayout><Licensing /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
