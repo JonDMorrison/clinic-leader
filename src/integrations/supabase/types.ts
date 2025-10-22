@@ -126,6 +126,27 @@ export type Database = {
           },
         ]
       }
+      core_values: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       docs: {
         Row: {
           body: string | null
@@ -515,6 +536,41 @@ export type Database = {
           },
         ]
       }
+      seats: {
+        Row: {
+          created_at: string
+          id: string
+          responsibilities: string[] | null
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          responsibilities?: string[] | null
+          title: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          responsibilities?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seats_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staging_appointments: {
         Row: {
           id: string
@@ -691,6 +747,51 @@ export type Database = {
           },
         ]
       }
+      value_ratings: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          rating: Database["public"]["Enums"]["value_rating"]
+          updated_at: string
+          user_id: string
+          value_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          rating: Database["public"]["Enums"]["value_rating"]
+          updated_at?: string
+          user_id: string
+          value_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          rating?: Database["public"]["Enums"]["value_rating"]
+          updated_at?: string
+          user_id?: string
+          value_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "value_ratings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "value_ratings_value_id_fkey"
+            columns: ["value_id"]
+            isOneToOne: false
+            referencedRelation: "core_values"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -725,6 +826,7 @@ export type Database = {
         | "provider"
         | "staff"
         | "billing"
+      value_rating: "+" | "±" | "-"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -870,6 +972,7 @@ export const Constants = {
         "staff",
         "billing",
       ],
+      value_rating: ["+", "±", "-"],
     },
   },
 } as const

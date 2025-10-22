@@ -1,66 +1,134 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { Users } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Users as UsersIcon } from "lucide-react";
+import { SeatTile } from "@/components/people/SeatTile";
+import { ValuesList } from "@/components/people/ValuesList";
+import { PeopleAnalyzer } from "@/components/people/PeopleAnalyzer";
 
 const People = () => {
-  const team = [
-    {
-      name: "Dr. Sarah Johnson",
-      role: "Visionary",
-      department: "Leadership",
-      status: "active",
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", user.email)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
     },
-    {
-      name: "Mike Davis",
-      role: "Integrator",
-      department: "Operations",
-      status: "active",
+  });
+
+  const { data: seats, refetch: refetchSeats } = useQuery({
+    queryKey: ["seats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("seats")
+        .select("*, users(full_name)")
+        .order("title");
+
+      if (error) throw error;
+      return data;
     },
-    {
-      name: "Emily Chen",
-      role: "Office Manager",
-      department: "Administration",
-      status: "active",
+  });
+
+  const { data: users } = useQuery({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, full_name")
+        .order("full_name");
+
+      if (error) throw error;
+      return data || [];
     },
-    {
-      name: "John Smith",
-      role: "Clinical Lead",
-      department: "Clinical",
-      status: "active",
+  });
+
+  const { data: coreValues } = useQuery({
+    queryKey: ["core-values"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("core_values")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      return data || [];
     },
-  ];
+  });
+
+  const { data: valueRatings, refetch: refetchRatings } = useQuery({
+    queryKey: ["value-ratings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("value_ratings")
+        .select("*");
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const isManager =
+    currentUser?.role === "manager" ||
+    currentUser?.role === "director" ||
+    currentUser?.role === "owner";
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2">People</h1>
-        <p className="text-muted-foreground">Team directory and organizational structure</p>
+        <p className="text-muted-foreground">Accountability and core values</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {team.map((member) => (
-          <Card key={member.name}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center">
-                    <Users className="w-5 h-5 text-brand" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">{member.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">{member.role}</p>
-                  </div>
-                </div>
-                <Badge variant="success">{member.status}</Badge>
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground mb-4">Seats</h2>
+            {seats && seats.length > 0 ? (
+              <div className="grid md:grid-cols-2 gap-4">
+                {seats.map((seat) => (
+                  <SeatTile
+                    key={seat.id}
+                    seat={seat}
+                    users={users || []}
+                    onUpdate={refetchSeats}
+                    isManager={isManager}
+                  />
+                ))}
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Department: {member.department}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+            ) : (
+              <EmptyState
+                icon={<UsersIcon className="w-12 h-12" />}
+                title="No seats defined"
+                description="Contact your administrator to set up organizational seats."
+              />
+            )}
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              People Analyzer
+            </h2>
+            <PeopleAnalyzer
+              users={users || []}
+              values={coreValues || []}
+              ratings={valueRatings || []}
+              onUpdate={refetchRatings}
+              isManager={isManager}
+            />
+          </div>
+        </div>
+
+        <div className="lg:col-span-1">
+          <ValuesList values={coreValues || []} />
+        </div>
       </div>
     </div>
   );
