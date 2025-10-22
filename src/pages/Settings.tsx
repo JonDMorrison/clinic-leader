@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { RulesEnginePanel } from "@/components/settings/RulesEnginePanel";
 
 const Settings = () => {
   return (
@@ -9,6 +10,8 @@ const Settings = () => {
       </div>
 
       <div className="grid gap-6">
+        <RulesEnginePanel />
+
         <Card>
           <CardHeader>
             <CardTitle>Profile</CardTitle>
