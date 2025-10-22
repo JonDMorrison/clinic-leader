@@ -2,8 +2,62 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Stat } from "@/components/ui/Stat";
 import { KpiSparkline } from "@/components/ui/KpiSparkline";
 import { TrendingUp, Users, Target, AlertCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Home = () => {
+  const { data: kpis } = useQuery({
+    queryKey: ["kpis-summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("kpis")
+        .select("*, kpi_readings(value, week_start)")
+        .eq("active", true)
+        .order("week_start", { foreignTable: "kpi_readings", ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: rocks } = useQuery({
+    queryKey: ["rocks-count"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("rocks")
+        .select("status");
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: issues } = useQuery({
+    queryKey: ["issues-count"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("issues")
+        .select("status");
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const completedRocks = rocks?.filter(r => r.status === "done").length || 0;
+  const totalRocks = rocks?.length || 0;
+  const openIssues = issues?.filter(i => i.status === "open").length || 0;
+
+  // Get New Patients KPI latest value
+  const newPatientsKpi = kpis?.find(k => k.name === "New Patients");
+  const newPatientsValue = newPatientsKpi?.kpi_readings?.[0]?.value || 0;
+
+  // Calculate average scorecard score from last 7 weeks
+  const scorecardData = kpis?.map(kpi => {
+    const readings = kpi.kpi_readings?.slice(0, 7).reverse() || [];
+    return readings.map(r => parseFloat(String(r.value)));
+  }).flat() || [];
+
   return (
     <div className="space-y-6">
       <div>
@@ -14,8 +68,8 @@ const Home = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <Stat
-            label="Active Patients"
-            value="1,234"
+            label="New Patients (This Week)"
+            value={newPatientsValue}
             icon={<Users className="w-5 h-5" />}
             trend={{ value: 12, isPositive: true }}
           />
@@ -23,24 +77,22 @@ const Home = () => {
         <Card>
           <Stat
             label="Completed Rocks"
-            value="8/12"
+            value={`${completedRocks}/${totalRocks}`}
             icon={<Target className="w-5 h-5" />}
           />
         </Card>
         <Card>
           <Stat
             label="Open Issues"
-            value="5"
+            value={openIssues}
             icon={<AlertCircle className="w-5 h-5" />}
-            trend={{ value: -20, isPositive: true }}
           />
         </Card>
         <Card>
           <Stat
-            label="Team Score"
-            value="87%"
+            label="Active KPIs"
+            value={kpis?.length || 0}
             icon={<TrendingUp className="w-5 h-5" />}
-            trend={{ value: 5, isPositive: true }}
           />
         </Card>
       </div>
@@ -51,7 +103,7 @@ const Home = () => {
             <CardTitle>Scorecard Trend</CardTitle>
           </CardHeader>
           <CardContent>
-            <KpiSparkline data={[65, 72, 68, 75, 80, 85, 87]} />
+            <KpiSparkline data={scorecardData.length > 0 ? scorecardData.slice(0, 7) : [20, 30, 25, 40, 35, 50, 45]} />
           </CardContent>
         </Card>
 
@@ -64,22 +116,24 @@ const Home = () => {
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full bg-success mt-2" />
                 <div>
-                  <p className="text-sm font-medium">Rock completed</p>
-                  <p className="text-xs text-muted-foreground">Improve patient satisfaction by 15%</p>
+                  <p className="text-sm font-medium">System active</p>
+                  <p className="text-xs text-muted-foreground">Tracking {kpis?.length || 0} KPIs across the team</p>
                 </div>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 rounded-full bg-warning mt-2" />
-                <div>
-                  <p className="text-sm font-medium">Issue added</p>
-                  <p className="text-xs text-muted-foreground">Front desk scheduling conflicts</p>
+              {openIssues > 0 && (
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 rounded-full bg-warning mt-2" />
+                  <div>
+                    <p className="text-sm font-medium">{openIssues} open issues</p>
+                    <p className="text-xs text-muted-foreground">Requires team attention</p>
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full bg-brand mt-2" />
                 <div>
-                  <p className="text-sm font-medium">L10 meeting scheduled</p>
-                  <p className="text-xs text-muted-foreground">Tomorrow at 10:00 AM</p>
+                  <p className="text-sm font-medium">Rocks in progress</p>
+                  <p className="text-xs text-muted-foreground">{totalRocks - completedRocks} rocks on track for this quarter</p>
                 </div>
               </div>
             </div>
