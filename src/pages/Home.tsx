@@ -60,40 +60,44 @@ const Home = () => {
   }).flat() || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back! Here's your clinic overview.</p>
+        <h1 className="text-4xl font-bold text-foreground mb-2 tracking-tight">
+          Dashboard
+        </h1>
+        <p className="text-muted-foreground text-lg">
+          Welcome back! Here's your clinic overview.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+        <Card className="hover:scale-105 transition-transform duration-300">
           <Stat
             label="New Patients (This Week)"
             value={newPatientsValue}
-            icon={<Users className="w-5 h-5" />}
+            icon={<Users className="w-5 h-5 text-brand" />}
             trend={{ value: 12, isPositive: true }}
           />
         </Card>
-        <Card>
+        <Card className="hover:scale-105 transition-transform duration-300">
           <Stat
             label="Completed Rocks"
             value={`${completedRocks}/${totalRocks}`}
-            icon={<Target className="w-5 h-5" />}
+            icon={<Target className="w-5 h-5 text-success" />}
           />
         </Card>
-        <Card>
+        <Card className="hover:scale-105 transition-transform duration-300">
           <Stat
             label="Open Issues"
             value={openIssues}
-            icon={<AlertCircle className="w-5 h-5" />}
+            icon={<AlertCircle className="w-5 h-5 text-warning" />}
           />
         </Card>
-        <Card>
+        <Card className="hover:scale-105 transition-transform duration-300">
           <Stat
             label="Active KPIs"
             value={kpis?.length || 0}
-            icon={<TrendingUp className="w-5 h-5" />}
+            icon={<TrendingUp className="w-5 h-5 text-accent" />}
           />
         </Card>
       </div>

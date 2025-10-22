@@ -10,7 +10,7 @@ export const Card = ({ children, className }: CardProps) => {
   return (
     <div
       className={cn(
-        "bg-card rounded-2xl shadow-sm border border-border p-6",
+        "glass rounded-3xl shadow-[0_8px_32px_rgba(31,38,135,0.15)] p-6 transition-all duration-300 hover:shadow-[0_12px_40px_rgba(31,38,135,0.2)] animate-fade-in-up border border-white/20",
         className
       )}
     >
@@ -39,7 +39,7 @@ interface CardTitleProps {
 
 export const CardTitle = ({ children, className }: CardTitleProps) => {
   return (
-    <h3 className={cn("text-lg font-semibold text-foreground", className)}>
+    <h3 className={cn("text-lg font-semibold text-foreground tracking-tight", className)}>
       {children}
     </h3>
   );

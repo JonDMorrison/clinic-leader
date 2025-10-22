@@ -54,11 +54,11 @@ export const InsightCard = ({ type, content, metadata, logId, className }: Insig
   const getBackgroundClass = () => {
     switch (type) {
       case "win":
-        return "bg-gradient-to-br from-success/5 to-transparent";
+        return "glass bg-gradient-to-br from-success/10 to-success/5 border-success/30";
       case "warning":
-        return "bg-gradient-to-br from-warning/5 to-transparent";
+        return "glass bg-gradient-to-br from-warning/10 to-warning/5 border-warning/30";
       case "opportunity":
-        return "bg-gradient-to-br from-brand/5 to-transparent";
+        return "glass bg-gradient-to-br from-brand/10 to-accent/5 border-brand/30";
     }
   };
 
@@ -68,7 +68,7 @@ export const InsightCard = ({ type, content, metadata, logId, className }: Insig
 
   return (
     <Card className={cn(
-      "transition-all duration-200 border-2",
+      "transition-all duration-300 border-2 hover:shadow-lg animate-fade-in-up backdrop-blur-md",
       getBorderClass(),
       getBackgroundClass(),
       className
@@ -85,11 +85,11 @@ export const InsightCard = ({ type, content, metadata, logId, className }: Insig
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button className="text-muted-foreground hover:text-foreground transition-colors">
+                    <button className="text-muted-foreground hover:text-brand transition-colors">
                       <Info className="w-4 h-4" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
+                  <TooltipContent className="max-w-xs glass">
                     <p className="text-xs">{explainText}</p>
                   </TooltipContent>
                 </Tooltip>

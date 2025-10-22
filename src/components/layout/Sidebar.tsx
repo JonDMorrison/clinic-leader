@@ -20,29 +20,45 @@ const navItems = [
 
 export const Sidebar = () => {
   return (
-    <aside className="w-64 bg-card border-r border-border h-screen sticky top-0 flex flex-col">
-      <div className="p-6 border-b border-border">
-        <h1 className="text-xl font-semibold text-brand">EOS Clinic</h1>
+    <aside className="w-64 h-screen sticky top-0 flex flex-col glass border-r border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)] animate-fade-in">
+      <div className="p-6 border-b border-white/10">
+        <h1 className="text-xl font-bold bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent">
+          EOS Clinic
+        </h1>
       </div>
       
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 p-4 overflow-y-auto">
         <ul className="space-y-1">
-          {navItems.map((item) => (
-            <li key={item.path}>
+          {navItems.map((item, index) => (
+            <li 
+              key={item.path}
+              className="animate-fade-in"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
               <NavLink
                 to={item.path}
                 end={item.path === "/"}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all",
+                    "flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
                     isActive
-                      ? "bg-brand text-brand-foreground font-medium shadow-sm"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-gradient-to-r from-brand to-accent text-white font-medium shadow-lg shadow-brand/30"
+                      : "text-muted-foreground hover:bg-white/50 hover:text-foreground hover:shadow-md backdrop-blur-sm"
                   )
                 }
               >
-                <item.icon className="w-5 h-5" />
-                <span>{item.title}</span>
+                {({ isActive }) => (
+                  <>
+                    {!isActive && (
+                      <span className="absolute inset-0 bg-gradient-to-r from-brand/10 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    )}
+                    <item.icon className={cn(
+                      "w-5 h-5 transition-transform duration-300 group-hover:scale-110 relative z-10",
+                      isActive && "drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]"
+                    )} />
+                    <span className="relative z-10">{item.title}</span>
+                  </>
+                )}
               </NavLink>
             </li>
           ))}

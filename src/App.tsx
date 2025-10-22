@@ -26,10 +26,13 @@ import Licensing from "./pages/Licensing";
 const queryClient = new QueryClient();
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex w-full min-h-screen">
+  <div className="flex w-full min-h-screen relative">
     <Sidebar />
-    <main className="flex-1 p-8">
-      {children}
+    <main className="flex-1 p-8 relative">
+      <div className="absolute inset-0 bg-gradient-to-br from-brand/5 via-transparent to-accent/5 pointer-events-none" />
+      <div className="relative z-10">
+        {children}
+      </div>
     </main>
   </div>
 );
