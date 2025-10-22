@@ -14,7 +14,683 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      acknowledgements: {
+        Row: {
+          acknowledged_at: string
+          doc_id: string
+          id: string
+          quiz_score: number | null
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string
+          doc_id: string
+          id?: string
+          quiz_score?: number | null
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string
+          doc_id?: string
+          id?: string
+          quiz_score?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acknowledgements_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "docs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acknowledgements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ar_aging: {
+        Row: {
+          amount: number
+          bucket: Database["public"]["Enums"]["ar_bucket"]
+          created_at: string
+          id: string
+          owner_id: string | null
+          week_start: string
+        }
+        Insert: {
+          amount?: number
+          bucket: Database["public"]["Enums"]["ar_bucket"]
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          week_start: string
+        }
+        Update: {
+          amount?: number
+          bucket?: Database["public"]["Enums"]["ar_bucket"]
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ar_aging_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          entity: string
+          entity_id: string | null
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          entity: string
+          entity_id?: string | null
+          id?: string
+          payload?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          entity?: string
+          entity_id?: string | null
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      docs: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["doc_kind"]
+          owner_id: string | null
+          requires_ack: boolean
+          status: Database["public"]["Enums"]["doc_status"]
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["doc_kind"]
+          owner_id?: string | null
+          requires_ack?: boolean
+          status?: Database["public"]["Enums"]["doc_status"]
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["doc_kind"]
+          owner_id?: string | null
+          requires_ack?: boolean
+          status?: Database["public"]["Enums"]["doc_status"]
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "docs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_ingest_log: {
+        Row: {
+          checksum: string
+          created_at: string
+          error: string | null
+          file_name: string
+          id: string
+          rows: number
+          status: Database["public"]["Enums"]["ingest_status"]
+        }
+        Insert: {
+          checksum: string
+          created_at?: string
+          error?: string | null
+          file_name: string
+          id?: string
+          rows?: number
+          status?: Database["public"]["Enums"]["ingest_status"]
+        }
+        Update: {
+          checksum?: string
+          created_at?: string
+          error?: string | null
+          file_name?: string
+          id?: string
+          rows?: number
+          status?: Database["public"]["Enums"]["ingest_status"]
+        }
+        Relationships: []
+      }
+      issues: {
+        Row: {
+          context: string | null
+          created_at: string
+          id: string
+          owner_id: string | null
+          priority: number
+          solved_at: string | null
+          status: Database["public"]["Enums"]["issue_status"]
+          team_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          priority?: number
+          solved_at?: string | null
+          status?: Database["public"]["Enums"]["issue_status"]
+          team_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          context?: string | null
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          priority?: number
+          solved_at?: string | null
+          status?: Database["public"]["Enums"]["issue_status"]
+          team_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issues_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issues_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_readings: {
+        Row: {
+          created_at: string
+          id: string
+          kpi_id: string
+          note: string | null
+          value: number
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kpi_id: string
+          note?: string | null
+          value: number
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kpi_id?: string
+          note?: string | null
+          value?: number
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_readings_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpis: {
+        Row: {
+          active: boolean
+          category: string | null
+          created_at: string
+          direction: Database["public"]["Enums"]["kpi_direction"]
+          id: string
+          name: string
+          owner_id: string | null
+          target: number | null
+          unit: Database["public"]["Enums"]["kpi_unit"]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string | null
+          created_at?: string
+          direction: Database["public"]["Enums"]["kpi_direction"]
+          id?: string
+          name: string
+          owner_id?: string | null
+          target?: number | null
+          unit: Database["public"]["Enums"]["kpi_unit"]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string | null
+          created_at?: string
+          direction?: Database["public"]["Enums"]["kpi_direction"]
+          id?: string
+          name?: string
+          owner_id?: string | null
+          target?: number | null
+          unit?: Database["public"]["Enums"]["kpi_unit"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpis_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_notes: {
+        Row: {
+          created_at: string
+          decisions: string[] | null
+          headlines: string[] | null
+          id: string
+          kpi_snapshot: Json | null
+          meeting_id: string
+          rock_check: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decisions?: string[] | null
+          headlines?: string[] | null
+          id?: string
+          kpi_snapshot?: Json | null
+          meeting_id: string
+          rock_check?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decisions?: string[] | null
+          headlines?: string[] | null
+          id?: string
+          kpi_snapshot?: Json | null
+          meeting_id?: string
+          rock_check?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_notes_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          id: string
+          scheduled_for: string
+          team_id: string | null
+          type: Database["public"]["Enums"]["meeting_type"]
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          scheduled_for: string
+          team_id?: string | null
+          type: Database["public"]["Enums"]["meeting_type"]
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          scheduled_for?: string
+          team_id?: string | null
+          type?: Database["public"]["Enums"]["meeting_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_sources: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      referrals_weekly: {
+        Row: {
+          created_at: string
+          id: string
+          scheduled: number
+          source_id: string
+          total: number
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          scheduled?: number
+          source_id: string
+          total?: number
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          scheduled?: number
+          source_id?: string
+          total?: number
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_weekly_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "referral_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rocks: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          due_date: string | null
+          id: string
+          level: Database["public"]["Enums"]["rock_level"]
+          owner_id: string | null
+          quarter: string
+          status: Database["public"]["Enums"]["rock_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          level: Database["public"]["Enums"]["rock_level"]
+          owner_id?: string | null
+          quarter: string
+          status?: Database["public"]["Enums"]["rock_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          level?: Database["public"]["Enums"]["rock_level"]
+          owner_id?: string | null
+          quarter?: string
+          status?: Database["public"]["Enums"]["rock_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rocks_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staging_appointments: {
+        Row: {
+          id: string
+          ingested_at: string
+          raw: Json
+        }
+        Insert: {
+          id?: string
+          ingested_at?: string
+          raw: Json
+        }
+        Update: {
+          id?: string
+          ingested_at?: string
+          raw?: Json
+        }
+        Relationships: []
+      }
+      staging_ar_lines: {
+        Row: {
+          id: string
+          ingested_at: string
+          raw: Json
+        }
+        Insert: {
+          id?: string
+          ingested_at?: string
+          raw: Json
+        }
+        Update: {
+          id?: string
+          ingested_at?: string
+          raw?: Json
+        }
+        Relationships: []
+      }
+      staging_patients: {
+        Row: {
+          id: string
+          ingested_at: string
+          raw: Json
+        }
+        Insert: {
+          id?: string
+          ingested_at?: string
+          raw: Json
+        }
+        Update: {
+          id?: string
+          ingested_at?: string
+          raw?: Json
+        }
+        Relationships: []
+      }
+      staging_payments: {
+        Row: {
+          id: string
+          ingested_at: string
+          raw: Json
+        }
+        Insert: {
+          id?: string
+          ingested_at?: string
+          raw: Json
+        }
+        Update: {
+          id?: string
+          ingested_at?: string
+          raw?: Json
+        }
+        Relationships: []
+      }
+      teams: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      todos: {
+        Row: {
+          created_at: string
+          done_at: string | null
+          due_date: string | null
+          id: string
+          issue_id: string | null
+          owner_id: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          done_at?: string | null
+          due_date?: string | null
+          id?: string
+          issue_id?: string | null
+          owner_id?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          done_at?: string | null
+          due_date?: string | null
+          id?: string
+          issue_id?: string | null
+          owner_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "todos_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +699,23 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      ar_bucket: "30-60" | "60-90" | "90-120" | "120+"
+      doc_kind: "SOP" | "Policy" | "Handbook"
+      doc_status: "draft" | "approved" | "archived"
+      ingest_status: "pending" | "processing" | "success" | "error"
+      issue_status: "open" | "in_progress" | "solved" | "parked"
+      kpi_direction: ">=" | "<=" | "=="
+      kpi_unit: "count" | "%" | "$" | "days"
+      meeting_type: "L10" | "leadership_sync"
+      rock_level: "company" | "team" | "individual"
+      rock_status: "on_track" | "off_track" | "done"
+      user_role:
+        | "owner"
+        | "director"
+        | "manager"
+        | "provider"
+        | "staff"
+        | "billing"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +842,25 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      ar_bucket: ["30-60", "60-90", "90-120", "120+"],
+      doc_kind: ["SOP", "Policy", "Handbook"],
+      doc_status: ["draft", "approved", "archived"],
+      ingest_status: ["pending", "processing", "success", "error"],
+      issue_status: ["open", "in_progress", "solved", "parked"],
+      kpi_direction: [">=", "<=", "=="],
+      kpi_unit: ["count", "%", "$", "days"],
+      meeting_type: ["L10", "leadership_sync"],
+      rock_level: ["company", "team", "individual"],
+      rock_status: ["on_track", "off_track", "done"],
+      user_role: [
+        "owner",
+        "director",
+        "manager",
+        "provider",
+        "staff",
+        "billing",
+      ],
+    },
   },
 } as const
