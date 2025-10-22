@@ -14,6 +14,7 @@ import People from "./pages/People";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Imports from "./pages/Imports";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/l10" element={<AppLayout><L10 /></AppLayout>} />
           <Route path="/docs" element={<AppLayout><Docs /></AppLayout>} />
           <Route path="/people" element={<AppLayout><People /></AppLayout>} />
+          <Route path="/imports" element={<AppLayout><Imports /></AppLayout>} />
           <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
