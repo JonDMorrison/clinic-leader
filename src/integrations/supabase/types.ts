@@ -1126,7 +1126,7 @@ export type Database = {
       ingest_status: "pending" | "processing" | "success" | "error"
       issue_status: "open" | "in_progress" | "solved" | "parked"
       kpi_direction: ">=" | "<=" | "=="
-      kpi_unit: "count" | "%" | "$" | "days"
+      kpi_unit: "count" | "%" | "$" | "days" | "ratio"
       meeting_type: "L10" | "leadership_sync"
       rock_level: "company" | "team" | "individual"
       rock_status: "on_track" | "off_track" | "done"
@@ -1271,7 +1271,7 @@ export const Constants = {
       ingest_status: ["pending", "processing", "success", "error"],
       issue_status: ["open", "in_progress", "solved", "parked"],
       kpi_direction: [">=", "<=", "=="],
-      kpi_unit: ["count", "%", "$", "days"],
+      kpi_unit: ["count", "%", "$", "days", "ratio"],
       meeting_type: ["L10", "leadership_sync"],
       rock_level: ["company", "team", "individual"],
       rock_status: ["on_track", "off_track", "done"],
