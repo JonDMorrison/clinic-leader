@@ -5,6 +5,7 @@ import { TrendingUp, Users, Target, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { WeeklyHighlights } from "@/components/dashboard/WeeklyHighlights";
+import { QuickActions } from "@/components/layout/QuickActions";
 
 const Home = () => {
   const { data: kpis } = useQuery({
@@ -144,6 +145,8 @@ const Home = () => {
             </div>
           </CardContent>
         </Card>
+
+        <QuickActions />
       </div>
 
       <WeeklyHighlights />

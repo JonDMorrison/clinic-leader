@@ -11,11 +11,13 @@ import { AckPanel } from "@/components/docs/AckPanel";
 import { ManagerDashboard } from "@/components/docs/ManagerDashboard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardContent } from "@/components/ui/Card";
+import { HandbookViewer } from "@/components/docs/HandbookViewer";
 
 const Docs = () => {
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [isHandbookOpen, setIsHandbookOpen] = useState(false);
   const [kindFilter, setKindFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
 
@@ -122,12 +124,18 @@ const Docs = () => {
           <h1 className="text-3xl font-bold text-foreground mb-2">Documents</h1>
           <p className="text-muted-foreground">SOPs, policies, and training materials</p>
         </div>
-        {isManager && (
-          <Button onClick={handleCreateDoc}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Document
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsHandbookOpen(true)}>
+            <BookOpen className="w-4 h-4 mr-2" />
+            Training Handbook
           </Button>
-        )}
+          {isManager && (
+            <Button onClick={handleCreateDoc}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Document
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="docs" className="w-full">
@@ -236,6 +244,11 @@ const Docs = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <HandbookViewer 
+        open={isHandbookOpen} 
+        onClose={() => setIsHandbookOpen(false)} 
+      />
     </div>
   );
 };
