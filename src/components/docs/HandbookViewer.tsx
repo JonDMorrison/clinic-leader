@@ -122,7 +122,7 @@ export const HandbookViewer = ({ open, onClose }: HandbookViewerProps) => {
                         </div>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
-                        <div className="px-4 pb-4 space-y-4 border-t pt-4">
+                        <div className="px-4 pb-4 space-y-4 border-t pt-4 max-h-96 overflow-y-auto">
                           {section.content.map((item, index) => (
                             <div key={index}>
                               <h4 className="font-semibold mb-2">{item.heading}</h4>
