@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserNav } from "@/components/layout/UserNav";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
@@ -108,11 +109,12 @@ const App = () => {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
@@ -148,8 +150,9 @@ const App = () => {
             <OnboardingWizard userId={userId} onComplete={handleWizardComplete} />
           )}
         </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
   );
 };
 
