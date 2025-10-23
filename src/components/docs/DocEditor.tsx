@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
+import { RichTextEditor } from "./RichTextEditor";
 
 const docSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(200, "Title too long"),
@@ -180,14 +180,11 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="body">Content (Markdown) *</Label>
-            <Textarea
-              id="body"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Write your document content in markdown..."
-              rows={12}
-              className="font-mono text-sm"
+            <Label htmlFor="body">Content *</Label>
+            <RichTextEditor
+              content={body}
+              onChange={setBody}
+              placeholder="Write your document content..."
             />
             {errors.body && <p className="text-xs text-danger">{errors.body}</p>}
           </div>
