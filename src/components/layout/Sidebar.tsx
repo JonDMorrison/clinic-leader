@@ -2,7 +2,6 @@ import { NavLink } from "react-router-dom";
 import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HelpMenu } from "@/components/layout/HelpMenu";
-import { SimpleModeToggle } from "@/components/layout/SimpleModeToggle";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,8 +14,8 @@ const navItems = [
   { title: "Docs", path: "/docs", icon: FileText, roles: ["staff", "manager", "director", "owner"] },
   { title: "Recalls", path: "/recalls", icon: Phone, roles: ["staff", "manager", "director", "owner"] },
   { title: "People", path: "/people", icon: Users, roles: ["manager", "director", "owner"] },
-  { title: "Imports", path: "/imports", icon: Upload, roles: ["manager", "director", "owner"], simpleMode: false },
-  { title: "Reports", path: "/reports", icon: FileBarChart, roles: ["manager", "director", "owner"], simpleMode: false },
+  { title: "Imports", path: "/imports", icon: Upload, roles: ["manager", "director", "owner"] },
+  { title: "Reports", path: "/reports", icon: FileBarChart, roles: ["manager", "director", "owner"] },
 ];
 
 export const Sidebar = () => {
@@ -36,31 +35,11 @@ export const Sidebar = () => {
     },
   });
 
-  const { data: preferences } = useQuery({
-    queryKey: ["userPreferences", currentUser?.id],
-    queryFn: async () => {
-      if (!currentUser?.id) return null;
-      
-      const { data } = await supabase
-        .from("user_preferences")
-        .select("*")
-        .eq("user_id", currentUser.id)
-        .maybeSingle();
-      
-      return data;
-    },
-    enabled: !!currentUser?.id,
-  });
-
   const userRole = currentUser?.role || "staff";
-  const isSimpleMode = preferences?.simple_mode ?? false;
 
   const filteredNavItems = navItems.filter((item) => {
     // Filter by role
     if (!item.roles.includes(userRole)) return false;
-    
-    // Filter by simple mode
-    if (isSimpleMode && item.simpleMode === false) return false;
     
     return true;
   });
@@ -73,8 +52,6 @@ export const Sidebar = () => {
         </h1>
         <HelpMenu />
       </div>
-      
-      <SimpleModeToggle />
       
       <nav className="flex-1 p-4 overflow-y-auto">
         <ul className="space-y-1">
