@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Activity } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { KpiRow } from "@/components/scorecard/KpiRow";
 import { IssueModal } from "@/components/scorecard/IssueModal";
 import { AddKpiModal } from "@/components/scorecard/AddKpiModal";
+import { TrackedKpiCard } from "@/components/scorecard/TrackedKpiCard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Scorecard = () => {
   const [issueModalOpen, setIssueModalOpen] = useState(false);
@@ -59,68 +61,137 @@ const Scorecard = () => {
     },
   });
 
+  const { data: trackedKpis, isLoading: trackedLoading } = useQuery({
+    queryKey: ["tracked-kpis", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return [];
+
+      const { data, error } = await supabase
+        .from("tracked_kpis")
+        .select(`
+          *,
+          users(full_name),
+          import_mappings(id, source_system, source_label)
+        `)
+        .eq("organization_id", currentUser.team_id)
+        .eq("is_active", true)
+        .order("category")
+        .order("name");
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentUser?.team_id,
+  });
+
   const handleCreateIssue = (kpiName: string, week: string, value: number, target: number) => {
     setIssuePrefillData({ kpiName, week, value, target });
     setIssueModalOpen(true);
   };
 
+  const groupedTrackedKpis = trackedKpis?.reduce((acc, kpi) => {
+    if (!acc[kpi.category]) {
+      acc[kpi.category] = [];
+    }
+    acc[kpi.category].push(kpi);
+    return acc;
+  }, {} as Record<string, any[]>);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Scorecard</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2 gradient-brand bg-clip-text text-transparent">
+            Scorecard
+          </h1>
           <p className="text-muted-foreground">Track and manage your key performance indicators</p>
         </div>
-        <Button onClick={() => setAddKpiModalOpen(true)}>
+        <Button onClick={() => setAddKpiModalOpen(true)} className="gradient-brand">
           <Plus className="w-4 h-4 mr-2" />
           Add KPI
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Weekly Metrics</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-muted-foreground">Loading metrics...</p>
-          ) : kpis && kpis.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>KPI</TableHead>
-                    <TableHead>Target</TableHead>
-                    <TableHead>Owner</TableHead>
-                    <TableHead>This Week</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Trend (Last 8 Weeks)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {kpis.map((kpi) => (
-                    <KpiRow
-                      key={kpi.id}
-                      kpi={kpi}
-                      users={users || []}
-                      onUpdate={refetch}
-                      onCreateIssue={handleCreateIssue}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
+      <Tabs defaultValue="tracked" className="w-full">
+        <TabsList className="glass mb-6">
+          <TabsTrigger value="tracked" className="gap-2">
+            <Activity className="h-4 w-4" />
+            Tracked KPIs
+          </TabsTrigger>
+          <TabsTrigger value="weekly">Weekly Scorecard</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="tracked" className="space-y-6">
+          {trackedLoading ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Loading tracked KPIs...</p>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground mb-4">No KPIs yet. Add your first KPI to start tracking.</p>
-              <Button onClick={() => setAddKpiModalOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Your First KPI
-              </Button>
-            </div>
+            <>
+              {Object.entries(groupedTrackedKpis || {}).map(([category, categoryKpis]) => (
+                <div key={category}>
+                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <span className="gradient-brand bg-clip-text text-transparent">{category}</span>
+                    <span className="text-sm text-muted-foreground">({categoryKpis.length})</span>
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {categoryKpis.map((kpi) => (
+                      <TrackedKpiCard key={kpi.id} kpi={kpi} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        <TabsContent value="weekly">
+          <Card className="glass">
+            <CardHeader>
+              <CardTitle>Weekly Metrics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <p className="text-muted-foreground">Loading metrics...</p>
+              ) : kpis && kpis.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>KPI</TableHead>
+                        <TableHead>Target</TableHead>
+                        <TableHead>Owner</TableHead>
+                        <TableHead>This Week</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Trend (Last 8 Weeks)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {kpis.map((kpi) => (
+                        <KpiRow
+                          key={kpi.id}
+                          kpi={kpi}
+                          users={users || []}
+                          onUpdate={refetch}
+                          onCreateIssue={handleCreateIssue}
+                        />
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">No KPIs with data yet. Add your first KPI to start tracking.</p>
+                  <Button onClick={() => setAddKpiModalOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Your First KPI
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <IssueModal
         open={issueModalOpen}

@@ -405,6 +405,51 @@ export type Database = {
         }
         Relationships: []
       }
+      import_mappings: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          source_label: string
+          source_system: string
+          tracked_kpi_id: string
+          transform: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          source_label: string
+          source_system: string
+          tracked_kpi_id: string
+          transform?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          source_label?: string
+          source_system?: string
+          tracked_kpi_id?: string
+          transform?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_mappings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_mappings_tracked_kpi_id_fkey"
+            columns: ["tracked_kpi_id"]
+            isOneToOne: false
+            referencedRelation: "tracked_kpis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issues: {
         Row: {
           context: string | null
@@ -971,6 +1016,95 @@ export type Database = {
           },
           {
             foreignKeyName: "todos_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracked_dimensions: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          organization_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracked_dimensions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracked_kpis: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          external_key: string | null
+          formula: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          organization_id: string
+          owner_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description?: string | null
+          external_key?: string | null
+          formula?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          organization_id: string
+          owner_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          external_key?: string | null
+          formula?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          organization_id?: string
+          owner_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracked_kpis_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracked_kpis_owner_id_fkey"
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "users"

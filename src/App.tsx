@@ -26,6 +26,7 @@ import ImportUsers from "./pages/ImportUsers";
 import ImportKpis from "./pages/ImportKpis";
 import ImportSops from "./pages/ImportSops";
 import OrganizationSettings from "./pages/OrganizationSettings";
+import ImportMapping from "./pages/ImportMapping";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const App = () => (
           <Route path="/imports/users" element={<AppLayout><ImportUsers /></AppLayout>} />
           <Route path="/imports/kpis" element={<AppLayout><ImportKpis /></AppLayout>} />
           <Route path="/imports/sops" element={<AppLayout><ImportSops /></AppLayout>} />
+          <Route path="/imports/mapping" element={<AppLayout><ImportMapping /></AppLayout>} />
           <Route path="/settings/organization" element={<AppLayout><OrganizationSettings /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
