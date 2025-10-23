@@ -504,6 +504,100 @@ export type Database = {
           },
         ]
       }
+      jane_integrations: {
+        Row: {
+          api_key: string
+          clinic_id: string | null
+          created_at: string | null
+          id: string
+          last_sync: string | null
+          next_sync: string | null
+          status: string | null
+          sync_mode: string | null
+          sync_scope: string[] | null
+          team_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          api_key: string
+          clinic_id?: string | null
+          created_at?: string | null
+          id?: string
+          last_sync?: string | null
+          next_sync?: string | null
+          status?: string | null
+          sync_mode?: string | null
+          sync_scope?: string[] | null
+          team_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          api_key?: string
+          clinic_id?: string | null
+          created_at?: string | null
+          id?: string
+          last_sync?: string | null
+          next_sync?: string | null
+          status?: string | null
+          sync_mode?: string | null
+          sync_scope?: string[] | null
+          team_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jane_integrations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jane_sync_logs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          integration_id: string
+          records_synced: number | null
+          started_at: string | null
+          status: string
+          sync_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          integration_id: string
+          records_synced?: number | null
+          started_at?: string | null
+          status: string
+          sync_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          integration_id?: string
+          records_synced?: number | null
+          started_at?: string | null
+          status?: string
+          sync_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jane_sync_logs_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "jane_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpi_default_batches: {
         Row: {
           archived_at: string | null

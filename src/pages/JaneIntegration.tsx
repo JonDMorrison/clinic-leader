@@ -1,285 +1,349 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { FileDropZone } from "@/components/imports/FileDropZone";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Play, CheckCircle2, Clock, AlertCircle, Info } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { importAppointments } from "@/lib/importers/appointmentsImporter";
-import { importPatients } from "@/lib/importers/patientsImporter";
-import { importARAging } from "@/lib/importers/arAgingImporter";
-import { importPayments } from "@/lib/importers/paymentsImporter";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { JaneConnectWizard } from "@/components/integrations/JaneConnectWizard";
+import { Cloud, CheckCircle2, XCircle, Clock, TrendingUp } from "lucide-react";
+import { format } from "date-fns";
+import { toast } from "sonner";
 
-const JaneIntegration = () => {
-  const [isRunningSync, setIsRunningSync] = useState(false);
+export default function JaneIntegration() {
+  const [showWizard, setShowWizard] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Fetch last sync status from file_ingest_log
-  const { data: syncStatus } = useQuery({
-    queryKey: ["jane-sync-status"],
+  // Get user's team
+  const { data: user } = useQuery({
+    queryKey: ["currentUser"],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error("Not authenticated");
+      
       const { data } = await supabase
-        .from("file_ingest_log")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(4);
-
-      const statuses = {
-        appointments: data?.find((f) => f.file_name.includes("appointment")),
-        patients: data?.find((f) => f.file_name.includes("patient")),
-        ar_aging: data?.find((f) => f.file_name.includes("ar") || f.file_name.includes("aging")),
-        payments: data?.find((f) => f.file_name.includes("payment")),
-      };
-
-      return statuses;
+        .from("users")
+        .select("team_id")
+        .eq("email", user.email)
+        .single();
+      
+      return data;
     },
-    refetchInterval: 5000,
   });
 
-  const generateChecksum = async (content: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(content);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  };
+  // Get integration status
+  const { data: integration, refetch: refetchIntegration } = useQuery({
+    queryKey: ["janeIntegration", user?.team_id],
+    queryFn: async () => {
+      if (!user?.team_id) return null;
+      
+      const { data } = await supabase
+        .from("jane_integrations")
+        .select("*")
+        .eq("team_id", user.team_id)
+        .maybeSingle();
+      
+      return data;
+    },
+    enabled: !!user?.team_id,
+  });
 
-  const handleFileSelect = async (file: File, type: string) => {
-    const content = await file.text();
-    const checksum = await generateChecksum(content);
+  // Get recent sync logs
+  const { data: syncLogs } = useQuery({
+    queryKey: ["janeSyncLogs", integration?.id],
+    queryFn: async () => {
+      if (!integration?.id) return [];
+      
+      const { data } = await supabase
+        .from("jane_sync_logs")
+        .select("*")
+        .eq("integration_id", integration.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      
+      return data || [];
+    },
+    enabled: !!integration?.id,
+  });
 
-    // Check if file was already imported
-    const { data: existing } = await supabase
-      .from("file_ingest_log")
-      .select("id")
-      .eq("checksum", checksum)
-      .eq("status", "success")
-      .maybeSingle();
-
-    if (existing) {
-      throw new Error("This file has already been imported successfully");
-    }
-
-    switch (type) {
-      case "appointments":
-        await importAppointments(content, file.name, checksum);
-        break;
-      case "patients":
-        await importPatients(content, file.name, checksum);
-        break;
-      case "ar_aging":
-        await importARAging(content, file.name, checksum);
-        break;
-      case "payments":
-        await importPayments(content, file.name, checksum);
-        break;
-      default:
-        throw new Error("Unknown import type");
-    }
-  };
-
-  const handleRunSync = async () => {
-    setIsRunningSync(true);
+  const handleForceSync = async () => {
+    if (!user?.team_id) return;
+    
+    setIsSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("etl-nightly-upsert");
-
-      if (error) throw error;
-
-      toast.success("Sync completed successfully");
-      console.log("Sync results:", data);
-    } catch (error: any) {
-      toast.error(error.message || "Sync failed");
+      await supabase.functions.invoke("jane-sync", {
+        body: { teamId: user.team_id, immediate: true },
+      });
+      
+      toast.success("Sync started successfully");
+      setTimeout(() => refetchIntegration(), 2000);
+    } catch (error) {
+      toast.error("Sync failed to start");
     } finally {
-      setIsRunningSync(false);
+      setIsSyncing(false);
     }
   };
 
-  const getStatusIcon = (status?: { status: string }) => {
-    if (!status) return <Clock className="w-4 h-4 text-muted-foreground" />;
-    if (status.status === "success") return <CheckCircle2 className="w-4 h-4 text-success" />;
-    if (status.status === "error") return <AlertCircle className="w-4 h-4 text-danger" />;
-    return <Clock className="w-4 h-4 text-warning" />;
+  const handleDisconnect = async () => {
+    if (!integration?.id) return;
+    
+    await supabase
+      .from("jane_integrations")
+      .update({ status: "disconnected" })
+      .eq("id", integration.id);
+    
+    toast.success("Jane integration disconnected");
+    refetchIntegration();
   };
 
-  const getStatusBadge = (status?: { status: string; created_at: string }) => {
-    if (!status) return <Badge variant="outline">Awaiting Data</Badge>;
-    if (status.status === "success")
-      return (
-        <Badge variant="outline" className="border-success text-success">
-          ✓ Success
-        </Badge>
-      );
-    if (status.status === "error")
-      return (
-        <Badge variant="outline" className="border-danger text-danger">
-          ✗ Failed
-        </Badge>
-      );
-    return <Badge variant="outline">Pending</Badge>;
-  };
+  if (!integration || integration.status === "disconnected") {
+    return (
+      <div className="container mx-auto py-8 space-y-8">
+        <div className="max-w-2xl mx-auto">
+          {!showWizard ? (
+            <Card className="bg-background/95 backdrop-blur-xl border-border/20">
+              <CardHeader>
+                <div className="flex items-center gap-3 mb-2">
+                  <Cloud className="w-8 h-8 text-primary" />
+                  <CardTitle>Connect to Jane App</CardTitle>
+                </div>
+                <CardDescription>
+                  Sync your patients, appointments, and financial data directly from Jane — securely, automatically, and without spreadsheets.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => setShowWizard(true)} size="lg" className="w-full">
+                  Connect Jane
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <JaneConnectWizard
+              teamId={user?.team_id || ""}
+              onComplete={() => {
+                setShowWizard(false);
+                refetchIntegration();
+              }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto py-8 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Jane App Integration</h1>
-          <p className="text-muted-foreground">Sync practice data from Jane App</p>
+          <h1 className="text-4xl font-bold mb-2">Jane App Integration</h1>
+          <p className="text-muted-foreground">
+            Connected and syncing automatically
+          </p>
         </div>
-        <Button onClick={handleRunSync} disabled={isRunningSync}>
-          <Play className="w-4 h-4 mr-2" />
-          {isRunningSync ? "Running Sync..." : "Run Sync Now"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleForceSync}
+            disabled={isSyncing}
+            variant="outline"
+          >
+            {isSyncing ? "Syncing..." : "Force Sync Now"}
+          </Button>
+          <Button onClick={handleDisconnect} variant="destructive">
+            Disconnect
+          </Button>
+        </div>
       </div>
 
-      <Card className="border-brand/20 bg-brand/5">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <Info className="w-5 h-5 text-brand mt-0.5 flex-shrink-0" />
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">PHI-Light Mode Active</p>
-              <p className="text-sm text-muted-foreground">
-                This integration stores only de-identified metrics (dates, provider IDs, amounts, status codes).
-                No patient names, DOB, contact info, or clinical notes are imported.
-              </p>
+      {/* Connection Status Dashboard */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="bg-background/95 backdrop-blur-xl border-border/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Connection Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              {integration.status === "connected" ? (
+                <>
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  <span className="text-2xl font-bold">Connected</span>
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-5 h-5 text-red-500" />
+                  <span className="text-2xl font-bold">Disconnected</span>
+                </>
+              )}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card>
+        <Card className="bg-background/95 backdrop-blur-xl border-border/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Last Sync
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-muted-foreground" />
+              <span className="text-2xl font-bold">
+                {integration.last_sync
+                  ? format(new Date(integration.last_sync), "MMM d, h:mm a")
+                  : "Never"}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-background/95 backdrop-blur-xl border-border/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Next Sync
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Cloud className="w-5 h-5 text-primary" />
+              <span className="text-2xl font-bold">
+                {integration.sync_mode === "manual"
+                  ? "Manual"
+                  : integration.next_sync
+                  ? format(new Date(integration.next_sync), "MMM d, h:mm a")
+                  : "Scheduled"}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-background/95 backdrop-blur-xl border-border/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Records Synced
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              <span className="text-2xl font-bold">
+                {syncLogs?.[0]?.records_synced || 0}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Sync Activity */}
+      <Card className="bg-background/95 backdrop-blur-xl border-border/20">
         <CardHeader>
-          <CardTitle>Connection Status</CardTitle>
+          <CardTitle>Recent Sync Activity</CardTitle>
+          <CardDescription>
+            View the history of your Jane App data syncs
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Mode:</span>
-                <Badge>Reports (CSV/XLSX)</Badge>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Last Import Status</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(syncStatus?.appointments)}
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Appointments</p>
-                    {getStatusBadge(syncStatus?.appointments)}
+            {syncLogs && syncLogs.length > 0 ? (
+              syncLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-center justify-between p-4 rounded-lg border border-border/50"
+                >
+                  <div className="flex items-center gap-3">
+                    {log.status === "completed" ? (
+                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    ) : log.status === "failed" ? (
+                      <XCircle className="w-5 h-5 text-red-500" />
+                    ) : (
+                      <Clock className="w-5 h-5 text-yellow-500" />
+                    )}
+                    <div>
+                      <p className="font-medium capitalize">{log.sync_type} Sync</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(log.created_at), "MMM d, yyyy h:mm a")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant={log.status === "completed" ? "default" : "destructive"}>
+                      {log.status}
+                    </Badge>
+                    {log.records_synced > 0 && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {log.records_synced} records
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(syncStatus?.patients)}
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Patients</p>
-                    {getStatusBadge(syncStatus?.patients)}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(syncStatus?.ar_aging)}
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">A/R Aging</p>
-                    {getStatusBadge(syncStatus?.ar_aging)}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(syncStatus?.payments)}
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Payments</p>
-                    {getStatusBadge(syncStatus?.payments)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload Jane Reports</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-6">
-            Export reports from Jane App and upload them here. Files are automatically validated and processed.
-          </p>
-          <div className="grid md:grid-cols-2 gap-4">
-            <FileDropZone
-              label="Appointments Report"
-              fileType="appointments"
-              acceptedTypes={[".csv", ".xlsx"]}
-              onFileSelect={handleFileSelect}
-            />
-            <FileDropZone
-              label="Patients Report"
-              fileType="patients"
-              acceptedTypes={[".csv", ".xlsx"]}
-              onFileSelect={handleFileSelect}
-            />
-            <FileDropZone
-              label="A/R Aging Report"
-              fileType="ar_aging"
-              acceptedTypes={[".csv", ".xlsx"]}
-              onFileSelect={handleFileSelect}
-            />
-            <FileDropZone
-              label="Payments Report"
-              fileType="payments"
-              acceptedTypes={[".csv", ".xlsx"]}
-              onFileSelect={handleFileSelect}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>How It Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ol className="text-sm text-muted-foreground space-y-3 list-decimal list-inside">
-            <li>
-              <span className="font-medium text-foreground">Export from Jane:</span> Go to Jane App → Reports → Export
-              each report type as CSV or XLSX
-            </li>
-            <li>
-              <span className="font-medium text-foreground">Upload here:</span> Drag & drop or click each zone to
-              upload the corresponding report
-            </li>
-            <li>
-              <span className="font-medium text-foreground">Automatic validation:</span> Files are checked for
-              duplicates (SHA-256 checksum) and staged
-            </li>
-            <li>
-              <span className="font-medium text-foreground">Run sync:</span> Click "Run Sync Now" or wait for the
-              nightly automated sync (1:00 AM)
-            </li>
-            <li>
-              <span className="font-medium text-foreground">KPIs updated:</span> Visits, New Patients, Revenue, A/R
-              aging, and other metrics are calculated and displayed on your Scorecard
-            </li>
-          </ol>
-        </CardContent>
-      </Card>
-
-      <Card className="border-warning/20 bg-warning/5">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-warning mt-0.5 flex-shrink-0" />
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">API Access Coming Soon</p>
-              <p className="text-sm text-muted-foreground">
-                Once Jane App provides API credentials, you'll be able to enable automatic syncing without manual report
-                uploads. Real-time webhooks for appointments and payments will also be available.
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No sync activity yet
               </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Sync Configuration */}
+      <Card className="bg-background/95 backdrop-blur-xl border-border/20">
+        <CardHeader>
+          <CardTitle>Sync Configuration</CardTitle>
+          <CardDescription>
+            Manage what data is synced from Jane App
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+              <span className="font-medium">Data Types</span>
+              <div className="flex gap-2">
+                {integration.sync_scope.map((scope: string) => (
+                  <Badge key={scope} variant="secondary">
+                    {scope}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+              <span className="font-medium">Sync Mode</span>
+              <Badge variant="outline" className="capitalize">
+                {integration.sync_mode}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+              <span className="font-medium">Clinic ID</span>
+              <span className="text-sm text-muted-foreground">
+                {integration.clinic_id || "Auto-detected"}
+              </span>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Security Info */}
+      <Card className="bg-background/95 backdrop-blur-xl border-border/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Cloud className="w-5 h-5 text-primary" />
+            Secure API Integration
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            ✓ API key stored encrypted
+          </p>
+          <p className="text-sm text-muted-foreground">
+            ✓ No PHI stored - only operational summaries
+          </p>
+          <p className="text-sm text-muted-foreground">
+            ✓ Automatic daily sync at 2:00 AM
+          </p>
+          <p className="text-sm text-muted-foreground">
+            ✓ Real-time KPI updates
+          </p>
         </CardContent>
       </Card>
     </div>
   );
-};
-
-export default JaneIntegration;
+}
