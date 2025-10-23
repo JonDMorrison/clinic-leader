@@ -49,8 +49,8 @@ export const HandbookViewer = ({ open, onClose }: HandbookViewerProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0">
-        <DialogHeader className="p-6 pb-4 border-b">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-brand" />
             {SYSTEM_HANDBOOK.title}
@@ -60,7 +60,7 @@ export const HandbookViewer = ({ open, onClose }: HandbookViewerProps) => {
           </p>
         </DialogHeader>
 
-        <div className="px-6 py-4 border-b">
+        <div className="px-6 py-4 border-b flex-shrink-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -72,7 +72,7 @@ export const HandbookViewer = ({ open, onClose }: HandbookViewerProps) => {
           </div>
         </div>
 
-        <ScrollArea className="flex-1 px-6">
+        <ScrollArea className="flex-1 px-6 overflow-y-auto">
           {searchQuery ? (
             <div className="py-4 space-y-4">
               {searchResults.length === 0 ? (
@@ -157,7 +157,7 @@ export const HandbookViewer = ({ open, onClose }: HandbookViewerProps) => {
           )}
         </ScrollArea>
 
-        <div className="p-4 border-t bg-muted/30">
+        <div className="p-4 border-t bg-muted/30 flex-shrink-0">
           <p className="text-xs text-muted-foreground text-center">
             Complete training progress: {completedSections.length} of {SYSTEM_HANDBOOK.sections.length} sections
           </p>
