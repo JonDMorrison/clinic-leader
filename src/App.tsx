@@ -22,6 +22,10 @@ import Reports from "./pages/Reports";
 import ReportView from "./pages/ReportView";
 import Branding from "./pages/Branding";
 import Licensing from "./pages/Licensing";
+import ImportUsers from "./pages/ImportUsers";
+import ImportKpis from "./pages/ImportKpis";
+import ImportSops from "./pages/ImportSops";
+import OrganizationSettings from "./pages/OrganizationSettings";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +65,10 @@ const App = () => (
           <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
           <Route path="/branding" element={<AppLayout><Branding /></AppLayout>} />
           <Route path="/licensing" element={<AppLayout><Licensing /></AppLayout>} />
+          <Route path="/imports/users" element={<AppLayout><ImportUsers /></AppLayout>} />
+          <Route path="/imports/kpis" element={<AppLayout><ImportKpis /></AppLayout>} />
+          <Route path="/imports/sops" element={<AppLayout><ImportSops /></AppLayout>} />
+          <Route path="/settings/organization" element={<AppLayout><OrganizationSettings /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
