@@ -761,6 +761,87 @@ export type Database = {
           },
         ]
       }
+      recall_actions: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string | null
+          details: string | null
+          id: string
+          organization_id: string
+          recall_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string | null
+          details?: string | null
+          id?: string
+          organization_id: string
+          recall_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string | null
+          details?: string | null
+          id?: string
+          organization_id?: string
+          recall_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recall_actions_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recall_actions_recall_id_fkey"
+            columns: ["recall_id"]
+            isOneToOne: false
+            referencedRelation: "recalls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recalls: {
+        Row: {
+          created_at: string | null
+          due_date: string
+          id: string
+          kind: string
+          notes: string | null
+          organization_id: string
+          patient_hash: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          due_date: string
+          id?: string
+          kind: string
+          notes?: string | null
+          organization_id: string
+          patient_hash: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          due_date?: string
+          id?: string
+          kind?: string
+          notes?: string | null
+          organization_id?: string
+          patient_hash?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       referral_sources: {
         Row: {
           created_at: string
@@ -1388,7 +1469,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_recall_metrics: {
+        Row: {
+          due_today: number | null
+          organization_id: string | null
+          past_due: number | null
+          total_open: number | null
+          upcoming: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       current_user_id: { Args: never; Returns: string }

@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Settings, Upload, Sparkles, Activity, Gauge, FileBarChart } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Settings, Upload, Sparkles, Activity, Gauge, FileBarChart, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HelpMenu } from "@/components/layout/HelpMenu";
 
@@ -10,6 +10,7 @@ const navItems = [
   { title: "Issues", path: "/issues", icon: AlertCircle },
   { title: "L10", path: "/l10", icon: Calendar },
   { title: "Docs", path: "/docs", icon: FileText },
+  { title: "Recalls", path: "/recalls", icon: Phone },
   { title: "People", path: "/people", icon: Users },
   { title: "Imports", path: "/imports", icon: Upload },
   { title: "Reports", path: "/reports", icon: FileBarChart },
