@@ -12,6 +12,7 @@ import { ManagerDashboard } from "@/components/docs/ManagerDashboard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardContent } from "@/components/ui/Card";
 import { HandbookViewer } from "@/components/docs/HandbookViewer";
+import ReactMarkdown from "react-markdown";
 
 const Docs = () => {
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
@@ -213,8 +214,8 @@ const Docs = () => {
 
             <Card>
               <CardContent className="pt-6">
-                <div className="prose prose-sm max-w-none whitespace-pre-wrap prose-headings:text-foreground prose-h1:text-2xl prose-h1:font-bold prose-h1:mb-4 prose-h2:text-xl prose-h2:font-bold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-lg prose-h3:font-semibold prose-h3:mt-4 prose-h3:mb-2">
-                  {selectedDoc?.body}
+                <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-h1:text-2xl prose-h1:font-bold prose-h1:mb-4 prose-h2:text-xl prose-h2:font-bold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-lg prose-h3:font-semibold prose-h3:mt-4 prose-h3:mb-2 prose-p:text-foreground prose-p:leading-7 prose-strong:font-bold prose-strong:text-foreground prose-ul:list-disc prose-ul:pl-6 prose-ol:list-decimal prose-ol:pl-6 prose-li:text-foreground">
+                  <ReactMarkdown>{selectedDoc?.body}</ReactMarkdown>
                 </div>
               </CardContent>
             </Card>

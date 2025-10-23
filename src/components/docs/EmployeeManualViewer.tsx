@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Search, ChevronDown, ChevronRight, BookOpen, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ReactMarkdown from "react-markdown";
 
 interface EmployeeManualViewerProps {
   open: boolean;
@@ -95,7 +96,9 @@ export const EmployeeManualViewer = ({ open, onClose }: EmployeeManualViewerProp
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-foreground/80">{result.body}</p>
+                    <div className="prose prose-sm text-foreground/80">
+                      <ReactMarkdown>{result.body}</ReactMarkdown>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -143,9 +146,9 @@ export const EmployeeManualViewer = ({ open, onClose }: EmployeeManualViewerProp
                               className="p-4 rounded-xl glass border border-white/10"
                             >
                               <h4 className="font-medium text-foreground mb-2">{item.title}</h4>
-                              <p className="text-sm text-muted-foreground leading-relaxed">
-                                {item.body}
-                              </p>
+                              <div className="prose prose-sm text-muted-foreground leading-relaxed">
+                                <ReactMarkdown>{item.body}</ReactMarkdown>
+                              </div>
                             </div>
                           ))}
                         </CardContent>

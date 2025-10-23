@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Search, ChevronDown, ChevronRight, BookOpen, CheckCircle2 } from "lucide-react";
 import { SYSTEM_HANDBOOK } from "@/lib/docs/training/systemHandbook";
+import ReactMarkdown from "react-markdown";
 
 interface HandbookViewerProps {
   open: boolean;
@@ -86,9 +87,9 @@ export const HandbookViewer = ({ open, onClose }: HandbookViewerProps) => {
                     {result.section}
                   </Badge>
                     <h4 className="font-semibold mb-2">{result.heading}</h4>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                      {result.body.substring(0, 200)}...
-                    </p>
+                    <div className="prose prose-sm text-muted-foreground">
+                      <ReactMarkdown>{result.body.substring(0, 200) + "..."}</ReactMarkdown>
+                    </div>
                   </Card>
                 ))
               )}
@@ -126,9 +127,9 @@ export const HandbookViewer = ({ open, onClose }: HandbookViewerProps) => {
                           {section.content.map((item, index) => (
                             <div key={index}>
                               <h4 className="font-semibold mb-2">{item.heading}</h4>
-                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                {item.body}
-                              </p>
+                              <div className="prose prose-sm text-muted-foreground">
+                                <ReactMarkdown>{item.body}</ReactMarkdown>
+                              </div>
                             </div>
                           ))}
                           <Button
