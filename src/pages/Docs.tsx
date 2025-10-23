@@ -11,7 +11,6 @@ import { AckPanel } from "@/components/docs/AckPanel";
 import { ManagerDashboard } from "@/components/docs/ManagerDashboard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardContent } from "@/components/ui/Card";
-import { EmployeeManualViewer } from "@/components/docs/EmployeeManualViewer";
 
 const Docs = () => {
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
@@ -19,7 +18,6 @@ const Docs = () => {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [kindFilter, setKindFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
-  const [showEmployeeManual, setShowEmployeeManual] = useState(false);
 
   const { data: currentUser } = useQuery({
     queryKey: ["current-user"],
@@ -124,21 +122,12 @@ const Docs = () => {
           <h1 className="text-3xl font-bold text-foreground mb-2">Documents</h1>
           <p className="text-muted-foreground">SOPs, policies, and training materials</p>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setShowEmployeeManual(true)}
-          >
-            <BookOpen className="w-4 h-4 mr-2" />
-            Employee Manual
+        {isManager && (
+          <Button onClick={handleCreateDoc}>
+            <Plus className="w-4 h-4 mr-2" />
+            New Document
           </Button>
-          {isManager && (
-            <Button onClick={handleCreateDoc}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Document
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       <Tabs defaultValue="docs" className="w-full">
@@ -216,7 +205,7 @@ const Docs = () => {
 
             <Card>
               <CardContent className="pt-6">
-                <div className="prose prose-sm max-w-none whitespace-pre-wrap">
+                <div className="prose prose-sm max-w-none whitespace-pre-wrap prose-headings:text-foreground prose-h1:text-2xl prose-h1:font-bold prose-h1:mb-4 prose-h2:text-xl prose-h2:font-bold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-lg prose-h3:font-semibold prose-h3:mt-4 prose-h3:mb-2">
                   {selectedDoc?.body}
                 </div>
               </CardContent>
@@ -247,12 +236,6 @@ const Docs = () => {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Employee Manual Viewer */}
-      <EmployeeManualViewer 
-        open={showEmployeeManual} 
-        onClose={() => setShowEmployeeManual(false)} 
-      />
     </div>
   );
 };

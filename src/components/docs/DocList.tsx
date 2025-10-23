@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { FileText, Clock, CheckCircle2 } from "lucide-react";
+import { FileText, Clock, CheckCircle2, BookOpen } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
@@ -110,6 +110,12 @@ export const DocList = ({
                   </div>
                 </div>
                 <div className="flex gap-2 items-center">
+                  {doc.id === '00000000-0000-0000-0000-000000000001' && (
+                    <Badge variant="brand" className="gap-1">
+                      <BookOpen className="w-3 h-3" />
+                      Official Manual
+                    </Badge>
+                  )}
                   <Badge variant={getStatusVariant(doc.status) as "success" | "warning" | "muted"}>
                     {getStatusLabel(doc.status)}
                   </Badge>
