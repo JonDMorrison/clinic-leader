@@ -77,7 +77,6 @@ const Home = () => {
             label="New Patients (This Week)"
             value={newPatientsValue}
             icon={<Users className="w-5 h-5 text-brand" />}
-            trend={{ value: 12, isPositive: true }}
           />
         </Card>
         <Card className="hover:scale-105 transition-transform duration-300">
