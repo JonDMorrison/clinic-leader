@@ -1297,6 +1297,38 @@ export type Database = {
           },
         ]
       }
+      user_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          simple_mode: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          simple_mode?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          simple_mode?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_tour_status: {
         Row: {
           completed: boolean | null
@@ -1516,7 +1548,7 @@ export type Database = {
     }
     Enums: {
       ar_bucket: "30-60" | "60-90" | "90-120" | "120+"
-      doc_kind: "SOP" | "Policy" | "Handbook"
+      doc_kind: "SOP" | "Policy" | "Handbook" | "Training"
       doc_status: "draft" | "approved" | "archived"
       ingest_status: "pending" | "processing" | "success" | "error"
       issue_status: "open" | "in_progress" | "solved" | "parked"
@@ -1661,7 +1693,7 @@ export const Constants = {
   public: {
     Enums: {
       ar_bucket: ["30-60", "60-90", "90-120", "120+"],
-      doc_kind: ["SOP", "Policy", "Handbook"],
+      doc_kind: ["SOP", "Policy", "Handbook", "Training"],
       doc_status: ["draft", "approved", "archived"],
       ingest_status: ["pending", "processing", "success", "error"],
       issue_status: ["open", "in_progress", "solved", "parked"],

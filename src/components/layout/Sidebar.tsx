@@ -1,26 +1,70 @@
 import { NavLink } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Settings, Upload, Sparkles, Activity, Gauge, FileBarChart, Phone } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HelpMenu } from "@/components/layout/HelpMenu";
+import { SimpleModeToggle } from "@/components/layout/SimpleModeToggle";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
-  { title: "Home", path: "/", icon: Home },
-  { title: "Scorecard", path: "/scorecard", icon: BarChart3 },
-  { title: "Rocks", path: "/rocks", icon: Target },
-  { title: "Issues", path: "/issues", icon: AlertCircle },
-  { title: "L10", path: "/l10", icon: Calendar },
-  { title: "Docs", path: "/docs", icon: FileText },
-  { title: "Recalls", path: "/recalls", icon: Phone },
-  { title: "People", path: "/people", icon: Users },
-  { title: "Imports", path: "/imports", icon: Upload },
-  { title: "Reports", path: "/reports", icon: FileBarChart },
-  { title: "Copilot", path: "/copilot", icon: Sparkles },
-  { title: "AI Log", path: "/ai-log", icon: Activity },
-  { title: "AI Settings", path: "/ai-settings", icon: Gauge },
-  { title: "Settings", path: "/settings", icon: Settings },
+  { title: "Home", path: "/", icon: Home, roles: ["staff", "manager", "director", "owner"] },
+  { title: "Scorecard", path: "/scorecard", icon: BarChart3, roles: ["manager", "director", "owner"] },
+  { title: "Rocks", path: "/rocks", icon: Target, roles: ["manager", "director", "owner"] },
+  { title: "Issues", path: "/issues", icon: AlertCircle, roles: ["staff", "manager", "director", "owner"] },
+  { title: "L10", path: "/l10", icon: Calendar, roles: ["manager", "director", "owner"] },
+  { title: "Docs", path: "/docs", icon: FileText, roles: ["staff", "manager", "director", "owner"] },
+  { title: "Recalls", path: "/recalls", icon: Phone, roles: ["staff", "manager", "director", "owner"] },
+  { title: "People", path: "/people", icon: Users, roles: ["manager", "director", "owner"] },
+  { title: "Imports", path: "/imports", icon: Upload, roles: ["manager", "director", "owner"], simpleMode: false },
+  { title: "Reports", path: "/reports", icon: FileBarChart, roles: ["manager", "director", "owner"], simpleMode: false },
 ];
 
 export const Sidebar = () => {
+  const { data: currentUser } = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      
+      const { data } = await supabase
+        .from("users")
+        .select("role")
+        .eq("email", user.email)
+        .single();
+      
+      return { ...user, role: data?.role || "staff" };
+    },
+  });
+
+  const { data: preferences } = useQuery({
+    queryKey: ["userPreferences", currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser?.id) return null;
+      
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+      
+      return data;
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  const userRole = currentUser?.role || "staff";
+  const isSimpleMode = preferences?.simple_mode ?? false;
+
+  const filteredNavItems = navItems.filter((item) => {
+    // Filter by role
+    if (!item.roles.includes(userRole)) return false;
+    
+    // Filter by simple mode
+    if (isSimpleMode && item.simpleMode === false) return false;
+    
+    return true;
+  });
+
   return (
     <aside className="w-64 h-screen sticky top-0 flex flex-col glass border-r border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)] animate-fade-in">
       <div className="p-6 border-b border-white/10 flex items-center justify-between">
@@ -30,9 +74,11 @@ export const Sidebar = () => {
         <HelpMenu />
       </div>
       
+      <SimpleModeToggle />
+      
       <nav className="flex-1 p-4 overflow-y-auto">
         <ul className="space-y-1">
-          {navItems.map((item, index) => (
+          {filteredNavItems.map((item, index) => (
             <li 
               key={item.path}
               className="animate-fade-in"
