@@ -45,18 +45,18 @@ export default function ImportKpis() {
           name, category, unit, target, direction, owner_email
         </div>
         <p className="text-xs text-muted-foreground mb-4">
-          Valid units: number, currency, percentage, hours
+          Valid units: count, %, $, days
         </p>
         <p className="text-xs text-muted-foreground mb-4">
-          Valid directions: higher, lower
+          Valid directions: &gt;=, &lt;=, ==
         </p>
         
         <h4 className="font-semibold mb-2 text-sm">Example CSV:</h4>
         <pre className="bg-surface/50 p-4 rounded-lg text-xs overflow-x-auto">
 {`name,category,unit,target,direction,owner_email
-New Patients,Marketing,number,50,higher,marketing@northwest.com
-Collections Rate,Revenue,percentage,95,higher,billing@northwest.com
-Patient Satisfaction,Quality,number,4.5,higher,clinical@northwest.com`}
+New Patients,Marketing,count,50,>=,marketing@northwest.com
+Collections Rate,Revenue,%,95,>=,billing@northwest.com
+Patient Satisfaction,Quality,count,4.5,>=,clinical@northwest.com`}
         </pre>
       </Card>
     </div>
