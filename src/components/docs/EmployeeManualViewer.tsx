@@ -96,7 +96,7 @@ export const EmployeeManualViewer = ({ open, onClose }: EmployeeManualViewerProp
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-bold prose-strong:font-bold prose-ul:list-disc prose-ul:pl-4 prose-li:text-foreground/80 text-foreground/80">
+                    <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-extrabold prose-strong:font-extrabold prose-ul:list-disc prose-ul:pl-4 prose-li:text-foreground/80 text-foreground/80">
                       <ReactMarkdown>{result.body}</ReactMarkdown>
                     </div>
                   </CardContent>
@@ -146,7 +146,7 @@ export const EmployeeManualViewer = ({ open, onClose }: EmployeeManualViewerProp
                               className="p-4 rounded-xl glass border border-white/10"
                             >
                               <h4 className="font-medium text-foreground mb-2">{item.title}</h4>
-                              <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-bold prose-strong:font-bold prose-ul:list-disc prose-ul:pl-4 prose-li:text-muted-foreground text-muted-foreground leading-relaxed">
+                              <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-extrabold prose-strong:font-extrabold prose-ul:list-disc prose-ul:pl-4 prose-li:text-muted-foreground text-muted-foreground leading-relaxed">
                                 <ReactMarkdown>{item.body}</ReactMarkdown>
                               </div>
                             </div>

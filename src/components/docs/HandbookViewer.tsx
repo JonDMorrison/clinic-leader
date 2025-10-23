@@ -87,7 +87,7 @@ export const HandbookViewer = ({ open, onClose }: HandbookViewerProps) => {
                     {result.section}
                   </Badge>
                     <h4 className="font-semibold mb-2">{result.heading}</h4>
-                    <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-bold prose-strong:font-bold prose-ul:list-disc prose-li:text-muted-foreground text-muted-foreground">
+                    <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-extrabold prose-strong:font-extrabold prose-ul:list-disc prose-li:text-muted-foreground text-muted-foreground">
                       <ReactMarkdown>{result.body.substring(0, 200) + "..."}</ReactMarkdown>
                     </div>
                   </Card>
@@ -127,7 +127,7 @@ export const HandbookViewer = ({ open, onClose }: HandbookViewerProps) => {
                           {section.content.map((item, index) => (
                             <div key={index}>
                               <h4 className="font-semibold mb-2">{item.heading}</h4>
-                              <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-bold prose-strong:font-bold prose-ul:list-disc prose-ul:pl-4 prose-li:text-muted-foreground text-muted-foreground">
+                              <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:font-extrabold prose-strong:font-extrabold prose-ul:list-disc prose-ul:pl-4 prose-li:text-muted-foreground text-muted-foreground">
                                 <ReactMarkdown>{item.body}</ReactMarkdown>
                               </div>
                             </div>
