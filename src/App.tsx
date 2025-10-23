@@ -10,6 +10,7 @@ import { userTourService } from "@/lib/userTourService";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import Home from "./pages/Home";
+import Index from "./pages/Index";
 import Scorecard from "./pages/Scorecard";
 import Rocks from "./pages/Rocks";
 import Issues from "./pages/Issues";
@@ -114,7 +115,8 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<AppLayout><Home /></AppLayout>} />
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<AppLayout><Home /></AppLayout>} />
             <Route path="/scorecard" element={<AppLayout><Scorecard /></AppLayout>} />
             <Route path="/rocks" element={<AppLayout><Rocks /></AppLayout>} />
             <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
