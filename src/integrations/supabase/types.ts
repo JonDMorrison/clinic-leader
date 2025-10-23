@@ -858,13 +858,47 @@ export type Database = {
           },
         ]
       }
+      rock_default_batches: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          include_bundles: string[] | null
+          organization_id: string
+          template_key: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          include_bundles?: string[] | null
+          organization_id: string
+          template_key: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          include_bundles?: string[] | null
+          organization_id?: string
+          template_key?: string
+        }
+        Relationships: []
+      }
       rocks: {
         Row: {
           confidence: number | null
           created_at: string
+          default_batch_id: string | null
+          display_group: string | null
+          display_order: number | null
           due_date: string | null
           id: string
           level: Database["public"]["Enums"]["rock_level"]
+          note: string | null
           owner_id: string | null
           quarter: string
           status: Database["public"]["Enums"]["rock_status"]
@@ -874,9 +908,13 @@ export type Database = {
         Insert: {
           confidence?: number | null
           created_at?: string
+          default_batch_id?: string | null
+          display_group?: string | null
+          display_order?: number | null
           due_date?: string | null
           id?: string
           level: Database["public"]["Enums"]["rock_level"]
+          note?: string | null
           owner_id?: string | null
           quarter: string
           status?: Database["public"]["Enums"]["rock_status"]
@@ -886,9 +924,13 @@ export type Database = {
         Update: {
           confidence?: number | null
           created_at?: string
+          default_batch_id?: string | null
+          display_group?: string | null
+          display_order?: number | null
           due_date?: string | null
           id?: string
           level?: Database["public"]["Enums"]["rock_level"]
+          note?: string | null
           owner_id?: string | null
           quarter?: string
           status?: Database["public"]["Enums"]["rock_status"]
@@ -896,6 +938,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rocks_default_batch_id_fkey"
+            columns: ["default_batch_id"]
+            isOneToOne: false
+            referencedRelation: "rock_default_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rocks_owner_id_fkey"
             columns: ["owner_id"]

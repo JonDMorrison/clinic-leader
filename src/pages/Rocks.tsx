@@ -5,10 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { RockCard } from "@/components/rocks/RockCard";
 import { NewRockModal } from "@/components/rocks/NewRockModal";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Target, Filter, Plus } from "lucide-react";
+import { Target, Filter, Plus, Sparkles } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { LoadDefaultRocksDialog } from "@/components/rocks/LoadDefaultRocksDialog";
 import {
   DndContext,
   DragEndEvent,
@@ -27,6 +28,7 @@ const Rocks = () => {
   const quarterFilter = searchParams.get("quarter") || "all";
   const ownerFilter = searchParams.get("owner") || "all";
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadDefaultsOpen, setLoadDefaultsOpen] = useState(false);
 
   const { data: rocks, isLoading, refetch } = useQuery({
     queryKey: ["rocks"],
@@ -48,6 +50,23 @@ const Rocks = () => {
         .from("users")
         .select("id, full_name")
         .order("full_name");
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from("users")
+        .select("team_id")
+        .eq("email", user.email)
+        .single();
       
       if (error) throw error;
       return data;
@@ -163,10 +182,18 @@ const Rocks = () => {
           <h1 className="text-3xl font-bold text-foreground mb-2">Rocks</h1>
           <p className="text-muted-foreground">90-day priorities and goals</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Rock
-        </Button>
+        <div className="flex gap-2">
+          {rocks && rocks.length > 0 && (
+            <Button onClick={() => setLoadDefaultsOpen(true)} variant="outline">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Load Defaults
+            </Button>
+          )}
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Rock
+          </Button>
+        </div>
       </div>
 
       <NewRockModal
@@ -174,6 +201,12 @@ const Rocks = () => {
         onClose={() => setIsModalOpen(false)}
         users={users}
         onSuccess={refetch}
+      />
+
+      <LoadDefaultRocksDialog
+        open={loadDefaultsOpen}
+        onOpenChange={setLoadDefaultsOpen}
+        organizationId={currentUser?.team_id || ""}
       />
 
       <div className="flex items-end gap-4 p-4 bg-card rounded-lg border border-border">
@@ -218,7 +251,19 @@ const Rocks = () => {
         </div>
       </div>
 
-      {filteredRocks.length === 0 ? (
+      {!rocks || rocks.length === 0 ? (
+        <EmptyState
+          icon={<Target className="w-12 h-12" />}
+          title="No Rocks yet"
+          description="Start your 90-day priorities with industry-standard EOS Rocks"
+          action={
+            <Button onClick={() => setLoadDefaultsOpen(true)} className="gradient-brand">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Load Default Rocks (EOS)
+            </Button>
+          }
+        />
+      ) : filteredRocks.length === 0 ? (
         <EmptyState
           icon={<Target className="w-12 h-12" />}
           title="No rocks found"
