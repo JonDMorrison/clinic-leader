@@ -214,7 +214,16 @@ const Docs = () => {
 
             <Card>
               <CardContent className="pt-6">
-                <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-h1:text-2xl prose-h1:font-bold prose-h1:mb-4 prose-h2:text-xl prose-h2:font-bold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-lg prose-h3:font-semibold prose-h3:mt-4 prose-h3:mb-2 prose-p:text-foreground prose-p:leading-7 prose-strong:font-bold prose-strong:text-foreground prose-ul:list-disc prose-ul:pl-6 prose-ol:list-decimal prose-ol:pl-6 prose-li:text-foreground">
+                <div className="prose prose-base max-w-none dark:prose-invert 
+                  prose-headings:font-bold prose-headings:text-foreground
+                  prose-h1:text-3xl prose-h1:mb-6 prose-h1:mt-8
+                  prose-h2:text-2xl prose-h2:mb-4 prose-h2:mt-6
+                  prose-h3:text-xl prose-h3:mb-3 prose-h3:mt-5
+                  prose-p:text-foreground prose-p:leading-7 prose-p:mb-4
+                  prose-strong:font-bold prose-strong:text-foreground
+                  prose-ul:list-disc prose-ul:my-4 prose-ul:pl-6
+                  prose-ol:list-decimal prose-ol:my-4 prose-ol:pl-6
+                  prose-li:text-foreground prose-li:my-2">
                   <ReactMarkdown>{selectedDoc?.body}</ReactMarkdown>
                 </div>
               </CardContent>
