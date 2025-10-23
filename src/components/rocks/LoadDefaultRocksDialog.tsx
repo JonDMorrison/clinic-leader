@@ -263,7 +263,7 @@ export function LoadDefaultRocksDialog({ open, onOpenChange, organizationId }: L
               <Button onClick={handleNext} disabled={loadMutation.isPending}>
                 {step === 1 && "Preview"}
                 {step === 2 && ownerStrategy === "manual" && "Assign Owners"}
-                {(step === 2 && ownerStrategy !== "manual") || step === 3 ? "Load Rocks" : ""}
+                {((step === 2 && ownerStrategy !== "manual") || step === 3) && "Load Rocks"}
                 {loadMutation.isPending && "..."}
               </Button>
             </>
