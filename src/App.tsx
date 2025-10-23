@@ -32,6 +32,7 @@ import ImportSops from "./pages/ImportSops";
 import OrganizationSettings from "./pages/OrganizationSettings";
 import ImportMapping from "./pages/ImportMapping";
 import OnboardingAnalytics from "./pages/OnboardingAnalytics";
+import JaneIntegration from "./pages/JaneIntegration";
 
 const queryClient = new QueryClient();
 
@@ -106,6 +107,7 @@ const App = () => {
             <Route path="/imports/sops" element={<AppLayout><ImportSops /></AppLayout>} />
             <Route path="/imports/mapping" element={<AppLayout><ImportMapping /></AppLayout>} />
             <Route path="/settings/organization" element={<AppLayout><OrganizationSettings /></AppLayout>} />
+            <Route path="/settings/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
             <Route path="/admin/onboarding-analytics" element={<AppLayout><OnboardingAnalytics /></AppLayout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 import { RulesEnginePanel } from "@/components/settings/RulesEnginePanel";
 import { useNavigate } from "react-router-dom";
-import { Palette, Shield, Bell, Users, Building2, TrendingUp, FileText, GraduationCap } from "lucide-react";
+import { Palette, Shield, Bell, Users, Building2, TrendingUp, FileText, GraduationCap, Plug } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -121,6 +121,23 @@ const Settings = () => {
             </p>
             <Button variant="outline" onClick={() => navigate("/imports/users")}>
               Import Users
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Plug className="w-5 h-5" />
+              Jane App Integration
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Sync practice data from Jane App (appointments, patients, payments, A/R)
+            </p>
+            <Button variant="outline" onClick={() => navigate("/settings/integrations/jane")}>
+              Manage Jane Integration
             </Button>
           </CardContent>
         </Card>
