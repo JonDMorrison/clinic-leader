@@ -25,12 +25,18 @@ export const userTourService = {
   },
 
   async startTour(userId: string): Promise<TourStatus | null> {
+    // Check if tour status already exists
+    const existing = await this.getTourStatus(userId);
+    if (existing) {
+      return existing;
+    }
+
     // Get user's team_id first
     const { data: userData } = await supabase
       .from("users")
       .select("team_id")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     const { data, error } = await supabase
       .from("user_tour_status")
@@ -41,10 +47,14 @@ export const userTourService = {
         current_step: 0,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error starting tour:", error);
+      // If unique constraint violation, try to fetch existing record
+      if (error.code === "23505") {
+        return await this.getTourStatus(userId);
+      }
       return null;
     }
 

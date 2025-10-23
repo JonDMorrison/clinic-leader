@@ -65,15 +65,29 @@ const App = () => {
       
       if (user) {
         setUserId(user.id);
+        
+        // Check localStorage first to avoid showing wizard if already completed
+        const localStorageKey = `tour_completed_${user.id}`;
+        const completedInStorage = localStorage.getItem(localStorageKey);
+        
+        if (completedInStorage === "true") {
+          return; // Don't show wizard
+        }
+        
         const tourStatus = await userTourService.getTourStatus(user.id);
         
         if (!tourStatus) {
-          // First login - create tour status and show wizard
-          await userTourService.startTour(user.id);
-          setShowWizard(true);
+          // New user, start tour
+          const newTourStatus = await userTourService.startTour(user.id);
+          if (newTourStatus && !newTourStatus.completed) {
+            setShowWizard(true);
+          }
         } else if (!tourStatus.completed) {
-          // Tour was started but not completed
+          // Tour in progress
           setShowWizard(true);
+        } else {
+          // Tour completed, store in localStorage
+          localStorage.setItem(localStorageKey, "true");
         }
       }
     };
@@ -81,8 +95,14 @@ const App = () => {
     checkTourStatus();
   }, []);
 
-  const handleWizardComplete = () => {
+  const handleWizardComplete = async () => {
     setShowWizard(false);
+    
+    // Store completion in localStorage as backup
+    if (userId) {
+      const localStorageKey = `tour_completed_${userId}`;
+      localStorage.setItem(localStorageKey, "true");
+    }
   };
 
   return (
