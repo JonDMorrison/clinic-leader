@@ -2,10 +2,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 import { RulesEnginePanel } from "@/components/settings/RulesEnginePanel";
 import { useNavigate } from "react-router-dom";
-import { Palette, Shield, Bell, Users, Building2, TrendingUp, FileText } from "lucide-react";
+import { Palette, Shield, Bell, Users, Building2, TrendingUp, FileText, GraduationCap } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Settings = () => {
   const navigate = useNavigate();
+
+  // Fetch current user's role
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data } = await supabase
+        .from("users")
+        .select("role")
+        .eq("email", user.email)
+        .single();
+
+      return data;
+    },
+  });
+
+  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "director";
 
   return (
     <div className="space-y-6">
@@ -33,6 +54,25 @@ const Settings = () => {
             </Button>
           </CardContent>
         </Card>
+
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GraduationCap className="w-5 h-5" />
+                Onboarding Analytics
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Track team onboarding completion rates and progress
+              </p>
+              <Button variant="outline" onClick={() => navigate("/admin/onboarding-analytics")}>
+                View Analytics
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

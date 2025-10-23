@@ -1117,6 +1117,8 @@ export type Database = {
           completed: boolean | null
           current_step: number | null
           id: string
+          organization_id: string | null
+          started_at: string | null
           updated_at: string | null
           user_id: string
         }
@@ -1124,6 +1126,8 @@ export type Database = {
           completed?: boolean | null
           current_step?: number | null
           id?: string
+          organization_id?: string | null
+          started_at?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -1131,10 +1135,19 @@ export type Database = {
           completed?: boolean | null
           current_step?: number | null
           id?: string
+          organization_id?: string | null
+          started_at?: string | null
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_tour_status_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_tour_status_user_id_fkey"
             columns: ["user_id"]
@@ -1280,6 +1293,28 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       current_user_team: { Args: never; Returns: string }
+      get_onboarding_metrics: {
+        Args: { org_id: string }
+        Returns: {
+          completed_count: number
+          completion_rate: number
+          pending_count: number
+          total_users: number
+        }[]
+      }
+      get_user_onboarding_details: {
+        Args: { org_id: string }
+        Returns: {
+          completed: boolean
+          current_step: number
+          email: string
+          full_name: string
+          started_at: string
+          team_name: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       is_billing: { Args: never; Returns: boolean }
       is_manager: { Args: never; Returns: boolean }
