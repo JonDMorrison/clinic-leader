@@ -1,12 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { RockCard } from "@/components/rocks/RockCard";
+import { NewRockModal } from "@/components/rocks/NewRockModal";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Target, Filter } from "lucide-react";
+import { Target, Filter, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import {
   DndContext,
   DragEndEvent,
@@ -24,6 +26,7 @@ const Rocks = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const quarterFilter = searchParams.get("quarter") || "all";
   const ownerFilter = searchParams.get("owner") || "all";
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: rocks, isLoading, refetch } = useQuery({
     queryKey: ["rocks"],
@@ -155,10 +158,23 @@ const Rocks = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Rocks</h1>
-        <p className="text-muted-foreground">90-day priorities and goals</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Rocks</h1>
+          <p className="text-muted-foreground">90-day priorities and goals</p>
+        </div>
+        <Button onClick={() => setIsModalOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Create Rock
+        </Button>
       </div>
+
+      <NewRockModal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        users={users}
+        onSuccess={refetch}
+      />
 
       <div className="flex items-end gap-4 p-4 bg-card rounded-lg border border-border">
         <div className="flex items-center gap-2 text-muted-foreground">
