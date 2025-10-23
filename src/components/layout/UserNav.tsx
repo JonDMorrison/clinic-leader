@@ -24,37 +24,60 @@ interface UserProfile {
 export const UserNav = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [authUser, setAuthUser] = useState<any>(null);
+
+  useEffect(() => {
+    // Listen to auth state changes first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setAuthUser(session?.user ?? null);
+    });
+
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        const { data: userData } = await supabase
-          .from("users")
-          .select(`
-            full_name,
-            email,
-            team_id,
-            teams (
-              name
-            )
-          `)
-          .eq("id", user.id)
-          .single();
+      if (!authUser) return;
 
-        if (userData) {
-          setProfile({
-            full_name: userData.full_name,
-            email: userData.email,
-            team: userData.teams as { name: string },
-          });
+      const { data: userData } = await supabase
+        .from("users")
+        .select("full_name,email,team_id")
+        .eq("id", authUser.id)
+        .single();
+
+      if (userData) {
+        let teamName: string | undefined = undefined;
+        if (userData.team_id) {
+          const { data: team } = await supabase
+            .from("teams")
+            .select("name")
+            .eq("id", userData.team_id)
+            .single();
+          teamName = team?.name;
         }
+
+        setProfile({
+          full_name: userData.full_name ?? authUser.user_metadata?.full_name ?? authUser.email ?? "User",
+          email: userData.email ?? authUser.email ?? "",
+          team: teamName ? { name: teamName } : undefined,
+        });
+      } else {
+        setProfile({
+          full_name: authUser.user_metadata?.full_name ?? authUser.email ?? "User",
+          email: authUser.email ?? "",
+        });
       }
     };
 
     fetchUserProfile();
-  }, []);
+  }, [authUser]);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -65,12 +88,11 @@ export const UserNav = () => {
     }
   };
 
-  if (!profile) {
-    return null;
-  }
-
-  const initials = profile.full_name
-    .split(" ")
+  // Derive initials from available data (profile or auth session)
+  const baseLabel = (profile?.full_name || profile?.email || authUser?.email || "User") as string;
+  const initials = baseLabel
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
     .map((n) => n[0])
     .join("")
     .toUpperCase()
@@ -90,9 +112,9 @@ export const UserNav = () => {
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-2">
-            <p className="text-sm font-semibold leading-none">{profile.full_name}</p>
-            <p className="text-xs leading-none text-muted-foreground">{profile.email}</p>
-            {profile.team && (
+            <p className="text-sm font-semibold leading-none">{profile?.full_name || authUser?.user_metadata?.full_name || baseLabel}</p>
+            <p className="text-xs leading-none text-muted-foreground">{profile?.email || authUser?.email || ""}</p>
+            {profile?.team && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
                 <Building2 className="h-3 w-3" />
                 <span>{profile.team.name}</span>
