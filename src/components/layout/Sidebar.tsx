@@ -1,6 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Settings, Upload, Sparkles, Activity, Gauge, FileBarChart } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Settings, Upload, Sparkles, Activity, Gauge, FileBarChart, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { userTourService } from "@/lib/userTourService";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const navItems = [
   { title: "Home", path: "/", icon: Home },
@@ -19,6 +23,21 @@ const navItems = [
 ];
 
 export const Sidebar = () => {
+  const [isRestarting, setIsRestarting] = useState(false);
+
+  const handleRestartTour = async () => {
+    setIsRestarting(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      await userTourService.resetTour(user.id);
+      toast.success("Reloading tour...");
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    }
+  };
+
   return (
     <aside className="w-64 h-screen sticky top-0 flex flex-col glass border-r border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)] animate-fade-in">
       <div className="p-6 border-b border-white/10">
@@ -64,6 +83,18 @@ export const Sidebar = () => {
           ))}
         </ul>
       </nav>
+
+      <div className="p-4 border-t border-white/10">
+        <button
+          onClick={handleRestartTour}
+          disabled={isRestarting}
+          className="flex items-center gap-3 px-4 py-3 w-full rounded-2xl text-muted-foreground hover:bg-white/50 hover:text-foreground hover:shadow-md backdrop-blur-sm transition-all duration-300 group relative overflow-hidden disabled:opacity-50"
+        >
+          <span className="absolute inset-0 bg-gradient-to-r from-brand/10 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <HelpCircle className="w-5 h-5 transition-transform duration-300 group-hover:scale-110 relative z-10" />
+          <span className="relative z-10">Take the Tour Again</span>
+        </button>
+      </div>
     </aside>
   );
 };

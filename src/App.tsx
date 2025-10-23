@@ -4,6 +4,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+import { userTourService } from "@/lib/userTourService";
+import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
 import Home from "./pages/Home";
 import Scorecard from "./pages/Scorecard";
 import Rocks from "./pages/Rocks";
@@ -42,40 +46,75 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/" element={<AppLayout><Home /></AppLayout>} />
-          <Route path="/scorecard" element={<AppLayout><Scorecard /></AppLayout>} />
-          <Route path="/rocks" element={<AppLayout><Rocks /></AppLayout>} />
-          <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
-          <Route path="/l10" element={<AppLayout><L10 /></AppLayout>} />
-          <Route path="/docs" element={<AppLayout><Docs /></AppLayout>} />
-          <Route path="/people" element={<AppLayout><People /></AppLayout>} />
-          <Route path="/imports" element={<AppLayout><Imports /></AppLayout>} />
-          <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
-          <Route path="/reports/:id" element={<AppLayout><ReportView /></AppLayout>} />
-          <Route path="/copilot" element={<AppLayout><Copilot /></AppLayout>} />
-          <Route path="/ai-log" element={<AppLayout><AILog /></AppLayout>} />
-          <Route path="/ai-settings" element={<AppLayout><AISettings /></AppLayout>} />
-          <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
-          <Route path="/branding" element={<AppLayout><Branding /></AppLayout>} />
-          <Route path="/licensing" element={<AppLayout><Licensing /></AppLayout>} />
-          <Route path="/imports/users" element={<AppLayout><ImportUsers /></AppLayout>} />
-          <Route path="/imports/kpis" element={<AppLayout><ImportKpis /></AppLayout>} />
-          <Route path="/imports/sops" element={<AppLayout><ImportSops /></AppLayout>} />
-          <Route path="/imports/mapping" element={<AppLayout><ImportMapping /></AppLayout>} />
-          <Route path="/settings/organization" element={<AppLayout><OrganizationSettings /></AppLayout>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const [showWizard, setShowWizard] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkTourStatus = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        setUserId(user.id);
+        const tourStatus = await userTourService.getTourStatus(user.id);
+        
+        if (!tourStatus) {
+          // First login - create tour status and show wizard
+          await userTourService.startTour(user.id);
+          setShowWizard(true);
+        } else if (!tourStatus.completed) {
+          // Tour was started but not completed
+          setShowWizard(true);
+        }
+      }
+    };
+
+    checkTourStatus();
+  }, []);
+
+  const handleWizardComplete = () => {
+    setShowWizard(false);
+  };
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<AppLayout><Home /></AppLayout>} />
+            <Route path="/scorecard" element={<AppLayout><Scorecard /></AppLayout>} />
+            <Route path="/rocks" element={<AppLayout><Rocks /></AppLayout>} />
+            <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
+            <Route path="/l10" element={<AppLayout><L10 /></AppLayout>} />
+            <Route path="/docs" element={<AppLayout><Docs /></AppLayout>} />
+            <Route path="/people" element={<AppLayout><People /></AppLayout>} />
+            <Route path="/imports" element={<AppLayout><Imports /></AppLayout>} />
+            <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
+            <Route path="/reports/:id" element={<AppLayout><ReportView /></AppLayout>} />
+            <Route path="/copilot" element={<AppLayout><Copilot /></AppLayout>} />
+            <Route path="/ai-log" element={<AppLayout><AILog /></AppLayout>} />
+            <Route path="/ai-settings" element={<AppLayout><AISettings /></AppLayout>} />
+            <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
+            <Route path="/branding" element={<AppLayout><Branding /></AppLayout>} />
+            <Route path="/licensing" element={<AppLayout><Licensing /></AppLayout>} />
+            <Route path="/imports/users" element={<AppLayout><ImportUsers /></AppLayout>} />
+            <Route path="/imports/kpis" element={<AppLayout><ImportKpis /></AppLayout>} />
+            <Route path="/imports/sops" element={<AppLayout><ImportSops /></AppLayout>} />
+            <Route path="/imports/mapping" element={<AppLayout><ImportMapping /></AppLayout>} />
+            <Route path="/settings/organization" element={<AppLayout><OrganizationSettings /></AppLayout>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          
+          {showWizard && userId && (
+            <OnboardingWizard userId={userId} onComplete={handleWizardComplete} />
+          )}
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
