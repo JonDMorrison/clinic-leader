@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Link as LinkIcon, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { registerMapping, removeMapping } from "@/lib/imports/mappingService";
+import { SmartMappingSuggestions } from "@/components/scorecard/SmartMappingSuggestions";
 
 export default function ImportMapping() {
   const { toast } = useToast();
@@ -142,7 +143,14 @@ export default function ImportMapping() {
           <p className="text-muted-foreground">Loading tracked KPIs...</p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="space-y-6">
+          {currentUser?.team_id && (
+            <SmartMappingSuggestions 
+              organizationId={currentUser.team_id}
+            />
+          )}
+          
+          <div className="grid gap-4">
           {trackedKpis?.map((kpi) => (
             <Card key={kpi.id} className="glass p-6">
               <div className="flex items-center justify-between">
@@ -194,6 +202,7 @@ export default function ImportMapping() {
               </div>
             </Card>
           ))}
+          </div>
         </div>
       )}
 

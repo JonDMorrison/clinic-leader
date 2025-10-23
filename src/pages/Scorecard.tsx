@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { Button } from "@/components/ui/button";
-import { Plus, Activity } from "lucide-react";
+import { Plus, Activity, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { KpiRow } from "@/components/scorecard/KpiRow";
@@ -10,10 +10,13 @@ import { IssueModal } from "@/components/scorecard/IssueModal";
 import { AddKpiModal } from "@/components/scorecard/AddKpiModal";
 import { TrackedKpiCard } from "@/components/scorecard/TrackedKpiCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LoadDefaultsDialog } from "@/components/scorecard/LoadDefaultsDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 const Scorecard = () => {
   const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [addKpiModalOpen, setAddKpiModalOpen] = useState(false);
+  const [loadDefaultsOpen, setLoadDefaultsOpen] = useState(false);
   const [issuePrefillData, setIssuePrefillData] = useState<any>(null);
 
   const { data: kpis, isLoading, refetch } = useQuery({
@@ -97,6 +100,8 @@ const Scorecard = () => {
     return acc;
   }, {} as Record<string, any[]>);
 
+  const hasAnyKpis = (kpis && kpis.length > 0) || (trackedKpis && trackedKpis.length > 0);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -106,10 +111,18 @@ const Scorecard = () => {
           </h1>
           <p className="text-muted-foreground">Track and manage your key performance indicators</p>
         </div>
-        <Button onClick={() => setAddKpiModalOpen(true)} className="gradient-brand">
-          <Plus className="w-4 h-4 mr-2" />
-          Add KPI
-        </Button>
+        <div className="flex gap-2">
+          {hasAnyKpis && (
+            <Button onClick={() => setLoadDefaultsOpen(true)} variant="outline">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Load Defaults
+            </Button>
+          )}
+          <Button onClick={() => setAddKpiModalOpen(true)} className="gradient-brand">
+            <Plus className="w-4 h-4 mr-2" />
+            Add KPI
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="tracked" className="w-full">
@@ -126,6 +139,18 @@ const Scorecard = () => {
             <div className="text-center py-8">
               <p className="text-muted-foreground">Loading tracked KPIs...</p>
             </div>
+          ) : !trackedKpis || trackedKpis.length === 0 ? (
+            <EmptyState
+              icon={<Sparkles className="h-12 w-12" />}
+              title="No KPIs yet"
+              description="Start tracking your clinic's performance with industry-standard KPIs"
+              action={
+                <Button onClick={() => setLoadDefaultsOpen(true)} className="gradient-brand">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Load Default KPIs
+                </Button>
+              }
+            />
           ) : (
             <>
               {Object.entries(groupedTrackedKpis || {}).map(([category, categoryKpis]) => (
@@ -210,6 +235,12 @@ const Scorecard = () => {
         onClose={() => setAddKpiModalOpen(false)}
         users={users || []}
         onSuccess={refetch}
+      />
+
+      <LoadDefaultsDialog
+        open={loadDefaultsOpen}
+        onOpenChange={setLoadDefaultsOpen}
+        organizationId={currentUser?.team_id || ""}
       />
     </div>
   );

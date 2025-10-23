@@ -504,6 +504,39 @@ export type Database = {
           },
         ]
       }
+      kpi_default_batches: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          include_bundles: string[] | null
+          include_targets: boolean
+          organization_id: string
+          template_key: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          include_bundles?: string[] | null
+          include_targets?: boolean
+          organization_id: string
+          template_key: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          include_bundles?: string[] | null
+          include_targets?: boolean
+          organization_id?: string
+          template_key?: string
+        }
+        Relationships: []
+      }
       kpi_readings: {
         Row: {
           created_at: string
@@ -544,8 +577,13 @@ export type Database = {
           active: boolean
           category: string | null
           created_at: string
+          default_batch_id: string | null
           direction: Database["public"]["Enums"]["kpi_direction"]
+          display_group: string | null
+          display_order: number | null
+          expression: string | null
           id: string
+          is_computed: boolean | null
           name: string
           owner_id: string | null
           target: number | null
@@ -556,8 +594,13 @@ export type Database = {
           active?: boolean
           category?: string | null
           created_at?: string
+          default_batch_id?: string | null
           direction: Database["public"]["Enums"]["kpi_direction"]
+          display_group?: string | null
+          display_order?: number | null
+          expression?: string | null
           id?: string
+          is_computed?: boolean | null
           name: string
           owner_id?: string | null
           target?: number | null
@@ -568,8 +611,13 @@ export type Database = {
           active?: boolean
           category?: string | null
           created_at?: string
+          default_batch_id?: string | null
           direction?: Database["public"]["Enums"]["kpi_direction"]
+          display_group?: string | null
+          display_order?: number | null
+          expression?: string | null
           id?: string
+          is_computed?: boolean | null
           name?: string
           owner_id?: string | null
           target?: number | null
@@ -577,6 +625,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "kpis_default_batch_id_fkey"
+            columns: ["default_batch_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_default_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "kpis_owner_id_fkey"
             columns: ["owner_id"]
