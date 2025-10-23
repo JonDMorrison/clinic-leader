@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,16 +11,23 @@ import { Check, Play, TrendingUp, Users, Target, BarChart3, Video, CheckSquare, 
 
 const Index = () => {
   const navigate = useNavigate();
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
+      } else {
+        setIsChecking(false);
       }
     };
     checkAuth();
   }, [navigate]);
+
+  if (isChecking) {
+    return null; // or a loading spinner
+  }
 
   return (
     <>
