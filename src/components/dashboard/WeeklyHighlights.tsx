@@ -71,21 +71,49 @@ export const WeeklyHighlights = () => {
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? <div className="space-y-4">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
+        {isLoading ? <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-36 w-full" />
+            <Skeleton className="h-32 w-full" />
           </div> : !latestInsight ? <div className="text-center py-8">
             <p className="text-muted-foreground mb-4">No insights generated yet</p>
             <Button onClick={handleGenerate} disabled={isGenerating}>
               Generate First Insights
             </Button>
-          </div> : <div className="space-y-3">
-            {summary?.wins?.map((win: string, idx: number) => <InsightCard key={`win-${idx}`} type="win" content={win} logId={insightLog?.id} />)}
-            {summary?.warnings?.map((warning: string, idx: number) => <InsightCard key={`warning-${idx}`} type="warning" content={warning} logId={insightLog?.id} />)}
-            {summary?.opportunities?.map((opp: string, idx: number) => <InsightCard key={`opp-${idx}`} type="opportunity" content={opp} logId={insightLog?.id} />)}
+          </div> : <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-max">
+            {summary?.wins?.map((win: string, idx: number) => (
+              <InsightCard 
+                key={`win-${idx}`} 
+                type="win" 
+                content={win} 
+                logId={insightLog?.id}
+                className="md:col-span-1"
+                style={{ animationDelay: `${idx * 100}ms` }}
+              />
+            ))}
+            {summary?.warnings?.map((warning: string, idx: number) => (
+              <InsightCard 
+                key={`warning-${idx}`} 
+                type="warning" 
+                content={warning} 
+                logId={insightLog?.id}
+                className="md:col-span-1"
+                style={{ animationDelay: `${(summary?.wins?.length || 0 + idx) * 100}ms` }}
+              />
+            ))}
+            {summary?.opportunities?.map((opp: string, idx: number) => (
+              <InsightCard 
+                key={`opp-${idx}`} 
+                type="opportunity" 
+                content={opp} 
+                logId={insightLog?.id}
+                className={idx === 0 ? "md:col-span-2" : "md:col-span-1"}
+                style={{ animationDelay: `${((summary?.wins?.length || 0) + (summary?.warnings?.length || 0) + idx) * 100}ms` }}
+              />
+            ))}
 
-            <div className="text-xs text-muted-foreground pt-4 border-t border-border">
+            <div className="text-xs text-muted-foreground pt-4 border-t border-border md:col-span-2">
               Generated: {new Date(latestInsight.created_at).toLocaleDateString()} • 
               Week of {new Date(latestInsight.week_start).toLocaleDateString()}
             </div>

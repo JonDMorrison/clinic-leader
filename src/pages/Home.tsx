@@ -8,6 +8,7 @@ import { WeeklyHighlights } from "@/components/dashboard/WeeklyHighlights";
 import { QuickActions } from "@/components/layout/QuickActions";
 import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 const Home = () => {
   const { data: kpis } = useQuery({
@@ -151,32 +152,85 @@ const Home = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="relative overflow-hidden">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="relative space-y-6">
+              {/* Animated timeline connector */}
+              <motion.div 
+                className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-brand via-accent to-transparent"
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                style={{ transformOrigin: "top" }}
+              />
+              
               {[
-                { color: "success", label: "System active", desc: `Tracking ${kpis?.length || 0} KPIs across the team` },
-                openIssues > 0 && { color: "warning", label: `${openIssues} open issues`, desc: "Requires team attention" },
-                { color: "brand", label: "Rocks in progress", desc: `${totalRocks - completedRocks} rocks on track for this quarter` },
+                { 
+                  type: "success", 
+                  label: "System active", 
+                  desc: `Tracking ${kpis?.length || 0} KPIs across the team`,
+                  time: "Just now",
+                  icon: "✓"
+                },
+                openIssues > 0 && { 
+                  type: "warning", 
+                  label: `${openIssues} open issues`, 
+                  desc: "Requires team attention",
+                  time: "2 hours ago",
+                  icon: "⚠"
+                },
+                { 
+                  type: "brand", 
+                  label: "Rocks in progress", 
+                  desc: `${totalRocks - completedRocks} rocks on track for this quarter`,
+                  time: "5 hours ago",
+                  icon: "🎯"
+                },
               ].filter(Boolean).map((item, index) => (
                 <motion.div
                   key={index}
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, x: -30 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.6 + index * 0.1 }}
-                  className="flex items-start gap-3"
+                  transition={{ delay: 0.6 + index * 0.15, duration: 0.5 }}
+                  className="relative flex items-start gap-4 group"
                 >
+                  {/* Timeline node with gradient background */}
                   <motion.div
-                    className={`w-2 h-2 rounded-full bg-${item.color} mt-2`}
-                    animate={{ scale: [1, 1.3, 1] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: index * 0.3 }}
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{item.label}</p>
-                    <p className="text-xs text-muted-foreground">{item.desc}</p>
+                    className={cn(
+                      "relative z-10 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-lg",
+                      item.type === "success" && "bg-gradient-to-br from-success to-success/70 text-white",
+                      item.type === "warning" && "bg-gradient-to-br from-warning to-warning/70 text-white",
+                      item.type === "brand" && "bg-gradient-to-br from-brand to-accent text-white"
+                    )}
+                    animate={{ 
+                      scale: [1, 1.1, 1],
+                      boxShadow: [
+                        "0 0 0 0 rgba(var(--brand-rgb), 0)",
+                        "0 0 0 8px rgba(var(--brand-rgb), 0.1)",
+                        "0 0 0 0 rgba(var(--brand-rgb), 0)"
+                      ]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity, delay: index * 0.4 }}
+                  >
+                    {item.icon}
+                  </motion.div>
+                  
+                  {/* Content with hover effect */}
+                  <div className="flex-1 min-w-0 pb-2">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-sm font-medium text-foreground group-hover:text-brand transition-colors">
+                        {item.label}
+                      </p>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {item.time}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {item.desc}
+                    </p>
                   </div>
                 </motion.div>
               ))}
