@@ -405,6 +405,93 @@ export type Database = {
         }
         Relationships: []
       }
+      help_dismissed: {
+        Row: {
+          dismissed: boolean | null
+          dismissed_at: string | null
+          id: string
+          team_id: string
+          term: string
+          user_id: string
+        }
+        Insert: {
+          dismissed?: boolean | null
+          dismissed_at?: string | null
+          id?: string
+          team_id: string
+          term: string
+          user_id: string
+        }
+        Update: {
+          dismissed?: boolean | null
+          dismissed_at?: string | null
+          id?: string
+          team_id?: string
+          term?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_dismissed_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_dismissed_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      help_events: {
+        Row: {
+          action: string
+          context: string | null
+          created_at: string | null
+          id: string
+          team_id: string
+          term: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          context?: string | null
+          created_at?: string | null
+          id?: string
+          team_id: string
+          term: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          context?: string | null
+          created_at?: string | null
+          id?: string
+          team_id?: string
+          term?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_events_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_mappings: {
         Row: {
           created_at: string | null

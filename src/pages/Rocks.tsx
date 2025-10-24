@@ -6,6 +6,7 @@ import { RockCard } from "@/components/rocks/RockCard";
 import { NewRockModal } from "@/components/rocks/NewRockModal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Target, Filter, Plus, Sparkles } from "lucide-react";
+import { HelpHint } from "@/components/help/HelpHint";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -179,7 +180,10 @@ const Rocks = () => {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Rocks</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
+            Rocks
+            <HelpHint term="Rock" context="rocks_header" />
+          </h1>
           <p className="text-muted-foreground">90-day priorities and goals</p>
         </div>
         <div className="flex gap-2">

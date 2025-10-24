@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Save } from "lucide-react";
+import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -217,7 +218,10 @@ const L10 = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Level 10 Meeting</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
+            Level 10 Meeting
+            <HelpHint term="L10 Meeting" context="l10_header" />
+          </h1>
           <p className="text-muted-foreground">
             90-minute weekly leadership team meeting
           </p>

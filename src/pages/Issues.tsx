@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { IDSBoard } from "@/components/issues/IDSBoard";
 import { NewIssueModal } from "@/components/issues/NewIssueModal";
+import { HelpHint } from "@/components/help/HelpHint";
 
 const Issues = () => {
   const [newIssueModalOpen, setNewIssueModalOpen] = useState(false);
@@ -54,7 +55,10 @@ const Issues = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Issues</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
+            Issues
+            <HelpHint term="Issue" context="issues_header" />
+          </h1>
           <p className="text-muted-foreground">
             Identify, discuss, and solve operational challenges
           </p>

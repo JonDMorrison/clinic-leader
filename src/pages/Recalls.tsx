@@ -8,6 +8,7 @@ import { Phone, Calendar, Users, AlertTriangle, Plus } from "lucide-react";
 import { RecallList } from "@/components/recalls/RecallList";
 import { BacklogBanner } from "@/components/recalls/BacklogBanner";
 import { NewRecallModal } from "@/components/recalls/NewRecallModal";
+import { HelpHint } from "@/components/help/HelpHint";
 
 export default function Recalls() {
   const [showNewModal, setShowNewModal] = useState(false);
@@ -32,8 +33,9 @@ export default function Recalls() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent flex items-center">
             Daily Recalls
+            <HelpHint term="Recall" context="recalls_header" />
           </h1>
           <p className="text-muted-foreground mt-1">
             Manage patient follow-ups and recall workflows

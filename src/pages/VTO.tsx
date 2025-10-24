@@ -10,6 +10,7 @@ import { VtoLoadPresetsButton } from "@/components/vto/VtoLoadPresetsButton";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useVTORealtimeSync } from "@/hooks/useVTORealtimeSync";
+import { HelpHint } from "@/components/help/HelpHint";
 
 const VTO = () => {
   const { toast } = useToast();
@@ -219,7 +220,10 @@ const VTO = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Vision/Traction Organizer</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
+            Vision/Traction Organizer
+            <HelpHint term="V/TO" context="vto_header" />
+          </h1>
           <div className="flex items-center gap-4">
             <Badge variant={latestVersion?.status === 'published' ? 'default' : 'secondary'}>
               Version {latestVersion?.version} • {latestVersion?.status}

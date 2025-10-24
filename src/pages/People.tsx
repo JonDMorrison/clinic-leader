@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Users as UsersIcon } from "lucide-react";
+import { HelpHint } from "@/components/help/HelpHint";
 import { SeatTile } from "@/components/people/SeatTile";
 import { ValuesList } from "@/components/people/ValuesList";
 import { PeopleAnalyzer } from "@/components/people/PeopleAnalyzer";
@@ -83,7 +84,10 @@ const People = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">People</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
+          People
+          <HelpHint term="People Analyzer" context="people_header" />
+        </h1>
         <p className="text-muted-foreground">Accountability and core values</p>
       </div>
 

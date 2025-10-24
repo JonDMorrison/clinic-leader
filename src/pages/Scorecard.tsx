@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Target, ChevronDown, ChevronUp } from "lucide-react";
+import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { IssueModal } from "@/components/scorecard/IssueModal";
@@ -128,8 +129,9 @@ const Scorecard = () => {
       {/* Hero Section */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold gradient-brand bg-clip-text text-transparent mb-2">
+          <h1 className="text-3xl font-bold gradient-brand bg-clip-text text-transparent mb-2 flex items-center">
             Scorecard
+            <HelpHint term="Scorecard" context="scorecard_header" />
           </h1>
           {totalKpis > 0 && (
             <div className="flex items-center gap-3 text-sm">

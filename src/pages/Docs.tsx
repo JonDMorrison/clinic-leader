@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, FileText, BookOpen } from "lucide-react";
+import { HelpHint } from "@/components/help/HelpHint";
 import { DocList } from "@/components/docs/DocList";
 import { DocEditor } from "@/components/docs/DocEditor";
 import { AckPanel } from "@/components/docs/AckPanel";
@@ -122,7 +123,10 @@ const Docs = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Documents</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
+            Documents
+            <HelpHint term="Docs" context="docs_header" />
+          </h1>
           <p className="text-muted-foreground">SOPs, policies, and training materials</p>
         </div>
         <div className="flex gap-2">
