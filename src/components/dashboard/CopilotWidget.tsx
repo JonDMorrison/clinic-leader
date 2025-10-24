@@ -140,17 +140,17 @@ export const CopilotWidget = () => {
             Full View
           </Button>
         </CardHeader>
-        <CardContent className="space-y-4 px-4 md:px-6 pb-4 md:pb-6">
+        <CardContent className="space-y-4 px-4 md:px-6 pb-4 md:pb-6 flex flex-col min-h-[280px]">
           {response ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-4 rounded-2xl bg-gradient-to-br from-brand/5 to-accent/5 border border-brand/20 text-sm max-h-32 overflow-y-auto"
+              className="p-4 rounded-2xl bg-gradient-to-br from-brand/5 to-accent/5 border border-brand/20 text-sm flex-1 overflow-y-auto"
             >
               <p className="text-foreground">{response}</p>
             </motion.div>
           ) : (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3 flex-1 justify-center">
               <p className="text-xs text-muted-foreground text-center font-medium">
                 Try asking:
               </p>
@@ -170,7 +170,7 @@ export const CopilotWidget = () => {
                       size="sm"
                       onClick={() => setInput(question)}
                       className={cn(
-                        "text-xs h-auto py-2.5 md:py-2 px-3 w-full min-h-[44px]",
+                        "text-xs h-auto py-3 px-3 w-full",
                         "bg-gradient-to-br from-white/5 to-white/0",
                         "border-white/10 hover:border-brand/30",
                         "hover:shadow-[0_4px_12px_rgba(139,92,246,0.15)]",
