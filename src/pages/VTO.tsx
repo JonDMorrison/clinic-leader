@@ -242,10 +242,6 @@ const VTO = () => {
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
-          <Button onClick={() => navigate('/vto/vision')}>
-            <FileText className="w-4 h-4 mr-2" />
-            Edit Vision
-          </Button>
         </div>
       </div>
 
