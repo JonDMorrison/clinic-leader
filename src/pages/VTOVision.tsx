@@ -187,6 +187,7 @@ const VTOVision = () => {
     onSuccess: () => {
       toast({ title: "Success", description: "Vision saved!" });
       queryClient.invalidateQueries({ queryKey: ["vto-vision"] });
+      navigate('/vto');
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
