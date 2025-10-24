@@ -22,6 +22,8 @@ interface KpiCardCompactProps {
 export const KpiCardCompact = ({ kpi, onUpdate }: KpiCardCompactProps) => {
   const [weekValue, setWeekValue] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTarget, setEditTarget] = useState(kpi.target?.toString() || "");
   const { toast } = useToast();
 
   const latestReading = kpi.kpi_readings?.[0];
@@ -132,6 +134,55 @@ export const KpiCardCompact = ({ kpi, onUpdate }: KpiCardCompactProps) => {
     }
   };
 
+  const handleSaveEdit = async () => {
+    try {
+      const { error } = await supabase
+        .from("kpis")
+        .update({
+          target: parseFloat(editTarget),
+        })
+        .eq("id", kpi.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "KPI updated successfully",
+      });
+      setIsEditing(false);
+      onUpdate();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePause = async () => {
+    try {
+      const { error } = await supabase
+        .from("kpis")
+        .update({ active: false })
+        .eq("id", kpi.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "KPI paused successfully",
+      });
+      onUpdate();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const status = getStatus();
   const borderColor = status.status === "success" 
     ? "border-success/50" 
@@ -159,12 +210,12 @@ export const KpiCardCompact = ({ kpi, onUpdate }: KpiCardCompactProps) => {
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+          <DropdownMenuContent align="end" className="glass">
+            <DropdownMenuItem onClick={() => setIsEditing(true)}>
               <Edit2 className="h-4 w-4 mr-2" />
-              Edit KPI
+              Edit Target
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handlePause}>
               <Pause className="h-4 w-4 mr-2" />
               Pause Tracking
             </DropdownMenuItem>
@@ -185,12 +236,42 @@ export const KpiCardCompact = ({ kpi, onUpdate }: KpiCardCompactProps) => {
           <div className="text-xs text-muted-foreground mt-1">This Week</div>
         </div>
         <div className="glass rounded-xl p-3">
-          <div className="flex items-center gap-1 text-lg font-semibold text-foreground">
-            Target: {kpi.target ? formatValue(parseFloat(String(kpi.target))) : "—"}
-          </div>
-          <Badge variant={status.status as "success" | "danger" | "muted"} className="mt-1">
-            {status.label}
-          </Badge>
+          {isEditing ? (
+            <div className="space-y-2">
+              <Input
+                type="number"
+                value={editTarget}
+                onChange={(e) => setEditTarget(e.target.value)}
+                className="h-8"
+                placeholder="Target"
+              />
+              <div className="flex gap-1">
+                <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs">
+                  Save
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditTarget(kpi.target?.toString() || "");
+                  }}
+                  className="h-7 text-xs"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-1 text-lg font-semibold text-foreground">
+                Target: {kpi.target ? formatValue(parseFloat(String(kpi.target))) : "—"}
+              </div>
+              <Badge variant={status.status as "success" | "danger" | "muted"} className="mt-1">
+                {status.label}
+              </Badge>
+            </>
+          )}
         </div>
       </div>
 
