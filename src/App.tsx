@@ -38,6 +38,7 @@ import OnboardingAnalytics from "./pages/OnboardingAnalytics";
 import JaneIntegration from "./pages/JaneIntegration";
 import Recalls from "./pages/Recalls";
 import Integrations from "./pages/Integrations";
+import SystemHealth from "./pages/SystemHealth";
 
 const queryClient = new QueryClient();
 
@@ -143,6 +144,7 @@ const App = () => {
             <Route path="/settings/integrations" element={<AppLayout><Integrations /></AppLayout>} />
             <Route path="/settings/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
             <Route path="/admin/onboarding-analytics" element={<AppLayout><OnboardingAnalytics /></AppLayout>} />
+            <Route path="/admin/system-health" element={<AppLayout><SystemHealth /></AppLayout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           
