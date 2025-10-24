@@ -1,6 +1,7 @@
 import { SystemHealthCard } from "@/components/tests/SystemHealthCard";
 import { OnboardingFlowCard } from "@/components/tests/OnboardingFlowCard";
 import { KpiIntegrityCard } from "@/components/tests/KpiIntegrityCard";
+import { DocsIntegrityCard } from "@/components/tests/DocsIntegrityCard";
 
 const SystemHealth = () => {
   return (
@@ -21,6 +22,10 @@ const SystemHealth = () => {
 
       <div className="mt-6">
         <KpiIntegrityCard />
+      </div>
+
+      <div className="mt-6">
+        <DocsIntegrityCard />
       </div>
     </div>
   );
