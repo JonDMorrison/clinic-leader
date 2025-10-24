@@ -10,6 +10,7 @@ import { RockReview } from "@/components/l10/RockReview";
 import { HeadlinesCapture } from "@/components/l10/HeadlinesCapture";
 import { TodoReview } from "@/components/l10/TodoReview";
 import { IDSSection } from "@/components/l10/IDSSection";
+import { VtoL10Panel } from "@/components/vto/VtoL10Panel";
 import { exportMeetingMinutes } from "@/utils/exportMinutes";
 import { AgendaSuggestions } from "@/components/l10/AgendaSuggestions";
 
@@ -234,6 +235,8 @@ const L10 = () => {
       </div>
 
       <AgendaSuggestions teamId={currentTeam?.team_id || null} />
+
+      <VtoL10Panel />
 
       <div className="space-y-4">
         <AgendaTimer sectionName="Segue (Good News)" defaultMinutes={5} />

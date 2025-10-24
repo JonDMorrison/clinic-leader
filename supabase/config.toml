@@ -23,3 +23,12 @@ verify_jwt = false
 
 [functions.rules-weekly]
 verify_jwt = false
+
+[functions.vto-save]
+verify_jwt = false
+
+[functions.vto-compute-progress]
+verify_jwt = false
+
+[functions.vto-export]
+verify_jwt = false

@@ -39,6 +39,9 @@ import JaneIntegration from "./pages/JaneIntegration";
 import Recalls from "./pages/Recalls";
 import Integrations from "./pages/Integrations";
 import SystemHealth from "./pages/SystemHealth";
+import VTO from "./pages/VTO";
+import VTOVision from "./pages/VTOVision";
+import VTOTraction from "./pages/VTOTraction";
 
 const queryClient = new QueryClient();
 
@@ -127,6 +130,9 @@ const App = () => {
             <Route path="/docs" element={<AppLayout><Docs /></AppLayout>} />
             <Route path="/recalls" element={<AppLayout><Recalls /></AppLayout>} />
             <Route path="/people" element={<AppLayout><People /></AppLayout>} />
+            <Route path="/vto" element={<AppLayout><VTO /></AppLayout>} />
+            <Route path="/vto/vision" element={<AppLayout><VTOVision /></AppLayout>} />
+            <Route path="/vto/traction" element={<AppLayout><VTOTraction /></AppLayout>} />
             <Route path="/imports" element={<AppLayout><Imports /></AppLayout>} />
             <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
             <Route path="/reports/:id" element={<AppLayout><ReportView /></AppLayout>} />
