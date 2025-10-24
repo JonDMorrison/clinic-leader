@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Heart } from "lucide-react";
+import { HelpHint } from "@/components/help/HelpHint";
 
 interface ValuesListProps {
   values: Array<{
@@ -16,7 +17,10 @@ export const ValuesList = ({ values }: ValuesListProps) => {
       <CardHeader>
         <div className="flex items-center gap-2">
           <Heart className="w-5 h-5 text-brand" />
-          <CardTitle>Core Values</CardTitle>
+          <CardTitle className="flex items-center">
+            Core Values
+            <HelpHint term="Core Values" context="values_list" size="sm" />
+          </CardTitle>
         </div>
       </CardHeader>
       <CardContent>

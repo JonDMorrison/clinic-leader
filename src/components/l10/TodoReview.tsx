@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { HelpHint } from "@/components/help/HelpHint";
 
 interface TodoReviewProps {
   todos: any[];
@@ -38,7 +39,10 @@ export const TodoReview = ({ todos, onUpdate }: TodoReviewProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Todo Review (5 min)</CardTitle>
+        <CardTitle className="flex items-center">
+          Todo Review (5 min)
+          <HelpHint term="To-Do" context="l10_todo_review" size="sm" />
+        </CardTitle>
         <p className="text-sm text-muted-foreground">
           Review last week's todos - what got done?
         </p>

@@ -12,6 +12,7 @@ import { VtoCard } from "@/components/dashboard/VtoCard";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useRef, useMemo } from "react";
+import { HelpHint } from "@/components/help/HelpHint";
 
 const Home = () => {
   const ref = useRef(null);
@@ -213,6 +214,7 @@ const Home = () => {
             <CardTitle className="flex items-center gap-2">
               <Target className="w-5 h-5 text-brand" />
               Team Performance Score
+              <HelpHint term="Performance Score" context="dashboard_performance" size="sm" />
             </CardTitle>
           </CardHeader>
           <CardContent>

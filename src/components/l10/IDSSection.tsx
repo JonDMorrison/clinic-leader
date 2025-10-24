@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { AlertCircle } from "lucide-react";
+import { HelpHint } from "@/components/help/HelpHint";
 
 interface IDSSectionProps {
   issues: any[];
@@ -18,7 +19,10 @@ export const IDSSection = ({ issues }: IDSSectionProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>IDS - Identify, Discuss, Solve (60 min)</CardTitle>
+        <CardTitle className="flex items-center">
+          IDS - Identify, Discuss, Solve (60 min)
+          <HelpHint term="IDS" context="l10_ids_section" size="sm" />
+        </CardTitle>
         <p className="text-sm text-muted-foreground">
           Work through the issue list in priority order
         </p>

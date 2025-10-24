@@ -181,8 +181,9 @@ const Scorecard = () => {
           {/* Active KPIs Section */}
           <section>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold text-foreground">
+              <h2 className="text-2xl font-semibold text-foreground flex items-center">
                 Your Active KPIs
+                <HelpHint term="KPI" context="scorecard_active_kpis" size="sm" />
               </h2>
               <p className="text-sm text-muted-foreground">
                 💡 Tip: Click "+ Add This Week's Value" to update metrics

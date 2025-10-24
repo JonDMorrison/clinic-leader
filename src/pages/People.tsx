@@ -117,8 +117,9 @@ const People = () => {
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold text-foreground mb-4">
+            <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center">
               People Analyzer
+              <HelpHint term="People Analyzer" context="people_analyzer_section" size="sm" />
             </h2>
             <PeopleAnalyzer
               users={users || []}

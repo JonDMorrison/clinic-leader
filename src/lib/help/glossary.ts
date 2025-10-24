@@ -105,5 +105,45 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
       "Healthier culture"
     ],
     learnMore: { label: "Open People Analyzer", href: "/people" }
+  },
+  "Performance Score": {
+    short: "% of KPIs hitting target weekly.",
+    definition: "Your Performance Score shows what percentage of your team's KPIs are on target each week. It's calculated across all active KPIs with targets.",
+    why: [
+      "Quick health check at a glance",
+      "Spot trends over time",
+      "Focus on what needs attention"
+    ],
+    learnMore: { label: "View Scorecard", href: "/scorecard" }
+  },
+  "Core Values": {
+    short: "Your team's guiding principles.",
+    definition: "Core Values are 3-5 fundamental beliefs that define your culture and guide decision-making. They help you hire, fire, reward, and recognize the right way.",
+    why: [
+      "Creates cultural alignment",
+      "Guides hiring decisions",
+      "Defines who you are"
+    ],
+    learnMore: { label: "View V/TO", href: "/vto" }
+  },
+  "To-Do": {
+    short: "A specific action item with a due date.",
+    definition: "To-Dos are specific actions assigned to someone with a due date, usually 7 days or less. They come from solving Issues or breaking down Rocks.",
+    why: [
+      "Turns decisions into action",
+      "Creates accountability",
+      "Prevents dropped balls"
+    ],
+    learnMore: { label: "View L10 Meeting", href: "/l10" }
+  },
+  "IDS": {
+    short: "Identify, Discuss, Solve method.",
+    definition: "IDS is the three-step process for solving Issues: Identify the root cause, Discuss possible solutions, and Solve by deciding on an action.",
+    why: [
+      "Prevents circular discussions",
+      "Gets to root causes",
+      "Creates clear next steps"
+    ],
+    learnMore: { label: "View Issues", href: "/issues" }
   }
 };

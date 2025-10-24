@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { InsightCard } from "@/components/ai/InsightCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HelpHint } from "@/components/help/HelpHint";
 export const WeeklyHighlights = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const {
