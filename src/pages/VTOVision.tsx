@@ -232,16 +232,13 @@ const VTOVision = () => {
 
   return (
     <div className="space-y-6">
+      <Button variant="ghost" size="sm" onClick={() => navigate('/vto')}>
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back to V/TO
+      </Button>
+      
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/vto')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to V/TO
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Vision</h1>
-          </div>
-        </div>
+        <h1 className="text-3xl font-bold text-foreground">Vision</h1>
         <div className="flex items-center gap-3">
           <Badge variant="secondary" className="text-sm">
             {visionScore}% Complete
