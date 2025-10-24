@@ -7,9 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { WeeklyHighlights } from "@/components/dashboard/WeeklyHighlights";
 import { QuickActions } from "@/components/layout/QuickActions";
 import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
+import { PerformanceScore } from "@/components/dashboard/PerformanceScore";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 
 const Home = () => {
   const ref = useRef(null);
@@ -66,11 +67,60 @@ const Home = () => {
   const newPatientsKpi = kpis?.find(k => k.name === "New Patients");
   const newPatientsValue = newPatientsKpi?.kpi_readings?.[0]?.value || 0;
 
-  // Calculate average scorecard score from last 7 weeks
-  const scorecardData = kpis?.map(kpi => {
-    const readings = kpi.kpi_readings?.slice(0, 7).reverse() || [];
-    return readings.map(r => parseFloat(String(r.value)));
-  }).flat() || [];
+  // Calculate Team Performance Score - % of KPIs hitting targets over last 8 weeks
+  const performanceScores = useMemo(() => {
+    if (!kpis || kpis.length === 0) return [];
+    
+    // Get last 8 weeks of data
+    const weekMap = new Map<string, { total: number; onTarget: number }>();
+    
+    kpis.forEach(kpi => {
+      // Skip KPIs without targets
+      if (kpi.target === null) return;
+      
+      const readings = kpi.kpi_readings?.slice(0, 8) || [];
+      
+      readings.forEach(reading => {
+        const week = reading.week_start;
+        const value = parseFloat(String(reading.value));
+        
+        if (!weekMap.has(week)) {
+          weekMap.set(week, { total: 0, onTarget: 0 });
+        }
+        
+        const weekData = weekMap.get(week)!;
+        weekData.total += 1;
+        
+        // Check if KPI hit target based on direction
+        const hitTarget = kpi.direction === '>=' 
+          ? value >= kpi.target 
+          : kpi.direction === '<='
+          ? value <= kpi.target
+          : value === kpi.target;
+        
+        if (hitTarget) {
+          weekData.onTarget += 1;
+        }
+      });
+    });
+    
+    // Convert to array of percentages, sorted by week
+    return Array.from(weekMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([week, data]) => ({
+        week,
+        percentage: data.total > 0 ? Math.round((data.onTarget / data.total) * 100) : 0,
+        onTarget: data.onTarget,
+        total: data.total
+      }))
+      .slice(-8); // Last 8 weeks
+  }, [kpis]);
+
+  const currentScore = performanceScores[performanceScores.length - 1];
+  const previousScore = performanceScores[performanceScores.length - 2];
+  const trend = currentScore && previousScore 
+    ? currentScore.percentage - previousScore.percentage 
+    : 0;
 
   return (
     <div ref={ref} className="space-y-6 md:space-y-8 animate-fade-in relative px-4 md:px-0">
@@ -157,12 +207,19 @@ const Home = () => {
         transition={{ delay: 0.4, duration: 0.6 }}
         className="grid grid-cols-1 lg:grid-cols-2 gap-6"
       >
-        <Card>
+        <Card className="glass hover-scale">
           <CardHeader>
-            <CardTitle>Scorecard Trend</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-brand" />
+              Team Performance Score
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <KpiSparkline data={scorecardData.length > 0 ? scorecardData.slice(0, 7) : [20, 30, 25, 40, 35, 50, 45]} />
+            <PerformanceScore
+              currentScore={currentScore}
+              scoreHistory={performanceScores.map(s => s.percentage)}
+              trend={trend}
+            />
           </CardContent>
         </Card>
 
