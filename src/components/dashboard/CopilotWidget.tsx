@@ -140,17 +140,17 @@ export const CopilotWidget = () => {
             Full View
           </Button>
         </CardHeader>
-        <CardContent className="space-y-4 px-4 md:px-6 pb-4 md:pb-6 flex flex-col min-h-[280px]">
+        <CardContent className="px-4 md:px-6 pb-4 md:pb-6 flex flex-col min-h-[280px]">
           {response ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-4 rounded-2xl bg-gradient-to-br from-brand/5 to-accent/5 border border-brand/20 text-sm flex-1 overflow-y-auto"
+              className="p-4 rounded-2xl bg-gradient-to-br from-brand/5 to-accent/5 border border-brand/20 text-sm flex-1 overflow-y-auto mb-4"
             >
               <p className="text-foreground">{response}</p>
             </motion.div>
           ) : (
-            <div className="flex flex-col gap-3 flex-1 justify-center">
+            <div className="flex flex-col gap-3 flex-1 justify-center mb-4">
               <p className="text-xs text-muted-foreground text-center font-medium">
                 Try asking:
               </p>
@@ -185,7 +185,7 @@ export const CopilotWidget = () => {
             </div>
           )}
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-auto">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
