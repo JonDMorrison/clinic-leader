@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { WeeklyHighlights } from "@/components/dashboard/WeeklyHighlights";
 import { QuickActions } from "@/components/layout/QuickActions";
+import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
 
 const Home = () => {
   const { data: kpis } = useQuery({
@@ -146,6 +147,8 @@ const Home = () => {
         </Card>
 
         <QuickActions />
+        
+        <CopilotWidget />
       </div>
 
       <WeeklyHighlights />
