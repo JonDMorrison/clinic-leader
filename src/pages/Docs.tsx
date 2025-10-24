@@ -13,6 +13,7 @@ import { ManagerDashboard } from "@/components/docs/ManagerDashboard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardContent } from "@/components/ui/Card";
 import { HandbookViewer } from "@/components/docs/HandbookViewer";
+import { DocsAIChat } from "@/components/docs/DocsAIChat";
 import ReactMarkdown from "react-markdown";
 
 const Docs = () => {
@@ -143,51 +144,59 @@ const Docs = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="docs" className="w-full">
-        <TabsList>
-          <TabsTrigger value="docs">Documents</TabsTrigger>
-          {isManager && <TabsTrigger value="dashboard">Manager Dashboard</TabsTrigger>}
-        </TabsList>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <Tabs defaultValue="docs" className="w-full">
+            <TabsList>
+              <TabsTrigger value="docs">Documents</TabsTrigger>
+              {isManager && <TabsTrigger value="dashboard">Manager Dashboard</TabsTrigger>}
+            </TabsList>
 
-        <TabsContent value="docs" className="space-y-4 mt-6">
-          {filteredDocs.length === 0 ? (
-            <EmptyState
-              icon={<FileText className="w-12 h-12" />}
-              title="No documents found"
-              description="No documents match the selected filters."
-              action={
-                isManager ? (
-                  <Button onClick={handleCreateDoc}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create First Document
-                  </Button>
-                ) : undefined
-              }
-            />
-          ) : (
-            <DocList
-              docs={filteredDocs}
-              currentUserId={currentUser?.id || null}
-              kindFilter={kindFilter}
-              ownerFilter={ownerFilter}
-              onKindFilterChange={setKindFilter}
-              onOwnerFilterChange={setOwnerFilter}
-              onSelectDoc={handleViewDoc}
-              users={users || []}
-            />
-          )}
-        </TabsContent>
+            <TabsContent value="docs" className="space-y-4 mt-6">
+              {filteredDocs.length === 0 ? (
+                <EmptyState
+                  icon={<FileText className="w-12 h-12" />}
+                  title="No documents found"
+                  description="No documents match the selected filters."
+                  action={
+                    isManager ? (
+                      <Button onClick={handleCreateDoc}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create First Document
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              ) : (
+                <DocList
+                  docs={filteredDocs}
+                  currentUserId={currentUser?.id || null}
+                  kindFilter={kindFilter}
+                  ownerFilter={ownerFilter}
+                  onKindFilterChange={setKindFilter}
+                  onOwnerFilterChange={setOwnerFilter}
+                  onSelectDoc={handleViewDoc}
+                  users={users || []}
+                />
+              )}
+            </TabsContent>
 
-        {isManager && (
-          <TabsContent value="dashboard" className="mt-6">
-            <ManagerDashboard
-              docs={docs || []}
-              teams={teams || []}
-              users={users || []}
-            />
-          </TabsContent>
-        )}
-      </Tabs>
+            {isManager && (
+              <TabsContent value="dashboard" className="mt-6">
+                <ManagerDashboard
+                  docs={docs || []}
+                  teams={teams || []}
+                  users={users || []}
+                />
+              </TabsContent>
+            )}
+          </Tabs>
+        </div>
+
+        <div className="lg:col-span-1">
+          <DocsAIChat />
+        </div>
+      </div>
 
       {isManager && (
         <DocEditor
