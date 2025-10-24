@@ -34,12 +34,11 @@ export const VtoCard = () => {
 
       if (!vto) return null;
 
-      // Get latest published version
+      // Get latest version (published or draft)
       const { data: version } = await supabase
         .from("vto_versions")
         .select("*")
         .eq("vto_id", vto.id)
-        .eq("status", "published")
         .order("version", { ascending: false })
         .limit(1)
         .single();
