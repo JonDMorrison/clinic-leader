@@ -1,23 +1,30 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { Button } from "@/components/ui/button";
-import { Plus, Activity, Sparkles } from "lucide-react";
+import { Plus, Target, ChevronDown, ChevronUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { KpiRow } from "@/components/scorecard/KpiRow";
 import { IssueModal } from "@/components/scorecard/IssueModal";
 import { AddKpiModal } from "@/components/scorecard/AddKpiModal";
-import { TrackedKpiCard } from "@/components/scorecard/TrackedKpiCard";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadDefaultsDialog } from "@/components/scorecard/LoadDefaultsDialog";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { KpiCardCompact } from "@/components/scorecard/KpiCardCompact";
+import { ScorecardOnboardingWizard } from "@/components/scorecard/ScorecardOnboardingWizard";
+import { Badge } from "@/components/ui/Badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const Scorecard = () => {
-  const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [addKpiModalOpen, setAddKpiModalOpen] = useState(false);
   const [loadDefaultsOpen, setLoadDefaultsOpen] = useState(false);
-  const [issuePrefillData, setIssuePrefillData] = useState<any>(null);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const { data: kpis, isLoading, refetch } = useQuery({
     queryKey: ["kpis-detailed"],
@@ -87,10 +94,13 @@ const Scorecard = () => {
     enabled: !!currentUser?.team_id,
   });
 
-  const handleCreateIssue = (kpiName: string, week: string, value: number, target: number) => {
-    setIssuePrefillData({ kpiName, week, value, target });
-    setIssueModalOpen(true);
-  };
+  const groupedKpis = kpis?.reduce((acc, kpi) => {
+    if (!acc[kpi.category]) {
+      acc[kpi.category] = [];
+    }
+    acc[kpi.category].push(kpi);
+    return acc;
+  }, {} as Record<string, any[]>);
 
   const groupedTrackedKpis = trackedKpis?.reduce((acc, kpi) => {
     if (!acc[kpi.category]) {
@@ -100,136 +110,170 @@ const Scorecard = () => {
     return acc;
   }, {} as Record<string, any[]>);
 
-  const hasAnyKpis = (kpis && kpis.length > 0) || (trackedKpis && trackedKpis.length > 0);
+  // Calculate quick stats
+  const totalKpis = kpis?.length || 0;
+  const onTrackCount = kpis?.filter(kpi => {
+    const latestReading = kpi.kpi_readings?.[0];
+    if (!latestReading || !kpi.target) return false;
+    const value = parseFloat(String(latestReading.value));
+    const target = parseFloat(String(kpi.target));
+    
+    if (kpi.direction === ">=") return value >= target;
+    if (kpi.direction === "<=") return value <= target;
+    return false;
+  }).length || 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Hero Section */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2 gradient-brand bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold gradient-brand bg-clip-text text-transparent mb-2">
             Scorecard
           </h1>
-          <p className="text-muted-foreground">Track and manage your key performance indicators</p>
-        </div>
-        <div className="flex gap-2">
-          {hasAnyKpis && (
-            <Button onClick={() => setLoadDefaultsOpen(true)} variant="outline">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Load Defaults
-            </Button>
+          {totalKpis > 0 && (
+            <div className="flex items-center gap-3 text-sm">
+              <Badge variant="muted">
+                <Target className="w-3 h-3 mr-1" />
+                {totalKpis} KPIs tracked
+              </Badge>
+              <Badge variant="success">
+                {onTrackCount} on target this week
+              </Badge>
+            </div>
           )}
-          <Button onClick={() => setAddKpiModalOpen(true)} className="gradient-brand">
-            <Plus className="w-4 h-4 mr-2" />
-            Add KPI
-          </Button>
         </div>
+        
+        {totalKpis > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="gradient-brand">
+                <Plus className="w-4 h-4 mr-2" />
+                New KPI
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setLoadDefaultsOpen(true)}>
+                Quick Start (Load Defaults)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>
+                Custom KPI
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
-      <Tabs defaultValue="tracked" className="w-full">
-        <TabsList className="glass mb-6">
-          <TabsTrigger value="tracked" className="gap-2">
-            <Activity className="h-4 w-4" />
-            Tracked KPIs
-          </TabsTrigger>
-          <TabsTrigger value="weekly">Weekly Scorecard</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="tracked" className="space-y-6">
-          {trackedLoading ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Loading tracked KPIs...</p>
+      {/* Main Content */}
+      {isLoading ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading your scorecard...</p>
+        </div>
+      ) : totalKpis === 0 ? (
+        <ScorecardOnboardingWizard
+          onQuickStart={() => setLoadDefaultsOpen(true)}
+          onCustomKpi={() => setAddKpiModalOpen(true)}
+        />
+      ) : (
+        <div className="space-y-8">
+          {/* Active KPIs Section */}
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold text-foreground">
+                Your Active KPIs
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                💡 Tip: Click "+ Add This Week's Value" to update metrics
+              </p>
             </div>
-          ) : !trackedKpis || trackedKpis.length === 0 ? (
-            <EmptyState
-              icon={<Sparkles className="h-12 w-12" />}
-              title="No KPIs yet"
-              description="Start tracking your clinic's performance with industry-standard KPIs"
-              action={
-                <Button onClick={() => setLoadDefaultsOpen(true)} className="gradient-brand">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Load Default KPIs
-                </Button>
-              }
-            />
-          ) : (
-            <>
-              {Object.entries(groupedTrackedKpis || {}).map(([category, categoryKpis]) => (
-                <div key={category}>
-                  <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <span className="gradient-brand bg-clip-text text-transparent">{category}</span>
-                    <span className="text-sm text-muted-foreground">({categoryKpis.length})</span>
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {categoryKpis.map((kpi) => (
-                      <TrackedKpiCard key={kpi.id} kpi={kpi} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </TabsContent>
 
-        <TabsContent value="weekly">
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle>Weekly Metrics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <p className="text-muted-foreground">Loading metrics...</p>
-              ) : kpis && kpis.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>KPI</TableHead>
-                        <TableHead>Target</TableHead>
-                        <TableHead>Owner</TableHead>
-                        <TableHead>This Week</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Trend (Last 8 Weeks)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {kpis.map((kpi) => (
-                        <KpiRow
-                          key={kpi.id}
-                          kpi={kpi}
-                          users={users || []}
-                          onUpdate={refetch}
-                          onCreateIssue={handleCreateIssue}
-                        />
-                      ))}
-                    </TableBody>
-                  </Table>
+            {Object.entries(groupedKpis || {}).map(([category, categoryKpis]) => (
+              <div key={category} className="mb-8">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <span className="gradient-brand bg-clip-text text-transparent">
+                    {category}
+                  </span>
+                  <Badge variant="muted" className="text-xs">
+                    {categoryKpis.length}
+                  </Badge>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {categoryKpis.map((kpi) => (
+                    <KpiCardCompact key={kpi.id} kpi={kpi} onUpdate={refetch} />
+                  ))}
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">No KPIs with data yet. Add your first KPI to start tracking.</p>
-                  <Button onClick={() => setAddKpiModalOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Your First KPI
+              </div>
+            ))}
+          </section>
+
+          {/* Available Templates Section - Collapsible */}
+          {trackedKpis && trackedKpis.length > 0 && (
+            <Collapsible open={templatesOpen} onOpenChange={setTemplatesOpen}>
+              <section className="glass rounded-2xl p-6 border border-border">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-between hover:bg-transparent">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-foreground">
+                        Browse KPI Templates
+                      </h3>
+                      <Badge variant="muted">{trackedKpis.length} available</Badge>
+                    </div>
+                    {templatesOpen ? (
+                      <ChevronUp className="w-5 h-5" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5" />
+                    )}
                   </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent className="mt-4">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Pre-configured KPIs you can start tracking with one click
+                  </p>
+                  
+                  {Object.entries(groupedTrackedKpis || {}).map(([category, categoryKpis]) => (
+                    <div key={category} className="mb-6">
+                      <h4 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
+                        {category}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {categoryKpis.map((kpi: any) => (
+                          <div
+                            key={kpi.id}
+                            className="glass rounded-xl p-4 border border-border hover:border-primary/40 transition-all"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h5 className="font-medium text-foreground mb-1">{kpi.name}</h5>
+                                <p className="text-xs text-muted-foreground line-clamp-2">
+                                  {kpi.description}
+                                </p>
+                              </div>
+                              <Button size="sm" variant="outline" className="ml-2">
+                                Track
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <Button
+                    onClick={() => setLoadDefaultsOpen(true)}
+                    variant="outline"
+                    className="w-full mt-4"
+                  >
+                    Load More Templates
+                  </Button>
+                </CollapsibleContent>
+              </section>
+            </Collapsible>
+          )}
+        </div>
+      )}
 
-      <IssueModal
-        open={issueModalOpen}
-        onClose={() => {
-          setIssueModalOpen(false);
-          setIssuePrefillData(null);
-        }}
-        prefillData={issuePrefillData}
-        users={users || []}
-        teamId={currentUser?.team_id || null}
-        onSuccess={refetch}
-      />
-
+      {/* Modals */}
       <AddKpiModal
         open={addKpiModalOpen}
         onClose={() => setAddKpiModalOpen(false)}
