@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus, Target } from "lucide-react";
+import { Link } from "react-router-dom";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -82,11 +84,19 @@ export const PerformanceScore = ({
 
   if (!currentScore) {
     return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <Target className="w-12 h-12 mb-3 text-muted-foreground opacity-50" />
-        <p className="text-sm text-muted-foreground max-w-xs">
-          Set KPI targets on your scorecard to see your team's performance score
-        </p>
+      <div className="flex flex-col items-center justify-center py-8 text-center gap-4">
+        <Target className="w-12 h-12 text-muted-foreground opacity-50" />
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Set KPI targets on your scorecard to see your team's performance score
+          </p>
+          <Link to="/scorecard">
+            <Button variant="outline" className="hover-scale">
+              <Target className="w-4 h-4 mr-2" />
+              Set KPI Targets
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
