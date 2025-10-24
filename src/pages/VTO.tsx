@@ -31,15 +31,29 @@ const VTO = () => {
 
       if (!userProfile?.team_id) throw new Error("User not assigned to team");
 
-      // Get VTO
-      const { data: vto, error: vtoError } = await supabase
+      // Get VTO (prefer active, fallback to any for team)
+      let vto: any = null;
+      const { data: activeVto, error: activeErr } = await supabase
         .from("vto")
         .select("*")
         .eq("team_id", userProfile.team_id)
         .eq("is_active", true)
-        .single();
+        .maybeSingle();
 
-      if (vtoError && vtoError.code !== 'PGRST116') throw vtoError;
+      if (activeErr && activeErr.code !== 'PGRST116') throw activeErr;
+      vto = activeVto;
+
+      if (!vto) {
+        const { data: anyVto, error: anyErr } = await supabase
+          .from("vto")
+          .select("*")
+          .eq("team_id", userProfile.team_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (anyErr && anyErr.code !== 'PGRST116') throw anyErr;
+        vto = anyVto;
+      }
 
       // Get latest version if VTO exists
       if (vto) {
