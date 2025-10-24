@@ -51,9 +51,9 @@ Deno.serve(async (req) => {
       issues.push('Failed to fetch docs');
     }
 
-    const sop_count = docs?.filter(d => d.kind === 'sop').length || 0;
-    const manual_count = docs?.filter(d => d.kind === 'manual').length || 0;
-    const training_count = docs?.filter(d => d.kind === 'training').length || 0;
+    const sop_count = docs?.filter(d => d.kind?.toLowerCase() === 'sop').length || 0;
+    const manual_count = docs?.filter(d => d.kind?.toLowerCase() === 'manual').length || 0;
+    const training_count = docs?.filter(d => d.kind?.toLowerCase() === 'training').length || 0;
     const total_docs = docs?.length || 0;
 
     const sops_loaded = sop_count >= 1; // At least Recall Review should be loaded
