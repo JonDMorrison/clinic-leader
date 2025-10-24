@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Calendar, Target } from "lucide-react";
+import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
@@ -151,10 +152,13 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
               )}
             </div>
 
-            <div className="flex items-center justify-between">
-              <Badge variant="muted" className="text-xs">
-                {rock.quarter}
-              </Badge>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="muted" className="text-xs">
+                  {rock.quarter}
+                </Badge>
+                <VTOGoalBadge linkType="rock" linkId={rock.id} />
+              </div>
 
               {isEditingConfidence ? (
                 <Input

@@ -9,6 +9,7 @@ import { Plus, FileText, History, Link as LinkIcon, Download } from "lucide-reac
 import { VtoLoadPresetsButton } from "@/components/vto/VtoLoadPresetsButton";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useVTORealtimeSync } from "@/hooks/useVTORealtimeSync";
 
 const VTO = () => {
   const { toast } = useToast();
@@ -61,13 +62,16 @@ const VTO = () => {
             .limit(1)
             .single();
 
-          return { vto, versions, latestVersion, progress };
+          return { vto, versions, latestVersion, progress, teamId: userProfile.team_id };
         }
       }
 
-      return { vto: null, versions: [], latestVersion: null, progress: null };
+      return { vto: null, versions: [], latestVersion: null, progress: null, teamId: userProfile.team_id };
     },
   });
+
+  // Enable real-time VTO sync
+  useVTORealtimeSync(vtoData?.teamId);
 
   const handleCreateVTO = async (templateKey?: string) => {
     try {

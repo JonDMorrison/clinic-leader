@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle2, ListTodo, GripVertical } from "lucide-react"
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConvertToTodoModal } from "./ConvertToTodoModal";
+import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 
 interface IssueCardProps {
   issue: any;
@@ -105,13 +106,14 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                     <p className="text-sm text-muted-foreground">{issue.context}</p>
                   )}
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex gap-2 flex-shrink-0 flex-wrap">
                   <Badge variant={priorityBadge.variant as "danger" | "warning" | "muted"}>
                     {priorityBadge.label}
                   </Badge>
                   <Badge variant={statusBadge.variant as "success" | "brand" | "warning" | "muted"}>
                     {statusBadge.label}
                   </Badge>
+                  <VTOGoalBadge linkType="issue" linkId={issue.id} />
                 </div>
               </div>
 

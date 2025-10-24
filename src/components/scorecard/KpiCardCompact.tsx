@@ -5,6 +5,7 @@ import { KpiSparkline } from "@/components/ui/KpiSparkline";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -200,9 +201,12 @@ export const KpiCardCompact = ({ kpi, onUpdate }: KpiCardCompactProps) => {
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <h3 className="font-semibold text-foreground mb-1">{kpi.name}</h3>
-          <Badge className={`${getCategoryColor(kpi.category)} text-xs`}>
-            {kpi.category}
-          </Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={`${getCategoryColor(kpi.category)} text-xs`}>
+              {kpi.category}
+            </Badge>
+            <VTOGoalBadge linkType="kpi" linkId={kpi.id} />
+          </div>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
