@@ -81,9 +81,9 @@ export function DocsIntegrityCard() {
           <div className="flex items-center gap-3">
             <BookOpen className="h-6 w-6 text-primary" />
             <div>
-              <h2 className="text-xl font-semibold">SOPs & Docs Integrity</h2>
+              <h2 className="text-xl font-semibold">Document System Integrity</h2>
               <p className="text-sm text-muted-foreground">
-                Validate docs module, AI search, and acknowledgment flow
+                Validate document system, AI search, and acknowledgment workflows
               </p>
             </div>
           </div>
@@ -99,7 +99,7 @@ export function DocsIntegrityCard() {
                 Testing...
               </>
             ) : (
-              "Run Docs Test"
+              "Run Document Test"
             )}
           </Button>
         </div>
@@ -197,7 +197,7 @@ export function DocsIntegrityCard() {
         {!result && !loading && (
           <div className="text-center py-12 text-muted-foreground">
             <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Click "Run Docs Test" to validate documentation system</p>
+            <p>Click "Run Document Test" to validate documentation system</p>
           </div>
         )}
       </div>

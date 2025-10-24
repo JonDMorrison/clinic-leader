@@ -7,15 +7,15 @@ export default function ImportSops() {
 
   const handleFileSelect = async (file: File) => {
     try {
-      // SOP import logic would go here
+      // Document import logic would go here
       toast({
-        title: "SOP Import",
+        title: "Document Import",
         description: `Processing ${file.name}...`,
       });
     } catch (error) {
       toast({
         title: "Import Error",
-        description: "Failed to process SOP import",
+        description: "Failed to process document import",
         variant: "destructive",
       });
     }
@@ -25,22 +25,22 @@ export default function ImportSops() {
     <div className="container mx-auto p-6 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2 gradient-brand bg-clip-text text-transparent">
-          Import SOPs
+          Import Documents
         </h1>
         <p className="text-muted-foreground">
-          Upload standard operating procedures and documentation
+          Upload documents including SOPs, policies, and training materials
         </p>
       </div>
 
       <FileDropZone
         onFileSelect={handleFileSelect}
         acceptedTypes={[".csv", ".md", ".pdf"]}
-        label="Upload SOP Files"
+        label="Upload Document Files"
         fileType="sops"
       />
 
       <Card className="glass p-6 mt-6">
-        <h3 className="text-lg font-semibold mb-4">SOP Import Format</h3>
+        <h3 className="text-lg font-semibold mb-4">Document Import Format</h3>
         <div className="space-y-4">
           <div>
             <h4 className="font-semibold mb-2 text-sm">CSV Format:</h4>

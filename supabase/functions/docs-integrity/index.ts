@@ -36,11 +36,11 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('Starting docs integrity check...');
+    console.log('Starting document system integrity check...');
 
     const issues: string[] = [];
 
-    // Check 1: All SOPs loaded
+    // Check 1: Documents loaded (including SOPs, manuals, training materials)
     const { data: docs, error: docsError } = await supabase
       .from('docs')
       .select('*')
@@ -56,8 +56,8 @@ Deno.serve(async (req) => {
     const training_count = docs?.filter(d => d.kind?.toLowerCase() === 'training').length || 0;
     const total_docs = docs?.length || 0;
 
-    const sops_loaded = sop_count >= 1; // At least Recall Review should be loaded
-    console.log(`✅ SOPs loaded: ${sops_loaded} (${sop_count} SOPs, ${manual_count} manuals, ${training_count} training)`);
+    const sops_loaded = sop_count >= 1; // At least one SOP-type document should exist
+    console.log(`✅ Documents loaded: ${sops_loaded} (${sop_count} SOPs, ${manual_count} manuals, ${training_count} training)`);
 
     if (!sops_loaded) {
       issues.push('Expected at least 1 SOP to be loaded');
@@ -167,14 +167,14 @@ Deno.serve(async (req) => {
       timestamp: new Date().toISOString(),
     };
 
-    console.log('Docs integrity check completed successfully');
+    console.log('Document system integrity check completed successfully');
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (error: unknown) {
-    console.error('Docs integrity check failed:', error);
+    console.error('Document system integrity check failed:', error);
     
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
