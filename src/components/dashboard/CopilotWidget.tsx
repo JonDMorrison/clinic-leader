@@ -22,13 +22,39 @@ export const CopilotWidget = () => {
       
       const { data } = await supabase
         .from("users")
-        .select("team_id")
+        .select("team_id, role")
         .eq("email", user.email)
         .single();
       
-      return { ...user, team_id: data?.team_id };
+      return { ...user, team_id: data?.team_id, role: data?.role };
     },
   });
+
+  const getSuggestedQuestions = (role: string | undefined) => {
+    switch (role) {
+      case "owner":
+      case "director":
+        return [
+          "What are our top 3 KPIs this week?",
+          "Show me all overdue rocks",
+          "What issues need my attention?",
+        ];
+      case "manager":
+        return [
+          "How is my team performing on KPIs?",
+          "What rocks are off track?",
+          "Summary of open issues",
+        ];
+      default:
+        return [
+          "What are my current rocks?",
+          "Show my team's scorecard",
+          "What todos are due soon?",
+        ];
+    }
+  };
+
+  const suggestions = getSuggestedQuestions(currentUser?.role);
 
   const handleSend = async () => {
     if (!input.trim() || !currentUser?.team_id) return;
@@ -81,8 +107,23 @@ export const CopilotWidget = () => {
             <p className="text-muted-foreground italic">{response}</p>
           </div>
         ) : (
-          <div className="text-center text-sm text-muted-foreground py-4">
-            Ask me anything about your clinic data
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground text-center">
+              Try asking:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {suggestions.map((question, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setInput(question)}
+                  className="text-xs h-auto py-2 px-3 flex-1 min-w-0"
+                >
+                  {question}
+                </Button>
+              ))}
+            </div>
           </div>
         )}
         
