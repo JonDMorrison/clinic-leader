@@ -233,21 +233,19 @@ const VTOVision = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/vto')}>
+        <div className="flex items-center gap-6">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/vto')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to V/TO
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-foreground">Vision</h1>
-            <p className="text-sm text-muted-foreground">Build your organization's strategic vision</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-sm text-muted-foreground">Completeness</div>
-            <div className="text-2xl font-bold text-foreground">{visionScore}%</div>
-          </div>
+        <div className="flex items-center gap-3">
+          <Badge variant="secondary" className="text-sm">
+            {visionScore}% Complete
+          </Badge>
           <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
             <Save className="w-4 h-4 mr-2" />
             Save Draft
