@@ -128,11 +128,44 @@ const VTOVision = () => {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!vtoData?.vto || !vtoData?.userId) throw new Error("VTO not found");
+      if (!vtoData?.userId) throw new Error("User not found");
+
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("Not authenticated");
+
+      const { data: userProfile } = await supabase
+        .from("users")
+        .select("team_id")
+        .eq("email", userData.user.email)
+        .single();
+
+      // Get or create VTO
+      let vtoId = vtoData?.vto?.id;
+      if (!vtoId) {
+        const { data: existingVto } = await supabase
+          .from("vto")
+          .select("id")
+          .eq("team_id", userProfile.team_id)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (existingVto) {
+          vtoId = existingVto.id;
+        } else {
+          const { data: newVto, error: vtoError } = await supabase
+            .from("vto")
+            .insert({ team_id: userProfile.team_id, is_active: true })
+            .select("id")
+            .single();
+
+          if (vtoError) throw vtoError;
+          vtoId = newVto.id;
+        }
+      }
 
       const versionData = {
-        vto_id: vtoData.vto.id,
-        version: (vtoData.version?.version || 0) + 1,
+        vto_id: vtoId,
+        version: (vtoData?.version?.version || 0) + 1,
         status: 'draft',
         core_values: coreValues,
         core_focus: coreFocus,
