@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -151,18 +151,20 @@ serve(async (req) => {
             result.endpoints_ok = false;
             result.details.errors.push(`Edge function ${funcName} returned ${response.status}`);
           }
-        } catch (e) {
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
           result.details.endpoints[funcName] = false;
           result.endpoints_ok = false;
-          result.details.errors.push(`Edge function ${funcName} unreachable: ${e.message}`);
+          result.details.errors.push(`Edge function ${funcName} unreachable: ${msg}`);
         }
       }
 
-    } catch (dbError) {
+    } catch (dbError: unknown) {
       result.db_ok = false;
       result.details.db.connected = false;
-      result.details.db.error = dbError.message;
-      result.details.errors.push(`Database connection failed: ${dbError.message}`);
+      const msg = dbError instanceof Error ? dbError.message : String(dbError);
+      result.details.db.error = msg;
+      result.details.errors.push(`Database connection failed: ${msg}`);
     }
 
     // 5. Console/Runtime Check (always true in this context, actual errors would be logged)
@@ -178,18 +180,19 @@ serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in system-health function:', error);
+    const msg = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: msg,
         env_ok: false,
         db_ok: false,
         rls_ok: false,
         endpoints_ok: false,
         console_ok: false,
         details: {
-          errors: [error.message]
+          errors: [msg]
         }
       }),
       {
