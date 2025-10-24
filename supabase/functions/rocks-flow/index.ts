@@ -250,10 +250,13 @@ Deno.serve(async (req) => {
       results.permissions_correct = false;
     }
 
+    const passedCount = ['rocks_flow','kpi_flow','issues_flow','meeting_flow','permissions_correct']
+      .filter((k) => (results as any)[k] === true).length;
+
     const summary = {
-      passed: Object.values(results).filter(v => v === true).length - 1, // -1 for details
+      passed: passedCount,
       total: 5,
-      success_rate: Math.round((Object.values(results).filter(v => v === true).length - 1) / 5 * 100),
+      success_rate: Math.round((passedCount / 5) * 100),
       ...results,
     };
 
