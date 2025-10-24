@@ -255,8 +255,6 @@ const VTOVision = () => {
         </div>
       </div>
 
-      <Progress value={visionScore} className="h-2" />
-
       <div className="space-y-6">
         {/* Core Values */}
         <Card>
