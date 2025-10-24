@@ -91,7 +91,7 @@ export const DocList = ({
       </div>
 
       <div className="grid gap-4">
-        {docs.map((doc) => (
+        {docs.filter(doc => doc.title !== "Employee Handbook").map((doc) => (
           <div key={doc.id} onClick={() => onSelectDoc(doc)} className="cursor-pointer">
             <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
