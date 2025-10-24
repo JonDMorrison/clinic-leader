@@ -7,10 +7,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { WeeklyHighlights } from "@/components/dashboard/WeeklyHighlights";
 import { QuickActions } from "@/components/layout/QuickActions";
 import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useRef } from "react";
 
 const Home = () => {
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start start", "end start"]
+  });
+
+  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.8]);
+  const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.98]);
   const { data: kpis } = useQuery({
     queryKey: ["kpis-summary"],
     queryFn: async () => {
@@ -64,7 +73,7 @@ const Home = () => {
   }).flat() || [];
 
   return (
-    <div className="space-y-8 animate-fade-in relative">
+    <div ref={ref} className="space-y-6 md:space-y-8 animate-fade-in relative px-4 md:px-0">
       {/* Background ambient effects */}
       <motion.div
         className="absolute top-0 left-1/4 w-96 h-96 bg-brand/5 rounded-full blur-3xl -z-10"
@@ -96,11 +105,12 @@ const Home = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
+        style={{ opacity, scale }}
       >
-        <h1 className="text-5xl font-bold mb-2 tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
+        <h1 className="text-3xl md:text-5xl font-bold mb-2 tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
           Dashboard
         </h1>
-        <p className="text-muted-foreground text-lg">
+        <p className="text-muted-foreground text-sm md:text-lg">
           Welcome back! Here's your clinic overview.
         </p>
       </motion.div>
@@ -114,26 +124,30 @@ const Home = () => {
         <Stat
           label="New Patients (This Week)"
           value={newPatientsValue}
-          icon={<Users className="w-6 h-6 text-brand" />}
+          icon={<Users className="w-5 h-5 md:w-6 md:h-6 text-brand" />}
           variant="brand"
+          tooltip="Total new patients registered this week"
         />
         <Stat
           label="Completed Rocks"
           value={`${completedRocks}/${totalRocks}`}
-          icon={<Target className="w-6 h-6 text-success" />}
+          icon={<Target className="w-5 h-5 md:w-6 md:h-6 text-success" />}
           variant="success"
+          tooltip="Quarterly goals completed"
         />
         <Stat
           label="Open Issues"
           value={openIssues}
-          icon={<AlertCircle className="w-6 h-6 text-warning" />}
+          icon={<AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-warning" />}
           variant="warning"
+          tooltip="Issues requiring attention"
         />
         <Stat
           label="Active KPIs"
           value={kpis?.length || 0}
-          icon={<TrendingUp className="w-6 h-6 text-accent" />}
+          icon={<TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-accent" />}
           variant="accent"
+          tooltip="Key metrics being tracked"
         />
       </motion.div>
 

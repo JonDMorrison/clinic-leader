@@ -1,107 +1,154 @@
+import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { AnimatedCounter } from "./AnimatedCounter";
 import { motion } from "framer-motion";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface StatProps {
   label: string;
-  value: string | number;
+  value: number | string;
   icon?: ReactNode;
-  trend?: {
-    value: number;
-    isPositive: boolean;
-  };
+  variant?: "default" | "brand" | "success" | "warning" | "accent";
   className?: string;
-  variant?: "brand" | "success" | "warning" | "accent";
+  tooltip?: string;
 }
 
-const variantStyles = {
-  brand: "bg-gradient-to-br from-brand/10 via-brand/5 to-transparent border-brand/20",
-  success: "bg-gradient-to-br from-success/10 via-success/5 to-transparent border-success/20",
-  warning: "bg-gradient-to-br from-warning/10 via-warning/5 to-transparent border-warning/20",
-  accent: "bg-gradient-to-br from-accent/10 via-accent/5 to-transparent border-accent/20",
-};
+export const Stat = ({ label, value, icon, variant = "default", className, tooltip }: StatProps) => {
+  const [isPressed, setIsPressed] = useState(false);
 
-const glowStyles = {
-  brand: "shadow-[0_0_20px_rgba(139,92,246,0.15)]",
-  success: "shadow-[0_0_20px_rgba(34,197,94,0.15)]",
-  warning: "shadow-[0_0_20px_rgba(251,146,60,0.15)]",
-  accent: "shadow-[0_0_20px_rgba(14,165,233,0.15)]",
-};
+  const getGradientClass = () => {
+    switch (variant) {
+      case "brand":
+        return "glass bg-gradient-to-br from-brand/10 via-brand/5 to-transparent border-brand/30";
+      case "success":
+        return "glass bg-gradient-to-br from-success/10 via-success/5 to-transparent border-success/30";
+      case "warning":
+        return "glass bg-gradient-to-br from-warning/10 via-warning/5 to-transparent border-warning/30";
+      case "accent":
+        return "glass bg-gradient-to-br from-accent/10 via-accent/5 to-transparent border-accent/30";
+      default:
+        return "glass";
+    }
+  };
 
-export const Stat = ({ label, value, icon, trend, className, variant = "brand" }: StatProps) => {
-  const numericValue = typeof value === "string" ? parseFloat(value) : value;
-  const isAnimatable = !isNaN(numericValue) && typeof value !== "string" || (typeof value === "string" && !value.includes("/"));
-  
-  return (
+  const getGlowColor = () => {
+    switch (variant) {
+      case "brand":
+        return "rgba(139, 92, 246, 0.2)";
+      case "success":
+        return "rgba(34, 197, 94, 0.2)";
+      case "warning":
+        return "rgba(251, 146, 60, 0.2)";
+      case "accent":
+        return "rgba(14, 165, 233, 0.2)";
+      default:
+        return "rgba(0, 0, 0, 0.1)";
+    }
+  };
+
+  const content = (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className={cn(
-        "relative overflow-hidden rounded-2xl p-6 transition-all duration-300",
-        "border-2",
-        variantStyles[variant],
-        "hover:" + glowStyles[variant],
-        className
-      )}
+      whileHover={{ scale: 1.02, y: -4 }}
+      whileTap={{ scale: 0.98 }}
+      onTapStart={() => setIsPressed(true)}
+      onTap={() => setIsPressed(false)}
+      onTapCancel={() => setIsPressed(false)}
+      transition={{ duration: 0.2 }}
     >
-      {/* Animated glow orb */}
-      <motion.div
+      <Card
         className={cn(
-          "absolute -top-10 -right-10 w-32 h-32 rounded-full blur-3xl opacity-20",
-          variant === "brand" && "bg-brand",
-          variant === "success" && "bg-success",
-          variant === "warning" && "bg-warning",
-          variant === "accent" && "bg-accent"
+          "relative overflow-hidden group cursor-pointer",
+          "transition-all duration-300",
+          "hover:shadow-xl",
+          "active:scale-95",
+          // Mobile optimizations - larger touch target
+          "min-h-[120px] md:min-h-[auto]",
+          getGradientClass(),
+          className
         )}
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.2, 0.3, 0.2],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-      />
-      
-      <div className="relative z-10 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-muted-foreground">{label}</span>
-          {icon && (
-            <motion.div
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              transition={{ type: "spring", stiffness: 400 }}
-            >
-              {icon}
-            </motion.div>
+      >
+        {/* Ripple effect on tap */}
+        {isPressed && (
+          <motion.div
+            className="absolute inset-0 bg-white/20 rounded-xl"
+            initial={{ scale: 0, opacity: 0.6 }}
+            animate={{ scale: 2, opacity: 0 }}
+            transition={{ duration: 0.6 }}
+          />
+        )}
+
+        {/* Animated background gradient - simplified on mobile */}
+        <motion.div 
+          className={cn(
+            "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500",
+            "md:block hidden", // Hide on mobile for performance
+            getGradientClass()
           )}
+          animate={{
+            background: [
+              `linear-gradient(135deg, ${getGlowColor()} 0%, transparent 100%)`,
+              `linear-gradient(225deg, ${getGlowColor()} 0%, transparent 100%)`,
+              `linear-gradient(135deg, ${getGlowColor()} 0%, transparent 100%)`,
+            ],
+          }}
+          transition={{ duration: 3, repeat: Infinity }}
+        />
+
+        {/* Pulsing glow ring - simplified on mobile */}
+        <motion.div
+          className="absolute inset-0 rounded-xl md:block hidden"
+          animate={{
+            boxShadow: [
+              `0 0 0 0 ${getGlowColor()}`,
+              `0 0 0 4px ${getGlowColor()}`,
+              `0 0 0 0 ${getGlowColor()}`,
+            ],
+          }}
+          transition={{ duration: 2, repeat: Infinity }}
+        />
+
+        <div className="relative z-10 p-4 md:p-6">
+          <div className="flex items-center justify-between mb-2">
+            {icon && (
+              <motion.div
+                className="md:animate-none" // Disable rotation on mobile
+                animate={{ rotate: [0, 5, -5, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              >
+                {icon}
+              </motion.div>
+            )}
+          </div>
+          
+          <div className="text-2xl md:text-3xl font-bold text-foreground mb-1">
+            {typeof value === "number" ? (
+              <AnimatedCounter value={value} />
+            ) : (
+              value
+            )}
+          </div>
+          
+          <p className="text-xs md:text-sm text-muted-foreground">{label}</p>
         </div>
-        <div className="flex items-baseline gap-2">
-          {isAnimatable ? (
-            <span className="text-4xl font-bold text-foreground">
-              <AnimatedCounter value={numericValue} />
-            </span>
-          ) : (
-            <span className="text-4xl font-bold text-foreground">{value}</span>
-          )}
-          {trend && (
-            <motion.span
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className={cn(
-                "text-sm font-semibold flex items-center gap-1",
-                trend.isPositive ? "text-success" : "text-danger"
-              )}
-            >
-              <span className="text-lg">{trend.isPositive ? "↑" : "↓"}</span>
-              {Math.abs(trend.value)}%
-            </motion.span>
-          )}
-        </div>
-      </div>
+      </Card>
     </motion.div>
   );
+
+  if (tooltip) {
+    return (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {content}
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-sm">{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return content;
 };

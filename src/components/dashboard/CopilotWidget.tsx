@@ -94,9 +94,9 @@ export const CopilotWidget = () => {
       transition={{ duration: 0.5, delay: 0.3 }}
       className="relative"
     >
-      {/* Animated gradient border */}
+      {/* Animated gradient border - hidden on mobile for performance */}
       <motion.div
-        className="absolute -inset-0.5 bg-gradient-to-r from-brand via-accent to-brand rounded-3xl opacity-20 blur-sm"
+        className="absolute -inset-0.5 bg-gradient-to-r from-brand via-accent to-brand rounded-3xl opacity-20 blur-sm hidden md:block"
         animate={{
           backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
         }}
@@ -111,9 +111,10 @@ export const CopilotWidget = () => {
       />
       
       <Card className="relative hover:scale-[1.02] transition-all duration-300 border-brand/30">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 md:px-6 pt-4 md:pt-6">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
             <motion.div
+              className="md:animate-none" // Disable animation on mobile
               animate={{
                 rotate: [0, 5, -5, 0],
                 scale: [1, 1.1, 1],
@@ -124,7 +125,7 @@ export const CopilotWidget = () => {
                 ease: "easeInOut",
               }}
             >
-              <Sparkles className="w-5 h-5 text-brand" />
+              <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-brand" />
             </motion.div>
             <span className="bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent">
               AI Copilot
@@ -134,12 +135,12 @@ export const CopilotWidget = () => {
             variant="ghost"
             size="sm"
             onClick={() => navigate("/copilot")}
-            className="text-xs hover:bg-brand/10"
+            className="text-xs hover:bg-brand/10 min-h-[36px]"
           >
             Full View
           </Button>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-4 md:px-6 pb-4 md:pb-6">
           {response ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -160,14 +161,16 @@ export const CopilotWidget = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="flex-1 min-w-0"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex-1 min-w-0 touch-manipulation"
                   >
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setInput(question)}
                       className={cn(
-                        "text-xs h-auto py-2 px-3 w-full",
+                        "text-xs h-auto py-2.5 md:py-2 px-3 w-full min-h-[44px]",
                         "bg-gradient-to-br from-white/5 to-white/0",
                         "border-white/10 hover:border-brand/30",
                         "hover:shadow-[0_4px_12px_rgba(139,92,246,0.15)]",
@@ -189,14 +192,14 @@ export const CopilotWidget = () => {
               onKeyPress={handleKeyPress}
               placeholder="Ask about KPIs, rocks, issues..."
               disabled={isLoading}
-              className="flex-1 border-white/10 focus:border-brand/30 bg-white/5"
+              className="flex-1 border-white/10 focus:border-brand/30 bg-white/5 min-h-[44px]"
             />
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
                 size="icon"
-                className="shrink-0 bg-gradient-to-br from-brand to-accent hover:shadow-[0_4px_16px_rgba(139,92,246,0.3)]"
+                className="shrink-0 bg-gradient-to-br from-brand to-accent hover:shadow-[0_4px_16px_rgba(139,92,246,0.3)] min-h-[44px] min-w-[44px]"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

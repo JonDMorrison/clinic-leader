@@ -102,6 +102,7 @@ export const QuickActions = () => {
               "relative overflow-hidden rounded-2xl p-4 text-left transition-all duration-300",
               "bg-gradient-to-br border-2",
               "group cursor-pointer",
+              "touch-manipulation min-h-[100px]", // Mobile optimization
               actionVariants[action.variant],
               action.featured && "col-span-2"
             )}
@@ -123,17 +124,17 @@ export const QuickActions = () => {
                 whileHover={{ rotate: [0, -5, 5, 0] }}
                 transition={{ duration: 0.5 }}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center mb-1",
+                  "w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center mb-1",
                   action.variant === "brand" && "bg-brand/20 text-brand",
                   action.variant === "success" && "bg-success/20 text-success",
                   action.variant === "warning" && "bg-warning/20 text-warning",
                   action.variant === "accent" && "bg-accent/20 text-accent"
                 )}
               >
-                <action.icon className="w-5 h-5" />
+                <action.icon className="w-5 h-5 md:w-6 md:h-6" />
               </motion.div>
               <div>
-                <div className="font-semibold text-foreground mb-0.5">
+                <div className="font-semibold text-foreground mb-0.5 text-sm md:text-base">
                   {action.label}
                 </div>
                 <div className="text-xs text-muted-foreground">
