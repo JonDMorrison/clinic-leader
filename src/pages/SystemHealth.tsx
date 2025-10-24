@@ -1,5 +1,6 @@
 import { SystemHealthCard } from "@/components/tests/SystemHealthCard";
 import { OnboardingFlowCard } from "@/components/tests/OnboardingFlowCard";
+import { KpiIntegrityCard } from "@/components/tests/KpiIntegrityCard";
 
 const SystemHealth = () => {
   return (
@@ -16,6 +17,10 @@ const SystemHealth = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SystemHealthCard />
         <OnboardingFlowCard />
+      </div>
+
+      <div className="mt-6">
+        <KpiIntegrityCard />
       </div>
     </div>
   );
