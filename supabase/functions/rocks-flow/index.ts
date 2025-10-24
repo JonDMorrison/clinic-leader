@@ -81,6 +81,8 @@ Deno.serve(async (req) => {
         .limit(1)
         .single();
 
+      console.log('KPI test - Found owner:', owner?.id);
+
       if (owner) {
         // Create test KPI
         const { data: newKpi, error: kpiError } = await supabase
@@ -96,6 +98,8 @@ Deno.serve(async (req) => {
           .select()
           .single();
 
+        console.log('KPI test - Create KPI result:', { kpiId: newKpi?.id, error: kpiError?.message });
+
         if (!kpiError && newKpi) {
           // Add reading
           const weekStart = new Date();
@@ -109,13 +113,23 @@ Deno.serve(async (req) => {
               week_start: weekStart.toISOString().split('T')[0],
             });
 
+          console.log('KPI test - Add reading result:', { error: readingError?.message });
+
           results.kpi_flow = !readingError;
           results.details.kpi_id = newKpi.id;
+          
+          if (readingError) {
+            results.details.kpi_error = readingError.message;
+          }
 
           // Cleanup
           await supabase.from('kpi_readings').delete().eq('kpi_id', newKpi.id);
           await supabase.from('kpis').delete().eq('id', newKpi.id);
+        } else {
+          results.details.kpi_error = kpiError?.message || 'Failed to create KPI';
         }
+      } else {
+        results.details.kpi_error = 'No owner found';
       }
     } catch (error) {
       console.error('KPI flow test error:', error);
@@ -187,6 +201,8 @@ Deno.serve(async (req) => {
         .limit(1)
         .single();
 
+      console.log('Meeting test - Found team:', team?.id);
+
       if (team) {
         // Create meeting
         const { data: newMeeting, error: meetingError } = await supabase
@@ -200,6 +216,8 @@ Deno.serve(async (req) => {
           .select()
           .single();
 
+        console.log('Meeting test - Create meeting result:', { meetingId: newMeeting?.id, error: meetingError?.message });
+
         if (!meetingError && newMeeting) {
           // Create meeting notes
           const { error: notesError } = await supabase
@@ -209,6 +227,8 @@ Deno.serve(async (req) => {
               headlines: ['Test headline'],
               decisions: ['Test decision'],
             });
+
+          console.log('Meeting test - Create notes result:', { error: notesError?.message });
 
           if (notesError) {
             console.error('Failed to create meeting notes:', notesError);
@@ -221,7 +241,11 @@ Deno.serve(async (req) => {
           // Cleanup
           await supabase.from('meeting_notes').delete().eq('meeting_id', newMeeting.id);
           await supabase.from('meetings').delete().eq('id', newMeeting.id);
+        } else {
+          results.details.meeting_error = meetingError?.message || 'Failed to create meeting';
         }
+      } else {
+        results.details.meeting_error = 'No team found';
       }
     } catch (error) {
       console.error('Meeting flow test error:', error);
