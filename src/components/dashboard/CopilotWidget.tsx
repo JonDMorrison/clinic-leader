@@ -154,7 +154,7 @@ export const CopilotWidget = () => {
               <p className="text-xs text-muted-foreground text-center font-medium">
                 Try asking:
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2">
                 {suggestions.map((question, index) => (
                   <motion.div
                     key={index}
@@ -163,7 +163,7 @@ export const CopilotWidget = () => {
                     transition={{ delay: index * 0.1 }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="flex-1 min-w-0 touch-manipulation"
+                    className="touch-manipulation"
                   >
                     <Button
                       variant="outline"
@@ -174,7 +174,7 @@ export const CopilotWidget = () => {
                         "bg-gradient-to-br from-white/5 to-white/0",
                         "border-white/10 hover:border-brand/30",
                         "hover:shadow-[0_4px_12px_rgba(139,92,246,0.15)]",
-                        "transition-all duration-300"
+                        "transition-all duration-300 text-left justify-start"
                       )}
                     >
                       {question}
