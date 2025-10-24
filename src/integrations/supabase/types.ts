@@ -1593,6 +1593,244 @@ export type Database = {
           },
         ]
       }
+      vto: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          team_id: string
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          team_id: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          team_id?: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vto_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vto_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vto_audit: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          meta: Json | null
+          user_id: string | null
+          vto_version_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          meta?: Json | null
+          user_id?: string | null
+          vto_version_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          meta?: Json | null
+          user_id?: string | null
+          vto_version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vto_audit_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vto_audit_vto_version_id_fkey"
+            columns: ["vto_version_id"]
+            isOneToOne: false
+            referencedRelation: "vto_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vto_links: {
+        Row: {
+          created_at: string | null
+          goal_key: string
+          id: string
+          link_id: string
+          link_type: string
+          vto_version_id: string
+          weight: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          goal_key: string
+          id?: string
+          link_id: string
+          link_type: string
+          vto_version_id: string
+          weight?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          goal_key?: string
+          id?: string
+          link_id?: string
+          link_type?: string
+          vto_version_id?: string
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vto_links_vto_version_id_fkey"
+            columns: ["vto_version_id"]
+            isOneToOne: false
+            referencedRelation: "vto_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vto_progress: {
+        Row: {
+          computed_at: string | null
+          details: Json | null
+          id: string
+          traction_score: number | null
+          vision_score: number | null
+          vto_version_id: string
+        }
+        Insert: {
+          computed_at?: string | null
+          details?: Json | null
+          id?: string
+          traction_score?: number | null
+          vision_score?: number | null
+          vto_version_id: string
+        }
+        Update: {
+          computed_at?: string | null
+          details?: Json | null
+          id?: string
+          traction_score?: number | null
+          vision_score?: number | null
+          vto_version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vto_progress_vto_version_id_fkey"
+            columns: ["vto_version_id"]
+            isOneToOne: false
+            referencedRelation: "vto_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vto_versions: {
+        Row: {
+          core_focus: Json | null
+          core_values: string[] | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          issues_company: Json | null
+          issues_department: Json | null
+          issues_personal: Json | null
+          marketing_strategy: Json | null
+          one_year_plan: Json | null
+          published_at: string | null
+          quarter_key: string | null
+          quarterly_rocks: Json | null
+          status: string
+          ten_year_target: string | null
+          three_year_picture: Json | null
+          version: number
+          vto_id: string
+        }
+        Insert: {
+          core_focus?: Json | null
+          core_values?: string[] | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          issues_company?: Json | null
+          issues_department?: Json | null
+          issues_personal?: Json | null
+          marketing_strategy?: Json | null
+          one_year_plan?: Json | null
+          published_at?: string | null
+          quarter_key?: string | null
+          quarterly_rocks?: Json | null
+          status?: string
+          ten_year_target?: string | null
+          three_year_picture?: Json | null
+          version: number
+          vto_id: string
+        }
+        Update: {
+          core_focus?: Json | null
+          core_values?: string[] | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          issues_company?: Json | null
+          issues_department?: Json | null
+          issues_personal?: Json | null
+          marketing_strategy?: Json | null
+          one_year_plan?: Json | null
+          published_at?: string | null
+          quarter_key?: string | null
+          quarterly_rocks?: Json | null
+          status?: string
+          ten_year_target?: string | null
+          three_year_picture?: Json | null
+          version?: number
+          vto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vto_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vto_versions_vto_id_fkey"
+            columns: ["vto_id"]
+            isOneToOne: false
+            referencedRelation: "vto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_recall_metrics: {
