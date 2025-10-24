@@ -1718,6 +1718,48 @@ export type Database = {
           },
         ]
       }
+      vto_preset_events: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          preset_key: string
+          team_id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          preset_key: string
+          team_id: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          preset_key?: string
+          team_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vto_preset_events_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vto_preset_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vto_progress: {
         Row: {
           computed_at: string | null
@@ -1765,6 +1807,8 @@ export type Database = {
           issues_personal: Json | null
           marketing_strategy: Json | null
           one_year_plan: Json | null
+          originated_from_preset: boolean | null
+          preset_key: string | null
           published_at: string | null
           quarter_key: string | null
           quarterly_rocks: Json | null
@@ -1785,6 +1829,8 @@ export type Database = {
           issues_personal?: Json | null
           marketing_strategy?: Json | null
           one_year_plan?: Json | null
+          originated_from_preset?: boolean | null
+          preset_key?: string | null
           published_at?: string | null
           quarter_key?: string | null
           quarterly_rocks?: Json | null
@@ -1805,6 +1851,8 @@ export type Database = {
           issues_personal?: Json | null
           marketing_strategy?: Json | null
           one_year_plan?: Json | null
+          originated_from_preset?: boolean | null
+          preset_key?: string | null
           published_at?: string | null
           quarter_key?: string | null
           quarterly_rocks?: Json | null

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Plus, FileText, History, Link as LinkIcon, Download } from "lucide-react";
+import { VtoLoadPresetsButton } from "@/components/vto/VtoLoadPresetsButton";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -218,6 +219,7 @@ const VTO = () => {
           </div>
         </div>
         <div className="flex gap-2">
+          <VtoLoadPresetsButton vtoId={vtoData.vto.id} />
           <Button variant="outline" onClick={() => navigate('/vto/export')}>
             <Download className="w-4 h-4 mr-2" />
             Export

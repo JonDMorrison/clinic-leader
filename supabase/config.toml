@@ -32,3 +32,9 @@ verify_jwt = false
 
 [functions.vto-export]
 verify_jwt = false
+
+[functions.vto-apply-preset]
+verify_jwt = true
+
+[functions.vto-undo-preset]
+verify_jwt = true
