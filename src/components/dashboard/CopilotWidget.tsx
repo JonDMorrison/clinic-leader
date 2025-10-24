@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 export const CopilotWidget = () => {
   const [input, setInput] = useState("");
@@ -86,70 +88,126 @@ export const CopilotWidget = () => {
   };
 
   return (
-    <Card className="hover:scale-105 transition-transform duration-300">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-brand" />
-          AI Copilot
-        </CardTitle>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate("/copilot")}
-          className="text-xs"
-        >
-          Full View
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {response ? (
-          <div className="p-3 rounded-lg bg-muted/50 text-sm max-h-32 overflow-y-auto">
-            <p className="text-muted-foreground italic">{response}</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground text-center">
-              Try asking:
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {suggestions.map((question, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setInput(question)}
-                  className="text-xs h-auto py-2 px-3 flex-1 min-w-0"
-                >
-                  {question}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        <div className="flex gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Ask about KPIs, rocks, issues..."
-            disabled={isLoading}
-            className="flex-1"
-          />
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.3 }}
+      className="relative"
+    >
+      {/* Animated gradient border */}
+      <motion.div
+        className="absolute -inset-0.5 bg-gradient-to-r from-brand via-accent to-brand rounded-3xl opacity-20 blur-sm"
+        animate={{
+          backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: "linear",
+        }}
+        style={{
+          backgroundSize: "200% 200%",
+        }}
+      />
+      
+      <Card className="relative hover:scale-[1.02] transition-all duration-300 border-brand/30">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <motion.div
+              animate={{
+                rotate: [0, 5, -5, 0],
+                scale: [1, 1.1, 1],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            >
+              <Sparkles className="w-5 h-5 text-brand" />
+            </motion.div>
+            <span className="bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent">
+              AI Copilot
+            </span>
+          </CardTitle>
           <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            size="icon"
-            className="shrink-0"
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/copilot")}
+            className="text-xs hover:bg-brand/10"
           >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
+            Full View
           </Button>
-        </div>
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {response ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-4 rounded-2xl bg-gradient-to-br from-brand/5 to-accent/5 border border-brand/20 text-sm max-h-32 overflow-y-auto"
+            >
+              <p className="text-foreground">{response}</p>
+            </motion.div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground text-center font-medium">
+                Try asking:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((question, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex-1 min-w-0"
+                  >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setInput(question)}
+                      className={cn(
+                        "text-xs h-auto py-2 px-3 w-full",
+                        "bg-gradient-to-br from-white/5 to-white/0",
+                        "border-white/10 hover:border-brand/30",
+                        "hover:shadow-[0_4px_12px_rgba(139,92,246,0.15)]",
+                        "transition-all duration-300"
+                      )}
+                    >
+                      {question}
+                    </Button>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div className="flex gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask about KPIs, rocks, issues..."
+              disabled={isLoading}
+              className="flex-1 border-white/10 focus:border-brand/30 bg-white/5"
+            />
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                onClick={handleSend}
+                disabled={!input.trim() || isLoading}
+                size="icon"
+                className="shrink-0 bg-gradient-to-br from-brand to-accent hover:shadow-[0_4px_16px_rgba(139,92,246,0.3)]"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
+            </motion.div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };
