@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     const { data: docs, error: docsError } = await supabase
       .from('docs')
       .select('*')
-      .eq('status', 'published');
+      .eq('status', 'active');
 
     if (docsError) {
       console.error('Failed to fetch docs:', docsError);
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
         .from('docs')
         .select('*')
         .ilike('body', '%IME%')
-        .eq('status', 'published')
+        .eq('status', 'active')
         .limit(5);
 
       if (!searchError && searchResults && searchResults.length > 0) {
