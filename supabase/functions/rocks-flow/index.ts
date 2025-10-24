@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
             name: 'Test KPI - Integrity',
             owner_id: owner.id,
             unit: 'number',
-            direction: 'up',
+            direction: '>=',
             target: 100,
             category: 'test',
           })
@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
         const { data: newMeeting, error: meetingError } = await supabase
           .from('meetings')
           .insert({
-            type: 'l10',
+            type: 'L10',
             team_id: team.id,
             scheduled_for: new Date().toISOString(),
             duration_minutes: 90,
