@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone, Plug } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone, Plug, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HelpMenu } from "@/components/layout/HelpMenu";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ const navItems = [
   { title: "People", path: "/people", icon: Users, roles: ["manager", "director", "owner"] },
   { title: "Imports", path: "/imports", icon: Upload, roles: ["manager", "director", "owner"] },
   { title: "Reports", path: "/reports", icon: FileBarChart, roles: ["manager", "director", "owner"] },
+  { title: "Copilot", path: "/copilot", icon: Sparkles, roles: ["staff", "manager", "director", "owner"] },
   { title: "Integrations", path: "/settings/integrations", icon: Plug, roles: ["manager", "director", "owner"] },
 ];
 
