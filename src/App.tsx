@@ -126,7 +126,7 @@ const App = () => {
             <Route path="/scorecard" element={<AppLayout><Scorecard /></AppLayout>} />
             <Route path="/rocks" element={<AppLayout><Rocks /></AppLayout>} />
             <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
-            <Route path="/l10" element={<AppLayout><L10 /></AppLayout>} />
+            <Route path="/meeting" element={<AppLayout><L10 /></AppLayout>} />
             <Route path="/docs" element={<AppLayout><Docs /></AppLayout>} />
             <Route path="/recalls" element={<AppLayout><Recalls /></AppLayout>} />
             <Route path="/people" element={<AppLayout><People /></AppLayout>} />

@@ -77,7 +77,7 @@ export const QuickActions = () => {
     {
       label: "Meeting",
       icon: Calendar,
-      onClick: () => navigate("/l10"),
+      onClick: () => navigate("/meeting"),
       description: "Weekly leadership",
       variant: "accent",
     }

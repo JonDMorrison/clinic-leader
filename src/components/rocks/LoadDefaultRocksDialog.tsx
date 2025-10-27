@@ -243,7 +243,7 @@ export function LoadDefaultRocksDialog({ open, onOpenChange, organizationId }: L
                   className="w-full justify-start"
                   onClick={() => {
                     handleClose();
-                    window.location.href = "/l10";
+                    window.location.href = "/meeting";
                   }}
                 >
                   <Users className="h-4 w-4 mr-2" />

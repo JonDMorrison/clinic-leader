@@ -38,10 +38,10 @@ const tourSteps: TourStep[] = [
   },
   {
     id: 3,
-    target: '[href="/l10"]',
+    target: '[href="/meeting"]',
     title: "Level 10 Meetings 🎯",
     text: "Run productive weekly meetings with structured agendas. Review scorecard, rocks, headlines, todos, and resolve issues using the IDS process.",
-    path: "/l10",
+    path: "/meeting",
   },
   {
     id: 4,

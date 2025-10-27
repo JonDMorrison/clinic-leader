@@ -74,7 +74,7 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
       "Turns plans into results",
       "Improves accountability"
     ],
-    learnMore: { label: "Open Meetings", href: "/l10" }
+    learnMore: { label: "Open Meetings", href: "/meeting" }
   },
   "SOP": {
     short: "Your playbooks and policies.",
@@ -134,7 +134,7 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
       "Creates accountability",
       "Prevents dropped balls"
     ],
-    learnMore: { label: "View Meeting", href: "/l10" }
+    learnMore: { label: "View Meeting", href: "/meeting" }
   },
   "IDS": {
     short: "Identify, Discuss, Solve method.",
