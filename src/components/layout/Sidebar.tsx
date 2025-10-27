@@ -11,7 +11,7 @@ const navItems = [
   { title: "Scorecard", path: "/scorecard", icon: BarChart3, roles: ["manager", "director", "owner"] },
   { title: "Rocks", path: "/rocks", icon: Target, roles: ["manager", "director", "owner"] },
   { title: "Issues", path: "/issues", icon: AlertCircle, roles: ["staff", "manager", "director", "owner"] },
-  { title: "L10", path: "/l10", icon: Calendar, roles: ["manager", "director", "owner"] },
+  { title: "Meetings", path: "/l10", icon: Calendar, roles: ["manager", "director", "owner"] },
   { title: "Docs", path: "/docs", icon: FileText, roles: ["staff", "manager", "director", "owner"] },
   { title: "Recalls", path: "/recalls", icon: Phone, roles: ["staff", "manager", "director", "owner"] },
   { title: "People", path: "/people", icon: Users, roles: ["manager", "director", "owner"] },

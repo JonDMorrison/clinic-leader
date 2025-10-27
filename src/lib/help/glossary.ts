@@ -22,7 +22,7 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     why: [
       "Aligns the team weekly",
       "Turns data into action",
-      "Feeds L10 agenda"
+      "Feeds Meeting agenda"
     ],
     learnMore: { label: "Go to Scorecard", href: "/scorecard" }
   },
@@ -66,9 +66,9 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     ],
     learnMore: { label: "Open Recalls", href: "/recalls" }
   },
-  "L10 Meeting": {
+  "Meeting": {
     short: "Your weekly 90-minute team meeting.",
-    definition: "The Level 10 Meeting keeps the team aligned: review Scorecard, Rocks, and solve Issues. It's timed, focused, and repeatable.",
+    definition: "Your weekly Meeting keeps the team aligned: review Scorecard, Rocks, and solve Issues. It's timed, focused, and repeatable.",
     why: [
       "Builds rhythm",
       "Turns plans into results",
@@ -134,7 +134,7 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
       "Creates accountability",
       "Prevents dropped balls"
     ],
-    learnMore: { label: "View L10 Meeting", href: "/l10" }
+    learnMore: { label: "View Meeting", href: "/l10" }
   },
   "IDS": {
     short: "Identify, Discuss, Solve method.",

@@ -155,6 +155,6 @@ export const exportMeetingMinutes = (data: MeetingData) => {
   }
 
   // Save
-  const fileName = `L10-Minutes-${new Date(data.meetingDate).toISOString().split("T")[0]}.pdf`;
+  const fileName = `Meeting-Minutes-${new Date(data.meetingDate).toISOString().split("T")[0]}.pdf`;
   doc.save(fileName);
 };

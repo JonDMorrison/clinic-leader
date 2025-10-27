@@ -25,7 +25,7 @@ export function BacklogBanner({ pastDue, dueToday, upcoming }: BacklogBannerProp
 
       if (error) throw error;
 
-      toast.success("Issue created for L10 review");
+      toast.success("Issue created for meeting review");
       queryClient.invalidateQueries({ queryKey: ["issues"] });
     } catch (error) {
       console.error("Error creating issue:", error);
@@ -55,7 +55,7 @@ export function BacklogBanner({ pastDue, dueToday, upcoming }: BacklogBannerProp
           size="sm"
           className="mt-2"
         >
-          {isCreating ? "Creating Issue..." : "Create Issue for L10"}
+          {isCreating ? "Creating Issue..." : "Create Issue for Meeting"}
         </Button>
       </AlertDescription>
     </Alert>

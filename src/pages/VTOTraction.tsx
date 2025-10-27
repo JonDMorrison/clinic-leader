@@ -217,7 +217,7 @@ const VTOTraction = () => {
 
       if (error) throw error;
 
-      toast({ title: "Success", description: "Issue added to L10!" });
+      toast({ title: "Success", description: "Issue added to meeting!" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }

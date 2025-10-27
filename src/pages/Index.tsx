@@ -224,7 +224,7 @@ const Index = () => {
               <div className="grid md:grid-cols-3 gap-6 mb-12">
                 {[
                   { icon: BarChart3, title: "Track Progress", desc: "Real-time dashboards show exactly where you stand" },
-                  { icon: Video, title: "Run L10 Meetings", desc: "Built-in agenda and timer for perfect meetings" },
+                  { icon: Video, title: "Run Meetings", desc: "Built-in agenda and timer for perfect meetings" },
                   { icon: MessageSquare, title: "Stay Connected", desc: "Document decisions and share updates instantly" }
                 ].map((item, i) => (
                   <Card key={i}>

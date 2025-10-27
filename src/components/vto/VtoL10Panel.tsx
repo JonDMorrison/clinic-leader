@@ -100,7 +100,7 @@ export const VtoL10Panel = () => {
         .single();
 
       if (!meeting) {
-        toast({ title: "No Meeting Found", description: "No L10 meeting scheduled for today", variant: "destructive" });
+        toast({ title: "No Meeting Found", description: "No meeting scheduled for today", variant: "destructive" });
         return;
       }
 

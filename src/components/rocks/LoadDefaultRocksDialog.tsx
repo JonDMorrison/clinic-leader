@@ -247,7 +247,7 @@ export function LoadDefaultRocksDialog({ open, onOpenChange, organizationId }: L
                   }}
                 >
                   <Users className="h-4 w-4 mr-2" />
-                  Open L10 Agenda
+                  Open Meeting Agenda
                 </Button>
               </div>
             </div>

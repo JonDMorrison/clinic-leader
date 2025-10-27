@@ -220,7 +220,7 @@ const L10 = () => {
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
             Level 10 Meeting
-            <HelpHint term="L10 Meeting" context="l10_header" />
+            <HelpHint term="Meeting" context="l10_header" />
           </h1>
           <p className="text-muted-foreground">
             90-minute weekly leadership team meeting

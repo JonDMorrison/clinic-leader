@@ -19,11 +19,11 @@ export const ROLE_TIPS: Record<string, Partial<Record<UserRole, string[]>>> = {
   },
   "Scorecard": {
     owner: ["Review weekly trends and ensure red KPIs get addressed."],
-    manager: ["Discuss off-track KPIs in your L10 meeting."],
+    manager: ["Discuss off-track KPIs in your weekly meeting."],
     billing: ["Focus on collection and AR aging metrics."]
   },
   "Issue": {
-    manager: ["Use IDS (Identify, Discuss, Solve) method in L10 meetings."],
+    manager: ["Use IDS (Identify, Discuss, Solve) method in weekly meetings."],
     staff: ["Bring any blockers or ideas as Issues to your team meeting."]
   },
   "V/TO": {
@@ -31,7 +31,7 @@ export const ROLE_TIPS: Record<string, Partial<Record<UserRole, string[]>>> = {
     director: ["Update quarterly and link Rocks to your 1-Year Plan."],
     manager: ["Ensure your Rocks align with company V/TO goals."]
   },
-  "L10 Meeting": {
+  "Meeting": {
     owner: ["Run the meeting on time; stick to the agenda."],
     manager: ["Come prepared with your Scorecard and Rock updates."],
     staff: ["Bring Headlines and open Issues to discuss."]
