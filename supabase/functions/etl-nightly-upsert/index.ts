@@ -57,6 +57,21 @@ Deno.serve(async (req) => {
 
     console.log(`Processing for week starting: ${weekStartStr}`);
 
+    // Get all tracked KPIs with their mappings
+    const { data: trackedKpis, error: trackedError } = await supabaseClient
+      .from('tracked_kpis')
+      .select(`
+        id,
+        name,
+        category,
+        import_mappings(source_system, source_label, transform)
+      `)
+      .eq('is_active', true);
+
+    if (trackedError) throw trackedError;
+
+    console.log(`Found ${trackedKpis?.length || 0} tracked KPIs`);
+
     // Process appointments -> weekly visits and no-shows
     const { data: appointments, error: apptError } = await supabaseClient
       .from('staging_appointments')
@@ -75,20 +90,42 @@ Deno.serve(async (req) => {
       if (data.status === 'no-show') noShows++;
     });
 
+    // Find tracked KPIs for visits and no-shows
+    const visitsKpi = trackedKpis?.find(k => k.name.toLowerCase().includes('visit') || k.category === 'appointments');
+    const noShowsKpi = trackedKpis?.find(k => k.name.toLowerCase().includes('no-show') || k.name.toLowerCase().includes('no show'));
+
     // Upsert visits KPI
-    if (visits > 0) {
+    if (visits > 0 && visitsKpi) {
       const { error: visitsError } = await supabaseClient
         .from('kpi_readings')
         .upsert({
           week_start: weekStartStr,
           value: visits,
-          note: 'Auto-imported from Jane',
-          kpi_id: '00000000-0000-0000-0000-000000000001', // Placeholder - should be actual KPI ID
+          note: 'Auto-imported from staging data',
+          kpi_id: visitsKpi.id,
         }, {
           onConflict: 'week_start,kpi_id',
         });
 
       if (visitsError) console.error('Visits upsert error:', visitsError);
+      else console.log(`✓ Upserted ${visits} visits for KPI: ${visitsKpi.name}`);
+    }
+
+    // Upsert no-shows KPI
+    if (noShows > 0 && noShowsKpi) {
+      const { error: noShowsError } = await supabaseClient
+        .from('kpi_readings')
+        .upsert({
+          week_start: weekStartStr,
+          value: noShows,
+          note: 'Auto-imported from staging data',
+          kpi_id: noShowsKpi.id,
+        }, {
+          onConflict: 'week_start,kpi_id',
+        });
+
+      if (noShowsError) console.error('No-shows upsert error:', noShowsError);
+      else console.log(`✓ Upserted ${noShows} no-shows for KPI: ${noShowsKpi.name}`);
     }
 
     // Upsert no-shows KPI
@@ -123,19 +160,26 @@ Deno.serve(async (req) => {
       return createdDate >= weekStart;
     }).length || 0;
 
-    if (newPatients > 0) {
+    // Find tracked KPI for new patients
+    const newPatientsKpi = trackedKpis?.find(k => 
+      k.name.toLowerCase().includes('new patient') || 
+      k.category === 'patients'
+    );
+
+    if (newPatients > 0 && newPatientsKpi) {
       const { error: newPatientsError } = await supabaseClient
         .from('kpi_readings')
         .upsert({
           week_start: weekStartStr,
           value: newPatients,
-          note: 'Auto-imported from Jane',
-          kpi_id: '00000000-0000-0000-0000-000000000003', // Placeholder
+          note: 'Auto-imported from staging data',
+          kpi_id: newPatientsKpi.id,
         }, {
           onConflict: 'week_start,kpi_id',
         });
 
       if (newPatientsError) console.error('New patients upsert error:', newPatientsError);
+      else console.log(`✓ Upserted ${newPatients} new patients for KPI: ${newPatientsKpi.name}`);
     }
 
     // Process AR aging -> buckets
@@ -201,19 +245,27 @@ Deno.serve(async (req) => {
       return sum + parseFloat(data.amount || '0');
     }, 0) || 0;
 
-    if (revenue > 0) {
+    // Find tracked KPI for revenue
+    const revenueKpi = trackedKpis?.find(k => 
+      k.name.toLowerCase().includes('revenue') || 
+      k.name.toLowerCase().includes('collected') ||
+      k.category === 'financial'
+    );
+
+    if (revenue > 0 && revenueKpi) {
       const { error: revenueError } = await supabaseClient
         .from('kpi_readings')
         .upsert({
           week_start: weekStartStr,
           value: revenue,
-          note: 'Auto-imported from Jane',
-          kpi_id: '00000000-0000-0000-0000-000000000004', // Placeholder
+          note: 'Auto-imported from staging data',
+          kpi_id: revenueKpi.id,
         }, {
           onConflict: 'week_start,kpi_id',
         });
 
       if (revenueError) console.error('Revenue upsert error:', revenueError);
+      else console.log(`✓ Upserted $${revenue} revenue for KPI: ${revenueKpi.name}`);
     }
 
     console.log('ETL process completed successfully');

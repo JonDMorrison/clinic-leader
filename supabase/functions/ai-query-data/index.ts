@@ -23,7 +23,7 @@ serve(async (req) => {
     // Gather relevant data based on question keywords
     let contextData = "";
 
-    // Get KPI data
+    // Get KPI data filtered by team
     const { data: kpis } = await supabase
       .from("kpis")
       .select(`
@@ -31,10 +31,11 @@ serve(async (req) => {
         target,
         unit,
         direction,
-        users(full_name),
+        users(full_name, team_id),
         kpi_readings(value, week_start)
       `)
       .eq("active", true)
+      .eq("users.team_id", team_id)
       .order("week_start", { foreignTable: "kpi_readings", ascending: false })
       .limit(4, { foreignTable: "kpi_readings" });
 
@@ -44,11 +45,12 @@ serve(async (req) => {
       ).join("\n");
     }
 
-    // Get rocks data
+    // Get rocks data filtered by team
     const { data: rocks } = await supabase
       .from("rocks")
-      .select("title, status, due_date, users(full_name)")
+      .select("title, status, due_date, users(full_name, team_id)")
       .eq("level", "team")
+      .eq("users.team_id", team_id)
       .order("due_date", { ascending: true });
 
     if (rocks) {
@@ -69,6 +71,21 @@ serve(async (req) => {
     if (issues) {
       contextData += "\n\nOpen Issues:\n" + issues.map((issue: any) =>
         `${issue.title} (Priority: ${issue.priority}) - Owner: ${issue.users?.full_name}`
+      ).join("\n");
+    }
+
+    // Get todos data
+    const { data: todos } = await supabase
+      .from("todos")
+      .select("title, due_date, done_at, users(full_name)")
+      .eq("team_id", team_id)
+      .is("done_at", null)
+      .order("due_date", { ascending: true })
+      .limit(10);
+
+    if (todos) {
+      contextData += "\n\nUpcoming Todos:\n" + todos.map((todo: any) =>
+        `${todo.title} - Due: ${todo.due_date} - Owner: ${todo.users?.full_name}`
       ).join("\n");
     }
 
