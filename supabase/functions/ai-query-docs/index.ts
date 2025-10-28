@@ -27,26 +27,34 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch all documents for the team
+    // Note: docs table has owner_id, not team_id directly
+    // We need to join with users to filter by team
     const { data: docs, error: docsError } = await supabase
       .from('docs')
-      .select('*')
-      .eq('team_id', team_id);
+      .select(`
+        *,
+        owner:owner_id(team_id)
+      `)
+      .eq('status', 'published');
 
     if (docsError) {
       console.error('Error fetching docs:', docsError);
       throw docsError;
     }
 
-    console.log(`Found ${docs?.length || 0} documents`);
+    // Filter docs by team_id from the joined owner data
+    const teamDocs = docs?.filter((doc: any) => doc.owner?.team_id === team_id) || [];
+
+    console.log(`Found ${teamDocs.length} documents for team`);
 
     // Build context from documents
     let docsContext = "Available Documents:\n\n";
-    if (docs && docs.length > 0) {
-      docs.forEach((doc: any) => {
+    if (teamDocs.length > 0) {
+      teamDocs.forEach((doc: any) => {
         docsContext += `Document: ${doc.title}\n`;
         docsContext += `Type: ${doc.kind}\n`;
-        if (doc.content) {
-          docsContext += `Content: ${doc.content.substring(0, 500)}...\n`;
+        if (doc.body) {
+          docsContext += `Content: ${doc.body.substring(0, 500)}...\n`;
         }
         docsContext += '\n---\n\n';
       });
@@ -103,11 +111,13 @@ ${docsContext}`;
     const { error: logError } = await supabase
       .from('ai_logs')
       .insert({
-        team_id,
-        prompt: question,
-        response: answer,
-        model: 'google/gemini-2.5-flash',
-        context: { type: 'docs_query', doc_count: docs?.length || 0 }
+        type: 'docs_query',
+        payload: {
+          question,
+          answer,
+          team_id,
+          doc_count: teamDocs.length
+        }
       });
 
     if (logError) {

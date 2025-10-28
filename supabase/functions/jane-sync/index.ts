@@ -71,7 +71,32 @@ serve(async (req) => {
           totalRecords += appointments.length;
           
           console.log(`Synced ${appointments.length} appointments`);
-          // Here you would process and store aggregated data
+          
+          // Calculate and store aggregated metrics
+          const weekStart = new Date(startDate);
+          weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week
+          
+          // Find or create KPIs for appointment metrics
+          const { data: visitKpi } = await supabase
+            .from('kpis')
+            .select('id')
+            .eq('name', 'Total Visits')
+            .limit(1)
+            .single();
+          
+          if (visitKpi && appointments.length > 0) {
+            // Upsert KPI reading for total visits
+            await supabase
+              .from('kpi_readings')
+              .upsert({
+                kpi_id: visitKpi.id,
+                week_start: formatDate(weekStart),
+                value: appointments.length,
+                note: 'Auto-synced from Jane App'
+              }, {
+                onConflict: 'kpi_id,week_start'
+              });
+          }
         }
       }
 
@@ -92,7 +117,34 @@ serve(async (req) => {
           totalRecords += payments.length;
           
           console.log(`Synced ${payments.length} payments`);
-          // Process and store aggregated payment data
+          
+          // Calculate and store payment metrics
+          const weekStart = new Date(startDate);
+          weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+          
+          const totalRevenue = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+          
+          // Find or create revenue KPI
+          const { data: revenueKpi } = await supabase
+            .from('kpis')
+            .select('id')
+            .eq('name', 'Total Revenue')
+            .limit(1)
+            .single();
+          
+          if (revenueKpi && totalRevenue > 0) {
+            // Upsert KPI reading for revenue
+            await supabase
+              .from('kpi_readings')
+              .upsert({
+                kpi_id: revenueKpi.id,
+                week_start: formatDate(weekStart),
+                value: totalRevenue,
+                note: 'Auto-synced from Jane App'
+              }, {
+                onConflict: 'kpi_id,week_start'
+              });
+          }
         }
       }
 
