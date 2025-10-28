@@ -9,6 +9,8 @@ import { Report } from "@/types/reports";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { HelpHint } from "@/components/help/HelpHint";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Reports = () => {
   const [periodFilter, setPeriodFilter] = useState<"all" | "weekly" | "monthly">("all");
@@ -86,7 +88,10 @@ const Reports = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Reports</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
+            Reports
+            <HelpHint term="Reports" context="reports_header" />
+          </h1>
           <p className="text-muted-foreground">AI-generated EOS summary reports</p>
         </div>
         {canGenerate && (
@@ -157,7 +162,15 @@ const Reports = () => {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-center text-muted-foreground py-8">Loading reports...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="h-32 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              ))}
+            </div>
           ) : reports && reports.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {reports.map((report) => (

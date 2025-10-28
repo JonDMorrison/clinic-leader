@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Palette, Image, Type, Globe } from "lucide-react";
 import type { Branding, BrandingUpdate } from "@/types/branding";
+import { HelpHint } from "@/components/help/HelpHint";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Branding = () => {
   const { toast } = useToast();
@@ -88,17 +90,73 @@ const Branding = () => {
   };
 
   if (isLoading) {
-    return <div className="p-8">Loading branding settings...</div>;
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-10 w-64 mb-2" />
+          <Skeleton className="h-5 w-96" />
+        </div>
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Branding</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
+          Branding
+          <HelpHint term="Branding" context="branding_header" />
+        </h1>
         <p className="text-muted-foreground">
           Customize your organization's visual identity
         </p>
       </div>
+
+      {/* Live Preview */}
+      <Card className="bg-gradient-to-br from-background to-muted/30">
+        <CardHeader>
+          <CardTitle>Live Preview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div 
+            className="p-8 rounded-lg border transition-all"
+            style={{
+              backgroundColor: `hsl(${formData.secondary_color})`,
+              borderColor: `hsl(${formData.accent_color})`,
+              fontFamily: formData.font_family
+            }}
+          >
+            {formData.logo_url && (
+              <img src={formData.logo_url} alt="Logo" className="h-12 mb-4" />
+            )}
+            <div className="space-y-3">
+              <h2 
+                className="text-2xl font-bold"
+                style={{ color: `hsl(${formData.primary_color})` }}
+              >
+                Your Organization Name
+              </h2>
+              <Button 
+                style={{ 
+                  backgroundColor: `hsl(${formData.primary_color})`,
+                  color: 'white'
+                }}
+              >
+                Sample Button
+              </Button>
+              <div 
+                className="p-4 rounded"
+                style={{ backgroundColor: `hsl(${formData.accent_color})` }}
+              >
+                <p style={{ color: `hsl(${formData.primary_color})` }}>
+                  This is how your branding will look across the application
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Logo & Favicon */}

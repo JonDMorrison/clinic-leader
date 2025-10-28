@@ -10,6 +10,7 @@ import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { userTourService } from "@/lib/userTourService";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Home from "./pages/Home";
 import Index from "./pages/Index";
 import Scorecard from "./pages/Scorecard";
@@ -119,6 +120,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
+          <ErrorBoundary>
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
@@ -157,6 +159,7 @@ const App = () => {
           {showWizard && userId && (
             <OnboardingWizard userId={userId} onComplete={handleWizardComplete} />
           )}
+        </ErrorBoundary>
         </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>

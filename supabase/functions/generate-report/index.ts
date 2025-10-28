@@ -6,6 +6,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Simple trend-based forecasting
+function generateForecast(kpiSummary: any[], period: string) {
+  return kpiSummary.slice(0, 5).map((kpi) => {
+    const multiplier = period === "weekly" ? 4 : 3; // 4 weeks or 3 months ahead
+    let predictedValue = kpi.current;
+    
+    // Simple linear projection based on trend
+    if (kpi.trend === "up") {
+      const growthRate = 1.05; // 5% growth assumption
+      predictedValue = kpi.current * Math.pow(growthRate, multiplier);
+    } else if (kpi.trend === "down") {
+      const declineRate = 0.95; // 5% decline assumption
+      predictedValue = kpi.current * Math.pow(declineRate, multiplier);
+    }
+    
+    const projectedDate = new Date();
+    if (period === "weekly") {
+      projectedDate.setDate(projectedDate.getDate() + (7 * multiplier));
+    } else {
+      projectedDate.setMonth(projectedDate.getMonth() + multiplier);
+    }
+    
+    return {
+      kpi_name: kpi.name,
+      current_value: kpi.current,
+      predicted_value: Math.round(predictedValue * 100) / 100,
+      confidence: kpi.trend === "stable" ? "low" : "medium",
+      projection_date: projectedDate.toISOString().split("T")[0],
+      trend: kpi.trend,
+    };
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -177,7 +210,7 @@ Be concise, data-driven, and professional. Each item under 100 characters.`;
       kpi_summary: kpiSummary,
       rocks_summary: rocksSummary,
       issues_summary: issuesSummary,
-      forecast: [], // Placeholder for future forecasting
+      forecast: generateForecast(kpiSummary, period),
     };
 
     // Save report

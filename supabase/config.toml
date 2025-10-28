@@ -44,3 +44,27 @@ verify_jwt = true
 
 [functions.vto-trigger-compute]
 verify_jwt = false
+
+[functions.jane-sync]
+verify_jwt = false
+
+[functions.recalls-metrics]
+verify_jwt = false
+
+[functions.recalls-create-issue]
+verify_jwt = false
+
+[functions.system-health]
+verify_jwt = false
+
+[functions.test-onboarding-flow]
+verify_jwt = false
+
+[functions.kpi-integrity]
+verify_jwt = false
+
+[functions.docs-integrity]
+verify_jwt = false
+
+[functions.rocks-flow]
+verify_jwt = false

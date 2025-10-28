@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Cloud, ArrowRight, Clock, CheckCircle2, Zap, Database, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HelpHint } from "@/components/help/HelpHint";
 
 interface Integration {
   id: string;
@@ -123,7 +124,10 @@ export default function Integrations() {
   return (
     <div className="container mx-auto py-8 space-y-8">
       <div>
-        <h1 className="text-4xl font-bold mb-2">Integrations</h1>
+        <h1 className="text-4xl font-bold mb-2 flex items-center">
+          Integrations
+          <HelpHint term="Integrations" context="integrations_header" />
+        </h1>
         <p className="text-muted-foreground">
           Connect your practice management tools and automate your workflows
         </p>
