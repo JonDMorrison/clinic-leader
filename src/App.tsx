@@ -11,6 +11,7 @@ import { userTourService } from "@/lib/userTourService";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useDemoProvisioning } from "@/hooks/useDemoProvisioning";
 import Home from "./pages/Home";
 import Index from "./pages/Index";
 import Scorecard from "./pages/Scorecard";
@@ -40,6 +41,7 @@ import JaneIntegration from "./pages/JaneIntegration";
 import Recalls from "./pages/Recalls";
 import Integrations from "./pages/Integrations";
 import SystemHealth from "./pages/SystemHealth";
+import AdminDemo from "./pages/AdminDemo";
 import VTO from "./pages/VTO";
 import VTOVision from "./pages/VTOVision";
 import VTOTraction from "./pages/VTOTraction";
@@ -64,6 +66,9 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => (
 );
 
 const App = () => {
+  // Auto-provision demo for whitelisted users
+  useDemoProvisioning();
+  
   const [showWizard, setShowWizard] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -153,6 +158,7 @@ const App = () => {
             <Route path="/settings/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
             <Route path="/admin/onboarding-analytics" element={<AppLayout><OnboardingAnalytics /></AppLayout>} />
             <Route path="/admin/system-health" element={<AppLayout><SystemHealth /></AppLayout>} />
+            <Route path="/admin/demo" element={<AppLayout><AdminDemo /></AppLayout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           

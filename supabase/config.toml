@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.rocks-flow]
 verify_jwt = false
+
+[functions.demo-provision]
+verify_jwt = false

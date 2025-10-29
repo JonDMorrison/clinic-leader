@@ -304,6 +304,45 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_provision: {
+        Row: {
+          created_at: string
+          id: string
+          last_seed_at: string | null
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_seed_at?: string | null
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_seed_at?: string | null
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demo_provision_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demo_provision_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departments: {
         Row: {
           created_at: string
@@ -1327,18 +1366,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_demo_org: boolean
           name: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_demo_org?: boolean
           name: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_demo_org?: boolean
           name?: string
           updated_at?: string
         }
@@ -1558,6 +1600,7 @@ export type Database = {
       users: {
         Row: {
           created_at: string
+          demo_user: boolean
           department_id: string | null
           email: string
           full_name: string
@@ -1568,6 +1611,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          demo_user?: boolean
           department_id?: string | null
           email: string
           full_name: string
@@ -1578,6 +1622,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          demo_user?: boolean
           department_id?: string | null
           email?: string
           full_name?: string
