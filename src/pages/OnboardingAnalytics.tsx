@@ -27,13 +27,19 @@ export default function OnboardingAnalytics() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data } = await supabase
-        .from("users")
-        .select("team_id, role")
-        .eq("email", user.email)
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
         .single();
 
-      return data;
+      const { data: userData } = await supabase
+        .from("users")
+        .select("team_id")
+        .eq("id", user.id)
+        .single();
+
+      return { team_id: userData?.team_id, role: roleData?.role };
     },
   });
 

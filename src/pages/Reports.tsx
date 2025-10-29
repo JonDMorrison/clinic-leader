@@ -24,13 +24,23 @@ const Reports = () => {
       const { data: authData } = await supabase.auth.getUser();
       if (!authData.user) return null;
 
-      const { data, error } = await supabase
-        .from("users")
-        .select("team_id, role")
-        .eq("email", authData.user.email)
+      const { data: roleData, error: roleError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", authData.user.id)
         .single();
       
-      if (error) throw error;
+      if (roleError) throw roleError;
+
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("team_id")
+        .eq("id", authData.user.id)
+        .single();
+      
+      if (userError) throw userError;
+      
+      const data = { team_id: userData?.team_id, role: roleData?.role };
       return data;
     },
   });

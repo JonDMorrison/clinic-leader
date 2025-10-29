@@ -28,13 +28,25 @@ export const Sidebar = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
       
-      const { data } = await supabase
-        .from("users")
-        .select("role, team_id")
-        .eq("email", user.email)
+      // Get role from secure user_roles table
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
         .single();
       
-      return { ...user, role: data?.role || "staff", team_id: data?.team_id };
+      // Get team_id from users table
+      const { data: userData } = await supabase
+        .from("users")
+        .select("team_id")
+        .eq("id", user.id)
+        .single();
+      
+      return { 
+        ...user, 
+        role: roleData?.role || "staff", 
+        team_id: userData?.team_id 
+      };
     },
   });
 

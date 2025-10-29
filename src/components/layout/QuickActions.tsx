@@ -22,9 +22,9 @@ export const QuickActions = () => {
       if (!user) return null;
 
       const { data } = await supabase
-        .from("users")
+        .from("user_roles")
         .select("role")
-        .eq("email", user.email)
+        .eq("user_id", user.id)
         .single();
 
       return data?.role || "staff";

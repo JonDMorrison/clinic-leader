@@ -17,9 +17,9 @@ const Settings = () => {
       if (!user) throw new Error("Not authenticated");
 
       const { data } = await supabase
-        .from("users")
+        .from("user_roles")
         .select("role")
-        .eq("email", user.email)
+        .eq("user_id", user.id)
         .single();
 
       return data;
