@@ -15,15 +15,6 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
-      // Allow one-time bypass right after completing onboarding
-      const override = localStorage.getItem("onboarding_completed_override");
-      if (override === "true") {
-        localStorage.removeItem("onboarding_completed_override");
-        setNeedsOnboarding(false);
-        setLoading(false);
-        return;
-      }
-
       // Skip check if already on onboarding or auth pages
       if (location.pathname === "/onboarding" || location.pathname === "/auth" || location.pathname === "/") {
         setLoading(false);
@@ -72,6 +63,8 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
         setLoading(false);
       } catch (error) {
         console.error("Error in onboarding guard:", error);
+        // On error, allow access to prevent blocking users
+        setNeedsOnboarding(false);
         setLoading(false);
       }
     };
