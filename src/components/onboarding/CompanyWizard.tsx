@@ -162,6 +162,9 @@ export const CompanyWizard = ({
       
       console.log("Setup complete, navigating to:", result.redirect || "/dashboard");
       
+      // Prevent the guard from bouncing us back while backend state propagates
+      localStorage.setItem("onboarding_completed_override", "true");
+
       toast({
         title: "Setup complete! 🎉",
         description: "Welcome to your new workspace.",
