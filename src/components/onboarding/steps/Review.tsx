@@ -204,15 +204,6 @@ export const Review = ({ data, onEdit }: ReviewProps) => {
         </div>
       </div>
 
-      <div className="pt-4">
-        <Button
-          size="lg"
-          className="w-full"
-          disabled={!authorizedCheck || !termsCheck}
-        >
-          Finish Setup & Get Started 🚀
-        </Button>
-      </div>
     </div>
   );
 };
