@@ -92,7 +92,7 @@ export const CopilotWidget = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.3 }}
-      className="relative"
+      className="relative h-full"
     >
       {/* Animated gradient border - hidden on mobile for performance */}
       <motion.div
@@ -110,7 +110,7 @@ export const CopilotWidget = () => {
         }}
       />
       
-      <Card className="relative hover:scale-[1.02] transition-all duration-300 border-brand/30">
+      <Card className="relative h-full hover:scale-[1.02] transition-all duration-300 border-brand/30">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 md:px-6 pt-4 md:pt-6">
           <CardTitle className="flex items-center gap-2 text-base md:text-lg">
             <motion.div
@@ -140,7 +140,7 @@ export const CopilotWidget = () => {
             Full View
           </Button>
         </CardHeader>
-        <CardContent className="px-4 md:px-6 pb-4 md:pb-6 flex flex-col min-h-[280px]">
+        <CardContent className="px-4 md:px-6 pb-4 md:pb-6 flex flex-col h-full">
           {response ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
