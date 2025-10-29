@@ -116,6 +116,18 @@ export const CompanyWizard = ({
   const handleComplete = async () => {
     setSaving(true);
     try {
+      // Basic validation before submission
+      const missing: Record<string, string> = {};
+      if (!data.company_name) missing.company_name = "Company name is required";
+      if (!data.industry) missing.industry = "Industry is required";
+      if (!data.team_size) missing.team_size = "Team size is required";
+
+      if (Object.keys(missing).length > 0) {
+        setErrors(missing);
+        setCurrentStep(1); // Jump to Company step
+        throw new Error("Please complete the required Company fields.");
+      }
+
       // Get the current session to ensure we have a valid token
       const { data: { session } } = await supabase.auth.getSession();
       
