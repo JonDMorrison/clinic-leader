@@ -192,7 +192,7 @@ export const CopilotWidget = () => {
               onKeyPress={handleKeyPress}
               placeholder="Ask about KPIs, rocks, issues..."
               disabled={isLoading}
-              className="flex-1 border-white/10 focus:border-brand/30 bg-white/5 min-h-[44px]"
+              className="flex-1 border-white/20 focus:border-brand/50 bg-white/10 backdrop-blur-sm shadow-sm focus:shadow-brand/20 focus:shadow-md transition-all min-h-[44px]"
             />
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
