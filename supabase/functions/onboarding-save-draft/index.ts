@@ -17,14 +17,23 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       {
         global: {
-          headers: { Authorization: req.headers.get("Authorization")! },
+          headers: { Authorization: req.headers.get("Authorization") || "" },
         },
       }
     );
 
+    // Prefer extracting the JWT directly to avoid auth context issues
+    const authHeader = req.headers.get("Authorization") || "";
+    const jwt = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
+
     const {
       data: { user },
-    } = await supabaseClient.auth.getUser();
+      error: userErr,
+    } = await supabaseClient.auth.getUser(jwt);
+
+    if (userErr) {
+      console.error("getUser error:", userErr);
+    }
 
     if (!user) {
       throw new Error("Not authenticated");
