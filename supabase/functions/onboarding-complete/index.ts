@@ -33,6 +33,12 @@ serve(async (req) => {
       }
     );
 
+    // Privileged client for server-side updates (bypasses RLS safely)
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
     const claims = token ? parseJwt(token) : null;
@@ -91,7 +97,7 @@ serve(async (req) => {
     console.log("Validation passed, updating organization...");
 
     // Update organization with all data
-    const { data: updateResult, error: updateError } = await supabaseClient
+    const { data: updateResult, error: updateError } = await supabaseAdmin
       .from("teams")
       .update({
         name: data.company_name,
@@ -134,7 +140,7 @@ serve(async (req) => {
     if (data.core_values && data.core_values.length > 0) {
       console.log("Saving core values:", data.core_values);
       // Delete existing
-      await supabaseClient
+      await supabaseAdmin
         .from("org_core_values")
         .delete()
         .eq("organization_id", organizationId);
@@ -145,7 +151,7 @@ serve(async (req) => {
         value,
         position: index,
       }));
-      await supabaseClient.from("org_core_values").insert(coreValuesInserts);
+      await supabaseAdmin.from("org_core_values").insert(coreValuesInserts);
       console.log("Core values saved");
     }
 
@@ -153,7 +159,7 @@ serve(async (req) => {
     if (data.eos_enabled) {
       console.log("EOS enabled, checking for VTO...");
       // Create VTO draft if not exists
-      const { data: existingVto } = await supabaseClient
+      const { data: existingVto } = await supabaseAdmin
         .from("vtos")
         .select("id")
         .eq("organization_id", organizationId)
@@ -161,7 +167,7 @@ serve(async (req) => {
 
       if (!existingVto) {
         console.log("Creating VTO draft");
-        await supabaseClient.from("vtos").insert({
+        await supabaseAdmin.from("vtos").insert({
           organization_id: organizationId,
           owner_id: userId,
           status: "draft",
@@ -175,7 +181,7 @@ serve(async (req) => {
     // Create Jane integration record if selected
     if (data.ehr_system === "Jane") {
       console.log("Jane EHR selected, creating integration record...");
-      const { data: existingIntegration } = await supabaseClient
+      const { data: existingIntegration } = await supabaseAdmin
         .from("jane_integrations")
         .select("id")
         .eq("team_id", organizationId)
@@ -183,7 +189,7 @@ serve(async (req) => {
 
       if (!existingIntegration) {
         console.log("Creating Jane integration record");
-        await supabaseClient.from("jane_integrations").insert({
+        await supabaseAdmin.from("jane_integrations").insert({
           team_id: organizationId,
           api_key: "",
           status: "pending_setup",
@@ -195,7 +201,7 @@ serve(async (req) => {
 
     // Mark onboarding session as completed
     console.log("Marking onboarding session as completed");
-    await supabaseClient
+    await supabaseAdmin
       .from("onboarding_sessions")
       .update({ completed: true })
       .eq("organization_id", organizationId)
@@ -203,7 +209,7 @@ serve(async (req) => {
 
     // Log completion to audit
     console.log("Logging to audit");
-    await supabaseClient.from("audit_log").insert({
+    await supabaseAdmin.from("audit_log").insert({
       entity: "onboarding",
       entity_id: organizationId,
       actor_id: userId,
