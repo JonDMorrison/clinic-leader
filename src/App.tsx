@@ -7,6 +7,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserNav } from "@/components/layout/UserNav";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+import { OnboardingGuard } from "@/components/onboarding/OnboardingGuard";
 import { userTourService } from "@/lib/userTourService";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -45,6 +46,7 @@ import AdminDemo from "./pages/AdminDemo";
 import VTO from "./pages/VTO";
 import VTOVision from "./pages/VTOVision";
 import VTOTraction from "./pages/VTOTraction";
+import Onboarding from "./pages/Onboarding";
 
 const queryClient = new QueryClient();
 
@@ -126,9 +128,11 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
           <ErrorBoundary>
+          <OnboardingGuard>
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/dashboard" element={<AppLayout><Home /></AppLayout>} />
             <Route path="/scorecard" element={<AppLayout><Scorecard /></AppLayout>} />
             <Route path="/rocks" element={<AppLayout><Rocks /></AppLayout>} />
@@ -161,6 +165,7 @@ const App = () => {
             <Route path="/admin/demo" element={<AppLayout><AdminDemo /></AppLayout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </OnboardingGuard>
           
           {showWizard && userId && (
             <OnboardingWizard userId={userId} onComplete={handleWizardComplete} />
