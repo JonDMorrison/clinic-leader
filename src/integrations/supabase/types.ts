@@ -981,6 +981,86 @@ export type Database = {
           },
         ]
       }
+      onboarding_sessions: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          data: Json | null
+          id: string
+          organization_id: string
+          started_by: string
+          step: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          organization_id: string
+          started_by: string
+          step?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          organization_id?: string
+          started_by?: string
+          step?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_sessions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onboarding_sessions_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_core_values: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          position: number | null
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          position?: number | null
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          position?: number | null
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_core_values_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recall_actions: {
         Row: {
           action: string
@@ -1364,24 +1444,72 @@ export type Database = {
       }
       teams: {
         Row: {
+          brand_color: string | null
+          country: string | null
           created_at: string
+          currency: string | null
+          default_report_email: string | null
+          ehr_system: string | null
+          eos_enabled: boolean | null
           id: string
+          industry: string | null
           is_demo_org: boolean
+          location_city: string | null
+          location_region: string | null
+          logo_url: string | null
+          meeting_rhythm: string | null
           name: string
+          onboarding_status: string | null
+          review_cadence: string | null
+          team_size: number | null
+          timezone: string | null
+          unit_system: string | null
           updated_at: string
         }
         Insert: {
+          brand_color?: string | null
+          country?: string | null
           created_at?: string
+          currency?: string | null
+          default_report_email?: string | null
+          ehr_system?: string | null
+          eos_enabled?: boolean | null
           id?: string
+          industry?: string | null
           is_demo_org?: boolean
+          location_city?: string | null
+          location_region?: string | null
+          logo_url?: string | null
+          meeting_rhythm?: string | null
           name: string
+          onboarding_status?: string | null
+          review_cadence?: string | null
+          team_size?: number | null
+          timezone?: string | null
+          unit_system?: string | null
           updated_at?: string
         }
         Update: {
+          brand_color?: string | null
+          country?: string | null
           created_at?: string
+          currency?: string | null
+          default_report_email?: string | null
+          ehr_system?: string | null
+          eos_enabled?: boolean | null
           id?: string
+          industry?: string | null
           is_demo_org?: boolean
+          location_city?: string | null
+          location_region?: string | null
+          logo_url?: string | null
+          meeting_rhythm?: string | null
           name?: string
+          onboarding_status?: string | null
+          review_cadence?: string | null
+          team_size?: number | null
+          timezone?: string | null
+          unit_system?: string | null
           updated_at?: string
         }
         Relationships: []
