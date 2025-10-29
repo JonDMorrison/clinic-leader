@@ -30,19 +30,42 @@ export const Sidebar = () => {
       
       const { data } = await supabase
         .from("users")
-        .select("role")
+        .select("role, team_id")
         .eq("email", user.email)
         .single();
       
-      return { ...user, role: data?.role || "staff" };
+      return { ...user, role: data?.role || "staff", team_id: data?.team_id };
     },
   });
 
+  const { data: team } = useQuery({
+    queryKey: ["team", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return null;
+      
+      const { data } = await supabase
+        .from("teams")
+        .select("eos_enabled")
+        .eq("id", currentUser.team_id)
+        .single();
+      
+      return data;
+    },
+    enabled: !!currentUser?.team_id,
+  });
+
   const userRole = currentUser?.role || "staff";
+  const eosEnabled = team?.eos_enabled || false;
+  
+  // EOS-specific routes that should be hidden when EOS is disabled
+  const eosRoutes = ["/vto", "/scorecard", "/rocks", "/meeting", "/people"];
 
   const filteredNavItems = navItems.filter((item) => {
     // Filter by role
     if (!item.roles.includes(userRole)) return false;
+    
+    // Filter EOS-specific items if EOS is not enabled
+    if (!eosEnabled && eosRoutes.includes(item.path)) return false;
     
     return true;
   });
