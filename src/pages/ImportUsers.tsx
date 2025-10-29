@@ -20,6 +20,7 @@ const VALID_ROLES = ["owner", "director", "manager", "provider", "staff", "billi
 const userSchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
   email: z.string().trim().email("Invalid email address").max(255, "Email must be less than 255 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters").max(72, "Password must be less than 72 characters"),
   role: z.enum(VALID_ROLES, { required_error: "Please select a role" }),
   department_id: z.string().uuid("Please select a department"),
 });
@@ -37,6 +38,7 @@ export default function ImportUsers() {
     defaultValues: {
       full_name: "",
       email: "",
+      password: "",
       role: undefined,
       department_id: "",
     },
@@ -84,6 +86,7 @@ export default function ImportUsers() {
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: values.email,
+        password: values.password,
         email_confirm: true,
         user_metadata: {
           full_name: values.full_name,
@@ -207,6 +210,20 @@ export default function ImportUsers() {
                       <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input type="email" placeholder="john.doe@northwest.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Minimum 6 characters" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
