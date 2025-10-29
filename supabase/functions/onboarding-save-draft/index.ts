@@ -1,6 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
+function parseJwt(token: string) {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = atob(base64);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -22,21 +32,16 @@ serve(async (req) => {
       }
     );
 
-    // Prefer extracting the JWT directly to avoid auth context issues
     const authHeader = req.headers.get("Authorization") || "";
-    const jwt = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const claims = token ? parseJwt(token) : null;
+    const userId = (claims?.sub as string) || undefined;
 
-    const {
-      data: { user },
-      error: userErr,
-    } = await supabaseClient.auth.getUser(jwt);
-
-    if (userErr) {
-      console.error("getUser error:", userErr);
-    }
-
-    if (!user) {
-      throw new Error("Not authenticated");
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "Not authenticated" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const { step, data } = await req.json();
@@ -45,7 +50,7 @@ serve(async (req) => {
     const { data: userData } = await supabaseClient
       .from("users")
       .select("team_id")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     if (!userData?.team_id) {
@@ -59,7 +64,7 @@ serve(async (req) => {
       .from("onboarding_sessions")
       .select("*")
       .eq("organization_id", organizationId)
-      .eq("started_by", user.id)
+      .eq("started_by", userId)
       .single();
 
     if (existingSession) {
@@ -76,7 +81,7 @@ serve(async (req) => {
         .from("onboarding_sessions")
         .insert({
           organization_id: organizationId,
-          started_by: user.id,
+          started_by: userId,
           step,
           data,
         });
