@@ -96,13 +96,13 @@ export const CompanyWizard = ({
     // Validate current step
     setErrors({});
     
-    // Auto-save on step change
-    await saveDraft();
-
     if (currentStep < STEPS.length - 1) {
+      // Auto-save on step change (except last step)
+      await saveDraft();
       setCurrentStep(currentStep + 1);
     } else {
-      // Final submission
+      // Final submission - skip saveDraft and go straight to complete
+      console.log("Completing onboarding with data:", data);
       handleComplete();
     }
   };
@@ -116,6 +116,8 @@ export const CompanyWizard = ({
   const handleComplete = async () => {
     setSaving(true);
     try {
+      console.log("Starting handleComplete with data:", data);
+      
       // Basic validation before submission
       const missing: Record<string, string> = {};
       if (!data.company_name) missing.company_name = "Company name is required";
@@ -123,30 +125,42 @@ export const CompanyWizard = ({
       if (!data.team_size) missing.team_size = "Team size is required";
 
       if (Object.keys(missing).length > 0) {
+        console.error("Validation failed:", missing);
         setErrors(missing);
         setCurrentStep(1); // Jump to Company step
         throw new Error("Please complete the required Company fields.");
       }
 
+      console.log("Validation passed, getting session...");
+      
       // Get the current session to ensure we have a valid token
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
+        console.error("No session found");
         throw new Error("Not authenticated. Please log in again.");
       }
+
+      console.log("Session found, calling onboarding-complete function...");
 
       const { data: result, error: invokeError } = await supabase.functions.invoke(
         "onboarding-complete",
         { body: { data } }
       );
 
+      console.log("Function response:", { result, invokeError });
+
       if (invokeError) {
+        console.error("Function invoke error:", invokeError);
         throw invokeError;
       }
 
       if (!result || !result.success) {
+        console.error("Function returned failure:", result);
         throw new Error(result?.error || "Setup failed. Please try again.");
       }
+      
+      console.log("Setup complete, navigating to:", result.redirect || "/dashboard");
       
       toast({
         title: "Setup complete! 🎉",
