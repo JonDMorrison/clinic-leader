@@ -101,7 +101,7 @@ export const UserNav = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="relative h-10 w-10 rounded-full ring-2 ring-brand/20 hover:ring-brand/40 transition-all">
+        <button className="relative h-10 w-10 rounded-full ring-2 ring-brand/20 hover:ring-brand/40 transition-all bg-background/80 backdrop-blur-sm shadow-lg border border-border/40 hover:shadow-xl">
           <Avatar className="h-10 w-10">
             <AvatarFallback className="bg-gradient-to-br from-brand to-accent text-white font-semibold">
               {initials}

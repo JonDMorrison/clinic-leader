@@ -49,11 +49,11 @@ const queryClient = new QueryClient();
 const AppLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="flex w-full min-h-screen relative">
     <Sidebar />
-    <div className="flex-1 flex flex-col">
-      <header className="h-16 border-b border-border/40 flex items-center justify-end px-8 bg-background/80 backdrop-blur-sm sticky top-0 z-40">
+    <div className="flex-1 flex flex-col relative">
+      <div className="fixed top-4 right-8 z-50">
         <UserNav />
-      </header>
-      <main className="flex-1 p-8 relative">
+      </div>
+      <main className="flex-1 p-8 pt-20 relative">
         <div className="absolute inset-0 bg-gradient-to-br from-brand/5 via-transparent to-accent/5 pointer-events-none" />
         <div className="relative z-10">
           {children}
