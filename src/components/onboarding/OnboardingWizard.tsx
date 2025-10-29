@@ -158,9 +158,10 @@ export const OnboardingWizard = ({ userId, onComplete }: OnboardingWizardProps) 
   const step = tourSteps[currentStep];
 
   return (
-    <AnimatePresence>
-      <Overlay />
+    <AnimatePresence mode="wait">
+      <Overlay key="overlay" />
       <StepTooltip
+        key={`step-${currentStep}`}
         title={step.title}
         text={step.text}
         currentStep={currentStep}

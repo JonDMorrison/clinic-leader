@@ -167,7 +167,7 @@ export const CompanyWizard = ({
         description: "Welcome to your new workspace.",
       });
       
-      navigate(result.redirect || "/dashboard");
+      navigate(result.redirect || "/dashboard", { replace: true });
     } catch (error) {
       console.error("Setup error:", error);
       toast({

@@ -30,7 +30,7 @@ export const VtoCard = () => {
         .select("*")
         .eq("team_id", userProfile.team_id)
         .eq("is_active", true)
-        .single();
+        .maybeSingle();
 
       if (!vto) return null;
 
@@ -41,7 +41,7 @@ export const VtoCard = () => {
         .eq("vto_id", vto.id)
         .order("version", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!version) return null;
 
@@ -52,7 +52,7 @@ export const VtoCard = () => {
         .eq("vto_version_id", version.id)
         .order("computed_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       // Find off-track goals
       const offTrackGoals = progress?.details
