@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, User as UserIcon, Building2 } from "lucide-react";
+import { LogOut, User as UserIcon, Building2, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -123,9 +123,13 @@ export const UserNav = () => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate("/settings/organization")}>
+          <Building2 className="mr-2 h-4 w-4" />
+          <span>Company Profile</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate("/settings")}>
-          <UserIcon className="mr-2 h-4 w-4" />
-          <span>Settings</span>
+          <Settings className="mr-2 h-4 w-4" />
+          <span>User Settings</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={handleLogout} className="text-destructive">
           <LogOut className="mr-2 h-4 w-4" />
