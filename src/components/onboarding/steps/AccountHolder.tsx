@@ -64,7 +64,7 @@ export const AccountHolder = ({ data, onChange, errors }: AccountHolderProps) =>
         help="Your role in the organization"
       >
         <Select
-          value={data.role}
+          value={data.role || ""}
           onValueChange={(value) =>
             onChange({ ...data, role: value as AccountHolderData["role"] })
           }

@@ -61,17 +61,30 @@ export const CompanyWizard = ({
   const saveDraft = async () => {
     setSaving(true);
     try {
-      await supabase.functions.invoke("onboarding-save-draft", {
+      // Verify we have a session before saving
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error("Session expired. Please log in again.");
+      }
+
+      const { error: saveError } = await supabase.functions.invoke("onboarding-save-draft", {
         body: { step: currentStep, data },
       });
+
+      if (saveError) {
+        throw saveError;
+      }
+
       toast({
         title: "Progress saved",
         description: "You can continue later from where you left off.",
       });
     } catch (error) {
+      console.error("Save error:", error);
       toast({
         title: "Save failed",
-        description: "Could not save your progress. Please try again.",
+        description: error instanceof Error ? error.message : "Could not save your progress.",
         variant: "destructive",
       });
     } finally {
@@ -103,10 +116,25 @@ export const CompanyWizard = ({
   const handleComplete = async () => {
     setSaving(true);
     try {
-      const { data: result } = await supabase.functions.invoke(
+      // Get the current session to ensure we have a valid token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error("Not authenticated. Please log in again.");
+      }
+
+      const { data: result, error: invokeError } = await supabase.functions.invoke(
         "onboarding-complete",
         { body: { data } }
       );
+
+      if (invokeError) {
+        throw invokeError;
+      }
+
+      if (!result || !result.success) {
+        throw new Error(result?.error || "Setup failed. Please try again.");
+      }
       
       toast({
         title: "Setup complete! 🎉",
@@ -115,9 +143,10 @@ export const CompanyWizard = ({
       
       navigate(result.redirect || "/dashboard");
     } catch (error) {
+      console.error("Setup error:", error);
       toast({
         title: "Setup failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {

@@ -73,7 +73,7 @@ export const OperationalSetup = ({
         help="Your electronic health record system"
       >
         <Select
-          value={data.ehr_system}
+          value={data.ehr_system || ""}
           onValueChange={(value) =>
             onChange({ ...data, ehr_system: value as OperationalSetupData["ehr_system"] })
           }
@@ -92,20 +92,20 @@ export const OperationalSetup = ({
       </Field>
 
       <Field label="Integrations" help="Systems you'd like to connect">
-        <div className="space-y-3 border rounded-lg p-4">
-          {AVAILABLE_INTEGRATIONS.map((integration) => (
-            <div key={integration} className="flex items-center space-x-2">
-              <Checkbox
-                id={integration}
-                checked={data.integrations?.includes(integration)}
-                onCheckedChange={() => toggleIntegration(integration)}
-              />
-              <label htmlFor={integration} className="text-sm cursor-pointer">
-                {integration}
-              </label>
-            </div>
-          ))}
-        </div>
+          <div className="space-y-3 border rounded-lg p-4">
+            {AVAILABLE_INTEGRATIONS.map((integration) => (
+              <div key={integration} className="flex items-center space-x-2">
+                <Checkbox
+                  id={integration}
+                  checked={data.integrations?.includes(integration) || false}
+                  onCheckedChange={() => toggleIntegration(integration)}
+                />
+                <label htmlFor={integration} className="text-sm cursor-pointer">
+                  {integration}
+                </label>
+              </div>
+            ))}
+          </div>
       </Field>
 
       <Field

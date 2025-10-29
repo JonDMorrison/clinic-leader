@@ -81,7 +81,7 @@ export const EosSetup = ({ data, onChange, errors }: EosSetupProps) => {
             help="How often will you hold Level 10 meetings?"
           >
             <Select
-              value={data.meeting_rhythm}
+              value={data.meeting_rhythm || ""}
               onValueChange={(value) =>
                 onChange({
                   ...data,

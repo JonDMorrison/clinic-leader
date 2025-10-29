@@ -64,7 +64,7 @@ export const CompanyBasics = ({ data, onChange, errors }: CompanyBasicsProps) =>
           help="Your primary healthcare specialty"
         >
           <Select
-            value={data.industry}
+            value={data.industry || ""}
             onValueChange={(value) =>
               onChange({ ...data, industry: value as CompanyBasicsData["industry"] })
             }
@@ -122,7 +122,7 @@ export const CompanyBasics = ({ data, onChange, errors }: CompanyBasicsProps) =>
 
       <Field label="Country" required error={errors.country}>
         <Select
-          value={data.country}
+          value={data.country || ""}
           onValueChange={(value) => onChange({ ...data, country: value })}
         >
           <SelectTrigger>
@@ -156,7 +156,7 @@ export const CompanyBasics = ({ data, onChange, errors }: CompanyBasicsProps) =>
 
         <Field label="Unit System" required>
           <Select
-            value={data.unit_system}
+            value={data.unit_system || "imperial"}
             onValueChange={(value) =>
               onChange({ ...data, unit_system: value as "imperial" | "metric" })
             }

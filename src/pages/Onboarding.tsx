@@ -23,6 +23,9 @@ export default function Onboarding() {
           return;
         }
 
+        // Refresh session to ensure it's valid
+        await supabase.auth.refreshSession();
+
         // Get user's team and onboarding status
         const { data: userData } = await supabase
           .from("users")
