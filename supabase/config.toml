@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.demo-provision]
 verify_jwt = false
+
+[functions.copy-docs]
+verify_jwt = false

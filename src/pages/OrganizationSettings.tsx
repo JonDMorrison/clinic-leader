@@ -1,13 +1,37 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Loader2, Building2, Users, Palette } from "lucide-react";
+import { Loader2, Building2, Users, Palette, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { copyDocsFromDemo } from "@/lib/docs/copyDocs";
+import { useToast } from "@/hooks/use-toast";
 
 export default function OrganizationSettings() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const copyDocsMutation = useMutation({
+    mutationFn: async (teamId: string) => {
+      return await copyDocsFromDemo(teamId);
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Documents Copied",
+        description: `Successfully copied ${data.copied} documents from demo account.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["docs"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to copy documents",
+        variant: "destructive",
+      });
+    },
+  });
 
   const { data: team, isLoading: teamLoading } = useQuery({
     queryKey: ["current-team"],
@@ -133,6 +157,16 @@ export default function OrganizationSettings() {
             <Button onClick={() => navigate("/licensing")} variant="outline">
               View License Details
             </Button>
+            {team?.id && (
+              <Button 
+                onClick={() => copyDocsMutation.mutate(team.id)} 
+                variant="outline"
+                disabled={copyDocsMutation.isPending}
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                {copyDocsMutation.isPending ? "Copying..." : "Copy Demo Docs"}
+              </Button>
+            )}
           </div>
         </Card>
 
