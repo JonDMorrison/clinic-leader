@@ -91,7 +91,7 @@ serve(async (req) => {
     console.log("Validation passed, updating organization...");
 
     // Update organization with all data
-    const { error: updateError } = await supabaseClient
+    const { data: updateResult, error: updateError } = await supabaseClient
       .from("teams")
       .update({
         name: data.company_name,
@@ -112,14 +112,23 @@ serve(async (req) => {
         logo_url: data.logo_url,
         onboarding_status: "completed",
       })
-      .eq("id", organizationId);
+      .eq("id", organizationId)
+      .select();
 
     if (updateError) {
       console.error("Error updating organization:", updateError);
       throw new Error(`Organization update failed: ${updateError.message}`);
     }
 
-    console.log("Organization updated successfully");
+    if (!updateResult || updateResult.length === 0) {
+      console.error("Organization update returned no data");
+      throw new Error("Failed to confirm organization update");
+    }
+
+    console.log("Organization updated successfully:", {
+      id: organizationId,
+      onboarding_status: updateResult[0].onboarding_status
+    });
 
     // Save core values
     if (data.core_values && data.core_values.length > 0) {

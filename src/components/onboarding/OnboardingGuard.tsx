@@ -40,6 +40,8 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
 
         if (error) {
           console.error("Error fetching user data:", error);
+          // On error, allow access to prevent blocking legitimate users
+          setNeedsOnboarding(false);
           setLoading(false);
           return;
         }
@@ -54,12 +56,15 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
         const teamData = userData.teams as any;
         
         // Check if onboarding is incomplete
-        if (!teamData?.onboarding_status || teamData.onboarding_status === "draft") {
+        // Only redirect to onboarding if status is explicitly 'draft' or null
+        if (teamData?.onboarding_status === "draft" || !teamData?.onboarding_status) {
+          console.log("Onboarding incomplete, status:", teamData?.onboarding_status);
           setNeedsOnboarding(true);
           navigate("/onboarding");
           return;
         }
 
+        console.log("Onboarding complete, status:", teamData?.onboarding_status);
         setLoading(false);
       } catch (error) {
         console.error("Error in onboarding guard:", error);
