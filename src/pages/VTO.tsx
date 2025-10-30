@@ -241,7 +241,7 @@ const VTO = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <VtoLoadPresetsButton vtoId={vtoData.vto.id} />
+          {!latestVersion && <VtoLoadPresetsButton vtoId={vtoData.vto.id} />}
           <Button variant="outline" onClick={() => navigate('/vto/export')}>
             <Download className="w-4 h-4 mr-2" />
             Export
