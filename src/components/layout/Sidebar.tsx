@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { HelpMenu } from "@/components/layout/HelpMenu";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import clinicLeaderLogo from "@/assets/clinicleader-logo.png";
 
 const navItems = [
   { title: "Home", path: "/", icon: Home, roles: ["staff", "manager", "director", "owner"] },
@@ -85,9 +86,11 @@ export const Sidebar = () => {
   return (
     <aside className="w-64 h-screen sticky top-0 flex flex-col glass border-r border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)] animate-fade-in">
       <div className="p-6 border-b border-white/10 flex items-center justify-between">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent">
-          EOS Clinic
-        </h1>
+        <img 
+          src={clinicLeaderLogo} 
+          alt="ClinicLeader" 
+          className="h-10 w-auto"
+        />
         <HelpMenu />
       </div>
       
