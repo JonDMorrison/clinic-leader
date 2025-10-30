@@ -96,6 +96,18 @@ serve(async (req) => {
 
     console.log("Validation passed, updating organization...");
 
+    // Update user's name if provided
+    if (data.first_name || data.last_name) {
+      const fullName = `${data.first_name || ""} ${data.last_name || ""}`.trim();
+      if (fullName) {
+        console.log("Updating user full_name to:", fullName);
+        await supabaseAdmin
+          .from("users")
+          .update({ full_name: fullName })
+          .eq("id", userId);
+      }
+    }
+
     // Update organization with all data
     const { data: updateResult, error: updateError } = await supabaseAdmin
       .from("teams")
