@@ -11,12 +11,13 @@ import { PerformanceScore } from "@/components/dashboard/PerformanceScore";
 import { VtoCard } from "@/components/dashboard/VtoCard";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect, useState } from "react";
 import { HelpHint } from "@/components/help/HelpHint";
 
 const Home = () => {
   const ref = useRef(null);
-  
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ["kpis-summary"],
     queryFn: async () => {
@@ -122,7 +123,7 @@ const Home = () => {
 
   // Only use scroll effects when data is loaded
   const { scrollYProgress } = useScroll({
-    target: ref,
+    target: mounted ? ref : undefined,
     offset: ["start start", "end start"]
   });
 
