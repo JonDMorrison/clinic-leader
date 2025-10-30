@@ -16,13 +16,6 @@ import { HelpHint } from "@/components/help/HelpHint";
 
 const Home = () => {
   const ref = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"]
-  });
-
-  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.8]);
-  const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.98]);
   
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ["kpis-summary"],
@@ -126,6 +119,15 @@ const Home = () => {
     : 0;
 
   const isLoading = kpisLoading || rocksLoading || issuesLoading;
+
+  // Only use scroll effects when data is loaded
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start start", "end start"]
+  });
+
+  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.8]);
+  const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.98]);
 
   if (isLoading) {
     return (
