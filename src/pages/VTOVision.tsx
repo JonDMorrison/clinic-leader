@@ -446,6 +446,14 @@ const VTOVision = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bottom Save Button */}
+      <div className="flex justify-end pt-6">
+        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} size="lg">
+          <Save className="w-4 h-4 mr-2" />
+          Save Draft
+        </Button>
+      </div>
     </div>
   );
 };
