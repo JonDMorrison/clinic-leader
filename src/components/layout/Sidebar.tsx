@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { HelpMenu } from "@/components/layout/HelpMenu";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import clinicLeaderLogo from "@/assets/clinicleader-logo.png";
+import clinicLeaderIcon from "@/assets/clinicleader-icon-only.png";
 import {
   Collapsible,
   CollapsibleContent,
@@ -135,11 +135,16 @@ export const Sidebar = () => {
   return (
     <aside className="w-64 h-screen sticky top-0 flex flex-col glass border-r border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)]">
       <div className="p-6 border-b border-white/10 flex items-center justify-between">
-        <img 
-          src={clinicLeaderLogo} 
-          alt="ClinicLeader" 
-          className="h-10 w-auto"
-        />
+        <div className="flex items-center gap-3">
+          <img 
+            src={clinicLeaderIcon} 
+            alt="ClinicLeader Icon" 
+            className="w-10 h-10 object-contain"
+          />
+          <span className="text-xl font-bold bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent">
+            ClinicLeader
+          </span>
+        </div>
         <HelpMenu />
       </div>
       
