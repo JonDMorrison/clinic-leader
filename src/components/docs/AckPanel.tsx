@@ -84,11 +84,11 @@ export const AckPanel = ({
 
       const { data: userData } = await supabase
         .from("users")
-        .select("id")
+        .select("id, team_id")
         .eq("email", user.email)
         .maybeSingle();
 
-      if (!userData) {
+      if (!userData || !userData.team_id) {
         toast.error("User profile not found");
         setIsSubmitting(false);
         return;
@@ -97,6 +97,7 @@ export const AckPanel = ({
       const { error } = await supabase.from("acknowledgements").insert({
         doc_id: docId,
         user_id: userData.id,
+        organization_id: userData.team_id,
         quiz_score: score,
       });
 
@@ -119,11 +120,11 @@ export const AckPanel = ({
 
       const { data: userData } = await supabase
         .from("users")
-        .select("id")
+        .select("id, team_id")
         .eq("email", user.email)
         .maybeSingle();
 
-      if (!userData) {
+      if (!userData || !userData.team_id) {
         toast.error("User profile not found");
         setIsSubmitting(false);
         return;
@@ -132,6 +133,7 @@ export const AckPanel = ({
       const { error } = await supabase.from("acknowledgements").insert({
         doc_id: docId,
         user_id: userData.id,
+        organization_id: userData.team_id,
       });
 
       if (error) {

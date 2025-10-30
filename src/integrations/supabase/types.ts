@@ -19,6 +19,7 @@ export type Database = {
           acknowledged_at: string
           doc_id: string
           id: string
+          organization_id: string
           quiz_score: number | null
           user_id: string
         }
@@ -26,6 +27,7 @@ export type Database = {
           acknowledged_at?: string
           doc_id: string
           id?: string
+          organization_id: string
           quiz_score?: number | null
           user_id: string
         }
@@ -33,6 +35,7 @@ export type Database = {
           acknowledged_at?: string
           doc_id?: string
           id?: string
+          organization_id?: string
           quiz_score?: number | null
           user_id?: string
         }
@@ -42,6 +45,13 @@ export type Database = {
             columns: ["doc_id"]
             isOneToOne: false
             referencedRelation: "docs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acknowledgements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -373,6 +383,7 @@ export type Database = {
           created_at: string
           id: string
           kind: Database["public"]["Enums"]["doc_kind"]
+          organization_id: string
           owner_id: string | null
           requires_ack: boolean
           status: Database["public"]["Enums"]["doc_status"]
@@ -385,6 +396,7 @@ export type Database = {
           created_at?: string
           id?: string
           kind: Database["public"]["Enums"]["doc_kind"]
+          organization_id: string
           owner_id?: string | null
           requires_ack?: boolean
           status?: Database["public"]["Enums"]["doc_status"]
@@ -397,6 +409,7 @@ export type Database = {
           created_at?: string
           id?: string
           kind?: Database["public"]["Enums"]["doc_kind"]
+          organization_id?: string
           owner_id?: string | null
           requires_ack?: boolean
           status?: Database["public"]["Enums"]["doc_status"]
@@ -405,6 +418,13 @@ export type Database = {
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "docs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "docs_owner_id_fkey"
             columns: ["owner_id"]

@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { validateTenantAccess } from '../_shared/tenant-context.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,7 +15,10 @@ serve(async (req) => {
 
   try {
     const { question, team_id } = await req.json();
-    console.log('Received question:', question, 'for team:', team_id);
+    
+    // Validate tenant access
+    const tenantContext = await validateTenantAccess(req, team_id);
+    console.log(`ai-query-docs: User ${tenantContext.userId} from team ${tenantContext.teamId}`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -26,24 +30,19 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch all documents for the team
-    // Note: docs table has owner_id, not team_id directly
-    // We need to join with users to filter by team
+    // Fetch documents for the validated team using organization_id
     const { data: docs, error: docsError } = await supabase
       .from('docs')
-      .select(`
-        *,
-        owner:owner_id(team_id)
-      `)
-      .eq('status', 'published');
+      .select('*')
+      .eq('status', 'published')
+      .eq('organization_id', tenantContext.teamId);
 
     if (docsError) {
       console.error('Error fetching docs:', docsError);
       throw docsError;
     }
 
-    // Filter docs by team_id from the joined owner data
-    const teamDocs = docs?.filter((doc: any) => doc.owner?.team_id === team_id) || [];
+    const teamDocs = docs || [];
 
     console.log(`Found ${teamDocs.length} documents for team`);
 

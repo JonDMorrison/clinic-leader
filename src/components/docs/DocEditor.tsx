@@ -50,6 +50,26 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
       const validated = docSchema.parse({ title, kind, body, status });
       setIsSubmitting(true);
 
+      // Get current user's organization_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Authentication required");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { data: userData } = await supabase
+        .from("users")
+        .select("team_id")
+        .eq("email", user.email)
+        .maybeSingle();
+
+      if (!userData || !userData.team_id) {
+        toast.error("User profile not found");
+        setIsSubmitting(false);
+        return;
+      }
+
       if (doc?.id) {
         // Update existing doc
         const { error } = await supabase
@@ -76,6 +96,7 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
           status: validated.status,
           requires_ack: requiresAck,
           owner_id: ownerId || null,
+          organization_id: userData.team_id,
           version: 1,
         });
 
