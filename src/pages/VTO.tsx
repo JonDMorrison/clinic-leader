@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, History, Link as LinkIcon, Download } from "lucide-react";
+import { Plus, FileText, History, Link as LinkIcon, Download, ArrowLeft } from "lucide-react";
 import { VtoLoadPresetsButton } from "@/components/vto/VtoLoadPresetsButton";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -218,6 +218,11 @@ const VTO = () => {
 
   return (
     <div className="space-y-6">
+      <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back to Dashboard
+      </Button>
+      
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
