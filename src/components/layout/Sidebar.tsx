@@ -34,14 +34,14 @@ export const Sidebar = () => {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       
       // Get team_id from users table
       const { data: userData } = await supabase
         .from("users")
         .select("team_id")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
       
       return { 
         ...user, 
@@ -60,7 +60,7 @@ export const Sidebar = () => {
         .from("teams")
         .select("eos_enabled")
         .eq("id", currentUser.team_id)
-        .single();
+        .maybeSingle();
       
       return data;
     },
