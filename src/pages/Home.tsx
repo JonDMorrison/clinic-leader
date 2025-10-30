@@ -121,11 +121,8 @@ const Home = () => {
 
   const isLoading = kpisLoading || rocksLoading || issuesLoading;
 
-  // Only use scroll effects when data is loaded
-  const { scrollYProgress } = useScroll({
-    target: mounted ? ref : undefined,
-    offset: ["start start", "end start"]
-  });
+  // Use viewport scroll to avoid hydration issues with target refs
+  const { scrollYProgress } = useScroll();
 
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.8]);
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.98]);
