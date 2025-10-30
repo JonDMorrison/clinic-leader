@@ -52,9 +52,14 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Team & Data",
+    label: "Team",
     items: [
       { title: "People", path: "/people", icon: Users, roles: ["manager", "director", "owner"], eosOnly: true },
+    ],
+  },
+  {
+    label: "Data",
+    items: [
       { title: "Imports", path: "/imports", icon: Upload, roles: ["manager", "director", "owner"] },
       { title: "Reports", path: "/reports", icon: FileBarChart, roles: ["manager", "director", "owner"] },
     ],
