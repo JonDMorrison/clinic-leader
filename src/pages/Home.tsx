@@ -23,7 +23,8 @@ const Home = () => {
 
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.8]);
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.98]);
-  const { data: kpis } = useQuery({
+  
+  const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ["kpis-summary"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -37,7 +38,7 @@ const Home = () => {
     },
   });
 
-  const { data: rocks } = useQuery({
+  const { data: rocks, isLoading: rocksLoading } = useQuery({
     queryKey: ["rocks-count"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -49,7 +50,7 @@ const Home = () => {
     },
   });
 
-  const { data: issues } = useQuery({
+  const { data: issues, isLoading: issuesLoading } = useQuery({
     queryKey: ["issues-count"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -123,6 +124,23 @@ const Home = () => {
   const trend = currentScore && previousScore 
     ? currentScore.percentage - previousScore.percentage 
     : 0;
+
+  const isLoading = kpisLoading || rocksLoading || issuesLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full mx-auto"
+          />
+          <p className="text-muted-foreground">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="space-y-6 md:space-y-8 animate-fade-in relative px-4 md:px-0">
