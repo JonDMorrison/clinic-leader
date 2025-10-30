@@ -64,12 +64,6 @@ const navGroups: NavGroup[] = [
       { title: "Reports", path: "/reports", icon: FileBarChart, roles: ["manager", "director", "owner"] },
     ],
   },
-  {
-    label: "Settings",
-    items: [
-      { title: "Integrations", path: "/settings/integrations", icon: Plug, roles: ["manager", "director", "owner"] },
-    ],
-  },
 ];
 
 export const Sidebar = () => {
