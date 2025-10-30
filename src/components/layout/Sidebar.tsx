@@ -28,25 +28,17 @@ export const Sidebar = () => {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      
-      // Get role from secure user_roles table
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      
-      // Get team_id from users table
-      const { data: userData } = await supabase
-        .from("users")
-        .select("team_id")
-        .eq("id", user.id)
-        .maybeSingle();
-      
-      return { 
-        ...user, 
-        role: roleData?.role || "staff", 
-        team_id: userData?.team_id 
+
+      // Use security-definer RPCs to avoid RLS issues
+      const { data: roleResult } = await supabase.rpc("get_user_role", { _user_id: user.id });
+      const role = (roleResult as string) || "staff";
+
+      const { data: teamId } = await supabase.rpc("current_user_team");
+
+      return {
+        ...user,
+        role,
+        team_id: teamId as string | null,
       };
     },
   });
