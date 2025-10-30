@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, User as UserIcon, Building2, Settings, Plug, Users, Upload, FileBarChart } from "lucide-react";
+import { LogOut, User as UserIcon, Building2, Settings, Plug } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -122,19 +122,6 @@ export const UserNav = () => {
             )}
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate("/people")}>
-          <Users className="mr-2 h-4 w-4" />
-          <span>People</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate("/imports")}>
-          <Upload className="mr-2 h-4 w-4" />
-          <span>Imports</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate("/reports")}>
-          <FileBarChart className="mr-2 h-4 w-4" />
-          <span>Reports</span>
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate("/settings/organization")}>
           <Building2 className="mr-2 h-4 w-4" />
