@@ -135,16 +135,11 @@ export const Sidebar = () => {
   return (
     <aside className="w-64 h-screen sticky top-0 flex flex-col glass border-r border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)]">
       <div className="p-6 border-b border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img 
-            src={clinicLeaderLogo} 
-            alt="ClinicLeader Icon" 
-            className="w-10 h-10 object-contain"
-          />
-          <span className="text-xl font-bold bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent">
-            ClinicLeader
-          </span>
-        </div>
+        <img 
+          src={clinicLeaderLogo} 
+          alt="ClinicLeader" 
+          className="h-10 w-auto"
+        />
         <HelpMenu />
       </div>
       
