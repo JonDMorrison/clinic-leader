@@ -1,16 +1,14 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone, Plug, Sparkles, Compass, LucideIcon } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone, Plug, Sparkles, Compass, LucideIcon, Stethoscope, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HelpMenu } from "@/components/layout/HelpMenu";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import clinicLeaderLogo from "@/assets/clinicleader-logo.png";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
 
 type NavItem = {
   title: string;
@@ -136,11 +134,14 @@ export const Sidebar = () => {
   return (
     <aside className="w-64 h-screen sticky top-0 flex flex-col glass border-r border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)]">
       <div className="p-6 border-b border-white/10 flex items-center justify-between">
-        <img 
-          src={clinicLeaderLogo} 
-          alt="ClinicLeader" 
-          className="h-10 w-auto"
-        />
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand to-accent flex items-center justify-center shadow-lg shadow-brand/30">
+            <Stethoscope className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-xl font-bold bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent">
+            ClinicLeader
+          </span>
+        </div>
         <HelpMenu />
       </div>
       
