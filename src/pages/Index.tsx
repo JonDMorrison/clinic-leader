@@ -32,8 +32,8 @@ const Index = () => {
   return (
     <>
       <Helmet>
-        <title>EOS Platform - Run Your Business with Vision, Traction & Accountability</title>
-        <meta name="description" content="The complete platform for organizations running on the Entrepreneurial Operating System. Manage scorecards, rocks, issues, and Level 10 meetings in one place." />
+        <title>Clinic Leader - Data-Driven Practice Management for Healthcare</title>
+        <meta name="description" content="The complete platform for healthcare practices. Track performance metrics, set strategic goals, run efficient meetings, and grow profitably. Built for clinics that want to scale." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col">
@@ -50,11 +50,10 @@ const Index = () => {
               <div className="grid lg:grid-cols-2 gap-12 items-center">
                 <div className="space-y-6">
                   <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
-                    Run Your Business on <span className="text-brand">EOS</span>
+                    Lead Your Clinic with <span className="text-brand">Confidence</span>
                   </h1>
                   <p className="text-xl text-muted-foreground">
-                    The complete platform for organizations implementing the Entrepreneurial Operating System. 
-                    Get everyone aligned, track progress, and solve issues faster.
+                    The complete platform for healthcare practices that want to scale with data-driven insights and proven operational frameworks. Get your team aligned, track what matters, and grow profitably.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4">
                     <Button size="lg" asChild>
@@ -88,18 +87,18 @@ const Index = () => {
           <section id="features" className="py-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">Your Path to Better Results</h2>
-                <p className="text-xl text-muted-foreground">Everything you need to implement EOS effectively</p>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">Everything You Need to Grow Your Practice</h2>
+                <p className="text-xl text-muted-foreground">Data-driven tools and frameworks for modern healthcare practices</p>
               </div>
 
               <div className="grid lg:grid-cols-2 gap-12">
                 <div className="space-y-6">
                   <h3 className="text-2xl font-semibold mb-6">What You'll Get</h3>
                   {[
-                    { title: "Scorecard Tracking", desc: "Monitor your key metrics weekly with visual trends" },
-                    { title: "Rock Management", desc: "Set and track quarterly priorities across your team" },
-                    { title: "Issue Resolution", desc: "Solve problems systematically with IDS methodology" },
-                    { title: "Level 10 Meetings", desc: "Run productive weekly meetings with built-in agenda" }
+                    { title: "Performance Metrics", desc: "Track key clinic indicators with visual dashboards and trend analysis" },
+                    { title: "Quarterly Goals", desc: "Set and achieve strategic priorities across your practice" },
+                    { title: "Problem Solving", desc: "Resolve operational challenges systematically with structured methodology" },
+                    { title: "Team Meetings", desc: "Run productive weekly meetings with built-in agendas and timers" }
                   ].map((item, i) => (
                     <div key={i} className="flex gap-4">
                       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center">
@@ -116,10 +115,10 @@ const Index = () => {
                 <div className="space-y-6">
                   <h3 className="text-2xl font-semibold mb-6">How It Helps</h3>
                   {[
-                    { title: "Crystal Clear Vision", desc: "Everyone knows where you're going and their role in getting there" },
-                    { title: "Consistent Traction", desc: "Make measurable progress every single week" },
-                    { title: "Healthy Team", desc: "Open communication and trust across the organization" },
-                    { title: "Real Accountability", desc: "Clear ownership and follow-through on commitments" }
+                    { title: "Clear Direction", desc: "Everyone knows your practice goals and their role in achieving them" },
+                    { title: "Measurable Progress", desc: "Make steady improvements every single week with data you can trust" },
+                    { title: "Aligned Team", desc: "Foster open communication and collaboration across your practice" },
+                    { title: "True Accountability", desc: "Clear ownership and follow-through on every commitment" }
                   ].map((item, i) => (
                     <div key={i} className="flex gap-4">
                       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-success/10 flex items-center justify-center">
@@ -148,15 +147,15 @@ const Index = () => {
                   />
                 </div>
                 <div className="space-y-6">
-                  <h2 className="text-3xl md:text-4xl font-bold">Professional-Grade Tools</h2>
+                  <h2 className="text-3xl md:text-4xl font-bold">Built for Healthcare Leaders</h2>
                   <p className="text-lg text-muted-foreground">
-                    Built by EOS practitioners, for EOS practitioners. Every feature designed to support the methodology.
+                    Developed with clinic operators and healthcare executives. Every feature designed to help you make better decisions faster.
                   </p>
                   <div className="space-y-4">
                     {[
-                      { icon: TrendingUp, title: "Visual Scorecard", desc: "See trends at a glance with color-coded metrics" },
-                      { icon: Target, title: "Rock Tracking", desc: "Keep your quarterly goals front and center" },
-                      { icon: CheckSquare, title: "IDS Process", desc: "Solve issues faster with structured problem-solving" }
+                      { icon: TrendingUp, title: "KPI Dashboard", desc: "Monitor your critical metrics with color-coded indicators and trends" },
+                      { icon: Target, title: "Goal Management", desc: "Keep your strategic objectives visible and on track" },
+                      { icon: CheckSquare, title: "Issue Resolution", desc: "Solve problems faster with proven problem-solving frameworks" }
                     ].map((item, i) => (
                       <Card key={i}>
                         <CardContent className="p-4 flex gap-4 items-start">
@@ -183,9 +182,9 @@ const Index = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="grid lg:grid-cols-2 gap-12 items-center">
                 <div className="space-y-6 order-2 lg:order-1">
-                  <h2 className="text-3xl md:text-4xl font-bold">Built for Your Entire Team</h2>
+                  <h2 className="text-3xl md:text-4xl font-bold">Built for Your Entire Practice</h2>
                   <p className="text-lg text-muted-foreground">
-                    From leadership team to department heads, everyone stays aligned and accountable.
+                    From owners to front desk staff, everyone stays aligned on what matters most.
                   </p>
                   <div className="space-y-3">
                     {[
@@ -222,11 +221,11 @@ const Index = () => {
               </div>
 
               <div className="grid md:grid-cols-3 gap-6 mb-12">
-                {[
-                  { icon: BarChart3, title: "Track Progress", desc: "Real-time dashboards show exactly where you stand" },
-                  { icon: Video, title: "Run Meetings", desc: "Built-in agenda and timer for perfect meetings" },
-                  { icon: MessageSquare, title: "Stay Connected", desc: "Document decisions and share updates instantly" }
-                ].map((item, i) => (
+                  {[
+                    { icon: BarChart3, title: "Track Performance", desc: "Real-time dashboards show exactly where your practice stands" },
+                    { icon: Video, title: "Run Meetings", desc: "Built-in agendas and timers for efficient team meetings" },
+                    { icon: MessageSquare, title: "Stay Aligned", desc: "Document decisions and share updates across your practice" }
+                  ].map((item, i) => (
                   <Card key={i}>
                     <CardContent className="p-6 text-center">
                       <div className="w-16 h-16 rounded-xl bg-brand/10 flex items-center justify-center mx-auto mb-4">
@@ -261,15 +260,15 @@ const Index = () => {
                   />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
-                  <h2 className="text-3xl md:text-4xl font-bold">About EOS Platform</h2>
-                  <p className="text-brand text-lg font-semibold">Built by EOS Implementers</p>
+                  <h2 className="text-3xl md:text-4xl font-bold">About Clinic Leader</h2>
+                  <p className="text-brand text-lg font-semibold">Built by Healthcare Operators</p>
                   <p className="text-muted-foreground">
-                    We've helped dozens of companies successfully implement EOS. Through that experience, 
-                    we saw the need for a tool that truly supports the methodology without unnecessary complexity.
+                    We've worked with dozens of healthcare practices to understand what truly drives growth. Through that experience, 
+                    we realized practices needed better tools to track performance and align teams around common goals.
                   </p>
                   <p className="text-muted-foreground">
-                    That's why we created EOS Platform - a simple, powerful solution that helps teams stay 
-                    focused on what matters: vision, traction, and healthy team dynamics.
+                    That's why we created Clinic Leader - a simple, powerful platform that combines data visibility 
+                    with proven operational frameworks to help your practice scale profitably.
                   </p>
                   <Button variant="outline" size="lg">Learn More About Our Team</Button>
                 </div>
@@ -288,24 +287,24 @@ const Index = () => {
               <div className="space-y-4">
                 {[
                   {
-                    q: "Do I need to be running on EOS already?",
-                    a: "Not necessarily! While the platform is designed for EOS, it can help you start implementing the system too. We recommend reading Traction by Gino Wickman first."
+                    q: "Do I need specific practice management software?",
+                    a: "Clinic Leader works alongside your existing practice management system. We integrate with popular platforms like Jane, Cliniko, and others to pull in your operational data."
                   },
                   {
                     q: "How many team members can use the platform?",
-                    a: "Plans start with up to 10 users and scale based on your needs. Contact us for custom enterprise solutions."
+                    a: "Plans start with up to 10 users and scale based on your needs. Contact us for custom solutions for larger practices or multi-location operations."
                   },
                   {
-                    q: "Is my data secure and private?",
-                    a: "Absolutely. We use enterprise-grade encryption and security measures. Your data is yours, and we never share it."
+                    q: "Is my practice data secure and HIPAA-compliant?",
+                    a: "Absolutely. We use enterprise-grade encryption and security measures. Your data is protected with bank-level security, and we never share it with third parties."
                   },
                   {
-                    q: "Can I import existing data?",
-                    a: "Yes! We support importing from spreadsheets and other common formats to get you up and running quickly."
+                    q: "Can I import my existing metrics and goals?",
+                    a: "Yes! We support importing from spreadsheets and other common formats to get you up and running quickly without starting from scratch."
                   },
                   {
                     q: "What kind of support do you offer?",
-                    a: "All plans include email support. Premium plans get priority support and training sessions."
+                    a: "All plans include email support and access to our help center. Premium plans get priority support, training sessions, and dedicated onboarding assistance."
                   }
                 ].map((faq, i) => (
                   <details key={i} className="glass rounded-2xl p-6 group">
@@ -325,7 +324,7 @@ const Index = () => {
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
               <h2 className="text-3xl md:text-4xl font-bold">Ready to Get Started?</h2>
               <p className="text-xl text-muted-foreground">
-                Join hundreds of companies running their business on EOS Platform
+                Join hundreds of healthcare practices using Clinic Leader to scale profitably
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button size="lg" asChild>

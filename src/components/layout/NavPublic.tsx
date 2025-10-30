@@ -12,7 +12,7 @@ export const NavPublic = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="text-2xl font-bold text-brand">EOS Platform</div>
+            <div className="text-2xl font-bold text-brand">Clinic Leader</div>
           </Link>
 
           {/* Desktop Navigation */}

@@ -7,9 +7,9 @@ export const FooterPublic = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="col-span-1 md:col-span-2">
-            <h3 className="text-xl font-bold text-brand mb-4">EOS Platform</h3>
+            <h3 className="text-xl font-bold text-brand mb-4">Clinic Leader</h3>
             <p className="text-muted-foreground mb-4">
-              Empowering organizations to run their business on the Entrepreneurial Operating System.
+              Empowering healthcare practices to grow with the right data and proven operational frameworks.
             </p>
           </div>
 
@@ -54,7 +54,7 @@ export const FooterPublic = () => {
         </div>
 
         <div className="mt-8 pt-8 border-t border-border/40 text-center text-muted-foreground text-sm">
-          <p>&copy; {new Date().getFullYear()} EOS Platform. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Clinic Leader. All rights reserved.</p>
         </div>
       </div>
     </footer>

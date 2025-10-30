@@ -5,23 +5,23 @@ export const WhyDifferent = () => {
   const features = [
     {
       icon: Target,
-      title: "Clear Focus",
-      description: "Crystal-clear vision, traction, and accountability for your entire organization"
+      title: "Data-Driven Decisions",
+      description: "Real-time insights into your clinic's performance with metrics that actually matter"
     },
     {
       icon: DollarSign,
-      title: "Proven ROI",
-      description: "See measurable results in efficiency, profitability, and team alignment"
+      title: "Proven Results",
+      description: "See measurable improvements in productivity, profitability, and patient satisfaction"
     },
     {
       icon: Calendar,
-      title: "Structured Meetings",
-      description: "Run productive Level 10 meetings that solve real issues every week"
+      title: "Efficient Meetings",
+      description: "Run focused team meetings that solve real problems and drive action"
     },
     {
       icon: Zap,
-      title: "Fast Implementation",
-      description: "Get your team aligned and running on EOS principles quickly"
+      title: "Quick Setup",
+      description: "Get your practice up and running in days, not months, with guided implementation"
     }
   ];
 
@@ -29,9 +29,9 @@ export const WhyDifferent = () => {
     <section className="py-16 bg-muted/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Why We're Different</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Why Clinic Leader Works</h2>
           <p className="text-xl text-muted-foreground">
-            Built specifically for organizations running on EOS
+            Purpose-built for healthcare practices that want to scale
           </p>
         </div>
 
