@@ -128,17 +128,19 @@ Provide a clear, concise answer based only on the data provided. If you don't ha
 
     await supabase.from("ai_usage").upsert({
       date: new Date().toISOString().split("T")[0],
+      organization_id: tenantContext.teamId,
       tokens_used: tokensUsed,
       api_calls: 1,
       cost_estimate: costEstimate,
     }, {
-      onConflict: "date",
+      onConflict: "date,organization_id",
       ignoreDuplicates: false,
     });
 
     // Log activity
     await supabase.from("ai_logs").insert({
       type: "chat",
+      organization_id: tenantContext.teamId,
       payload: {
         question,
         answer: answer.substring(0, 500),

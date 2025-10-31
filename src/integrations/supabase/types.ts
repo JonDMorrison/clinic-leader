@@ -99,18 +99,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          organization_id: string | null
           summary: Json
           week_start: string
         }
         Insert: {
           created_at?: string
           id?: string
+          organization_id?: string | null
           summary: Json
           week_start: string
         }
         Update: {
           created_at?: string
           id?: string
+          organization_id?: string | null
           summary?: Json
           week_start?: string
         }
@@ -121,6 +124,7 @@ export type Database = {
           created_at: string
           feedback: Json | null
           id: string
+          organization_id: string | null
           payload: Json
           type: string
         }
@@ -128,6 +132,7 @@ export type Database = {
           created_at?: string
           feedback?: Json | null
           id?: string
+          organization_id?: string | null
           payload: Json
           type: string
         }
@@ -135,6 +140,7 @@ export type Database = {
           created_at?: string
           feedback?: Json | null
           id?: string
+          organization_id?: string | null
           payload?: Json
           type?: string
         }
@@ -147,6 +153,7 @@ export type Database = {
           created_at: string
           date: string
           id: string
+          organization_id: string | null
           tokens_used: number
         }
         Insert: {
@@ -155,6 +162,7 @@ export type Database = {
           created_at?: string
           date: string
           id?: string
+          organization_id?: string | null
           tokens_used?: number
         }
         Update: {
@@ -163,6 +171,7 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          organization_id?: string | null
           tokens_used?: number
         }
         Relationships: []
@@ -1167,16 +1176,19 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          organization_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          organization_id: string
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          organization_id?: string
         }
         Relationships: []
       }
@@ -1184,6 +1196,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          organization_id: string
           scheduled: number
           source_id: string
           total: number
@@ -1192,6 +1205,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          organization_id: string
           scheduled?: number
           source_id: string
           total?: number
@@ -1200,6 +1214,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          organization_id?: string
           scheduled?: number
           source_id?: string
           total?: number
@@ -1359,6 +1374,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          organization_id: string | null
           responsibilities: string[] | null
           title: string
           updated_at: string
@@ -1367,6 +1383,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          organization_id?: string | null
           responsibilities?: string[] | null
           title: string
           updated_at?: string
@@ -1375,6 +1392,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          organization_id?: string | null
           responsibilities?: string[] | null
           title?: string
           updated_at?: string

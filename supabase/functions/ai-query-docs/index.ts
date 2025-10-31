@@ -111,6 +111,7 @@ ${docsContext}`;
       .from('ai_logs')
       .insert({
         type: 'docs_query',
+        organization_id: tenantContext.teamId,
         payload: {
           question,
           answer,

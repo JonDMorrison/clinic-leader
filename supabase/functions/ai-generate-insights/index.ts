@@ -123,11 +123,12 @@ Keep each item concise (under 100 characters). Focus on numeric insights and act
 
     await supabase.from("ai_usage").upsert({
       date: new Date().toISOString().split("T")[0],
+      organization_id: tenantContext.teamId,
       tokens_used: tokensUsed,
       api_calls: 1,
       cost_estimate: costEstimate,
     }, {
-      onConflict: "date",
+      onConflict: "date,organization_id",
       ignoreDuplicates: false,
     });
 
@@ -136,6 +137,7 @@ Keep each item concise (under 100 characters). Focus on numeric insights and act
       .from("ai_insights")
       .insert({
         week_start: weekStart,
+        organization_id: tenantContext.teamId,
         summary,
       })
       .select()
@@ -146,6 +148,7 @@ Keep each item concise (under 100 characters). Focus on numeric insights and act
     // Log AI activity
     await supabase.from("ai_logs").insert({
       type: "insight",
+      organization_id: tenantContext.teamId,
       payload: {
         week_start: weekStart,
         insight_id: insight.id,
