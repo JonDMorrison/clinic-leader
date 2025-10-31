@@ -53,7 +53,7 @@ const Reports = () => {
       let query = supabase
         .from("reports")
         .select("*")
-        .eq("team_id", currentUser.team_id)
+        .eq("organization_id", currentUser.team_id)
         .order("created_at", { ascending: false });
 
       if (periodFilter !== "all") {

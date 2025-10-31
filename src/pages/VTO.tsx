@@ -37,7 +37,7 @@ const VTO = () => {
       const { data: activeVto, error: activeErr } = await supabase
         .from("vto")
         .select("*")
-        .eq("team_id", userProfile.team_id)
+        .eq("organization_id", userProfile.team_id)
         .eq("is_active", true)
         .maybeSingle();
 
@@ -48,7 +48,7 @@ const VTO = () => {
         const { data: anyVto, error: anyErr } = await supabase
           .from("vto")
           .select("*")
-          .eq("team_id", userProfile.team_id)
+          .eq("organization_id", userProfile.team_id)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -105,7 +105,7 @@ const VTO = () => {
       const { data: vto, error: vtoError } = await supabase
         .from("vto")
         .insert({
-          team_id: userProfile.team_id,
+          organization_id: userProfile.team_id,
           created_by: userProfile.id,
         })
         .select()

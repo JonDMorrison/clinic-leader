@@ -68,27 +68,27 @@ export type Database = {
           agenda: Json
           created_at: string
           id: string
-          team_id: string | null
+          organization_id: string | null
           week_start: string
         }
         Insert: {
           agenda: Json
           created_at?: string
           id?: string
-          team_id?: string | null
+          organization_id?: string | null
           week_start: string
         }
         Update: {
           agenda?: Json
           created_at?: string
           id?: string
-          team_id?: string | null
+          organization_id?: string | null
           week_start?: string
         }
         Relationships: [
           {
             foreignKeyName: "ai_agendas_team_id_fkey"
-            columns: ["team_id"]
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
@@ -328,27 +328,27 @@ export type Database = {
           created_at: string
           id: string
           last_seed_at: string | null
-          team_id: string
+          organization_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           last_seed_at?: string | null
-          team_id: string
+          organization_id: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
           last_seed_at?: string | null
-          team_id?: string
+          organization_id?: string
           user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "demo_provision_team_id_fkey"
-            columns: ["team_id"]
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
@@ -478,7 +478,7 @@ export type Database = {
           dismissed: boolean | null
           dismissed_at: string | null
           id: string
-          team_id: string
+          organization_id: string
           term: string
           user_id: string
         }
@@ -486,7 +486,7 @@ export type Database = {
           dismissed?: boolean | null
           dismissed_at?: string | null
           id?: string
-          team_id: string
+          organization_id: string
           term: string
           user_id: string
         }
@@ -494,14 +494,14 @@ export type Database = {
           dismissed?: boolean | null
           dismissed_at?: string | null
           id?: string
-          team_id?: string
+          organization_id?: string
           term?: string
           user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "help_dismissed_team_id_fkey"
-            columns: ["team_id"]
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
@@ -521,7 +521,7 @@ export type Database = {
           context: string | null
           created_at: string | null
           id: string
-          team_id: string
+          organization_id: string
           term: string
           user_id: string | null
         }
@@ -530,7 +530,7 @@ export type Database = {
           context?: string | null
           created_at?: string | null
           id?: string
-          team_id: string
+          organization_id: string
           term: string
           user_id?: string | null
         }
@@ -539,14 +539,14 @@ export type Database = {
           context?: string | null
           created_at?: string | null
           id?: string
-          team_id?: string
+          organization_id?: string
           term?: string
           user_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "help_events_team_id_fkey"
-            columns: ["team_id"]
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
@@ -610,11 +610,11 @@ export type Database = {
           context: string | null
           created_at: string
           id: string
+          organization_id: string | null
           owner_id: string | null
           priority: number
           solved_at: string | null
           status: Database["public"]["Enums"]["issue_status"]
-          team_id: string | null
           title: string
           updated_at: string
         }
@@ -622,11 +622,11 @@ export type Database = {
           context?: string | null
           created_at?: string
           id?: string
+          organization_id?: string | null
           owner_id?: string | null
           priority?: number
           solved_at?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
-          team_id?: string | null
           title: string
           updated_at?: string
         }
@@ -634,11 +634,11 @@ export type Database = {
           context?: string | null
           created_at?: string
           id?: string
+          organization_id?: string | null
           owner_id?: string | null
           priority?: number
           solved_at?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
-          team_id?: string | null
           title?: string
           updated_at?: string
         }
@@ -652,7 +652,7 @@ export type Database = {
           },
           {
             foreignKeyName: "issues_team_id_fkey"
-            columns: ["team_id"]
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
@@ -667,10 +667,10 @@ export type Database = {
           id: string
           last_sync: string | null
           next_sync: string | null
+          organization_id: string
           status: string | null
           sync_mode: string | null
           sync_scope: string[] | null
-          team_id: string
           updated_at: string | null
         }
         Insert: {
@@ -680,10 +680,10 @@ export type Database = {
           id?: string
           last_sync?: string | null
           next_sync?: string | null
+          organization_id: string
           status?: string | null
           sync_mode?: string | null
           sync_scope?: string[] | null
-          team_id: string
           updated_at?: string | null
         }
         Update: {
@@ -693,16 +693,16 @@ export type Database = {
           id?: string
           last_sync?: string | null
           next_sync?: string | null
+          organization_id?: string
           status?: string | null
           sync_mode?: string | null
           sync_scope?: string[] | null
-          team_id?: string
           updated_at?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "jane_integrations_team_id_fkey"
-            columns: ["team_id"]
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
@@ -980,30 +980,30 @@ export type Database = {
           created_at: string
           duration_minutes: number
           id: string
+          organization_id: string | null
           scheduled_for: string
-          team_id: string | null
           type: Database["public"]["Enums"]["meeting_type"]
         }
         Insert: {
           created_at?: string
           duration_minutes?: number
           id?: string
+          organization_id?: string | null
           scheduled_for: string
-          team_id?: string | null
           type: Database["public"]["Enums"]["meeting_type"]
         }
         Update: {
           created_at?: string
           duration_minutes?: number
           id?: string
+          organization_id?: string | null
           scheduled_for?: string
-          team_id?: string | null
           type?: Database["public"]["Enums"]["meeting_type"]
         }
         Relationships: [
           {
             foreignKeyName: "meetings_team_id_fkey"
-            columns: ["team_id"]
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
@@ -1235,10 +1235,10 @@ export type Database = {
           created_at: string
           file_url: string | null
           id: string
+          organization_id: string | null
           period: string
           sent_at: string | null
           summary: Json
-          team_id: string | null
           updated_at: string
           week_start: string
         }
@@ -1246,10 +1246,10 @@ export type Database = {
           created_at?: string
           file_url?: string | null
           id?: string
+          organization_id?: string | null
           period: string
           sent_at?: string | null
           summary: Json
-          team_id?: string | null
           updated_at?: string
           week_start: string
         }
@@ -1257,17 +1257,17 @@ export type Database = {
           created_at?: string
           file_url?: string | null
           id?: string
+          organization_id?: string | null
           period?: string
           sent_at?: string | null
           summary?: Json
-          team_id?: string | null
           updated_at?: string
           week_start?: string
         }
         Relationships: [
           {
             foreignKeyName: "reports_team_id_fkey"
-            columns: ["team_id"]
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
@@ -1918,7 +1918,7 @@ export type Database = {
           created_by: string | null
           id: string
           is_active: boolean | null
-          team_id: string
+          organization_id: string
           title: string | null
           updated_at: string | null
         }
@@ -1927,7 +1927,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           is_active?: boolean | null
-          team_id: string
+          organization_id: string
           title?: string | null
           updated_at?: string | null
         }
@@ -1936,7 +1936,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           is_active?: boolean | null
-          team_id?: string
+          organization_id?: string
           title?: string | null
           updated_at?: string | null
         }
@@ -1950,7 +1950,7 @@ export type Database = {
           },
           {
             foreignKeyName: "vto_team_id_fkey"
-            columns: ["team_id"]
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
@@ -2042,30 +2042,30 @@ export type Database = {
           action: string
           created_at: string | null
           id: string
+          organization_id: string
           preset_key: string
-          team_id: string
           user_id: string | null
         }
         Insert: {
           action: string
           created_at?: string | null
           id?: string
+          organization_id: string
           preset_key: string
-          team_id: string
           user_id?: string | null
         }
         Update: {
           action?: string
           created_at?: string | null
           id?: string
+          organization_id?: string
           preset_key?: string
-          team_id?: string
           user_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "vto_preset_events_team_id_fkey"
-            columns: ["team_id"]
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]

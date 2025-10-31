@@ -73,7 +73,7 @@ export function JaneConnectWizard({ onComplete, teamId }: JaneConnectWizardProps
       }
 
       const { error } = await supabase.from("jane_integrations").insert({
-        team_id: teamId,
+        organization_id: teamId,
         api_key: apiKey,
         clinic_id: clinicId,
         sync_scope: scope,

@@ -51,7 +51,7 @@ export const HelpModal = ({ term, context, onClose }: HelpModalProps) => {
       if (!userRole) return;
 
       await supabase.from('help_events').insert({
-        team_id: userRole.team_id,
+        organization_id: userRole.team_id,
         user_id: userRole.id,
         term,
         action: 'view',
@@ -68,14 +68,14 @@ export const HelpModal = ({ term, context, onClose }: HelpModalProps) => {
       if (!userRole) throw new Error('User not found');
 
       await supabase.from('help_dismissed').upsert({
-        team_id: userRole.team_id,
+        organization_id: userRole.team_id,
         user_id: userRole.id,
         term,
         dismissed: true,
       });
 
       await supabase.from('help_events').insert({
-        team_id: userRole.team_id,
+        organization_id: userRole.team_id,
         user_id: userRole.id,
         term,
         action: 'dismiss',
@@ -93,7 +93,7 @@ export const HelpModal = ({ term, context, onClose }: HelpModalProps) => {
     if (!glossaryEntry.learnMore || !userRole) return;
 
     await supabase.from('help_events').insert({
-      team_id: userRole.team_id,
+      organization_id: userRole.team_id,
       user_id: userRole.id,
       term,
       action: 'open_docs',

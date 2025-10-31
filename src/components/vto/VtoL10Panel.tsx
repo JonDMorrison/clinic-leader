@@ -30,7 +30,7 @@ export const VtoL10Panel = () => {
       const { data: vto } = await supabase
         .from("vto")
         .select("*")
-        .eq("team_id", userProfile.team_id)
+        .eq("organization_id", userProfile.team_id)
         .eq("is_active", true)
         .single();
 
@@ -92,7 +92,7 @@ export const VtoL10Panel = () => {
       const { data: meeting } = await supabase
         .from("meetings")
         .select("id")
-        .eq("team_id", userProfile.team_id)
+        .eq("organization_id", userProfile.team_id)
         .eq("type", "L10")
         .gte("scheduled_for", today)
         .order("scheduled_for")
@@ -145,7 +145,7 @@ export const VtoL10Panel = () => {
         .from("issues")
         .insert({
           title: goalTitle,
-          team_id: userProfile.team_id,
+          organization_id: userProfile.team_id,
           status: "open",
           context: "Off-track from V/TO",
         });

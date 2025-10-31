@@ -10,7 +10,7 @@ interface VTOLink {
   weight: number;
   vto_version?: {
     vto: {
-      team_id: string;
+      organization_id: string;
     };
     one_year_plan: any;
     quarterly_rocks: any[];
@@ -31,7 +31,7 @@ export function useVTOLinks(linkType: 'kpi' | 'rock' | 'issue' | 'doc', linkId: 
         .select(`
           *,
           vto_version:vto_versions(
-            vto:vto!inner(team_id),
+            vto:vto!inner(organization_id),
             one_year_plan,
             quarterly_rocks
           )

@@ -39,7 +39,7 @@ export default function JaneIntegration() {
       const { data } = await supabase
         .from("jane_integrations")
         .select("*")
-        .eq("team_id", user.team_id)
+        .eq("organization_id", user.team_id)
         .maybeSingle();
       
       return data;

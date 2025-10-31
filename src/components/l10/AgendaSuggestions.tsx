@@ -22,7 +22,7 @@ export const AgendaSuggestions = ({ teamId }: AgendaSuggestionsProps) => {
       const { data, error } = await supabase
         .from("ai_agendas")
         .select("*")
-        .eq("team_id", teamId)
+        .eq("organization_id", teamId)
         .order("created_at", { ascending: false })
         .limit(1)
         .single();

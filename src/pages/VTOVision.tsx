@@ -54,7 +54,7 @@ const VTOVision = () => {
       const { data: vto } = await supabase
         .from("vto")
         .select("*")
-        .eq("team_id", userProfile.team_id)
+        .eq("organization_id", userProfile.team_id)
         .eq("is_active", true)
         .single();
 
@@ -145,7 +145,7 @@ const VTOVision = () => {
         const { data: existingVto } = await supabase
           .from("vto")
           .select("id")
-          .eq("team_id", userProfile.team_id)
+          .eq("organization_id", userProfile.team_id)
           .eq("is_active", true)
           .maybeSingle();
 
@@ -154,7 +154,7 @@ const VTOVision = () => {
         } else {
           const { data: newVto, error: vtoError } = await supabase
             .from("vto")
-            .insert({ team_id: userProfile.team_id, is_active: true })
+            .insert({ organization_id: userProfile.team_id, is_active: true })
             .select("id")
             .single();
 

@@ -17,47 +17,58 @@ export default function AdminDemo() {
         .from("demo_provision")
         .select(`
           *,
-          teams!inner(id, name, is_demo_org),
           users!inner(id, email, full_name, role)
         `)
         .single();
 
       if (error) throw error;
+
+      // Fetch team separately
+      if (data) {
+        const { data: teamData } = await supabase
+          .from("teams")
+          .select("id, name, is_demo_org")
+          .eq("id", data.organization_id)
+          .single();
+        
+        return { ...data, teams: teamData } as typeof data & { teams: typeof teamData };
+      }
+
       return data;
     },
   });
 
   const { data: demoUsers } = useQuery({
-    queryKey: ["demo-users", demoProvision?.team_id],
+    queryKey: ["demo-users", demoProvision?.organization_id],
     queryFn: async () => {
-      if (!demoProvision?.team_id) return [];
+      if (!demoProvision?.organization_id) return [];
 
       const { data, error } = await supabase
         .from("users")
         .select("id, email, full_name, role, demo_user")
-        .eq("team_id", demoProvision.team_id);
+        .eq("team_id", demoProvision.organization_id);
 
       if (error) throw error;
       return data;
     },
-    enabled: !!demoProvision?.team_id,
+    enabled: !!demoProvision?.organization_id,
   });
 
   const { data: janeStatus } = useQuery({
-    queryKey: ["jane-status", demoProvision?.team_id],
+    queryKey: ["jane-status", demoProvision?.organization_id],
     queryFn: async () => {
-      if (!demoProvision?.team_id) return null;
+      if (!demoProvision?.organization_id) return null;
 
       const { data, error } = await supabase
         .from("jane_integrations")
         .select("status, last_sync, sync_mode, clinic_id")
-        .eq("team_id", demoProvision.team_id)
+        .eq("organization_id", demoProvision.organization_id)
         .single();
 
       if (error) throw error;
       return data;
     },
-    enabled: !!demoProvision?.team_id,
+    enabled: !!demoProvision?.organization_id,
   });
 
   const reseedMutation = useMutation({
@@ -137,14 +148,14 @@ export default function AdminDemo() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Name:</span>
-                <span className="font-medium">{demoProvision.teams.name}</span>
-                {demoProvision.teams.is_demo_org && (
+                <span className="font-medium">{(demoProvision as any)?.teams?.name}</span>
+                {(demoProvision as any)?.teams?.is_demo_org && (
                   <Badge variant="secondary">Demo</Badge>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">ID:</span>
-                <code className="text-xs bg-muted px-2 py-1 rounded">{demoProvision.team_id}</code>
+                <code className="text-xs bg-muted px-2 py-1 rounded">{demoProvision.organization_id}</code>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Provisioned:</span>

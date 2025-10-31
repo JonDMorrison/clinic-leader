@@ -28,7 +28,7 @@ export const VtoCard = () => {
       const { data: vto } = await supabase
         .from("vto")
         .select("*")
-        .eq("team_id", userProfile.team_id)
+        .eq("organization_id", userProfile.team_id)
         .eq("is_active", true)
         .maybeSingle();
 
