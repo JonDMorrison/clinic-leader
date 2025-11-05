@@ -1,10 +1,13 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, FileText, BookOpen } from "lucide-react";
+import { Plus, FileText, BookOpen, Upload, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HelpHint } from "@/components/help/HelpHint";
 import { DocList } from "@/components/docs/DocList";
 import { DocEditor } from "@/components/docs/DocEditor";
@@ -14,15 +17,26 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardContent } from "@/components/ui/Card";
 import { HandbookViewer } from "@/components/docs/HandbookViewer";
 import { DocsAIChat } from "@/components/docs/DocsAIChat";
+import { PlaybookCard } from "@/components/playbooks/PlaybookCard";
+import { UploadPlaybookModal } from "@/components/playbooks/UploadPlaybookModal";
+import { Playbook, PLAYBOOK_CATEGORIES } from "@/types/playbook";
+import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 
 const Docs = () => {
+  const navigate = useNavigate();
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [isHandbookOpen, setIsHandbookOpen] = useState(false);
   const [kindFilter, setKindFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const { data: currentUser } = useQuery({
     queryKey: ["current-user"],
@@ -80,6 +94,35 @@ const Docs = () => {
     },
   });
 
+  const { data: playbooks, refetch: refetchPlaybooks } = useQuery({
+    queryKey: ["playbooks", debouncedSearch, categoryFilter],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return [];
+
+      let query = supabase
+        .from('playbooks')
+        .select('*')
+        .eq('organization_id', currentUser.team_id)
+        .order('updated_at', { ascending: false });
+
+      if (debouncedSearch.trim()) {
+        query = query.textSearch('title,description,parsed_text', debouncedSearch.trim(), {
+          type: 'websearch',
+          config: 'english'
+        });
+      }
+
+      if (categoryFilter !== 'all') {
+        query = query.eq('category', categoryFilter);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentUser?.team_id,
+  });
+
   const filteredDocs = useMemo(() => {
     if (!docs) return [];
     return docs.filter((doc) => {
@@ -120,27 +163,61 @@ const Docs = () => {
     refetchDocs();
   };
 
+  const handleViewPlaybook = (id: string) => {
+    navigate(`/library/${id}`);
+  };
+
+  const handleDownloadPlaybook = async (playbook: Playbook) => {
+    if (!playbook.file_url) {
+      toast.error('File URL not available');
+      return;
+    }
+
+    try {
+      const urlParts = playbook.file_url.split('/');
+      const bucketIndex = urlParts.indexOf('playbooks');
+      if (bucketIndex === -1) {
+        throw new Error('Invalid file URL');
+      }
+      const filePath = urlParts.slice(bucketIndex + 1).join('/');
+
+      const { data, error } = await supabase.storage
+        .from('playbooks')
+        .createSignedUrl(filePath, 3600);
+
+      if (error) throw error;
+
+      const link = document.createElement('a');
+      link.href = data.signedUrl;
+      link.download = playbook.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('Download started');
+    } catch (error: any) {
+      console.error('Error downloading file:', error);
+      toast.error('Failed to download file');
+    }
+  };
+
+  const isAdmin = currentUser?.role === 'owner';
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
-            Documents
+            Documents & Playbooks
             <HelpHint term="Docs" context="docs_header" />
           </h1>
-          <p className="text-muted-foreground">SOPs, policies, and training materials</p>
+          <p className="text-muted-foreground">SOPs, policies, training materials, and PDF playbooks</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsHandbookOpen(true)}>
             <BookOpen className="w-4 h-4 mr-2" />
             Training Handbook
           </Button>
-          {isManager && (
-            <Button onClick={handleCreateDoc}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Document
-            </Button>
-          )}
         </div>
       </div>
 
@@ -149,10 +226,19 @@ const Docs = () => {
           <Tabs defaultValue="docs" className="w-full">
             <TabsList>
               <TabsTrigger value="docs">Documents</TabsTrigger>
+              <TabsTrigger value="playbooks">Playbooks</TabsTrigger>
               {isManager && <TabsTrigger value="dashboard">Manager Dashboard</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="docs" className="space-y-4 mt-6">
+              <div className="flex justify-end mb-4">
+                {isManager && (
+                  <Button onClick={handleCreateDoc}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Document
+                  </Button>
+                )}
+              </div>
               {filteredDocs.length === 0 ? (
                 <EmptyState
                   icon={<FileText className="w-12 h-12" />}
@@ -178,6 +264,70 @@ const Docs = () => {
                   onSelectDoc={handleViewDoc}
                   users={users || []}
                 />
+              )}
+            </TabsContent>
+
+            <TabsContent value="playbooks" className="space-y-4 mt-6">
+              <div className="flex flex-col md:flex-row gap-4 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search playbooks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-full md:w-48">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {PLAYBOOK_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isAdmin && (
+                  <Button onClick={() => setUploadModalOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload
+                  </Button>
+                )}
+              </div>
+
+              {!playbooks || playbooks.length === 0 ? (
+                <EmptyState
+                  icon={<FileText className="w-12 h-12" />}
+                  title={searchQuery || categoryFilter !== 'all' ? 'No playbooks found' : 'No playbooks yet'}
+                  description={
+                    searchQuery || categoryFilter !== 'all' 
+                      ? 'Try adjusting your search or filters' 
+                      : isAdmin ? 'Upload your first playbook to get started' : 'Playbooks will appear here once uploaded'
+                  }
+                  action={
+                    isAdmin && !searchQuery && categoryFilter === 'all' ? (
+                      <Button onClick={() => setUploadModalOpen(true)}>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Playbook
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {playbooks.map((playbook) => (
+                    <PlaybookCard
+                      key={playbook.id}
+                      playbook={playbook}
+                      onView={handleViewPlaybook}
+                      onDownload={handleDownloadPlaybook}
+                    />
+                  ))}
+                </div>
               )}
             </TabsContent>
 
@@ -272,6 +422,16 @@ const Docs = () => {
         open={isHandbookOpen} 
         onClose={() => setIsHandbookOpen(false)} 
       />
+
+      {isAdmin && (
+        <UploadPlaybookModal
+          open={uploadModalOpen}
+          onOpenChange={setUploadModalOpen}
+          onSuccess={refetchPlaybooks}
+          organizationId={currentUser?.team_id || ''}
+          userId={currentUser?.id || ''}
+        />
+      )}
     </div>
   );
 };
