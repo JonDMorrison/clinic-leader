@@ -1090,6 +1090,54 @@ export type Database = {
           },
         ]
       }
+      playbooks: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          file_url: string | null
+          filename: string
+          id: string
+          organization_id: string
+          parsed_steps: Json | null
+          parsed_text: string | null
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+          version: number
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          file_url?: string | null
+          filename: string
+          id?: string
+          organization_id: string
+          parsed_steps?: Json | null
+          parsed_text?: string | null
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          file_url?: string | null
+          filename?: string
+          id?: string
+          organization_id?: string
+          parsed_steps?: Json | null
+          parsed_text?: string | null
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       recall_actions: {
         Row: {
           action: string

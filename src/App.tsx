@@ -47,6 +47,8 @@ import VTO from "./pages/VTO";
 import VTOVision from "./pages/VTOVision";
 import VTOTraction from "./pages/VTOTraction";
 import Onboarding from "./pages/Onboarding";
+import Library from "./pages/Library";
+import LibraryDetail from "./pages/LibraryDetail";
 
 const queryClient = new QueryClient();
 
@@ -139,6 +141,8 @@ const App = () => {
             <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
             <Route path="/meeting" element={<AppLayout><L10 /></AppLayout>} />
             <Route path="/docs" element={<AppLayout><Docs /></AppLayout>} />
+            <Route path="/library" element={<AppLayout><Library /></AppLayout>} />
+            <Route path="/library/:id" element={<AppLayout><LibraryDetail /></AppLayout>} />
             <Route path="/recalls" element={<AppLayout><Recalls /></AppLayout>} />
             <Route path="/people" element={<AppLayout><People /></AppLayout>} />
             <Route path="/vto" element={<AppLayout><VTO /></AppLayout>} />
