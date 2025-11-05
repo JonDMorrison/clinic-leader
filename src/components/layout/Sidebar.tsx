@@ -41,6 +41,7 @@ const navGroups: NavGroup[] = [
       { title: "Scorecard", path: "/scorecard", icon: BarChart3, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Rocks", path: "/rocks", icon: Target, roles: ["manager", "director", "owner"], eosOnly: true },
     ],
+    alwaysOpen: true,
   },
   {
     label: "Operations",
@@ -50,12 +51,14 @@ const navGroups: NavGroup[] = [
       { title: "Recalls", path: "/recalls", icon: Phone, roles: ["staff", "manager", "director", "owner"] },
       { title: "Docs", path: "/docs", icon: FileText, roles: ["staff", "manager", "director", "owner"] },
     ],
+    alwaysOpen: true,
   },
   {
     label: "Team",
     items: [
       { title: "People", path: "/people", icon: Users, roles: ["manager", "director", "owner"], eosOnly: true },
     ],
+    alwaysOpen: true,
   },
   {
     label: "Data",
@@ -63,6 +66,7 @@ const navGroups: NavGroup[] = [
       { title: "Imports", path: "/imports", icon: Upload, roles: ["manager", "director", "owner"] },
       { title: "Reports", path: "/reports", icon: FileBarChart, roles: ["manager", "director", "owner"] },
     ],
+    alwaysOpen: true,
   },
 ];
 
