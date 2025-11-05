@@ -47,7 +47,7 @@ const VTOTraction = () => {
       const { data: vto } = await supabase
         .from("vto")
         .select("*")
-        .eq("team_id", userProfile.team_id)
+        .eq("organization_id", userProfile.team_id)
         .eq("is_active", true)
         .single();
 
@@ -210,7 +210,7 @@ const VTOTraction = () => {
         .from("issues")
         .insert({
           title: issue.title,
-          team_id: userProfile.team_id,
+          organization_id: userProfile.team_id,
           status: "open",
           context: "From V/TO",
         });

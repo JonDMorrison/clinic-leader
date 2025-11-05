@@ -30,7 +30,7 @@ export async function getVTOContext(teamId: string): Promise<VTOContextSummary |
     const { data: vto } = await supabase
       .from("vto")
       .select("id")
-      .eq("team_id", teamId)
+      .eq("organization_id", teamId)
       .eq("is_active", true)
       .single();
 
