@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,7 +21,17 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (isForgotPassword) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth`,
+        });
+        if (error) throw error;
+        toast({
+          title: "Success",
+          description: "Password reset email sent. Check your inbox.",
+        });
+        setIsForgotPassword(false);
+      } else if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -62,10 +73,14 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl text-center">
-            {isLogin ? "Sign In" : "Sign Up"}
+            {isForgotPassword ? "Reset Password" : isLogin ? "Sign In" : "Sign Up"}
           </CardTitle>
           <p className="text-center text-sm text-muted-foreground">
-            {isLogin ? "Welcome back to EOS Clinic" : "Create your account"}
+            {isForgotPassword 
+              ? "Enter your email to receive a password reset link" 
+              : isLogin 
+              ? "Welcome back to EOS Clinic" 
+              : "Create your account"}
           </p>
         </CardHeader>
         <CardContent>
@@ -81,29 +96,54 @@ const Auth = () => {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
+            {!isForgotPassword && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
+              {loading ? "Loading..." : isForgotPassword ? "Send Reset Link" : isLogin ? "Sign In" : "Sign Up"}
             </Button>
           </form>
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-brand hover:underline"
-            >
-              {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
-            </button>
+          <div className="mt-4 text-center space-y-2">
+            {!isForgotPassword && (
+              <button
+                type="button"
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-sm text-brand hover:underline block w-full"
+              >
+                {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
+              </button>
+            )}
+            {isLogin && !isForgotPassword && (
+              <button
+                type="button"
+                onClick={() => setIsForgotPassword(true)}
+                className="text-sm text-muted-foreground hover:text-brand hover:underline block w-full"
+              >
+                Forgot password?
+              </button>
+            )}
+            {isForgotPassword && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(false);
+                  setIsLogin(true);
+                }}
+                className="text-sm text-brand hover:underline block w-full"
+              >
+                Back to sign in
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>
