@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Target, ChevronDown, ChevronUp, Settings } from "lucide-react";
+import { Plus, Target, ChevronDown, ChevronUp, Settings, PenSquare } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -150,6 +150,13 @@ const Scorecard = () => {
         
         {totalKpis > 0 && (
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/scorecard/update")}
+            >
+              <PenSquare className="w-4 h-4 mr-2" />
+              Weekly Update
+            </Button>
             <Button
               variant="outline"
               onClick={() => navigate("/setup/scorecard")}

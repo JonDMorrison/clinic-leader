@@ -1064,6 +1064,7 @@ export type Database = {
           id: string
           metric_id: string
           note: string | null
+          source: string | null
           updated_at: string
           value: number | null
           week_start: string
@@ -1073,6 +1074,7 @@ export type Database = {
           id?: string
           metric_id: string
           note?: string | null
+          source?: string | null
           updated_at?: string
           value?: number | null
           week_start: string
@@ -1082,6 +1084,7 @@ export type Database = {
           id?: string
           metric_id?: string
           note?: string | null
+          source?: string | null
           updated_at?: string
           value?: number | null
           week_start?: string
