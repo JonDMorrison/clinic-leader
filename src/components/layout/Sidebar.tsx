@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone, Plug, Sparkles, Compass, LucideIcon, ChevronDown } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone, Plug, Sparkles, Compass, LucideIcon, ChevronDown, Settings, Palette, CreditCard, TestTube, UserCog, Cpu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HelpMenu } from "@/components/layout/HelpMenu";
 import { useQuery } from "@tanstack/react-query";
@@ -67,6 +67,19 @@ const navGroups: NavGroup[] = [
       { title: "Reports", path: "/reports", icon: FileBarChart, roles: ["manager", "director", "owner"] },
     ],
     alwaysOpen: true,
+  },
+  {
+    label: "Admin",
+    items: [
+      { title: "Settings", path: "/settings", icon: Settings, roles: ["owner", "director"] },
+      { title: "Organization", path: "/organization-settings", icon: UserCog, roles: ["owner", "director"] },
+      { title: "Branding", path: "/branding", icon: Palette, roles: ["owner", "director"] },
+      { title: "Integrations", path: "/integrations", icon: Plug, roles: ["owner", "director"] },
+      { title: "Licensing", path: "/licensing", icon: CreditCard, roles: ["owner"] },
+      { title: "AI Settings", path: "/ai-settings", icon: Cpu, roles: ["owner", "director"] },
+      { title: "System Health", path: "/system/health", icon: TestTube, roles: ["owner"] },
+    ],
+    alwaysOpen: false,
   },
 ];
 
