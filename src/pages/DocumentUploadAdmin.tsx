@@ -15,7 +15,7 @@ interface DocumentToUpload {
   filePath: string;
 }
 
-const documentsToUpload: DocumentToUpload[] = [
+const defaultDocuments: DocumentToUpload[] = [
   {
     filename: "Authorization_Form_for_Family_Members-SP.docx",
     title: "Authorization Form for Family Members (Spanish)",
@@ -100,12 +100,13 @@ const DocumentUploadAdmin = () => {
   const [uploadStatus, setUploadStatus] = useState<Record<string, "pending" | "uploading" | "success" | "error">>({});
   const [isUploading, setIsUploading] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [docsToUpload, setDocsToUpload] = useState<DocumentToUpload[]>(defaultDocuments);
   const { toast } = useToast();
 
   useEffect(() => {
     // Initialize status
     const status: Record<string, "pending"> = {};
-    documentsToUpload.forEach(doc => {
+    docsToUpload.forEach(doc => {
       status[doc.filename] = "pending";
     });
     setUploadStatus(status);
@@ -121,7 +122,7 @@ const DocumentUploadAdmin = () => {
         .maybeSingle();
       if (data?.team_id) setOrgId(data.team_id);
     })();
-  }, []);
+  }, [docsToUpload]);
 
   const uploadDocument = async (doc: DocumentToUpload) => {
     try {
@@ -192,14 +193,14 @@ const DocumentUploadAdmin = () => {
     setIsUploading(true);
     
     let successCount = 0;
-    for (const doc of documentsToUpload) {
+    for (const doc of docsToUpload) {
       const success = await uploadDocument(doc);
       if (success) successCount++;
     }
 
     setIsUploading(false);
     
-    if (successCount === documentsToUpload.length) {
+    if (successCount === docsToUpload.length) {
       toast({
         title: "Upload Complete",
         description: `Successfully uploaded all ${successCount} documents to NW Injury Clinics.`,
@@ -207,7 +208,7 @@ const DocumentUploadAdmin = () => {
     } else {
       toast({
         title: "Upload Partially Complete",
-        description: `Uploaded ${successCount} of ${documentsToUpload.length} documents.`,
+        description: `Uploaded ${successCount} of ${docsToUpload.length} documents.`,
         variant: "destructive",
       });
     }
@@ -225,7 +226,18 @@ const DocumentUploadAdmin = () => {
           <CardTitle>Documents Ready for Upload</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {documentsToUpload.map((doc) => (
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" onClick={() => { setDocsToUpload([]); setUploadStatus({}); }}>
+              Clear All
+            </Button>
+            <Button variant="outline" onClick={() => {
+              setDocsToUpload(defaultDocuments);
+            }}>
+              Reset Defaults
+            </Button>
+          </div>
+
+          {docsToUpload.map((doc) => (
             <div
               key={doc.filename}
               className="flex items-center justify-between p-4 rounded-lg border"
@@ -255,11 +267,11 @@ const DocumentUploadAdmin = () => {
 
           <Button
             onClick={handleUploadAll}
-            disabled={isUploading || !orgId}
+            disabled={isUploading || !orgId || docsToUpload.length === 0}
             className="w-full"
           >
             <Upload className="w-4 h-4 mr-2" />
-            {isUploading ? "Uploading..." : !orgId ? "Loading organization..." : "Upload All Documents"}
+            {isUploading ? "Uploading..." : !orgId ? "Loading organization..." : docsToUpload.length === 0 ? "No documents to upload" : "Upload All Documents"}
           </Button>
         </CardContent>
       </Card>
