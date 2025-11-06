@@ -426,10 +426,14 @@ export type Database = {
         Row: {
           body: string | null
           created_at: string
+          file_type: string | null
+          file_url: string | null
+          filename: string | null
           id: string
           kind: Database["public"]["Enums"]["doc_kind"]
           organization_id: string
           owner_id: string | null
+          parsed_text: string | null
           requires_ack: boolean
           status: Database["public"]["Enums"]["doc_status"]
           title: string
@@ -439,10 +443,14 @@ export type Database = {
         Insert: {
           body?: string | null
           created_at?: string
+          file_type?: string | null
+          file_url?: string | null
+          filename?: string | null
           id?: string
           kind: Database["public"]["Enums"]["doc_kind"]
           organization_id: string
           owner_id?: string | null
+          parsed_text?: string | null
           requires_ack?: boolean
           status?: Database["public"]["Enums"]["doc_status"]
           title: string
@@ -452,10 +460,14 @@ export type Database = {
         Update: {
           body?: string | null
           created_at?: string
+          file_type?: string | null
+          file_url?: string | null
+          filename?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["doc_kind"]
           organization_id?: string
           owner_id?: string | null
+          parsed_text?: string | null
           requires_ack?: boolean
           status?: Database["public"]["Enums"]["doc_status"]
           title?: string

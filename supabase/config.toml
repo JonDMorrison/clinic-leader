@@ -83,3 +83,9 @@ verify_jwt = true
 
 [functions.onboarding-complete]
 verify_jwt = true
+
+[functions.doc-extract]
+verify_jwt = true
+
+[functions.doc-ai-parse]
+verify_jwt = true
