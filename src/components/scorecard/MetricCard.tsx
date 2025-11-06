@@ -2,8 +2,12 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Sparklines, SparklinesLine } from "react-sparklines";
-import { TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
+import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { calculateTrend, calculateWeekOverWeek, getCategoryColor } from "@/lib/scorecard/trendCalculator";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface MetricData {
   id: string;
@@ -16,6 +20,7 @@ interface MetricData {
   owner_name: string | null;
   current_value: number | null;
   last_8_weeks: (number | null)[];
+  is_favorite?: boolean;
 }
 
 interface MetricCardProps {
@@ -59,6 +64,9 @@ const getColorClasses = (color: "green" | "amber" | "red" | "gray") => {
 
 export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
   const performanceColor = getPerformanceColor(
     metric.current_value,
     metric.target,
@@ -68,25 +76,85 @@ export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
   const sparklineData = metric.last_8_weeks.map(v => v ?? 0);
   const hasData = metric.last_8_weeks.some(v => v !== null);
 
+  // Calculate trend
+  const targetDir = (metric.direction === "up" || metric.direction === ">=") ? "up" : "down";
+  const trend = calculateTrend(metric.last_8_weeks, targetDir);
+
+  // Calculate week-over-week
+  const previousWeekValue = metric.last_8_weeks.length >= 2 
+    ? metric.last_8_weeks[metric.last_8_weeks.length - 2]
+    : null;
+  const weekOverWeek = calculateWeekOverWeek(metric.current_value, previousWeekValue);
+
+  // Get category colors
+  const categoryColors = getCategoryColor(metric.category);
+
+  // Favorite toggle mutation
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async (isFavorite: boolean) => {
+      const { error } = await supabase
+        .from("metrics")
+        .update({ is_favorite: isFavorite })
+        .eq("id", metric.id);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, isFavorite) => {
+      queryClient.invalidateQueries({ queryKey: ["scorecard-metrics"] });
+      toast({
+        title: isFavorite ? "Added to favorites" : "Removed from favorites",
+        description: `${metric.name} has been ${isFavorite ? "starred" : "unstarred"}`,
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update favorite status",
+      });
+    },
+  });
+
   const handleUpdateClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigate(`/scorecard/update?metricId=${metric.id}`);
   };
 
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFavoriteMutation.mutate(!metric.is_favorite);
+  };
+
   return (
     <div onClick={onClick} className="cursor-pointer">
-      <Card className="glass p-4 hover:border-primary/40 transition-all">
+      <Card className={`p-4 hover:border-primary/40 transition-all border-2 ${categoryColors.border} ${categoryColors.bg}`}>
         <div className="space-y-3">
           {/* Header */}
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h3 className="font-semibold text-foreground mb-1">{metric.name}</h3>
-              <div className="flex items-center gap-2">
-                <Badge variant="muted" className="text-xs">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-foreground truncate">{metric.name}</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 shrink-0"
+                  onClick={handleFavoriteClick}
+                >
+                  <Star
+                    className={`h-4 w-4 ${
+                      metric.is_favorite
+                        ? "fill-amber-400 text-amber-400"
+                        : "text-muted-foreground"
+                    }`}
+                  />
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="muted" className={`text-xs ${categoryColors.badgeBg} ${categoryColors.text} border-0`}>
                   {metric.category}
                 </Badge>
                 {metric.owner_name && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground truncate">
                     {metric.owner_name}
                   </span>
                 )}
@@ -94,26 +162,43 @@ export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
             </div>
             <Badge 
               variant={metric.sync_source === "jane" ? "brand" : "muted"}
-              className="text-xs"
+              className="text-xs shrink-0"
             >
               {metric.sync_source === "jane" ? "Jane" : "Manual"}
             </Badge>
           </div>
 
-          {/* Target */}
-          {metric.target && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Target:</span>
-              <Badge variant="muted" className="text-xs">
-                {metric.direction === "up" || metric.direction === ">=" ? (
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                ) : (
-                  <TrendingDown className="w-3 h-3 mr-1" />
-                )}
-                {metric.target} {metric.unit}
+          {/* Target & Trend */}
+          <div className="flex items-center justify-between gap-2">
+            {metric.target && (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">Target:</span>
+                <Badge variant="muted" className="text-xs">
+                  {metric.direction === "up" || metric.direction === ">=" ? (
+                    <TrendingUp className="w-3 h-3 mr-1" />
+                  ) : (
+                    <TrendingDown className="w-3 h-3 mr-1" />
+                  )}
+                  {metric.target} {metric.unit}
+                </Badge>
+              </div>
+            )}
+            {trend.direction !== "insufficient-data" && (
+              <Badge 
+                variant="muted"
+                className={`text-xs border ${
+                  trend.direction === "up"
+                    ? "border-green-300 bg-green-50 text-green-700"
+                    : trend.direction === "down"
+                    ? "border-red-300 bg-red-50 text-red-700"
+                    : "border-gray-300 bg-gray-50 text-gray-700"
+                }`}
+              >
+                <span className="mr-1">{trend.icon}</span>
+                {trend.label}
               </Badge>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Sparkline */}
           {hasData && (
@@ -131,23 +216,45 @@ export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
             </div>
           )}
 
-          {/* Current Value */}
+          {/* Current Value with Week-over-Week */}
           <div className={`p-3 rounded-lg border ${getColorClasses(performanceColor)}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium opacity-80">This Week</p>
-                <p className="text-lg font-bold">
-                  {metric.current_value !== null 
-                    ? `${metric.current_value} ${metric.unit}` 
-                    : "No data"}
-                </p>
-              </div>
-              {metric.current_value !== null && metric.target && (
-                <div className="text-right">
-                  <p className="text-xs opacity-80">vs Target</p>
-                  <p className="text-sm font-semibold">
-                    {((metric.current_value / metric.target) * 100).toFixed(0)}%
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium opacity-80">This Week</p>
+                  <p className="text-lg font-bold">
+                    {metric.current_value !== null 
+                      ? `${metric.current_value} ${metric.unit}` 
+                      : "No data"}
                   </p>
+                </div>
+                {metric.current_value !== null && metric.target && (
+                  <div className="text-right">
+                    <p className="text-xs opacity-80">vs Target</p>
+                    <p className="text-sm font-semibold">
+                      {((metric.current_value / metric.target) * 100).toFixed(0)}%
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Week-over-Week Comparison */}
+              {weekOverWeek && (
+                <div className="flex items-center gap-1 text-xs pt-1 border-t border-current/20">
+                  {weekOverWeek.isPositive ? (
+                    <TrendingUp className="h-3 w-3" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3" />
+                  )}
+                  <span className="font-medium">
+                    {weekOverWeek.isPositive ? "+" : ""}
+                    {weekOverWeek.change.toFixed(1)} {metric.unit}
+                  </span>
+                  <span className="opacity-70">
+                    ({weekOverWeek.isPositive ? "+" : ""}
+                    {weekOverWeek.percentage.toFixed(1)}%)
+                  </span>
+                  <span className="opacity-60">vs last week</span>
                 </div>
               )}
             </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings, PenSquare, Search, Filter } from "lucide-react";
+import { Plus, Settings, PenSquare, Search, Filter, Star } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { startOfWeek, subWeeks, format } from "date-fns";
 import { AlertsPanel } from "@/components/scorecard/AlertsPanel";
+import { PerformanceScoreCard } from "@/components/scorecard/PerformanceScoreCard";
 
 const Scorecard = () => {
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ const Scorecard = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
   // Fetch current user first
   const { data: currentUser } = useQuery({
@@ -66,8 +68,9 @@ const Scorecard = () => {
 
       const { data: metrics, error: metricsError } = await supabase
         .from("metrics")
-        .select("*")
+        .select("*, is_favorite")
         .eq("organization_id", currentUser.team_id)
+        .order("is_favorite", { ascending: false })
         .order("category")
         .order("name");
 
@@ -120,6 +123,7 @@ const Scorecard = () => {
           owner_name: metric.owner ? userMap[metric.owner] : null,
           current_value: current?.value || null,
           last_8_weeks: last8.map(r => r.value),
+          is_favorite: metric.is_favorite || false,
         };
       }) || [];
     },
@@ -179,6 +183,9 @@ const Scorecard = () => {
 
   // Apply filters
   const filteredMetrics = metricsData?.filter(metric => {
+    if (showOnlyFavorites && !metric.is_favorite) {
+      return false;
+    }
     if (searchQuery && !metric.name.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
@@ -274,6 +281,9 @@ const Scorecard = () => {
         />
       ) : (
         <div className="space-y-6">
+          {/* Performance Score Card */}
+          <PerformanceScoreCard metrics={metricsData || []} />
+
           {/* Alerts Panel */}
           <AlertsPanel 
             organizationId={currentUser?.team_id}
@@ -322,7 +332,7 @@ const Scorecard = () => {
               </Select>
             </div>
 
-            {/* Owner Filter Row */}
+            {/* Owner Filter & Favorites Row */}
             <div className="mt-3 flex items-center gap-3">
               <Filter className="w-4 h-4 text-muted-foreground" />
               <Select value={ownerFilter} onValueChange={setOwnerFilter}>
@@ -336,7 +346,18 @@ const Scorecard = () => {
                   ))}
                 </SelectContent>
               </Select>
-              {(searchQuery || categoryFilter !== "all" || ownerFilter !== "all" || sourceFilter !== "all") && (
+              
+              <Button
+                variant={showOnlyFavorites ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                className="gap-2"
+              >
+                <Star className={`h-4 w-4 ${showOnlyFavorites ? "fill-current" : ""}`} />
+                Favorites Only
+              </Button>
+
+              {(searchQuery || categoryFilter !== "all" || ownerFilter !== "all" || sourceFilter !== "all" || showOnlyFavorites) && (
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -345,6 +366,7 @@ const Scorecard = () => {
                     setCategoryFilter("all");
                     setOwnerFilter("all");
                     setSourceFilter("all");
+                    setShowOnlyFavorites(false);
                   }}
                 >
                   Clear Filters

@@ -46,6 +46,22 @@ All colors MUST be HSL.
     --danger-foreground: 0 0% 100%;
     --danger-glow: 0 84% 70%;
 
+    /* Category-specific colors */
+    --category-operations: 210 100% 50%;
+    --category-operations-light: 210 100% 95%;
+    
+    --category-finance: 142 76% 42%;
+    --category-finance-light: 142 76% 95%;
+    
+    --category-clinical: 271 81% 56%;
+    --category-clinical-light: 271 81% 95%;
+    
+    --category-referrals: 38 92% 55%;
+    --category-referrals-light: 38 92% 95%;
+    
+    --category-default: 210 20% 50%;
+    --category-default-light: 210 20% 95%;
+
     --primary: 210 100% 50%;
     --primary-foreground: 0 0% 100%;
 

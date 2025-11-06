@@ -1112,6 +1112,44 @@ export type Database = {
           },
         ]
       }
+      metric_comments: {
+        Row: {
+          comment: string
+          created_at: string | null
+          id: string
+          metric_id: string
+          organization_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          comment: string
+          created_at?: string | null
+          id?: string
+          metric_id: string
+          organization_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string | null
+          id?: string
+          metric_id?: string
+          organization_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_comments_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metric_results: {
         Row: {
           created_at: string
@@ -1205,7 +1243,9 @@ export type Database = {
           category: string
           created_at: string
           direction: string
+          display_priority: number | null
           id: string
+          is_favorite: boolean | null
           name: string
           organization_id: string
           owner: string | null
@@ -1218,7 +1258,9 @@ export type Database = {
           category: string
           created_at?: string
           direction: string
+          display_priority?: number | null
           id?: string
+          is_favorite?: boolean | null
           name: string
           organization_id: string
           owner?: string | null
@@ -1231,7 +1273,9 @@ export type Database = {
           category?: string
           created_at?: string
           direction?: string
+          display_priority?: number | null
           id?: string
+          is_favorite?: boolean | null
           name?: string
           organization_id?: string
           owner?: string | null
