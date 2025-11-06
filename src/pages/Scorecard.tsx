@@ -1,14 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Target, ChevronDown, ChevronUp, Settings, PenSquare } from "lucide-react";
+import { Plus, Settings, PenSquare, Search, Filter } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { IssueModal } from "@/components/scorecard/IssueModal";
 import { AddKpiModal } from "@/components/scorecard/AddKpiModal";
 import { LoadDefaultsDialog } from "@/components/scorecard/LoadDefaultsDialog";
-import { KpiCardCompact } from "@/components/scorecard/KpiCardCompact";
 import { ScorecardOnboardingWizard } from "@/components/scorecard/ScorecardOnboardingWizard";
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -17,47 +15,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { BackfillButton } from "@/components/scorecard/BackfillButton";
+import { MetricCard } from "@/components/scorecard/MetricCard";
+import { MetricDetailsDrawer } from "@/components/scorecard/MetricDetailsDrawer";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { startOfWeek, subWeeks, format } from "date-fns";
 
 const Scorecard = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [addKpiModalOpen, setAddKpiModalOpen] = useState(false);
   const [loadDefaultsOpen, setLoadDefaultsOpen] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [selectedMetricId, setSelectedMetricId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
 
-  const { data: kpis, isLoading, refetch } = useQuery({
-    queryKey: ["kpis-detailed"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("kpis")
-        .select("*, kpi_readings(value, week_start), users(full_name)")
-        .eq("active", true)
-        .order("category")
-        .order("week_start", { foreignTable: "kpi_readings", ascending: false });
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: users } = useQuery({
-    queryKey: ["users"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, full_name")
-        .order("full_name");
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
+  // Fetch current user first
   const { data: currentUser } = useQuery({
     queryKey: ["current-user"],
     queryFn: async () => {
@@ -66,7 +42,7 @@ const Scorecard = () => {
 
       const { data, error } = await supabase
         .from("users")
-        .select("team_id")
+        .select("id, team_id")
         .eq("email", authData.user.email)
         .single();
       
@@ -75,22 +51,91 @@ const Scorecard = () => {
     },
   });
 
-  const { data: trackedKpis, isLoading: trackedLoading } = useQuery({
-    queryKey: ["tracked-kpis", currentUser?.team_id],
+  // Fetch metrics with last 12 weeks of data
+  const { data: metricsData, isLoading, refetch } = useQuery({
+    queryKey: ["scorecard-metrics", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return [];
+
+      // Get last 12 weeks
+      const weeks = Array.from({ length: 12 }, (_, i) => {
+        const date = subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), i);
+        return format(date, "yyyy-MM-dd");
+      }).reverse();
+
+      const { data: metrics, error: metricsError } = await supabase
+        .from("metrics")
+        .select("*")
+        .eq("organization_id", currentUser.team_id)
+        .order("category")
+        .order("name");
+
+      if (metricsError) throw metricsError;
+
+      // Fetch all metric results for last 12 weeks
+      const metricIds = metrics?.map(m => m.id) || [];
+      const { data: results, error: resultsError } = await supabase
+        .from("metric_results")
+        .select("*")
+        .in("metric_id", metricIds)
+        .in("week_start", weeks)
+        .order("week_start", { ascending: true });
+
+      if (resultsError) throw resultsError;
+
+      // Fetch owner names
+      const ownerIds = Array.from(new Set(metrics?.map(m => m.owner).filter(Boolean) || []));
+      const { data: users } = await supabase
+        .from("users")
+        .select("id, full_name")
+        .in("id", ownerIds);
+
+      const userMap = users?.reduce((acc, u) => {
+        acc[u.id] = u.full_name;
+        return acc;
+      }, {} as Record<string, string>) || {};
+
+      // Group results by metric
+      const resultsByMetric = results?.reduce((acc, r) => {
+        if (!acc[r.metric_id]) acc[r.metric_id] = [];
+        acc[r.metric_id].push(r);
+        return acc;
+      }, {} as Record<string, any[]>) || {};
+
+      // Enrich metrics with computed data
+      return metrics?.map(metric => {
+        const metricResults = resultsByMetric[metric.id] || [];
+        const last8 = metricResults.slice(-8);
+        const current = metricResults[metricResults.length - 1];
+
+        return {
+          id: metric.id,
+          name: metric.name,
+          category: metric.category,
+          unit: metric.unit,
+          target: metric.target,
+          direction: metric.direction,
+          sync_source: metric.sync_source,
+          owner_name: metric.owner ? userMap[metric.owner] : null,
+          current_value: current?.value || null,
+          last_8_weeks: last8.map(r => r.value),
+        };
+      }) || [];
+    },
+    enabled: !!currentUser?.team_id,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  const { data: users } = useQuery({
+    queryKey: ["users", currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return [];
 
       const { data, error } = await supabase
-        .from("tracked_kpis")
-        .select(`
-          *,
-          users(full_name),
-          import_mappings(id, source_system, source_label)
-        `)
-        .eq("organization_id", currentUser.team_id)
-        .eq("is_active", true)
-        .order("category")
-        .order("name");
+        .from("users")
+        .select("id, full_name")
+        .eq("team_id", currentUser.team_id)
+        .order("full_name");
       
       if (error) throw error;
       return data;
@@ -115,37 +160,36 @@ const Scorecard = () => {
     enabled: !!currentUser?.team_id,
   });
 
-  const groupedKpis = kpis?.reduce((acc, kpi) => {
-    if (!acc[kpi.category]) {
-      acc[kpi.category] = [];
+  // Apply filters
+  const filteredMetrics = metricsData?.filter(metric => {
+    if (searchQuery && !metric.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
     }
-    acc[kpi.category].push(kpi);
-    return acc;
-  }, {} as Record<string, any[]>);
-
-  const groupedTrackedKpis = trackedKpis?.reduce((acc, kpi) => {
-    if (!acc[kpi.category]) {
-      acc[kpi.category] = [];
+    if (categoryFilter !== "all" && metric.category !== categoryFilter) {
+      return false;
     }
-    acc[kpi.category].push(kpi);
-    return acc;
-  }, {} as Record<string, any[]>);
+    if (ownerFilter !== "all" && metric.owner_name !== ownerFilter) {
+      return false;
+    }
+    if (sourceFilter !== "all" && metric.sync_source !== sourceFilter) {
+      return false;
+    }
+    return true;
+  }) || [];
 
-  // Calculate quick stats
-  const totalKpis = kpis?.length || 0;
-  const onTrackCount = kpis?.filter(kpi => {
-    const latestReading = kpi.kpi_readings?.[0];
-    if (!latestReading || !kpi.target) return false;
-    const value = parseFloat(String(latestReading.value));
-    const target = parseFloat(String(kpi.target));
-    
-    if (kpi.direction === ">=") return value >= target;
-    if (kpi.direction === "<=") return value <= target;
-    return false;
+  // Get unique values for filters
+  const categories = Array.from(new Set(metricsData?.map(m => m.category) || []));
+  const owners = Array.from(new Set(metricsData?.map(m => m.owner_name).filter(Boolean) || []));
+
+  const totalMetrics = metricsData?.length || 0;
+  const onTrackCount = metricsData?.filter(m => {
+    if (!m.current_value || !m.target) return false;
+    const isUp = m.direction === "up" || m.direction === ">=";
+    return isUp ? m.current_value >= m.target : m.current_value <= m.target;
   }).length || 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Hero Section */}
       <div className="flex items-center justify-between">
         <div>
@@ -153,11 +197,10 @@ const Scorecard = () => {
             Scorecard
             <HelpHint term="Scorecard" context="scorecard_header" />
           </h1>
-          {totalKpis > 0 && (
+          {totalMetrics > 0 && (
             <div className="flex items-center gap-3 text-sm">
               <Badge variant="muted">
-                <Target className="w-3 h-3 mr-1" />
-                {totalKpis} KPIs tracked
+                {totalMetrics} metrics tracked
               </Badge>
               <Badge variant="success">
                 {onTrackCount} on target this week
@@ -166,12 +209,8 @@ const Scorecard = () => {
           )}
         </div>
         
-        {totalKpis > 0 && (
+        {totalMetrics > 0 && (
           <div className="flex items-center gap-3">
-            <BackfillButton 
-              organizationId={currentUser?.team_id}
-              hasJaneIntegration={!!janeIntegration}
-            />
             <Button
               variant="outline"
               onClick={() => navigate("/scorecard/update")}
@@ -190,15 +229,15 @@ const Scorecard = () => {
               <DropdownMenuTrigger asChild>
                 <Button className="gradient-brand">
                   <Plus className="w-4 h-4 mr-2" />
-                  New KPI
+                  New Metric
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setLoadDefaultsOpen(true)}>
-                  Quick Start (Load Defaults)
+                  Load Defaults
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>
-                  Custom KPI
+                  Custom Metric
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -211,110 +250,122 @@ const Scorecard = () => {
         <div className="text-center py-12">
           <p className="text-muted-foreground">Loading your scorecard...</p>
         </div>
-      ) : totalKpis === 0 ? (
+      ) : totalMetrics === 0 ? (
         <ScorecardOnboardingWizard
           onQuickStart={() => setLoadDefaultsOpen(true)}
           onCustomKpi={() => setAddKpiModalOpen(true)}
         />
       ) : (
-        <div className="space-y-8">
-          {/* Active KPIs Section */}
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold text-foreground flex items-center">
-                Your Active KPIs
-                <HelpHint term="KPI" context="scorecard_active_kpis" size="sm" />
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                💡 Tip: Click "+ Add This Week's Value" to update metrics
-              </p>
-            </div>
-
-            {Object.entries(groupedKpis || {}).map(([category, categoryKpis]) => (
-              <div key={category} className="mb-8">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <span className="gradient-brand bg-clip-text text-transparent">
-                    {category}
-                  </span>
-                  <Badge variant="muted" className="text-xs">
-                    {categoryKpis.length}
-                  </Badge>
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {categoryKpis.map((kpi) => (
-                    <KpiCardCompact key={kpi.id} kpi={kpi} onUpdate={refetch} />
-                  ))}
+        <div className="space-y-6">
+          {/* Filters Section */}
+          <div className="glass rounded-lg p-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Search */}
+              <div className="md:col-span-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search metrics..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
               </div>
-            ))}
-          </section>
 
-          {/* Available Templates Section - Collapsible */}
-          {trackedKpis && trackedKpis.length > 0 && (
-            <Collapsible open={templatesOpen} onOpenChange={setTemplatesOpen}>
-              <section className="glass rounded-2xl p-6 border border-border">
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" className="w-full justify-between hover:bg-transparent">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-semibold text-foreground">
-                        Browse KPI Templates
-                      </h3>
-                      <Badge variant="muted">{trackedKpis.length} available</Badge>
-                    </div>
-                    {templatesOpen ? (
-                      <ChevronUp className="w-5 h-5" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5" />
-                    )}
-                  </Button>
-                </CollapsibleTrigger>
-                
-                <CollapsibleContent className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Pre-configured KPIs you can start tracking with one click
-                  </p>
-                  
-                  {Object.entries(groupedTrackedKpis || {}).map(([category, categoryKpis]) => (
-                    <div key={category} className="mb-6">
-                      <h4 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
-                        {category}
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {categoryKpis.map((kpi: any) => (
-                          <div
-                            key={kpi.id}
-                            className="glass rounded-xl p-4 border border-border hover:border-primary/40 transition-all"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h5 className="font-medium text-foreground mb-1">{kpi.name}</h5>
-                                <p className="text-xs text-muted-foreground line-clamp-2">
-                                  {kpi.description}
-                                </p>
-                              </div>
-                              <Button size="sm" variant="outline" className="ml-2">
-                                Track
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+              {/* Category Filter */}
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
-                  
-                  <Button
-                    onClick={() => setLoadDefaultsOpen(true)}
-                    variant="outline"
-                    className="w-full mt-4"
-                  >
-                    Load More Templates
-                  </Button>
-                </CollapsibleContent>
-              </section>
-            </Collapsible>
+                </SelectContent>
+              </Select>
+
+              {/* Source Filter */}
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  <SelectItem value="jane">Jane</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Owner Filter Row */}
+            <div className="mt-3 flex items-center gap-3">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                <SelectTrigger className="w-[250px]">
+                  <SelectValue placeholder="Filter by owner" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Owners</SelectItem>
+                  {owners.map(owner => (
+                    <SelectItem key={owner} value={owner}>{owner}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(searchQuery || categoryFilter !== "all" || ownerFilter !== "all" || sourceFilter !== "all") && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setCategoryFilter("all");
+                    setOwnerFilter("all");
+                    setSourceFilter("all");
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Backfill Button */}
+          <div className="flex justify-center">
+            <BackfillButton 
+              organizationId={currentUser?.team_id}
+              hasJaneIntegration={!!janeIntegration}
+            />
+          </div>
+
+          {/* Metrics Grid */}
+          {filteredMetrics.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No metrics match your filters</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredMetrics.map((metric) => (
+                <MetricCard
+                  key={metric.id}
+                  metric={metric}
+                  onClick={() => setSelectedMetricId(metric.id)}
+                />
+              ))}
+            </div>
           )}
         </div>
       )}
+
+      {/* Details Drawer */}
+      <MetricDetailsDrawer
+        metricId={selectedMetricId}
+        organizationId={currentUser?.team_id}
+        hasJaneIntegration={!!janeIntegration}
+        open={!!selectedMetricId}
+        onClose={() => setSelectedMetricId(null)}
+        onUpdate={refetch}
+      />
 
       {/* Modals */}
       <AddKpiModal
