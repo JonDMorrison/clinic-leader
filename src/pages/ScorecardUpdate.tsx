@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefreshCw, Save, CheckCircle2, History, Lock, ShieldAlert } from "lucide-react";
+import { RefreshCw, Save, CheckCircle2, History, Lock, ShieldAlert, Download, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { startOfWeek, subWeeks, format } from "date-fns";
 import { BackfillButton } from "@/components/scorecard/BackfillButton";
@@ -14,6 +14,8 @@ import { AuditDrawer } from "@/components/scorecard/AuditDrawer";
 import { EditReasonDialog } from "@/components/scorecard/EditReasonDialog";
 import { OverrideDialog } from "@/components/scorecard/OverrideDialog";
 import { Badge } from "@/components/ui/badge";
+import { ImportCsvDialog } from "@/components/scorecard/ImportCsvDialog";
+import { exportMetricResultsToCSV, downloadCSV } from "@/lib/importers/metricCsvExport";
 
 interface MetricResult {
   id?: string;
@@ -45,6 +47,7 @@ const ScorecardUpdate = () => {
     janeValue: number | null;
     resultId: string;
   }>({ open: false, weekStart: "", janeValue: null, resultId: "" });
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -348,6 +351,43 @@ const ScorecardUpdate = () => {
 
   const hasChanges = Object.keys(editedValues).length > 0;
 
+  const handleExportCSV = async () => {
+    if (!selectedMetricId || !selectedMetric) return;
+
+    try {
+      // Fetch all metric results for the selected metric
+      const { data, error } = await supabase
+        .from("metric_results")
+        .select("week_start, value, source")
+        .eq("metric_id", selectedMetricId)
+        .order("week_start", { ascending: false });
+
+      if (error) throw error;
+
+      const exportData = (data || []).map((result) => ({
+        metric_name: selectedMetric.name,
+        week_of: result.week_start,
+        actual: result.value,
+        source: result.source,
+      }));
+
+      const csv = exportMetricResultsToCSV(exportData);
+      const filename = `${selectedMetric.name.replace(/\s+/g, "_")}_${format(new Date(), "yyyy-MM-dd")}.csv`;
+      downloadCSV(csv, filename);
+
+      toast({
+        title: "Export successful",
+        description: `Exported ${exportData.length} records`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Export failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex items-center justify-between">
@@ -357,10 +397,30 @@ const ScorecardUpdate = () => {
             Update your metric values manually or sync from Jane App
           </p>
         </div>
-        <BackfillButton 
-          organizationId={currentUser?.team_id}
-          hasJaneIntegration={hasJaneIntegration}
-        />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImportDialogOpen(true)}
+            disabled={!currentUser?.team_id}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Import CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            disabled={!selectedMetricId}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <BackfillButton 
+            organizationId={currentUser?.team_id}
+            hasJaneIntegration={hasJaneIntegration}
+          />
+        </div>
       </div>
 
       <Card className="glass">
@@ -574,6 +634,16 @@ const ScorecardUpdate = () => {
         metricName={selectedMetric?.name || ""}
         weekStart={format(new Date(overrideDialog.weekStart || new Date()), "MMM d, yyyy")}
         janeValue={overrideDialog.janeValue}
+      />
+
+      <ImportCsvDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        organizationId={currentUser?.team_id || ""}
+        onImportComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ["metric-results"] });
+          queryClient.invalidateQueries({ queryKey: ["metrics"] });
+        }}
       />
     </div>
   );
