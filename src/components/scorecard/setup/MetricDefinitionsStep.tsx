@@ -92,6 +92,64 @@ export const MetricDefinitionsStep = ({
 
   const hasJaneIntegration = !!janeIntegration;
 
+  // Fetch historical data from past 4 weeks to calculate smart targets
+  const { data: historicalMetrics } = useQuery({
+    queryKey: ["historical-metrics", janeIntegration?.organization_id],
+    queryFn: async () => {
+      if (!janeIntegration?.organization_id) return null;
+
+      // Calculate date 4 weeks ago
+      const fourWeeksAgo = new Date();
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+      const fourWeeksAgoStr = fourWeeksAgo.toISOString().split('T')[0];
+
+      const { data, error } = await supabase
+        .from("metric_results")
+        .select("*, metrics!inner(name, organization_id)")
+        .eq("metrics.organization_id", janeIntegration.organization_id)
+        .gte("week_start", fourWeeksAgoStr)
+        .not("value", "is", null);
+
+      if (error) {
+        console.error("Error fetching historical metrics:", error);
+        return null;
+      }
+
+      // Group by metric name and calculate averages
+      const averages: Record<string, number> = {};
+      const grouped: Record<string, number[]> = {};
+
+      data?.forEach((result: any) => {
+        const metricName = result.metrics?.name;
+        if (metricName && result.value !== null) {
+          if (!grouped[metricName]) {
+            grouped[metricName] = [];
+          }
+          grouped[metricName].push(result.value);
+        }
+      });
+
+      // Calculate averages
+      Object.entries(grouped).forEach(([name, values]) => {
+        if (values.length > 0) {
+          const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+          averages[name] = Math.round(avg * 100) / 100; // Round to 2 decimal places
+        }
+      });
+
+      return averages;
+    },
+    enabled: !!janeIntegration?.organization_id,
+  });
+
+  // Get smart target for a metric based on historical data or preset default
+  const getSmartTarget = (metricName: string, presetTarget: number | null): number | null => {
+    if (hasJaneIntegration && historicalMetrics && historicalMetrics[metricName]) {
+      return historicalMetrics[metricName];
+    }
+    return presetTarget;
+  };
+
   const togglePreset = (metricName: string, preset: PresetMetric) => {
     const newSelected = new Set(selectedPresets);
     
@@ -101,12 +159,16 @@ export const MetricDefinitionsStep = ({
       onMetricsChange(metrics.filter(m => m.name !== metricName));
     } else {
       newSelected.add(metricName);
+      
+      // Get smart target (historical average or preset default)
+      const smartTarget = getSmartTarget(preset.name, preset.target);
+      
       // Add to metrics with defaults
       onMetricsChange([
         ...metrics,
         {
           name: preset.name,
-          target: preset.target,
+          target: smartTarget,
           unit: preset.unit,
           direction: preset.direction,
           owner: "",
@@ -159,8 +221,22 @@ export const MetricDefinitionsStep = ({
         <CardHeader>
           <CardTitle className="text-2xl">Let's pick what matters most to your clinic</CardTitle>
           <p className="text-muted-foreground">
-            Select the metrics you want to track. We've prefilled targets based on industry standards
-            {hasJaneIntegration && " and your Jane App data"}.
+            Select the metrics you want to track. 
+            {hasJaneIntegration && historicalMetrics && Object.keys(historicalMetrics).length > 0 && (
+              <span className="block mt-1 text-blue-600 font-medium">
+                ✨ Smart targets calculated from your Jane App data (last 4 weeks)
+              </span>
+            )}
+            {hasJaneIntegration && (!historicalMetrics || Object.keys(historicalMetrics).length === 0) && (
+              <span className="block mt-1">
+                We've prefilled targets with industry standards. Jane App will auto-sync your data.
+              </span>
+            )}
+            {!hasJaneIntegration && (
+              <span className="block mt-1">
+                We've prefilled targets based on industry standards.
+              </span>
+            )}
           </p>
         </CardHeader>
         <CardContent className="space-y-8">
@@ -198,8 +274,20 @@ export const MetricDefinitionsStep = ({
                             {preset.name}
                           </label>
                           <p className="text-xs text-muted-foreground">
-                            Target: {preset.target} {preset.unit} • {preset.direction === "up" ? "↑" : "↓"} Better
-                            {hasJaneIntegration && " • Auto-synced from Jane"}
+                            Target: {getSmartTarget(preset.name, preset.target) || preset.target} {preset.unit}
+                            {" • "}
+                            {preset.direction === "up" ? "↑" : "↓"} Better
+                            {hasJaneIntegration && historicalMetrics?.[preset.name] && (
+                              <span className="ml-1 text-blue-600 font-medium">
+                                (based on your last 4 weeks)
+                              </span>
+                            )}
+                            {hasJaneIntegration && !historicalMetrics?.[preset.name] && (
+                              <span className="ml-1">
+                                • Auto-synced from Jane
+                              </span>
+                            )}
+                            {!hasJaneIntegration && " • Manual entry"}
                           </p>
                         </div>
                       </div>
