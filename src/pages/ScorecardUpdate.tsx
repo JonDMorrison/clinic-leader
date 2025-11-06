@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RefreshCw, Save, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { startOfWeek, subWeeks, format } from "date-fns";
+import { BackfillButton } from "@/components/scorecard/BackfillButton";
 
 interface MetricResult {
   id?: string;
@@ -206,11 +207,17 @@ const ScorecardUpdate = () => {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Weekly KPI Entry</h1>
-        <p className="text-muted-foreground">
-          Update your metric values manually or sync from Jane App
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Weekly KPI Entry</h1>
+          <p className="text-muted-foreground">
+            Update your metric values manually or sync from Jane App
+          </p>
+        </div>
+        <BackfillButton 
+          organizationId={currentUser?.team_id}
+          hasJaneIntegration={hasJaneIntegration}
+        />
       </div>
 
       <Card className="glass">

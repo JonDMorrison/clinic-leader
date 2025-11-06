@@ -22,6 +22,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { BackfillButton } from "@/components/scorecard/BackfillButton";
 
 const Scorecard = () => {
   const navigate = useNavigate();
@@ -97,6 +98,23 @@ const Scorecard = () => {
     enabled: !!currentUser?.team_id,
   });
 
+  const { data: janeIntegration } = useQuery({
+    queryKey: ["jane-integration", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return null;
+
+      const { data } = await supabase
+        .from("jane_integrations")
+        .select("*")
+        .eq("organization_id", currentUser.team_id)
+        .eq("status", "connected")
+        .maybeSingle();
+
+      return data;
+    },
+    enabled: !!currentUser?.team_id,
+  });
+
   const groupedKpis = kpis?.reduce((acc, kpi) => {
     if (!acc[kpi.category]) {
       acc[kpi.category] = [];
@@ -150,6 +168,10 @@ const Scorecard = () => {
         
         {totalKpis > 0 && (
           <div className="flex items-center gap-3">
+            <BackfillButton 
+              organizationId={currentUser?.team_id}
+              hasJaneIntegration={!!janeIntegration}
+            />
             <Button
               variant="outline"
               onClick={() => navigate("/scorecard/update")}
