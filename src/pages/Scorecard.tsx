@@ -21,6 +21,7 @@ import { MetricDetailsDrawer } from "@/components/scorecard/MetricDetailsDrawer"
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { startOfWeek, subWeeks, format } from "date-fns";
+import { AlertsPanel } from "@/components/scorecard/AlertsPanel";
 
 const Scorecard = () => {
   const navigate = useNavigate();
@@ -160,6 +161,22 @@ const Scorecard = () => {
     enabled: !!currentUser?.team_id,
   });
 
+  // Auto-generate alerts when data is loaded
+  useQuery({
+    queryKey: ["generate-alerts", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id || !metricsData || metricsData.length === 0) return null;
+
+      // Import dynamically to avoid circular deps
+      const { generateAlertsForOrganization } = await import("@/lib/alerts/alertGenerator");
+      await generateAlertsForOrganization(currentUser.team_id);
+      return true;
+    },
+    enabled: !!currentUser?.team_id && !!metricsData && metricsData.length > 0,
+    staleTime: 10 * 60 * 1000, // Only regenerate every 10 minutes
+    retry: false,
+  });
+
   // Apply filters
   const filteredMetrics = metricsData?.filter(metric => {
     if (searchQuery && !metric.name.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -257,6 +274,12 @@ const Scorecard = () => {
         />
       ) : (
         <div className="space-y-6">
+          {/* Alerts Panel */}
+          <AlertsPanel 
+            organizationId={currentUser?.team_id}
+            currentUserId={currentUser?.id}
+          />
+
           {/* Filters Section */}
           <div className="glass rounded-lg p-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

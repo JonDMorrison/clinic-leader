@@ -1058,6 +1058,60 @@ export type Database = {
           },
         ]
       }
+      metric_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          id: string
+          message: string
+          metric_id: string
+          organization_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          tip: string | null
+          week_of: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          id?: string
+          message: string
+          metric_id: string
+          organization_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          tip?: string | null
+          week_of: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          id?: string
+          message?: string
+          metric_id?: string
+          organization_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          tip?: string | null
+          week_of?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_alerts_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metric_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metric_results: {
         Row: {
           created_at: string
