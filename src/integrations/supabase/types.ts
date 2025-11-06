@@ -1058,6 +1058,86 @@ export type Database = {
           },
         ]
       }
+      metric_results: {
+        Row: {
+          created_at: string
+          id: string
+          metric_id: string
+          note: string | null
+          updated_at: string
+          value: number | null
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metric_id: string
+          note?: string | null
+          updated_at?: string
+          value?: number | null
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metric_id?: string
+          note?: string | null
+          updated_at?: string
+          value?: number | null
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_results_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metrics: {
+        Row: {
+          category: string
+          created_at: string
+          direction: string
+          id: string
+          name: string
+          organization_id: string
+          owner: string | null
+          sync_source: string
+          target: number | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          direction: string
+          id?: string
+          name: string
+          organization_id: string
+          owner?: string | null
+          sync_source?: string
+          target?: number | null
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          owner?: string | null
+          sync_source?: string
+          target?: number | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       onboarding_sessions: {
         Row: {
           completed: boolean | null

@@ -50,6 +50,7 @@ import VTOTraction from "./pages/VTOTraction";
 import Onboarding from "./pages/Onboarding";
 import LibraryDetail from "./pages/LibraryDetail";
 import AdminImpersonate from "./pages/AdminImpersonate";
+import ScorecardSetup from "./pages/ScorecardSetup";
 
 const queryClient = new QueryClient();
 
@@ -138,6 +139,7 @@ const App = () => {
             <Route path="/" element={<Index />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/dashboard" element={<AppLayout><Home /></AppLayout>} />
+            <Route path="/setup/scorecard" element={<AppLayout><ScorecardSetup /></AppLayout>} />
             <Route path="/scorecard" element={<AppLayout><Scorecard /></AppLayout>} />
             <Route path="/rocks" element={<AppLayout><Rocks /></AppLayout>} />
             <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
