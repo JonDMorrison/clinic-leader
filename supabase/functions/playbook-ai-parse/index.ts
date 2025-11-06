@@ -1,4 +1,4 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -128,8 +128,9 @@ Respond ONLY with valid JSON in this exact format:
 
   } catch (error) {
     console.error('Error in playbook-ai-parse:', error);
+    const message = error instanceof Error ? (error.message || 'Failed to parse playbook') : String(error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to parse playbook' }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
