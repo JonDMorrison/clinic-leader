@@ -99,6 +99,7 @@ The form includes detailed injury assessment sections for head/neck, upper extre
 const DocumentUploadAdmin = () => {
   const [uploadStatus, setUploadStatus] = useState<Record<string, "pending" | "uploading" | "success" | "error">>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [orgId, setOrgId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -108,23 +109,47 @@ const DocumentUploadAdmin = () => {
       status[doc.filename] = "pending";
     });
     setUploadStatus(status);
+
+    // Load current user's organization/team id
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("users")
+        .select("team_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (data?.team_id) setOrgId(data.team_id);
+    })();
   }, []);
 
   const uploadDocument = async (doc: DocumentToUpload) => {
     try {
+      if (!orgId) throw new Error("Organization not determined yet");
       setUploadStatus(prev => ({ ...prev, [doc.filename]: "uploading" }));
 
-      // Read the file from user-uploads
+      // Read the file from public temp path
       const fileResponse = await fetch(doc.filePath);
       const fileBlob = await fileResponse.blob();
 
-      // Upload to storage
-      const storagePath = `${NW_CLINICS_ORG_ID}/${doc.filename}`;
-      const { error: uploadError, data: uploadData } = await supabase.storage
+      // Determine correct content type (avoid octet-stream)
+      const ext = doc.filename.split(".").pop()?.toLowerCase();
+      const mappedType = ext === 'pdf'
+        ? 'application/pdf'
+        : ext === 'docx'
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : ext === 'doc'
+            ? 'application/msword'
+            : undefined;
+      const contentType = mappedType || fileBlob.type || 'application/octet-stream';
+
+      // Upload to storage in org-specific folder
+      const storagePath = `${orgId}/${doc.filename}`;
+      const { error: uploadError } = await supabase.storage
         .from("documents")
         .upload(storagePath, fileBlob, {
-          contentType: fileBlob.type,
-          upsert: true
+          contentType,
+          upsert: true,
         });
 
       if (uploadError) throw uploadError;
@@ -143,10 +168,10 @@ const DocumentUploadAdmin = () => {
           status: "published" as const,
           file_url: urlData.publicUrl,
           filename: doc.filename,
-          file_type: doc.filename.endsWith('.pdf') ? 'pdf' : 'docx',
+          file_type: ext === 'pdf' ? 'pdf' : 'docx',
           parsed_text: doc.parsedText,
           requires_ack: false,
-          organization_id: NW_CLINICS_ORG_ID,
+          organization_id: orgId,
         } as any);
 
       if (docError) throw docError;
@@ -227,11 +252,11 @@ const DocumentUploadAdmin = () => {
 
           <Button
             onClick={handleUploadAll}
-            disabled={isUploading}
+            disabled={isUploading || !orgId}
             className="w-full"
           >
             <Upload className="w-4 h-4 mr-2" />
-            {isUploading ? "Uploading..." : "Upload All Documents"}
+            {isUploading ? "Uploading..." : !orgId ? "Loading organization..." : "Upload All Documents"}
           </Button>
         </CardContent>
       </Card>
