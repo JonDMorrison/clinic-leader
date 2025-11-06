@@ -6,10 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefreshCw, Save, CheckCircle2 } from "lucide-react";
+import { RefreshCw, Save, CheckCircle2, History, Lock, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { startOfWeek, subWeeks, format } from "date-fns";
 import { BackfillButton } from "@/components/scorecard/BackfillButton";
+import { AuditDrawer } from "@/components/scorecard/AuditDrawer";
+import { EditReasonDialog } from "@/components/scorecard/EditReasonDialog";
+import { OverrideDialog } from "@/components/scorecard/OverrideDialog";
+import { Badge } from "@/components/ui/badge";
 
 interface MetricResult {
   id?: string;
@@ -18,16 +22,33 @@ interface MetricResult {
   value: number | null;
   source: "manual" | "jane";
   note?: string;
+  previous_value?: number | null;
+  overridden_at?: string | null;
 }
 
 const ScorecardUpdate = () => {
   const [selectedMetricId, setSelectedMetricId] = useState<string>("");
   const [editedValues, setEditedValues] = useState<Record<string, number | null>>({});
   const [isSyncing, setIsSyncing] = useState(false);
+  const [auditDrawerOpen, setAuditDrawerOpen] = useState(false);
+  const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
+  const [editReasonState, setEditReasonState] = useState<Record<string, string>>({});
+  const [editReasonDialog, setEditReasonDialog] = useState<{
+    open: boolean;
+    weekStart: string;
+    oldValue: number | null;
+    newValue: number | null;
+  }>({ open: false, weekStart: "", oldValue: null, newValue: null });
+  const [overrideDialog, setOverrideDialog] = useState<{
+    open: boolean;
+    weekStart: string;
+    janeValue: number | null;
+    resultId: string;
+  }>({ open: false, weekStart: "", janeValue: null, resultId: "" });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch user's organization
+  // Fetch user's organization and role
   const { data: currentUser } = useQuery({
     queryKey: ["current-user"],
     queryFn: async () => {
@@ -36,13 +57,31 @@ const ScorecardUpdate = () => {
 
       const { data } = await supabase
         .from("users")
-        .select("id, team_id")
+        .select(`
+          id, 
+          team_id,
+          user_roles(role)
+        `)
         .eq("email", session.session.user.email)
         .single();
 
-      return data;
+      if (!data) return null;
+
+      // Extract role from the array if available
+      const userRoles = data.user_roles as any;
+      const role = Array.isArray(userRoles) && userRoles.length > 0 
+        ? userRoles[0].role 
+        : "staff";
+
+      return {
+        id: data.id,
+        team_id: data.team_id,
+        role,
+      };
     },
   });
+
+  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "director";
 
   // Fetch metrics for the dropdown
   const { data: metrics } = useQuery({
@@ -116,25 +155,128 @@ const ScorecardUpdate = () => {
     return metricResults?.find((r) => r.week_start === weekStart);
   };
 
-  // Handle value change
+  // Handle value change - opens reason dialog
   const handleValueChange = (weekStart: string, value: string) => {
+    const numValue = value === "" ? null : Number(value);
+    const oldValue = getResultForWeek(weekStart)?.value ?? null;
+    
     setEditedValues((prev) => ({
       ...prev,
-      [weekStart]: value === "" ? null : Number(value),
+      [weekStart]: numValue,
     }));
+
+    // Open reason dialog if value actually changed
+    if (numValue !== oldValue) {
+      setEditReasonDialog({
+        open: true,
+        weekStart,
+        oldValue,
+        newValue: numValue,
+      });
+    }
   };
 
-  // Save mutation
+  // Handle edit reason confirmation
+  const handleEditReasonConfirm = (reason: string) => {
+    const weekStart = editReasonDialog.weekStart;
+    setEditReasonState((prev) => ({
+      ...prev,
+      [weekStart]: reason,
+    }));
+    setEditReasonDialog({ open: false, weekStart: "", oldValue: null, newValue: null });
+  };
+
+  // Handle override button click
+  const handleOverrideClick = (weekStart: string, janeValue: number | null, resultId: string) => {
+    setOverrideDialog({
+      open: true,
+      weekStart,
+      janeValue,
+      resultId,
+    });
+  };
+
+  // Handle override confirmation
+  const handleOverrideConfirm = async (newValue: number, reason: string) => {
+    if (!selectedMetricId || !currentUser) return;
+
+    try {
+      const weekStart = overrideDialog.weekStart;
+      const result = metricResults?.find((r) => r.week_start === weekStart);
+      
+      if (!result?.id) return;
+
+      // Create audit record for the override
+      await supabase.from("metric_results_audit").insert({
+        metric_result_id: result.id,
+        old_value: result.value,
+        new_value: newValue,
+        changed_by: currentUser.id,
+        reason: `OVERRIDE: ${reason}`,
+      });
+
+      // Update the result with new value, keeping previous value
+      await supabase
+        .from("metric_results")
+        .update({
+          value: newValue,
+          previous_value: result.value,
+          source: "manual",
+          overridden_at: new Date().toISOString(),
+          note: reason,
+        })
+        .eq("id", result.id);
+
+      queryClient.invalidateQueries({ queryKey: ["metric-results", selectedMetricId] });
+      
+      toast({
+        title: "Override successful",
+        description: "Jane data has been overridden with manual value",
+      });
+      
+      setOverrideDialog({ open: false, weekStart: "", janeValue: null, resultId: "" });
+    } catch (error) {
+      console.error("Error overriding:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to override value",
+      });
+    }
+  };
+
+  // Save mutation with audit trail
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedMetricId) throw new Error("No metric selected");
+      if (!selectedMetricId || !currentUser) throw new Error("No metric selected");
 
-      const upserts = Object.entries(editedValues).map(([weekStart, value]) => ({
-        metric_id: selectedMetricId,
-        week_start: weekStart,
-        value,
-        source: "manual" as const,
-      }));
+      const upserts = await Promise.all(
+        Object.entries(editedValues).map(async ([weekStart, value]) => {
+          const result = getResultForWeek(weekStart);
+          const oldValue = result?.value ?? null;
+          const reason = editReasonState[weekStart] || "";
+
+          // Create audit record if this is an update and value changed
+          if (result?.id && oldValue !== value) {
+            await supabase.from("metric_results_audit").insert({
+              metric_result_id: result.id,
+              old_value: oldValue,
+              new_value: value,
+              changed_by: currentUser.id,
+              reason,
+            });
+          }
+
+          return {
+            ...(result?.id && { id: result.id }),
+            metric_id: selectedMetricId,
+            week_start: weekStart,
+            value,
+            source: "manual" as const,
+            ...(reason && { note: reason }),
+          };
+        })
+      );
 
       const { error } = await supabase
         .from("metric_results")
@@ -147,6 +289,7 @@ const ScorecardUpdate = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["metric-results", selectedMetricId] });
       setEditedValues({});
+      setEditReasonState({});
       toast({
         title: "Changes saved",
         description: "Weekly data has been updated successfully.",
@@ -284,6 +427,7 @@ const ScorecardUpdate = () => {
                       <th className="text-left p-4 font-semibold">Actual Value</th>
                       <th className="text-left p-4 font-semibold">Source</th>
                       <th className="text-left p-4 font-semibold">Status</th>
+                      <th className="text-left p-4 font-semibold w-[60px]"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -297,6 +441,7 @@ const ScorecardUpdate = () => {
                       weekDates.map((weekStart) => {
                         const result = getResultForWeek(weekStart);
                         const isJaneSynced = result?.source === "jane";
+                        const isOverridden = result?.overridden_at !== null;
                         const currentValue = editedValues[weekStart] ?? result?.value ?? null;
 
                         return (
@@ -305,31 +450,68 @@ const ScorecardUpdate = () => {
                               <span className="font-medium">{format(new Date(weekStart), "MMM d, yyyy")}</span>
                             </td>
                             <td className="p-4">
-                              <Input
-                                type="number"
-                                value={currentValue ?? ""}
-                                onChange={(e) => handleValueChange(weekStart, e.target.value)}
-                                disabled={isJaneSynced}
-                                placeholder="Enter value..."
-                                className="max-w-[200px]"
-                              />
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  value={currentValue ?? ""}
+                                  onChange={(e) => handleValueChange(weekStart, e.target.value)}
+                                  disabled={isJaneSynced && !isOverridden}
+                                  placeholder="Enter value..."
+                                  className="max-w-[200px]"
+                                />
+                                {isJaneSynced && !isOverridden && (
+                                  <Lock className="w-4 h-4 text-muted-foreground" />
+                                )}
+                                {isOverridden && (
+                                  <Badge variant="outline" className="text-xs gap-1">
+                                    <ShieldAlert className="h-3 w-3" />
+                                    Override
+                                  </Badge>
+                                )}
+                              </div>
                             </td>
                             <td className="p-4">
-                              <span
-                                className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                  isJaneSynced
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-gray-100 text-gray-800"
-                                }`}
-                              >
-                                {result?.source || "—"}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant={isJaneSynced ? "default" : "secondary"}
+                                >
+                                  {result?.source || "—"}
+                                </Badge>
+                                {isJaneSynced && !isOverridden && isAdmin && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleOverrideClick(weekStart, result?.value || null, result?.id || "")}
+                                  >
+                                    Override
+                                  </Button>
+                                )}
+                                {isOverridden && result?.previous_value !== null && (
+                                  <span className="text-xs text-muted-foreground">
+                                    (was: {result.previous_value})
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="p-4">
                               {result?.value !== null && result?.value !== undefined ? (
                                 <CheckCircle2 className="w-5 h-5 text-green-500" />
                               ) : (
                                 <span className="text-muted-foreground text-sm">Not entered</span>
+                              )}
+                            </td>
+                            <td className="p-4">
+                              {result?.id && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedResultId(result.id || null);
+                                    setAuditDrawerOpen(true);
+                                  }}
+                                >
+                                  <History className="h-4 w-4" />
+                                </Button>
                               )}
                             </td>
                           </tr>
@@ -363,6 +545,36 @@ const ScorecardUpdate = () => {
           </CardContent>
         )}
       </Card>
+
+      <AuditDrawer
+        open={auditDrawerOpen}
+        onOpenChange={setAuditDrawerOpen}
+        metricResultId={selectedResultId}
+        metricName={selectedMetric?.name || ""}
+      />
+
+      <EditReasonDialog
+        open={editReasonDialog.open}
+        onOpenChange={(open) =>
+          setEditReasonDialog({ ...editReasonDialog, open })
+        }
+        onConfirm={handleEditReasonConfirm}
+        metricName={selectedMetric?.name || ""}
+        weekStart={format(new Date(editReasonDialog.weekStart || new Date()), "MMM d, yyyy")}
+        oldValue={editReasonDialog.oldValue}
+        newValue={editReasonDialog.newValue}
+      />
+
+      <OverrideDialog
+        open={overrideDialog.open}
+        onOpenChange={(open) =>
+          setOverrideDialog({ ...overrideDialog, open })
+        }
+        onConfirm={handleOverrideConfirm}
+        metricName={selectedMetric?.name || ""}
+        weekStart={format(new Date(overrideDialog.weekStart || new Date()), "MMM d, yyyy")}
+        janeValue={overrideDialog.janeValue}
+      />
     </div>
   );
 };

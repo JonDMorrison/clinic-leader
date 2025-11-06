@@ -1118,6 +1118,8 @@ export type Database = {
           id: string
           metric_id: string
           note: string | null
+          overridden_at: string | null
+          previous_value: number | null
           source: string | null
           updated_at: string
           value: number | null
@@ -1128,6 +1130,8 @@ export type Database = {
           id?: string
           metric_id: string
           note?: string | null
+          overridden_at?: string | null
+          previous_value?: number | null
           source?: string | null
           updated_at?: string
           value?: number | null
@@ -1138,6 +1142,8 @@ export type Database = {
           id?: string
           metric_id?: string
           note?: string | null
+          overridden_at?: string | null
+          previous_value?: number | null
           source?: string | null
           updated_at?: string
           value?: number | null
@@ -1149,6 +1155,47 @@ export type Database = {
             columns: ["metric_id"]
             isOneToOne: false
             referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metric_results_audit: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          created_at: string
+          id: string
+          metric_result_id: string
+          new_value: number | null
+          old_value: number | null
+          reason: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          created_at?: string
+          id?: string
+          metric_result_id: string
+          new_value?: number | null
+          old_value?: number | null
+          reason?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          created_at?: string
+          id?: string
+          metric_result_id?: string
+          new_value?: number | null
+          old_value?: number | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_results_audit_metric_result_id_fkey"
+            columns: ["metric_result_id"]
+            isOneToOne: false
+            referencedRelation: "metric_results"
             referencedColumns: ["id"]
           },
         ]
