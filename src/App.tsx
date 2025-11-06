@@ -51,6 +51,7 @@ import Onboarding from "./pages/Onboarding";
 import LibraryDetail from "./pages/LibraryDetail";
 import AdminImpersonate from "./pages/AdminImpersonate";
 import AdminDashboard from "./pages/AdminDashboard";
+import DocumentUploadAdmin from "./pages/DocumentUploadAdmin";
 import ScorecardSetup from "./pages/ScorecardSetup";
 import ScorecardUpdate from "./pages/ScorecardUpdate";
 
@@ -172,6 +173,7 @@ const App = () => {
             <Route path="/settings/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
             <Route path="/admin/onboarding-analytics" element={<AppLayout><OnboardingAnalytics /></AppLayout>} />
             <Route path="/admin" element={<AppLayout><AdminDashboard /></AppLayout>} />
+            <Route path="/admin/upload-docs" element={<AppLayout><DocumentUploadAdmin /></AppLayout>} />
             <Route path="/admin/system-health" element={<AppLayout><SystemHealth /></AppLayout>} />
             <Route path="/admin/demo" element={<AppLayout><AdminDemo /></AppLayout>} />
             <Route path="/admin/impersonate" element={<AppLayout><AdminImpersonate /></AppLayout>} />
