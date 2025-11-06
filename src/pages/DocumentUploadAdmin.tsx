@@ -140,14 +140,17 @@ const DocumentUploadAdmin = () => {
           ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
           : ext === 'doc'
             ? 'application/msword'
-            : undefined;
-      const contentType = mappedType || fileBlob.type || 'application/octet-stream';
+            : 'application/octet-stream';
+      const contentType = mappedType;
+
+      // Wrap blob into File with explicit MIME type
+      const typedFile = new File([fileBlob], doc.filename, { type: contentType });
 
       // Upload to storage in org-specific folder
       const storagePath = `${orgId}/${doc.filename}`;
       const { error: uploadError } = await supabase.storage
         .from("documents")
-        .upload(storagePath, fileBlob, {
+        .upload(storagePath, typedFile, {
           contentType,
           upsert: true,
         });
