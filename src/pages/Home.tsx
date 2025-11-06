@@ -18,42 +18,89 @@ const Home = () => {
   const ref = useRef(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const { data: kpis, isLoading: kpisLoading } = useQuery({
-    queryKey: ["kpis-summary"],
+
+  // Fetch current user first to get team_id
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user"],
     queryFn: async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return null;
+
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, team_id")
+        .eq("email", authData.user.email)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: kpis, isLoading: kpisLoading } = useQuery({
+    queryKey: ["kpis-summary", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return [];
+
+      const { data: users } = await supabase
+        .from("users")
+        .select("id")
+        .eq("team_id", currentUser.team_id);
+
+      const userIds = users?.map(u => u.id) || [];
+
       const { data, error } = await supabase
         .from("kpis")
         .select("*, kpi_readings(value, week_start)")
+        .in("owner_id", userIds)
         .eq("active", true)
         .order("week_start", { foreignTable: "kpi_readings", ascending: false });
       
       if (error) throw error;
       return data;
     },
+    enabled: !!currentUser?.team_id,
   });
 
   const { data: rocks, isLoading: rocksLoading } = useQuery({
-    queryKey: ["rocks-count"],
+    queryKey: ["rocks-count", currentUser?.team_id],
     queryFn: async () => {
+      if (!currentUser?.team_id) return [];
+
+      // Get all users in the team
+      const { data: users } = await supabase
+        .from("users")
+        .select("id")
+        .eq("team_id", currentUser.team_id);
+
+      const userIds = users?.map(u => u.id) || [];
+      if (userIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from("rocks")
-        .select("status");
+        .select("status")
+        .in("owner_id", userIds);
       
       if (error) throw error;
       return data;
     },
+    enabled: !!currentUser?.team_id,
   });
 
   const { data: issues, isLoading: issuesLoading } = useQuery({
-    queryKey: ["issues-count"],
+    queryKey: ["issues-count", currentUser?.team_id],
     queryFn: async () => {
+      if (!currentUser?.team_id) return [];
+
       const { data, error } = await supabase
         .from("issues")
-        .select("status");
+        .select("status")
+        .eq("organization_id", currentUser.team_id);
       
       if (error) throw error;
       return data;
     },
+    enabled: !!currentUser?.team_id,
   });
 
   const completedRocks = rocks?.filter(r => r.status === "done").length || 0;
