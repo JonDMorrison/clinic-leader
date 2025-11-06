@@ -71,6 +71,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Admin",
     items: [
+      { title: "Admin Dashboard", path: "/admin", icon: UserCog, roles: ["owner", "director"] },
       { title: "Settings", path: "/settings", icon: Settings, roles: ["owner", "director"] },
       { title: "Organization", path: "/organization-settings", icon: UserCog, roles: ["owner", "director"] },
       { title: "Branding", path: "/branding", icon: Palette, roles: ["owner", "director"] },

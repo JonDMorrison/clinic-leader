@@ -50,6 +50,7 @@ import VTOTraction from "./pages/VTOTraction";
 import Onboarding from "./pages/Onboarding";
 import LibraryDetail from "./pages/LibraryDetail";
 import AdminImpersonate from "./pages/AdminImpersonate";
+import AdminDashboard from "./pages/AdminDashboard";
 import ScorecardSetup from "./pages/ScorecardSetup";
 import ScorecardUpdate from "./pages/ScorecardUpdate";
 
@@ -170,6 +171,7 @@ const App = () => {
             <Route path="/settings/integrations" element={<AppLayout><Integrations /></AppLayout>} />
             <Route path="/settings/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
             <Route path="/admin/onboarding-analytics" element={<AppLayout><OnboardingAnalytics /></AppLayout>} />
+            <Route path="/admin" element={<AppLayout><AdminDashboard /></AppLayout>} />
             <Route path="/admin/system-health" element={<AppLayout><SystemHealth /></AppLayout>} />
             <Route path="/admin/demo" element={<AppLayout><AdminDemo /></AppLayout>} />
             <Route path="/admin/impersonate" element={<AppLayout><AdminImpersonate /></AppLayout>} />

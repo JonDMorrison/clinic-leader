@@ -2708,6 +2708,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      is_admin_simple: { Args: never; Returns: boolean }
       is_billing: { Args: never; Returns: boolean }
       is_manager: { Args: never; Returns: boolean }
       is_same_team: { Args: { check_team_id: string }; Returns: boolean }
