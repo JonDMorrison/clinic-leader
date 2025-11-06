@@ -231,12 +231,18 @@ const Docs = () => {
             </TabsList>
 
             <TabsContent value="docs" className="space-y-4 mt-6">
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-end gap-2 mb-4">
                 {isManager && (
-                  <Button onClick={handleCreateDoc}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Document
-                  </Button>
+                  <>
+                    <Button variant="outline" onClick={() => navigate('/admin/upload-docs')}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Bulk Upload
+                    </Button>
+                    <Button onClick={handleCreateDoc}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Document
+                    </Button>
+                  </>
                 )}
               </div>
               {filteredDocs.length === 0 ? (
