@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserNav } from "@/components/layout/UserNav";
+import { ImpersonationBanner } from "@/components/layout/ImpersonationBanner";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { OnboardingGuard } from "@/components/onboarding/OnboardingGuard";
 import { userTourService } from "@/lib/userTourService";
@@ -48,6 +49,7 @@ import VTOVision from "./pages/VTOVision";
 import VTOTraction from "./pages/VTOTraction";
 import Onboarding from "./pages/Onboarding";
 import LibraryDetail from "./pages/LibraryDetail";
+import AdminImpersonate from "./pages/AdminImpersonate";
 
 const queryClient = new QueryClient();
 
@@ -127,6 +129,7 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <ImpersonationBanner />
           <BrowserRouter>
           <ErrorBoundary>
           <OnboardingGuard>
@@ -165,6 +168,7 @@ const App = () => {
             <Route path="/admin/onboarding-analytics" element={<AppLayout><OnboardingAnalytics /></AppLayout>} />
             <Route path="/admin/system-health" element={<AppLayout><SystemHealth /></AppLayout>} />
             <Route path="/admin/demo" element={<AppLayout><AdminDemo /></AppLayout>} />
+            <Route path="/admin/impersonate" element={<AppLayout><AdminImpersonate /></AppLayout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </OnboardingGuard>

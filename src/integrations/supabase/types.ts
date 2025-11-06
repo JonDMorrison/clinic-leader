@@ -63,6 +63,42 @@ export type Database = {
           },
         ]
       }
+      admin_impersonation_logs: {
+        Row: {
+          admin_email: string
+          admin_user_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          started_at: string
+          target_organization_id: string | null
+          target_user_email: string
+          target_user_id: string
+        }
+        Insert: {
+          admin_email: string
+          admin_user_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          target_organization_id?: string | null
+          target_user_email: string
+          target_user_id: string
+        }
+        Update: {
+          admin_email?: string
+          admin_user_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          target_organization_id?: string | null
+          target_user_email?: string
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       ai_agendas: {
         Row: {
           agenda: Json
