@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Target, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Target, ChevronDown, ChevronUp, Settings } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/collapsible";
 
 const Scorecard = () => {
+  const navigate = useNavigate();
   const [addKpiModalOpen, setAddKpiModalOpen] = useState(false);
   const [loadDefaultsOpen, setLoadDefaultsOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -147,22 +149,31 @@ const Scorecard = () => {
         </div>
         
         {totalKpis > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="gradient-brand">
-                <Plus className="w-4 h-4 mr-2" />
-                New KPI
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setLoadDefaultsOpen(true)}>
-                Quick Start (Load Defaults)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>
-                Custom KPI
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/setup/scorecard")}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Setup Wizard
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="gradient-brand">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New KPI
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setLoadDefaultsOpen(true)}>
+                  Quick Start (Load Defaults)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>
+                  Custom KPI
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
       </div>
 
