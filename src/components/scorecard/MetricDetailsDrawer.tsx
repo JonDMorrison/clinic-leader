@@ -14,9 +14,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { format } from "date-fns";
-import { Edit2, Save, X } from "lucide-react";
+import { Edit2, Save, X, Target } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BackfillButton } from "./BackfillButton";
+import { SetGoalDialog } from "./SetGoalDialog";
+import { GoalProgressCard } from "./GoalProgressCard";
+import { GoalHistoryView } from "./GoalHistoryView";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface MetricDetailsDrawerProps {
   metricId: string | null;
@@ -37,8 +41,26 @@ export const MetricDetailsDrawer = ({
 }: MetricDetailsDrawerProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValues, setEditValues] = useState<any>({});
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch current user
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.user) return null;
+
+      const { data } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", session.session.user.email)
+        .single();
+
+      return data;
+    },
+  });
 
   const { data: metric } = useQuery({
     queryKey: ["metric-detail", metricId],
@@ -85,6 +107,27 @@ export const MetricDetailsDrawer = ({
       return data || [];
     },
     enabled: !!metricId && open,
+  });
+
+  // Fetch active goals
+  const { data: activeGoals } = useQuery({
+    queryKey: ["metric-goals", metricId],
+    queryFn: async () => {
+      if (!metricId || !organizationId) return [];
+
+      const now = new Date().toISOString().split("T")[0];
+      const { data, error } = await supabase
+        .from("metric_goals")
+        .select("*")
+        .eq("metric_id", metricId)
+        .eq("organization_id", organizationId)
+        .gte("end_date", now)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!metricId && !!organizationId && open,
   });
 
   const updateMutation = useMutation({
@@ -150,72 +193,89 @@ export const MetricDetailsDrawer = ({
         <SheetHeader>
           <SheetTitle className="flex items-center justify-between">
             <span>{metric.name}</span>
-            {!isEditing && (
-              <Button variant="outline" size="sm" onClick={handleEdit}>
-                <Edit2 className="w-4 h-4 mr-2" />
-                Edit
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGoalDialogOpen(true)}
+              >
+                <Target className="w-4 h-4 mr-2" />
+                Set Goal
               </Button>
-            )}
+              {!isEditing && (
+                <Button variant="outline" size="sm" onClick={handleEdit}>
+                  <Edit2 className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+              )}
+            </div>
           </SheetTitle>
           <SheetDescription>
             {metric.category} • {metric.owner_name || "Unassigned"}
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6 space-y-6">
-          {/* Edit Form */}
-          {isEditing && (
-            <div className="p-4 glass rounded-lg space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Target</Label>
-                  <Input
-                    type="number"
-                    value={editValues.target || ""}
-                    onChange={(e) =>
-                      setEditValues({ ...editValues, target: Number(e.target.value) })
-                    }
-                  />
+        <Tabs defaultValue="overview" className="mt-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="goals">Goals</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            {/* Edit Form */}
+            {isEditing && (
+              <div className="p-4 glass rounded-lg space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Target</Label>
+                    <Input
+                      type="number"
+                      value={editValues.target || ""}
+                      onChange={(e) =>
+                        setEditValues({ ...editValues, target: Number(e.target.value) })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Unit</Label>
+                    <Input
+                      value={editValues.unit || ""}
+                      onChange={(e) =>
+                        setEditValues({ ...editValues, unit: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
                 <div>
-                  <Label>Unit</Label>
-                  <Input
-                    value={editValues.unit || ""}
-                    onChange={(e) =>
-                      setEditValues({ ...editValues, unit: e.target.value })
+                  <Label>Direction</Label>
+                  <Select
+                    value={editValues.direction}
+                    onValueChange={(value) =>
+                      setEditValues({ ...editValues, direction: value })
                     }
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="up">Higher is better (≥)</SelectItem>
+                      <SelectItem value="down">Lower is better (≤)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleSave} disabled={updateMutation.isPending}>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </Button>
+                  <Button variant="outline" onClick={handleCancel}>
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
                 </div>
               </div>
-              <div>
-                <Label>Direction</Label>
-                <Select
-                  value={editValues.direction}
-                  onValueChange={(value) =>
-                    setEditValues({ ...editValues, direction: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="up">Higher is better (≥)</SelectItem>
-                    <SelectItem value="down">Lower is better (≤)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleSave} disabled={updateMutation.isPending}>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
-                </Button>
-                <Button variant="outline" onClick={handleCancel}>
-                  <X className="w-4 h-4 mr-2" />
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
+            )}
 
           {/* Chart */}
           <div className="glass rounded-lg p-4">
@@ -281,14 +341,62 @@ export const MetricDetailsDrawer = ({
           </div>
 
           {/* Backfill Button */}
-          <div className="flex justify-center">
-            <BackfillButton
-              organizationId={organizationId}
-              hasJaneIntegration={hasJaneIntegration}
-              variant="default"
+            <div className="flex justify-center">
+              <BackfillButton
+                organizationId={organizationId}
+                hasJaneIntegration={hasJaneIntegration}
+                variant="default"
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="goals" className="space-y-4">
+            {/* Active Goals */}
+            {activeGoals && activeGoals.length > 0 ? (
+              <div className="space-y-4">
+                {activeGoals.map((goal) => (
+                  <GoalProgressCard
+                    key={goal.id}
+                    goal={goal as any}
+                    currentValue={results?.[results.length - 1]?.value || null}
+                    metricUnit={metric.unit}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 glass rounded-lg">
+                <Target className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground mb-2">No active goals</p>
+                <Button
+                  variant="outline"
+                  onClick={() => setGoalDialogOpen(true)}
+                >
+                  <Target className="w-4 h-4 mr-2" />
+                  Set Your First Goal
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="history">
+            <GoalHistoryView
+              metricId={metricId!}
+              organizationId={organizationId!}
             />
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Goal Dialog */}
+        {metricId && organizationId && currentUser && (
+          <SetGoalDialog
+            open={goalDialogOpen}
+            onOpenChange={setGoalDialogOpen}
+            metricId={metricId}
+            metricName={metric.name}
+            organizationId={organizationId}
+            currentUserId={currentUser.id}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );

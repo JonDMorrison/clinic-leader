@@ -1150,6 +1150,138 @@ export type Database = {
           },
         ]
       }
+      metric_goal_achievements: {
+        Row: {
+          actual_value: number
+          created_at: string | null
+          goal_id: string
+          id: string
+          on_track: boolean
+          progress_percentage: number
+          week_start: string
+        }
+        Insert: {
+          actual_value: number
+          created_at?: string | null
+          goal_id: string
+          id?: string
+          on_track: boolean
+          progress_percentage: number
+          week_start: string
+        }
+        Update: {
+          actual_value?: number
+          created_at?: string | null
+          goal_id?: string
+          id?: string
+          on_track?: boolean
+          progress_percentage?: number
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_goal_achievements_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "metric_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metric_goals: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string | null
+          end_date: string
+          goal_type: string
+          id: string
+          metric_id: string
+          organization_id: string
+          start_date: string
+          target_value: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          end_date: string
+          goal_type: string
+          id?: string
+          metric_id: string
+          organization_id: string
+          start_date: string
+          target_value: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          end_date?: string
+          goal_type?: string
+          id?: string
+          metric_id?: string
+          organization_id?: string
+          start_date?: string
+          target_value?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_goals_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metric_milestones: {
+        Row: {
+          achieved_at: string | null
+          achieved_by: string | null
+          celebrated: boolean | null
+          created_at: string | null
+          id: string
+          metric_id: string
+          milestone_type: string
+          milestone_value: number
+          organization_id: string
+        }
+        Insert: {
+          achieved_at?: string | null
+          achieved_by?: string | null
+          celebrated?: boolean | null
+          created_at?: string | null
+          id?: string
+          metric_id: string
+          milestone_type: string
+          milestone_value: number
+          organization_id: string
+        }
+        Update: {
+          achieved_at?: string | null
+          achieved_by?: string | null
+          celebrated?: boolean | null
+          created_at?: string | null
+          id?: string
+          metric_id?: string
+          milestone_type?: string
+          milestone_value?: number
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_milestones_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metric_results: {
         Row: {
           created_at: string

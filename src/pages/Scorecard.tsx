@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { startOfWeek, subWeeks, format } from "date-fns";
 import { AlertsPanel } from "@/components/scorecard/AlertsPanel";
 import { PerformanceScoreCard } from "@/components/scorecard/PerformanceScoreCard";
+import { MilestoneCelebration } from "@/components/scorecard/MilestoneCelebration";
 
 const Scorecard = () => {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ const Scorecard = () => {
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  const [celebratingMilestone, setCelebratingMilestone] = useState<any>(null);
 
   // Fetch current user first
   const { data: currentUser } = useQuery({
@@ -179,6 +181,39 @@ const Scorecard = () => {
     enabled: !!currentUser?.team_id && !!metricsData && metricsData.length > 0,
     staleTime: 10 * 60 * 1000, // Only regenerate every 10 minutes
     retry: false,
+  });
+
+  // Check for uncelebrated milestones
+  useQuery({
+    queryKey: ["uncelebrated-milestones", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return null;
+
+      const { data, error } = await supabase
+        .from("metric_milestones")
+        .select("*, metrics(name, unit)")
+        .eq("organization_id", currentUser.team_id)
+        .eq("celebrated", false)
+        .not("achieved_at", "is", null)
+        .order("achieved_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data) return null;
+
+      // Enrich milestone with metric info
+      const metric = data.metrics as any;
+      const enriched = {
+        ...data,
+        metric_name: metric?.name,
+        metric_unit: metric?.unit,
+      };
+
+      setCelebratingMilestone(enriched);
+      return enriched;
+    },
+    enabled: !!currentUser?.team_id && !celebratingMilestone,
+    staleTime: Infinity, // Only check once per page load
   });
 
   // Apply filters
@@ -425,6 +460,14 @@ const Scorecard = () => {
         onOpenChange={setLoadDefaultsOpen}
         organizationId={currentUser?.team_id || ""}
       />
+
+      {/* Milestone Celebration */}
+      {celebratingMilestone && (
+        <MilestoneCelebration
+          milestone={celebratingMilestone}
+          onDismiss={() => setCelebratingMilestone(null)}
+        />
+      )}
     </div>
   );
 };
