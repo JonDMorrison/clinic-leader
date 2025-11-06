@@ -25,7 +25,7 @@ const documentsToUpload: DocumentToUpload[] = [
 Muchos de nuestros pacientes permiten que los miembros de la familia, como su cónyuge, pareja, padres o hijos, llamen y soliciten registros médicos, citas programadas, procedimientos e información financiera. Según los requisitos de H.I.P.A.A., no se nos permite dar esta información a nadie sin el consentimiento del paciente.
 
 Este formulario autoriza a Northwest Injury Clinics a divulgar registros médicos y cualquier información solicitada a personas específicas designadas por el paciente. También incluye autorizaciones para dejar mensajes detallados sobre citas, tratamiento médico y información financiera.`,
-    filePath: "user-uploads://Authorization_Form_for_Family_Members-SP.docx"
+    filePath: "/temp-uploads/Authorization_Form_for_Family_Members-SP.docx"
   },
   {
     filename: "Credit_Card_Authorization_Agreement_Updated-NWIC_1.pdf",
@@ -40,7 +40,7 @@ Payment Options:
 - Option 2: Credit/debit card charged automatically after insurance claim processing for patient responsibility amount on EOB
 
 The authorization remains in effect for one year from the date signed. Credit card information is entered into a secure payment portal and not stored in paper format.`,
-    filePath: "user-uploads://Credit_Card_Authorization_Agreement_Updated-NWIC_1.pdf"
+    filePath: "/temp-uploads/Credit_Card_Authorization_Agreement_Updated-NWIC_1.pdf"
   },
   {
     filename: "DOCTOR_LIEN_NWIC.pdf",
@@ -59,7 +59,7 @@ Key Terms:
 - Agreement cannot be rescinded
 
 The attorney/insurance carrier must sign to acknowledge and agree to observe all terms.`,
-    filePath: "user-uploads://DOCTOR_LIEN_NWIC.pdf"
+    filePath: "/temp-uploads/DOCTOR_LIEN_NWIC.pdf"
   },
   {
     filename: "Initial_MVC_History_Form_basic_1.pdf",
@@ -92,7 +92,7 @@ Accident Details:
 - Awareness and bracing
 
 The form includes detailed injury assessment sections for head/neck, upper extremities, torso, lower extremities, and neurological symptoms. It tracks pain levels, functional limitations, and treatment history.`,
-    filePath: "user-uploads://Initial_MVC_History_Form_basic_1.pdf"
+    filePath: "/temp-uploads/Initial_MVC_History_Form_basic_1.pdf"
   }
 ];
 
