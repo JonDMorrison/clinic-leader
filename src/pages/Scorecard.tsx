@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings, PenSquare, Search, Filter, Star } from "lucide-react";
+import { Plus, Settings, PenSquare, Search, Filter, Star, Smartphone, GripVertical } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +24,10 @@ import { startOfWeek, subWeeks, format } from "date-fns";
 import { AlertsPanel } from "@/components/scorecard/AlertsPanel";
 import { PerformanceScoreCard } from "@/components/scorecard/PerformanceScoreCard";
 import { MilestoneCelebration } from "@/components/scorecard/MilestoneCelebration";
+import { QuickEntryMobile } from "@/components/scorecard/QuickEntryMobile";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const Scorecard = () => {
   const navigate = useNavigate();
@@ -37,6 +41,15 @@ const Scorecard = () => {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [celebratingMilestone, setCelebratingMilestone] = useState<any>(null);
+  const [showQuickEntry, setShowQuickEntry] = useState(false);
+  const [customOrder, setCustomOrder] = useState<string[]>([]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Fetch current user first
   const { data: currentUser } = useQuery({
@@ -216,8 +229,8 @@ const Scorecard = () => {
     staleTime: Infinity, // Only check once per page load
   });
 
-  // Apply filters
-  const filteredMetrics = metricsData?.filter(metric => {
+  // Apply filters and custom ordering
+  let filteredMetrics = metricsData?.filter(metric => {
     if (showOnlyFavorites && !metric.is_favorite) {
       return false;
     }
@@ -235,6 +248,28 @@ const Scorecard = () => {
     }
     return true;
   }) || [];
+
+  // Apply custom ordering if exists
+  if (customOrder.length > 0) {
+    filteredMetrics = [...filteredMetrics].sort((a, b) => {
+      const indexA = customOrder.indexOf(a.id);
+      const indexB = customOrder.indexOf(b.id);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = filteredMetrics.findIndex((m) => m.id === active.id);
+    const newIndex = filteredMetrics.findIndex((m) => m.id === over.id);
+
+    const newOrder = arrayMove(filteredMetrics, oldIndex, newIndex).map((m) => m.id);
+    setCustomOrder(newOrder);
+  };
 
   // Get unique values for filters
   const categories = Array.from(new Set(metricsData?.map(m => m.category) || []));
@@ -270,6 +305,13 @@ const Scorecard = () => {
         
         {totalMetrics > 0 && (
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowQuickEntry(true)}
+            >
+              <Smartphone className="w-4 h-4 mr-2" />
+              Quick Entry
+            </Button>
             <Button
               variant="outline"
               onClick={() => navigate("/scorecard/update")}
@@ -424,15 +466,26 @@ const Scorecard = () => {
               <p className="text-muted-foreground">No metrics match your filters</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredMetrics.map((metric) => (
-                <MetricCard
-                  key={metric.id}
-                  metric={metric}
-                  onClick={() => setSelectedMetricId(metric.id)}
-                />
-              ))}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={filteredMetrics.map((m) => m.id)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredMetrics.map((metric) => (
+                    <SortableMetricCard
+                      key={metric.id}
+                      metric={metric}
+                      onClick={() => setSelectedMetricId(metric.id)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       )}
@@ -468,8 +521,47 @@ const Scorecard = () => {
           onDismiss={() => setCelebratingMilestone(null)}
         />
       )}
+
+      {/* Quick Entry Mobile */}
+      {showQuickEntry && (
+        <QuickEntryMobile
+          organizationId={currentUser?.team_id || ""}
+          onClose={() => setShowQuickEntry(false)}
+        />
+      )}
     </div>
   );
 };
+
+// Sortable wrapper for MetricCard
+function SortableMetricCard({ metric, onClick }: { metric: any; onClick: () => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: metric.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 right-2 z-10 cursor-grab active:cursor-grabbing p-1 hover:bg-secondary rounded"
+      >
+        <GripVertical className="w-4 h-4 text-muted-foreground" />
+      </div>
+      <MetricCard metric={metric} onClick={onClick} />
+    </div>
+  );
+}
 
 export default Scorecard;

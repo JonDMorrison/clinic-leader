@@ -20,6 +20,7 @@ import { BackfillButton } from "./BackfillButton";
 import { SetGoalDialog } from "./SetGoalDialog";
 import { GoalProgressCard } from "./GoalProgressCard";
 import { GoalHistoryView } from "./GoalHistoryView";
+import { MetricComments } from "./MetricComments";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface MetricDetailsDrawerProps {
@@ -216,10 +217,11 @@ export const MetricDetailsDrawer = ({
         </SheetHeader>
 
         <Tabs defaultValue="overview" className="mt-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="goals">Goals</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="comments">Comments</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -380,6 +382,13 @@ export const MetricDetailsDrawer = ({
 
           <TabsContent value="history">
             <GoalHistoryView
+              metricId={metricId!}
+              organizationId={organizationId!}
+            />
+          </TabsContent>
+
+          <TabsContent value="comments">
+            <MetricComments
               metricId={metricId!}
               organizationId={organizationId!}
             />
