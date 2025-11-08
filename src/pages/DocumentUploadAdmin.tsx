@@ -132,20 +132,41 @@ const DocumentUploadAdmin = () => {
 
   const uploadDocument = async (doc: DocumentToUpload) => {
     try {
-      if (!orgId) throw new Error("Organization not determined yet");
+      if (!orgId) {
+        const errorMsg = "Organization ID not loaded. Please refresh the page.";
+        console.error(errorMsg);
+        toast({
+          title: "Upload Failed",
+          description: errorMsg,
+          variant: "destructive",
+        });
+        throw new Error(errorMsg);
+      }
+      
       setUploadStatus(prev => ({ ...prev, [doc.filename]: "uploading" }));
 
       // Handle both data URLs (from FileReader) and public paths
       let fileBlob: Blob;
-      if (doc.filePath.startsWith('data:')) {
-        const response = await fetch(doc.filePath);
-        fileBlob = await response.blob();
-      } else {
-        const fileResponse = await fetch(doc.filePath);
-        fileBlob = await fileResponse.blob();
+      try {
+        if (doc.filePath.startsWith('data:')) {
+          const response = await fetch(doc.filePath);
+          fileBlob = await response.blob();
+        } else {
+          const fileResponse = await fetch(doc.filePath);
+          fileBlob = await fileResponse.blob();
+        }
+      } catch (blobError) {
+        const errorMsg = `Failed to read file ${doc.filename}: ${blobError}`;
+        console.error(errorMsg, blobError);
+        toast({
+          title: "File Read Error",
+          description: errorMsg,
+          variant: "destructive",
+        });
+        throw blobError;
       }
 
-      // Determine correct content type (avoid octet-stream)
+      // Determine correct content type
       const ext = doc.filename.split(".").pop()?.toLowerCase();
       const mappedType = ext === 'pdf'
         ? 'application/pdf'
@@ -156,43 +177,78 @@ const DocumentUploadAdmin = () => {
             : 'application/octet-stream';
       const contentType = mappedType;
 
-      // Wrap blob into File with explicit MIME type
+      // Create File object with explicit MIME type
       const typedFile = new File([fileBlob], doc.filename, { type: contentType });
 
       // Upload to storage in org-specific folder
       const storagePath = `${orgId}/${doc.filename}`;
-      const { error: uploadError } = await supabase.storage
+      console.log(`Uploading to storage: ${storagePath}`);
+      
+      const { error: uploadError, data: uploadData } = await supabase.storage
         .from("documents")
         .upload(storagePath, typedFile, {
           contentType,
           upsert: true,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        const errorMsg = `Storage upload failed for ${doc.filename}: ${uploadError.message}`;
+        console.error(errorMsg, uploadError);
+        toast({
+          title: "Storage Upload Failed",
+          description: `${doc.filename}: ${uploadError.message}`,
+          variant: "destructive",
+        });
+        throw uploadError;
+      }
+      
+      console.log(`Storage upload successful:`, uploadData);
 
       // Get public URL
       const { data: urlData } = supabase.storage
         .from("documents")
         .getPublicUrl(storagePath);
+      
+      console.log(`Public URL: ${urlData.publicUrl}`);
 
-      // Create doc record
-      const { error: docError } = await supabase
+      // Create doc record - CRITICAL: use "approved" not "published"
+      const docRecord = {
+        title: doc.title,
+        kind: "SOP" as const,
+        status: "approved" as const, // Fixed: valid enum value
+        file_url: urlData.publicUrl,
+        filename: doc.filename,
+        file_type: ext === 'pdf' ? 'pdf' : 'docx',
+        parsed_text: doc.parsedText,
+        requires_ack: false,
+        organization_id: orgId,
+      };
+      
+      console.log(`Inserting doc record:`, docRecord);
+
+      const { error: docError, data: docData } = await supabase
         .from("docs")
-        .insert({
-          title: doc.title,
-          kind: "SOP" as const,
-          status: "published" as const,
-          file_url: urlData.publicUrl,
-          filename: doc.filename,
-          file_type: ext === 'pdf' ? 'pdf' : 'docx',
-          parsed_text: doc.parsedText,
-          requires_ack: false,
-          organization_id: orgId,
-        } as any);
+        .insert(docRecord)
+        .select();
 
-      if (docError) throw docError;
+      if (docError) {
+        const errorMsg = `Database insert failed for ${doc.filename}: ${docError.message}`;
+        console.error(errorMsg, docError);
+        toast({
+          title: "Database Insert Failed",
+          description: `${doc.filename}: ${docError.message}`,
+          variant: "destructive",
+        });
+        throw docError;
+      }
+      
+      console.log(`Doc record created:`, docData);
 
       setUploadStatus(prev => ({ ...prev, [doc.filename]: "success" }));
+      toast({
+        title: "Upload Success",
+        description: `${doc.filename} uploaded successfully.`,
+      });
       return true;
     } catch (error) {
       console.error(`Error uploading ${doc.filename}:`, error);
