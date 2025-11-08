@@ -3,7 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
-import { Upload, CheckCircle, AlertTriangle } from "lucide-react";
+import { Upload, CheckCircle, AlertTriangle, Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const NW_CLINICS_ORG_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -101,6 +105,8 @@ const DocumentUploadAdmin = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [docsToUpload, setDocsToUpload] = useState<DocumentToUpload[]>(defaultDocuments);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newDoc, setNewDoc] = useState({ title: "", category: "Forms", file: null as File | null });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -129,9 +135,15 @@ const DocumentUploadAdmin = () => {
       if (!orgId) throw new Error("Organization not determined yet");
       setUploadStatus(prev => ({ ...prev, [doc.filename]: "uploading" }));
 
-      // Read the file from public temp path
-      const fileResponse = await fetch(doc.filePath);
-      const fileBlob = await fileResponse.blob();
+      // Handle both data URLs (from FileReader) and public paths
+      let fileBlob: Blob;
+      if (doc.filePath.startsWith('data:')) {
+        const response = await fetch(doc.filePath);
+        fileBlob = await response.blob();
+      } else {
+        const fileResponse = await fetch(doc.filePath);
+        fileBlob = await fileResponse.blob();
+      }
 
       // Determine correct content type (avoid octet-stream)
       const ext = doc.filename.split(".").pop()?.toLowerCase();
@@ -189,6 +201,38 @@ const DocumentUploadAdmin = () => {
     }
   };
 
+  const handleAddDocument = () => {
+    if (!newDoc.file || !newDoc.title) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both a file and title.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const newDocument: DocumentToUpload = {
+        filename: newDoc.file!.name,
+        title: newDoc.title,
+        category: newDoc.category,
+        parsedText: `User uploaded document: ${newDoc.title}`,
+        filePath: e.target?.result as string,
+      };
+      
+      setDocsToUpload([...docsToUpload, newDocument]);
+      setNewDoc({ title: "", category: "Forms", file: null });
+      setIsAddModalOpen(false);
+      
+      toast({
+        title: "Document Added",
+        description: `${newDoc.title} added to upload queue.`,
+      });
+    };
+    reader.readAsDataURL(newDoc.file);
+  };
+
   const handleUploadAll = async () => {
     setIsUploading(true);
     
@@ -227,6 +271,57 @@ const DocumentUploadAdmin = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-end gap-2">
+            <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+              <DialogTrigger asChild>
+                <Button variant="default">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Document
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Document</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="file">Select File</Label>
+                    <Input
+                      id="file"
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      onChange={(e) => setNewDoc({ ...newDoc, file: e.target.files?.[0] || null })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Document Title</Label>
+                    <Input
+                      id="title"
+                      value={newDoc.title}
+                      onChange={(e) => setNewDoc({ ...newDoc, title: e.target.value })}
+                      placeholder="Enter document title"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Category</Label>
+                    <Select value={newDoc.category} onValueChange={(value) => setNewDoc({ ...newDoc, category: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Forms">Forms</SelectItem>
+                        <SelectItem value="Legal">Legal</SelectItem>
+                        <SelectItem value="Intake">Intake</SelectItem>
+                        <SelectItem value="Policy">Policy</SelectItem>
+                        <SelectItem value="Training">Training</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={handleAddDocument} className="w-full">
+                    Add to Queue
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
             <Button variant="outline" onClick={() => { setDocsToUpload([]); setUploadStatus({}); }}>
               Clear All
             </Button>
