@@ -245,6 +245,45 @@ const Docs = () => {
     setSelectedDoc(null);
   };
 
+  const handleDelete = async (docId: string) => {
+    if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('docs')
+        .delete()
+        .eq('id', docId);
+
+      if (error) throw error;
+
+      toast.success('Document deleted successfully');
+      refetchDocs();
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast.error('Failed to delete document');
+    }
+  };
+
+  const handleReExtract = async (docId: string, storagePath: string) => {
+    try {
+      toast.info('Re-extracting text from PDF...');
+      
+      const { error } = await supabase.functions.invoke('extract-doc-text', {
+        body: { doc_id: docId, storage_path: storagePath }
+      });
+
+      if (error) throw error;
+
+      toast.success('Text extraction started. This may take a moment.');
+      setTimeout(() => refetchDocs(), 3000);
+    } catch (error) {
+      console.error('Error re-extracting text:', error);
+      toast.error('Failed to re-extract text');
+    }
+  };
+
   const handleDownloadDoc = async (doc: any) => {
     if (!doc.storage_path) return;
     
@@ -386,6 +425,9 @@ const Docs = () => {
                   onOwnerFilterChange={setOwnerFilter}
                   onSelectDoc={handleViewDoc}
                   users={users || []}
+                  onDelete={handleDelete}
+                  onReExtract={handleReExtract}
+                  userRole={currentUser?.role}
                 />
               )}
             </TabsContent>

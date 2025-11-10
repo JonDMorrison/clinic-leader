@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { FileText, Clock, CheckCircle2, BookOpen } from "lucide-react";
+import { FileText, Clock, CheckCircle2, BookOpen, Trash2, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
@@ -30,6 +31,9 @@ interface DocListProps {
   onOwnerFilterChange: (value: string) => void;
   onSelectDoc: (doc: Doc) => void;
   users: Array<{ id: string; full_name: string }>;
+  onDelete?: (docId: string) => void;
+  onReExtract?: (docId: string, storagePath: string) => void;
+  userRole?: string;
 }
 
 export const DocList = ({
@@ -41,6 +45,9 @@ export const DocList = ({
   onOwnerFilterChange,
   onSelectDoc,
   users,
+  onDelete,
+  onReExtract,
+  userRole,
 }: DocListProps) => {
   const getStatusVariant = (status: string) => {
     if (status === "approved") return "success";
@@ -94,11 +101,14 @@ export const DocList = ({
 
       <div className="grid gap-4">
         {docs.filter(doc => doc.title !== "Employee Handbook").map((doc) => (
-          <div key={doc.id} onClick={() => onSelectDoc(doc)} className="cursor-pointer">
+          <div key={doc.id} className="cursor-pointer">
             <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3 flex-1">
+                <div 
+                  className="flex items-start gap-3 flex-1"
+                  onClick={() => onSelectDoc(doc)}
+                >
                   <FileText className="w-5 h-5 text-brand mt-1 shrink-0" />
                   <div>
                     <CardTitle className="text-base">{doc.title}</CardTitle>
@@ -131,6 +141,38 @@ export const DocList = ({
                   </Badge>
                   {doc.requires_ack && isAcknowledged(doc) && (
                     <CheckCircle2 className="w-5 h-5 text-success" />
+                  )}
+                  {(userRole === 'owner' || userRole === 'manager') && (
+                    <div className="flex gap-1">
+                      {doc.storage_path && doc.file_type === 'pdf' && onReExtract && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReExtract(doc.id, doc.storage_path!);
+                          }}
+                          title="Re-extract text from PDF"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(doc.id);
+                          }}
+                          title="Delete document"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
