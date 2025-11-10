@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardContent } from "@/components/ui/Card";
 import { HandbookViewer } from "@/components/docs/HandbookViewer";
 import { DocsAIChat } from "@/components/docs/DocsAIChat";
+import { BulkUploadModal } from "@/components/docs/BulkUploadModal";
 import { PlaybookCard } from "@/components/playbooks/PlaybookCard";
 import { UploadPlaybookModal } from "@/components/playbooks/UploadPlaybookModal";
 import { Playbook, PLAYBOOK_CATEGORIES } from "@/types/playbook";
@@ -82,6 +83,7 @@ const Docs = () => {
   const [kindFilter, setKindFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [bulkUploadModalOpen, setBulkUploadModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   
@@ -349,7 +351,7 @@ const Docs = () => {
               <div className="flex justify-end gap-2 mb-4">
                 {isManager && (
                   <>
-                    <Button variant="outline" onClick={() => navigate('/admin/upload-docs')}>
+                    <Button variant="outline" onClick={() => setBulkUploadModalOpen(true)}>
                       <Upload className="w-4 h-4 mr-2" />
                       Bulk Upload
                     </Button>
@@ -572,6 +574,16 @@ const Docs = () => {
         open={isHandbookOpen} 
         onClose={() => setIsHandbookOpen(false)} 
       />
+
+      {isManager && (
+        <BulkUploadModal
+          open={bulkUploadModalOpen}
+          onOpenChange={setBulkUploadModalOpen}
+          onSuccess={handleSuccess}
+          organizationId={currentUser?.team_id || ''}
+          userId={currentUser?.id || ''}
+        />
+      )}
 
       {isAdmin && (
         <UploadPlaybookModal
