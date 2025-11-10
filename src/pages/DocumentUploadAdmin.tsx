@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InlinePdfViewer } from "@/components/InlinePdfViewer";
 
 interface QueuedDoc {
   id: string;
@@ -33,8 +34,6 @@ function DocViewerFrame({ blobUrl, fileName, contentType }: DocViewerFrameProps)
     (contentType && contentType.toLowerCase().includes("pdf")) ||
     fileName.toLowerCase().endsWith(".pdf");
 
-  // Always show a clear primary action: download/open
-  // This works even if the iframe is blocked by Chrome or extensions.
   const DownloadButton = (
     <a
       href={blobUrl}
@@ -47,8 +46,6 @@ function DocViewerFrame({ blobUrl, fileName, contentType }: DocViewerFrameProps)
   );
 
   if (isPdf) {
-    // Best-effort inline preview: if the environment allows it, great.
-    // If Chrome/extension blocks it, the user still sees the download button.
     return (
       <div className="w-full h-full flex flex-col">
         <div className="flex items-center justify-between p-2 border-b gap-2">
@@ -57,18 +54,13 @@ function DocViewerFrame({ blobUrl, fileName, contentType }: DocViewerFrameProps)
           </span>
           {DownloadButton}
         </div>
-        <div className="flex-1 bg-muted/20">
-          <iframe
-            src={blobUrl}
-            className="w-full h-full border-0"
-            title={fileName}
-          />
+        <div className="flex-1">
+          <InlinePdfViewer blobUrl={blobUrl} />
         </div>
       </div>
     );
   }
 
-  // Non-PDF: no inline attempt, just download
   return (
     <div className="p-4 text-xs">
       <p className="mb-2 text-muted-foreground">
