@@ -436,6 +436,7 @@ export type Database = {
           parsed_text: string | null
           requires_ack: boolean
           status: Database["public"]["Enums"]["doc_status"]
+          storage_path: string | null
           title: string
           updated_at: string
           version: number
@@ -453,6 +454,7 @@ export type Database = {
           parsed_text?: string | null
           requires_ack?: boolean
           status?: Database["public"]["Enums"]["doc_status"]
+          storage_path?: string | null
           title: string
           updated_at?: string
           version?: number
@@ -470,6 +472,7 @@ export type Database = {
           parsed_text?: string | null
           requires_ack?: boolean
           status?: Database["public"]["Enums"]["doc_status"]
+          storage_path?: string | null
           title?: string
           updated_at?: string
           version?: number

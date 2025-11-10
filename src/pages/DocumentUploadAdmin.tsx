@@ -148,12 +148,13 @@ const DocumentUploadAdmin = () => {
       
       console.log(`Public URL: ${urlData.publicUrl}`);
 
-      // Create doc record
+      // Create doc record with storage_path
       const docRecord = {
         title: doc.title,
         kind: "SOP" as const,
         status: "approved" as const,
         file_url: urlData.publicUrl,
+        storage_path: storagePath,
         filename: doc.filename,
         file_type: ext === 'pdf' ? 'pdf' : 'docx',
         parsed_text: doc.parsedText,
@@ -277,110 +278,13 @@ const DocumentUploadAdmin = () => {
     });
   };
 
-  const handleViewDoc = async (e: React.MouseEvent, fileUrl: string | null) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!fileUrl) {
-      toast({
-        title: "Error",
-        description: "File URL not available.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Pre-open a tab synchronously to avoid popup blockers
-    const preOpened = window.open('', '_blank', 'noopener,noreferrer');
-
-    // Derive storage path from public URL: /object/public/documents/<path>
-    const match = fileUrl.match(/\/object\/public\/documents\/(.+)$/);
-    const storagePath = match ? match[1] : null;
-
-    try {
-      if (!storagePath) {
-        // Fallback to navigating the pre-opened window to the original URL
-        if (preOpened) preOpened.location.href = fileUrl;
-        else window.open(fileUrl, '_blank', 'noopener,noreferrer');
-        return;
-      }
-
-      const { data, error } = await supabase.storage
-        .from('documents')
-        .download(storagePath);
-
-      if (error || !data) {
-        throw error || new Error('No data returned');
-      }
-
-      const blobUrl = URL.createObjectURL(data);
-      if (preOpened) preOpened.location.href = blobUrl;
-      else window.open(blobUrl, '_blank', 'noopener,noreferrer');
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-    } catch (err) {
-      console.error('Failed to open document via storage download', err);
-      toast({
-        title: "Unable to open",
-        description: "We couldn't open the file. Try downloading instead.",
-        variant: "destructive",
-      });
-      if (preOpened) preOpened.close();
-    }
+  const getDocumentProxyUrl = (storagePath: string | null, mode: 'view' | 'download'): string | null => {
+    if (!storagePath) return null;
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const functionUrl = `${baseUrl}/functions/v1/get-document`;
+    return `${functionUrl}?path=${encodeURIComponent(storagePath)}&mode=${mode}`;
   };
 
-  const handleDownloadDoc = async (e: React.MouseEvent, fileUrl: string | null, filename: string | null) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!fileUrl || !filename) {
-      toast({
-        title: "Error",
-        description: "File information not available.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const match = fileUrl.match(/\/object\/public\/documents\/(.+)$/);
-    const storagePath = match ? match[1] : null;
-
-    try {
-      if (!storagePath) {
-        // Fallback: direct link
-        const link = document.createElement('a');
-        link.href = fileUrl;
-        link.download = filename;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        return;
-      }
-
-      const { data, error } = await supabase.storage
-        .from('documents')
-        .download(storagePath);
-
-      if (error || !data) {
-        throw error || new Error('No data returned');
-      }
-
-      const blobUrl = URL.createObjectURL(data);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-    } catch (err) {
-      console.error('Failed to download document via storage download', err);
-      toast({
-        title: "Unable to download",
-        description: "We couldn't download the file. Please try again later.",
-        variant: "destructive",
-      });
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -552,19 +456,49 @@ const DocumentUploadAdmin = () => {
                   </div>
                   <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
                     <Button
+                      asChild
                       type="button"
                       size="sm"
                       variant="ghost"
-                      onClick={(e) => handleViewDoc(e, doc.file_url)}
                     >
-                      <Eye className="w-4 h-4" />
+                      <a
+                        href={getDocumentProxyUrl(doc.storage_path, 'view') || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          if (!doc.storage_path) {
+                            e.preventDefault();
+                            toast({
+                              title: "Error",
+                              description: "Document path not available.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </a>
                     </Button>
                     <Button
+                      asChild
                       size="sm"
                       variant="ghost"
-                      onClick={(e) => handleDownloadDoc(e, doc.file_url, doc.filename)}
                     >
-                      <Download className="w-4 h-4" />
+                      <a
+                        href={getDocumentProxyUrl(doc.storage_path, 'download') || '#'}
+                        onClick={(e) => {
+                          if (!doc.storage_path) {
+                            e.preventDefault();
+                            toast({
+                              title: "Error",
+                              description: "Document path not available.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
                     </Button>
                   </div>
                 </div>
