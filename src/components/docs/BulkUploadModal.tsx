@@ -80,6 +80,19 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
       return;
     }
 
+    if (!organizationId) {
+      toast.error("Organization ID is missing. Please reload the page.");
+      console.error("Missing organizationId:", organizationId);
+      return;
+    }
+
+    if (!userId) {
+      toast.error("User ID is missing. Please reload the page.");
+      console.error("Missing userId:", userId);
+      return;
+    }
+
+    console.log("[BulkUpload] Starting upload for org:", organizationId, "user:", userId);
     setUploading(true);
 
     for (const fileItem of files) {
@@ -97,6 +110,8 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
         const uniqueFileName = `${crypto.randomUUID()}-${sanitizedName}`;
         const storagePath = `${organizationId}/${uniqueFileName}`;
 
+        console.log("[BulkUpload] Uploading file:", file.name, "to:", storagePath);
+
         // Upload to storage
         const { error: uploadError } = await supabase.storage
           .from("documents")
@@ -105,7 +120,12 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
             upsert: false,
           });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error("[BulkUpload] Storage upload error:", uploadError);
+          throw uploadError;
+        }
+
+        console.log("[BulkUpload] Storage upload successful, inserting into docs table");
 
         // Insert into docs table
         const { error: insertError } = await supabase.from("docs").insert([{
@@ -121,14 +141,19 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
           requires_ack: false,
         }]);
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error("[BulkUpload] Database insert error:", insertError);
+          throw insertError;
+        }
+
+        console.log("[BulkUpload] Successfully uploaded:", file.name);
 
         // Update status to success
         setFiles((prev) =>
           prev.map((f) => (f.id === fileItem.id ? { ...f, status: "success" as const } : f))
         );
       } catch (err: any) {
-        console.error("Upload error:", err);
+        console.error("[BulkUpload] Upload error for", fileItem.file.name, ":", err);
         setFiles((prev) =>
           prev.map((f) =>
             f.id === fileItem.id
@@ -144,13 +169,15 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
     const successCount = files.filter((f) => f.status === "success").length;
     const errorCount = files.filter((f) => f.status === "error").length;
 
+    console.log("[BulkUpload] Upload complete. Success:", successCount, "Errors:", errorCount);
+
     if (successCount > 0) {
       toast.success(`Successfully uploaded ${successCount} document${successCount > 1 ? "s" : ""}`);
       onSuccess();
     }
 
     if (errorCount > 0) {
-      toast.error(`Failed to upload ${errorCount} document${errorCount > 1 ? "s" : ""}`);
+      toast.error(`Failed to upload ${errorCount} document${errorCount > 1 ? "s" : ""}. Check console for details.`);
     }
 
     // Clear successful uploads
