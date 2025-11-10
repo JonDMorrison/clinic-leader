@@ -31,10 +31,11 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch documents for the validated team using organization_id
+    // Include both 'approved' (uploaded PDFs/DOCX) and 'published' (markdown) documents
     const { data: docs, error: docsError } = await supabase
       .from('docs')
       .select('*')
-      .eq('status', 'published')
+      .in('status', ['approved', 'published'])
       .eq('organization_id', tenantContext.teamId);
 
     if (docsError) {
@@ -44,7 +45,7 @@ serve(async (req) => {
 
     const teamDocs = docs || [];
 
-    console.log(`Found ${teamDocs.length} documents for team`);
+    console.log(`Found ${teamDocs.length} documents for team (approved + published)`);
 
     // Build context from documents
     let docsContext = "Available Documents:\n\n";
@@ -52,9 +53,21 @@ serve(async (req) => {
       teamDocs.forEach((doc: any) => {
         docsContext += `Document: ${doc.title}\n`;
         docsContext += `Type: ${doc.kind}\n`;
-        if (doc.body) {
-          docsContext += `Content: ${doc.body.substring(0, 500)}...\n`;
+        
+        // Read content from either body (markdown) or parsed_text (binary PDFs/DOCX)
+        const content = doc.body || doc.parsed_text || '';
+        if (content) {
+          // Include more content for better context (first 2000 chars)
+          const contentPreview = content.length > 2000 
+            ? content.substring(0, 2000) + '...' 
+            : content;
+          docsContext += `Content: ${contentPreview}\n`;
         }
+        
+        if (doc.filename) {
+          docsContext += `File: ${doc.filename}\n`;
+        }
+        
         docsContext += '\n---\n\n';
       });
     } else {
