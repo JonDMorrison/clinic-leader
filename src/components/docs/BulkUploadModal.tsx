@@ -95,6 +95,10 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
     console.log("[BulkUpload] Starting upload for org:", organizationId, "user:", userId);
     setUploading(true);
 
+    // Track counts manually to avoid state closure issues
+    let successCount = 0;
+    let errorCount = 0;
+
     for (const fileItem of files) {
       if (fileItem.status === "success") continue;
 
@@ -147,6 +151,7 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
         }
 
         console.log("[BulkUpload] Successfully uploaded:", file.name);
+        successCount++; // Increment success counter
 
         // Update status to success
         setFiles((prev) =>
@@ -154,6 +159,8 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
         );
       } catch (err: any) {
         console.error("[BulkUpload] Upload error for", fileItem.file.name, ":", err);
+        errorCount++; // Increment error counter
+        
         setFiles((prev) =>
           prev.map((f) =>
             f.id === fileItem.id
@@ -166,13 +173,11 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
 
     setUploading(false);
 
-    const successCount = files.filter((f) => f.status === "success").length;
-    const errorCount = files.filter((f) => f.status === "error").length;
-
     console.log("[BulkUpload] Upload complete. Success:", successCount, "Errors:", errorCount);
 
     if (successCount > 0) {
       toast.success(`Successfully uploaded ${successCount} document${successCount > 1 ? "s" : ""}`);
+      // Always call onSuccess to trigger refetch
       onSuccess();
     }
 
@@ -183,7 +188,7 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
     // Clear successful uploads
     setFiles((prev) => prev.filter((f) => f.status !== "success"));
 
-    if (errorCount === 0) {
+    if (errorCount === 0 && successCount > 0) {
       onOpenChange(false);
     }
   };
