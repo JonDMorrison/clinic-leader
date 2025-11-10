@@ -289,17 +289,21 @@ const DocumentUploadAdmin = () => {
       return;
     }
 
+    // Pre-open a tab synchronously to avoid popup blockers
+    const preOpened = window.open('', '_blank', 'noopener,noreferrer');
+
     // Derive storage path from public URL: /object/public/documents/<path>
     const match = fileUrl.match(/\/object\/public\/documents\/(.+)$/);
     const storagePath = match ? match[1] : null;
 
-    if (!storagePath) {
-      // Fallback to opening the original URL
-      window.open(fileUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
     try {
+      if (!storagePath) {
+        // Fallback to navigating the pre-opened window to the original URL
+        if (preOpened) preOpened.location.href = fileUrl;
+        else window.open(fileUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
       const { data, error } = await supabase.storage
         .from('documents')
         .download(storagePath);
@@ -309,8 +313,8 @@ const DocumentUploadAdmin = () => {
       }
 
       const blobUrl = URL.createObjectURL(data);
-      window.open(blobUrl, '_blank', 'noopener,noreferrer');
-      // Revoke later to free memory
+      if (preOpened) preOpened.location.href = blobUrl;
+      else window.open(blobUrl, '_blank', 'noopener,noreferrer');
       setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
     } catch (err) {
       console.error('Failed to open document via storage download', err);
@@ -319,6 +323,7 @@ const DocumentUploadAdmin = () => {
         description: "We couldn't open the file. Try downloading instead.",
         variant: "destructive",
       });
+      if (preOpened) preOpened.close();
     }
   };
 
