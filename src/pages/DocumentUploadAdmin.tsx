@@ -29,6 +29,8 @@ interface DocViewerFrameProps {
 }
 
 function DocViewerFrame({ blobUrl, fileName, contentType }: DocViewerFrameProps) {
+  const [blocked, setBlocked] = useState(false);
+
   console.log("[DocViewerFrame] Rendering with blobUrl:", blobUrl);
   console.log("[DocViewerFrame] fileName:", fileName);
   console.log("[DocViewerFrame] contentType:", contentType);
@@ -45,28 +47,67 @@ function DocViewerFrame({ blobUrl, fileName, contentType }: DocViewerFrameProps)
     (contentType && contentType.toLowerCase().includes("pdf")) ||
     fileName.toLowerCase().endsWith(".pdf");
 
+  // If we detect it's blocked, show download-only fallback
+  if (blocked) {
+    console.warn("[DocViewerFrame] Inline preview appears blocked. Showing fallback.");
+    return (
+      <div className="p-4 text-xs">
+        <p className="mb-2 text-muted-foreground">
+          Your browser or an extension is blocking the inline preview.
+        </p>
+        <a
+          href={blobUrl}
+          download={fileName}
+          className="inline-flex items-center px-3 py-1 border rounded hover:bg-accent"
+        >
+          <Download className="w-3 h-3 mr-2" />
+          Download {fileName}
+        </a>
+      </div>
+    );
+  }
+
+  // For PDFs, try inline iframe view first
   if (isPdf) {
+    const handleLoad: React.ReactEventHandler<HTMLIFrameElement> = (e) => {
+      try {
+        const frameWindow = e.currentTarget.contentWindow;
+        if (!frameWindow) return;
+
+        // If Chrome/extension replaced our blob with an internal error page,
+        // location.protocol will NOT be "blob:" or access may throw.
+        const loc = frameWindow.location;
+        const protocol = loc?.protocol;
+        console.log("[DocViewerFrame] iframe loaded with protocol:", protocol);
+
+        if (protocol && protocol !== "blob:") {
+          console.warn(
+            "[DocViewerFrame] Non-blob protocol inside iframe, treating as blocked."
+          );
+          setBlocked(true);
+        }
+      } catch (err) {
+        // Accessing location can throw if Chrome swapped to a special error origin.
+        console.warn(
+          "[DocViewerFrame] Error inspecting iframe content, treating as blocked.",
+          err
+        );
+        setBlocked(true);
+      }
+    };
+
     console.log("[DocViewerFrame] Rendering iframe for PDF:", fileName);
-    
-    // Security check: Ensure we're only rendering blob URLs
-    if (!blobUrl.startsWith('blob:')) {
-      console.error("[DocViewerFrame] SECURITY: Refusing to render non-blob URL:", blobUrl);
-      return (
-        <div className="p-4 text-xs text-destructive">
-          Security error: Invalid document URL
-        </div>
-      );
-    }
-    
     return (
       <iframe
         src={blobUrl}
+        onLoad={handleLoad}
         className="w-full h-full border-0"
         title={fileName}
       />
     );
   }
 
+  // Non-PDF: no preview, offer download
   console.log("[DocViewerFrame] Non-PDF detected, fallback to download.");
   return (
     <div className="p-4 text-xs">
