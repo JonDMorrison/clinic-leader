@@ -31,11 +31,11 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch documents for the validated team using organization_id
-    // Include both 'approved' (uploaded PDFs/DOCX) and 'published' (markdown) documents
+    // Only 'approved' status is valid (uploaded PDFs/DOCX and approved documents)
     const { data: docs, error: docsError } = await supabase
       .from('docs')
       .select('*')
-      .in('status', ['approved', 'published'])
+      .eq('status', 'approved')
       .eq('organization_id', tenantContext.teamId);
 
     if (docsError) {
@@ -45,7 +45,7 @@ serve(async (req) => {
 
     const teamDocs = docs || [];
 
-    console.log(`Found ${teamDocs.length} documents for team (approved + published)`);
+    console.log(`Found ${teamDocs.length} approved documents for team`);
 
     // Build context from documents
     let docsContext = "Available Documents:\n\n";
