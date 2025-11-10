@@ -132,7 +132,7 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
         console.log("[BulkUpload] Storage upload successful, inserting into docs table");
 
         // Insert into docs table
-        const { error: insertError } = await supabase.from("docs").insert([{
+        const { data: insertData, error: insertError } = await supabase.from("docs").insert([{
           title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
           organization_id: organizationId,
           kind: fileItem.kind as "SOP" | "Policy" | "Handbook",
@@ -143,11 +143,28 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
           filename: file.name,
           file_type: fileExt,
           requires_ack: false,
-        }]);
+        }]).select('id').single();
 
         if (insertError) {
           console.error("[BulkUpload] Database insert error:", insertError);
           throw insertError;
+        }
+
+        const docId = insertData.id;
+        console.log("[BulkUpload] Document inserted with ID:", docId);
+
+        // Extract text from PDF/DOCX in background (don't wait for completion)
+        if (fileExt === 'pdf' || fileExt === 'docx') {
+          console.log("[BulkUpload] Triggering text extraction for:", file.name);
+          supabase.functions.invoke('extract-doc-text', {
+            body: { doc_id: docId, storage_path: storagePath }
+          }).then(({ error: extractError }) => {
+            if (extractError) {
+              console.error("[BulkUpload] Text extraction error:", extractError);
+            } else {
+              console.log("[BulkUpload] Text extraction triggered successfully for:", file.name);
+            }
+          });
         }
 
         console.log("[BulkUpload] Successfully uploaded:", file.name);

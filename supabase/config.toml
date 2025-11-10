@@ -92,3 +92,22 @@ verify_jwt = true
 
 [functions.doc-ai-parse]
 verify_jwt = true
+
+[functions.extract-doc-text]
+verify_jwt = false
+
+[functions.playbook-ai-parse]
+verify_jwt = true
+
+[functions.pdf-extract]
+verify_jwt = false
+
+[functions.backfill-jane-history]
+verify_jwt = true
+
+[functions.fetch-jane-kpi]
+verify_jwt = false
+
+[functions.jane-verify]
+verify_jwt = false
+
