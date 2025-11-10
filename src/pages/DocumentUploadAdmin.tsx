@@ -34,6 +34,20 @@ function DocViewerFrame({ blobUrl, fileName, contentType }: DocViewerFrameProps)
     fileName.toLowerCase().endsWith(".pdf");
 
   if (isPdf) {
+    // Debug: Verify we're using a blob URL, not a remote URL
+    console.log("[DocViewerFrame] Rendering iframe with src:", blobUrl);
+    console.log("[DocViewerFrame] URL protocol:", blobUrl.split(':')[0]);
+    
+    // Security check: Ensure we're only rendering blob URLs
+    if (!blobUrl.startsWith('blob:')) {
+      console.error("[DocViewerFrame] SECURITY: Refusing to render non-blob URL:", blobUrl);
+      return (
+        <div className="p-4 text-xs text-destructive">
+          Security error: Invalid document URL
+        </div>
+      );
+    }
+    
     return (
       <iframe
         src={blobUrl}
