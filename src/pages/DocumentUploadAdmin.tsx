@@ -29,14 +29,24 @@ interface DocViewerFrameProps {
 }
 
 function DocViewerFrame({ blobUrl, fileName, contentType }: DocViewerFrameProps) {
+  console.log("[DocViewerFrame] Rendering with blobUrl:", blobUrl);
+  console.log("[DocViewerFrame] fileName:", fileName);
+  console.log("[DocViewerFrame] contentType:", contentType);
+  
+  try {
+    const url = new URL(blobUrl);
+    console.log("[DocViewerFrame] URL protocol:", url.protocol);
+    console.log("[DocViewerFrame] URL origin:", url.origin);
+  } catch (e) {
+    console.error("[DocViewerFrame] Invalid blob URL?", e);
+  }
+  
   const isPdf =
     (contentType && contentType.toLowerCase().includes("pdf")) ||
     fileName.toLowerCase().endsWith(".pdf");
 
   if (isPdf) {
-    // Debug: Verify we're using a blob URL, not a remote URL
-    console.log("[DocViewerFrame] Rendering iframe with src:", blobUrl);
-    console.log("[DocViewerFrame] URL protocol:", blobUrl.split(':')[0]);
+    console.log("[DocViewerFrame] Rendering iframe for PDF:", fileName);
     
     // Security check: Ensure we're only rendering blob URLs
     if (!blobUrl.startsWith('blob:')) {
@@ -57,6 +67,7 @@ function DocViewerFrame({ blobUrl, fileName, contentType }: DocViewerFrameProps)
     );
   }
 
+  console.log("[DocViewerFrame] Non-PDF detected, fallback to download.");
   return (
     <div className="p-4 text-xs">
       <p className="mb-2 text-muted-foreground">Preview not available for this file type.</p>
@@ -359,28 +370,35 @@ const DocumentUploadAdmin = () => {
     setViewerLoading(true);
 
     try {
-      console.log("[Viewer] Fetching", doc.storage_path);
+      console.log("[Viewer] Fetching document:", doc.storage_path);
       const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const res = await fetch(
-        `${baseUrl}/functions/v1/get-document?path=${encodeURIComponent(doc.storage_path)}&mode=view`
-      );
-      console.log("[Viewer] Response status", res.status);
+      const fetchUrl = `${baseUrl}/functions/v1/get-document?path=${encodeURIComponent(doc.storage_path)}&mode=view`;
+      console.log("[Viewer] Fetch URL:", fetchUrl);
+      
+      const res = await fetch(fetchUrl);
+      console.log("[Viewer] Response status:", res.status);
+      console.log("[Viewer] Response ok:", res.ok);
 
       if (!res.ok) {
         throw new Error(`Failed to load document (${res.status})`);
       }
 
       const ct = res.headers.get("Content-Type") || "";
+      console.log("[Viewer] Content-Type header:", ct);
+      
       const blob = await res.blob();
+      console.log("[Viewer] Blob created, size:", blob.size, "type:", blob.type);
+      
       const url = URL.createObjectURL(blob);
-
-      console.log("[Viewer] Blob URL created", url, "CT:", ct);
+      console.log("[Viewer] Created blob URL:", url);
 
       setViewerContentType(ct);
       setViewerBlobUrl(url);
       setViewerLoading(false);
+      console.log("[Viewer] Viewer state updated successfully");
     } catch (err: any) {
-      console.error("[Viewer] Error", err);
+      console.error("[Viewer] Error fetching or rendering doc:", err);
+      console.error("[Viewer] Error stack:", err.stack);
       setViewerError(err.message || "Could not load document.");
       setViewerLoading(false);
     }
