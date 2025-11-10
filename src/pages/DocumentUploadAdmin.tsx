@@ -28,6 +28,15 @@ const DocumentUploadAdmin = () => {
   const [queuedDocs, setQueuedDocs] = useState<QueuedDoc[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newDoc, setNewDoc] = useState({ title: "", category: "Forms", file: null as File | null });
+  
+  // Inline viewer state
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerLoading, setViewerLoading] = useState(false);
+  const [viewerError, setViewerError] = useState<string | null>(null);
+  const [viewerBlobUrl, setViewerBlobUrl] = useState<string | null>(null);
+  const [viewerFileName, setViewerFileName] = useState("document");
+  const [viewerContentType, setViewerContentType] = useState<string | null>(null);
+  
   const { toast } = useToast();
 
   // Fetch uploaded documents from database
@@ -278,11 +287,95 @@ const DocumentUploadAdmin = () => {
     });
   };
 
-  const getDocumentProxyUrl = (storagePath: string | null, mode: 'view' | 'download'): string | null => {
-    if (!storagePath) return null;
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const functionUrl = `${baseUrl}/functions/v1/get-document`;
-    return `${functionUrl}?path=${encodeURIComponent(storagePath)}&mode=${mode}`;
+  const handleView = async (doc: any) => {
+    if (!doc.storage_path) {
+      toast({
+        title: "Error",
+        description: "No file path found for this document.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setViewerOpen(true);
+    setViewerLoading(true);
+    setViewerError(null);
+    setViewerBlobUrl(null);
+    setViewerFileName(doc.filename || "document");
+    setViewerContentType(null);
+
+    try {
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const res = await fetch(
+        `${baseUrl}/functions/v1/get-document?path=${encodeURIComponent(doc.storage_path)}&mode=view`
+      );
+
+      if (!res.ok) {
+        throw new Error(`Failed to load document (${res.status})`);
+      }
+
+      const ct = res.headers.get("Content-Type") || "";
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+
+      setViewerContentType(ct);
+      setViewerBlobUrl(url);
+      setViewerLoading(false);
+    } catch (err: any) {
+      setViewerError(err.message || "Could not load document.");
+      setViewerLoading(false);
+    }
+  };
+
+  const handleCloseViewer = () => {
+    if (viewerBlobUrl) URL.revokeObjectURL(viewerBlobUrl);
+    setViewerOpen(false);
+    setViewerBlobUrl(null);
+    setViewerError(null);
+  };
+
+  const handleDownload = async (doc: any) => {
+    if (!doc.storage_path) {
+      toast({
+        title: "Error",
+        description: "No file path found for this document.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const res = await fetch(
+        `${baseUrl}/functions/v1/get-document?path=${encodeURIComponent(doc.storage_path)}&mode=download`
+      );
+
+      if (!res.ok) {
+        throw new Error(`Download failed (${res.status})`);
+      }
+
+      const blob = await res.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = doc.filename || "document";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(downloadUrl);
+      
+      toast({
+        title: "Download Started",
+        description: `Downloading ${doc.filename}...`,
+      });
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: "Download Failed",
+        description: "Could not download document.",
+        variant: "destructive",
+      });
+    }
   };
 
 
@@ -454,51 +547,22 @@ const DocumentUploadAdmin = () => {
                       {doc.filename} • {doc.kind}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 ml-4">
                     <Button
-                      asChild
                       type="button"
                       size="sm"
                       variant="ghost"
+                      onClick={() => handleView(doc)}
                     >
-                      <a
-                        href={doc.storage_path ? `/doc-viewer?path=${encodeURIComponent(doc.storage_path)}&name=${encodeURIComponent(doc.filename)}` : '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => {
-                          if (!doc.storage_path) {
-                            e.preventDefault();
-                            toast({
-                              title: "Error",
-                              description: "Document path not available.",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </a>
+                      <Eye className="w-4 h-4" />
                     </Button>
                     <Button
-                      asChild
+                      type="button"
                       size="sm"
                       variant="ghost"
+                      onClick={() => handleDownload(doc)}
                     >
-                      <a
-                        href={doc.storage_path ? `/doc-download?path=${encodeURIComponent(doc.storage_path)}&name=${encodeURIComponent(doc.filename)}` : '#'}
-                        onClick={(e) => {
-                          if (!doc.storage_path) {
-                            e.preventDefault();
-                            toast({
-                              title: "Error",
-                              description: "Document path not available.",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                      >
-                        <Download className="w-4 h-4" />
-                      </a>
+                      <Download className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
@@ -511,6 +575,77 @@ const DocumentUploadAdmin = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Inline Document Viewer Modal */}
+      {viewerOpen && (
+        <div 
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={handleCloseViewer}
+        >
+          <div 
+            className="relative bg-card border rounded-lg shadow-lg w-full h-full max-w-6xl max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold truncate">{viewerFileName}</h2>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleCloseViewer}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="flex-1 overflow-hidden">
+              {viewerLoading && (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <span className="ml-2 text-muted-foreground">Loading document...</span>
+                </div>
+              )}
+              
+              {viewerError && (
+                <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                  <AlertTriangle className="w-12 h-12 text-destructive mb-4" />
+                  <p className="text-lg font-medium text-destructive mb-2">Error Loading Document</p>
+                  <p className="text-sm text-muted-foreground">{viewerError}</p>
+                </div>
+              )}
+              
+              {viewerBlobUrl && !viewerLoading && !viewerError && (
+                <>
+                  {((viewerContentType && viewerContentType.includes("pdf")) || 
+                    viewerFileName.toLowerCase().endsWith(".pdf")) ? (
+                    <iframe
+                      src={viewerBlobUrl}
+                      className="w-full h-full border-0"
+                      title={viewerFileName}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                      <p className="text-lg mb-4">Preview not available for this file type.</p>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          const a = document.createElement("a");
+                          a.href = viewerBlobUrl;
+                          a.download = viewerFileName;
+                          a.click();
+                        }}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download {viewerFileName}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
