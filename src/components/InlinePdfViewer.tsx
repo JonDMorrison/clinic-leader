@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { GlobalWorkerOptions } from "pdfjs-dist";
 
-// Use CDN worker for reliability - works in all build environments
+// Initialize worker via local ESM path (Vite-friendly)
 if (typeof window !== "undefined" && !GlobalWorkerOptions.workerSrc) {
-  GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.mjs",
+    import.meta.url
+  ).toString();
 }
 
 interface InlinePdfViewerProps {
@@ -34,7 +37,7 @@ export function InlinePdfViewer({ blobUrl }: InlinePdfViewerProps) {
         containerRef.current.innerHTML = "";
 
         console.log("[InlinePdfViewer] Calling getDocument...");
-        const loadingTask = (pdfjsLib as any).getDocument(blobUrl);
+        const loadingTask = (pdfjsLib as any).getDocument({ url: blobUrl });
         const pdf = await loadingTask.promise;
         
         if (cancelled) {
