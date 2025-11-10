@@ -29,39 +29,52 @@ interface DocViewerFrameProps {
 }
 
 function DocViewerFrame({ blobUrl, fileName, contentType }: DocViewerFrameProps) {
-  console.log("[DocViewerFrame] Rendering with blobUrl:", blobUrl);
-  console.log("[DocViewerFrame] fileName:", fileName);
-  console.log("[DocViewerFrame] contentType:", contentType);
-
   const isPdf =
     (contentType && contentType.toLowerCase().includes("pdf")) ||
     fileName.toLowerCase().endsWith(".pdf");
 
+  // Always show a clear primary action: download/open
+  // This works even if the iframe is blocked by Chrome or extensions.
+  const DownloadButton = (
+    <a
+      href={blobUrl}
+      download={fileName}
+      className="inline-flex items-center px-3 py-1 border rounded hover:bg-accent text-xs"
+    >
+      <Download className="w-3 h-3 mr-2" />
+      Download {fileName}
+    </a>
+  );
+
   if (isPdf) {
-    console.log("[DocViewerFrame] Rendering iframe for PDF:", fileName);
+    // Best-effort inline preview: if the environment allows it, great.
+    // If Chrome/extension blocks it, the user still sees the download button.
     return (
-      <iframe
-        src={blobUrl}
-        className="w-full h-full border-0"
-        title={fileName}
-      />
+      <div className="w-full h-full flex flex-col">
+        <div className="flex items-center justify-between p-2 border-b gap-2">
+          <span className="text-[11px] text-muted-foreground truncate">
+            {fileName}
+          </span>
+          {DownloadButton}
+        </div>
+        <div className="flex-1 bg-muted/20">
+          <iframe
+            src={blobUrl}
+            className="w-full h-full border-0"
+            title={fileName}
+          />
+        </div>
+      </div>
     );
   }
 
-  console.log("[DocViewerFrame] Non-PDF: showing download fallback.");
+  // Non-PDF: no inline attempt, just download
   return (
     <div className="p-4 text-xs">
       <p className="mb-2 text-muted-foreground">
-        Preview not available for this file type.
+        Preview not available for this file type. Download to view.
       </p>
-      <a
-        href={blobUrl}
-        download={fileName}
-        className="inline-flex items-center px-3 py-1 border rounded hover:bg-accent"
-      >
-        <Download className="w-3 h-3 mr-2" />
-        Download {fileName}
-      </a>
+      {DownloadButton}
     </div>
   );
 }
