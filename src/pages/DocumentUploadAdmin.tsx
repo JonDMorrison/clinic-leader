@@ -1,122 +1,53 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
-import { Upload, CheckCircle, AlertTriangle, Plus } from "lucide-react";
+import { Upload, Loader2, AlertTriangle, Plus, X, Download, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const NW_CLINICS_ORG_ID = "11111111-1111-1111-1111-111111111111";
-
-interface DocumentToUpload {
+interface QueuedDoc {
+  id: string;
   filename: string;
   title: string;
   category: string;
   parsedText: string;
   filePath: string;
+  file: File;
+  status: 'idle' | 'uploading' | 'success' | 'error';
+  errorMessage?: string;
 }
 
-const defaultDocuments: DocumentToUpload[] = [
-  {
-    filename: "Authorization_Form_for_Family_Members-SP.docx",
-    title: "Authorization Form for Family Members (Spanish)",
-    category: "Forms",
-    parsedText: `FORMULARIO DE AUTORIZACIÓN DEL PACIENTE - Autorización para divulgar información a los miembros de la familia
-
-Muchos de nuestros pacientes permiten que los miembros de la familia, como su cónyuge, pareja, padres o hijos, llamen y soliciten registros médicos, citas programadas, procedimientos e información financiera. Según los requisitos de H.I.P.A.A., no se nos permite dar esta información a nadie sin el consentimiento del paciente.
-
-Este formulario autoriza a Northwest Injury Clinics a divulgar registros médicos y cualquier información solicitada a personas específicas designadas por el paciente. También incluye autorizaciones para dejar mensajes detallados sobre citas, tratamiento médico y información financiera.`,
-    filePath: "/temp-uploads/Authorization_Form_for_Family_Members-SP.docx"
-  },
-  {
-    filename: "Credit_Card_Authorization_Agreement_Updated-NWIC_1.pdf",
-    title: "Credit Card Authorization Agreement",
-    category: "Forms",
-    parsedText: `Credit Card Authorization Agreement - Northwest Injury Clinics
-
-This agreement authorizes Northwest Injury Clinics to keep a patient's credit card on file for the purpose of paying any unpaid insurance balances. 
-
-Payment Options:
-- Option 1: Credit/debit card charged at time of service for the amount in treatment estimate
-- Option 2: Credit/debit card charged automatically after insurance claim processing for patient responsibility amount on EOB
-
-The authorization remains in effect for one year from the date signed. Credit card information is entered into a secure payment portal and not stored in paper format.`,
-    filePath: "/temp-uploads/Credit_Card_Authorization_Agreement_Updated-NWIC_1.pdf"
-  },
-  {
-    filename: "DOCTOR_LIEN_NWIC.pdf",
-    title: "Doctor's Lien Agreement",
-    category: "Legal",
-    parsedText: `DOCTOR'S LIEN - Northwest Injury Clinics
-
-This lien authorizes and directs the patient's attorney and/or insurance carrier to pay directly to Northwest Injury Clinics any sums due for services rendered. The patient gives a lien on their case against any proceeds from settlement, judgment, or verdict.
-
-Key Terms:
-- Patient authorizes release of records to attorney/insurance carrier
-- Payment to be withheld from settlement/judgment to clear account
-- Patient remains directly and fully responsible for all bills
-- Lien continues even if attorney is substituted
-- Patient waives Statute of Limitations regarding clinic's right to recover
-- Agreement cannot be rescinded
-
-The attorney/insurance carrier must sign to acknowledge and agree to observe all terms.`,
-    filePath: "/temp-uploads/DOCTOR_LIEN_NWIC.pdf"
-  },
-  {
-    filename: "Initial_MVC_History_Form_basic_1.pdf",
-    title: "Initial Motor Vehicle Collision History Form",
-    category: "Intake",
-    parsedText: `Initial Motor Vehicle Collision History Form - Northwest Injury Clinics
-
-Comprehensive intake form for motor vehicle collision patients including:
-
-General Information:
-- Patient demographics (name, DOB, age, gender)
-- Date of injury and examination
-- Current work status and employment type
-- Days missed from work
-
-Past Medical History:
-- Temporary/chronic health conditions
-- Surgeries, fractures, serious illnesses (with dates and residuals)
-- Prior work injuries and MVCs
-- Gastrointestinal and genitourinary issues
-- Family health history
-
-Accident Details:
-- Patient position (driver/passenger)
-- Vehicle information and road conditions
-- Collision type and impact details
-- Seatbelt/headrest usage
-- Airbag deployment
-- Body position during crash
-- Awareness and bracing
-
-The form includes detailed injury assessment sections for head/neck, upper extremities, torso, lower extremities, and neurological symptoms. It tracks pain levels, functional limitations, and treatment history.`,
-    filePath: "/temp-uploads/Initial_MVC_History_Form_basic_1.pdf"
-  }
-];
-
 const DocumentUploadAdmin = () => {
-  const [uploadStatus, setUploadStatus] = useState<Record<string, "pending" | "uploading" | "success" | "error">>({});
   const [isUploading, setIsUploading] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
-  const [docsToUpload, setDocsToUpload] = useState<DocumentToUpload[]>(defaultDocuments);
+  const [queuedDocs, setQueuedDocs] = useState<QueuedDoc[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newDoc, setNewDoc] = useState({ title: "", category: "Forms", file: null as File | null });
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Initialize status
-    const status: Record<string, "pending"> = {};
-    docsToUpload.forEach(doc => {
-      status[doc.filename] = "pending";
-    });
-    setUploadStatus(status);
+  // Fetch uploaded documents from database
+  const { data: uploadedDocs, refetch: refetchUploaded } = useQuery({
+    queryKey: ["uploaded-docs", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase
+        .from("docs")
+        .select("*")
+        .eq("organization_id", orgId)
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!orgId,
+  });
 
+  useEffect(() => {
     // Load current user's organization/team id
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -128,24 +59,27 @@ const DocumentUploadAdmin = () => {
         .maybeSingle();
       if (data?.team_id) setOrgId(data.team_id);
     })();
-  }, [docsToUpload]);
+  }, []);
 
-  const uploadDocument = async (doc: DocumentToUpload) => {
+  const uploadDocument = async (doc: QueuedDoc) => {
     try {
       if (!orgId) {
         const errorMsg = "Organization ID not loaded. Please refresh the page.";
         console.error(errorMsg);
-        toast({
-          title: "Upload Failed",
-          description: errorMsg,
-          variant: "destructive",
-        });
-        throw new Error(errorMsg);
+        setQueuedDocs(prev => prev.map(d => 
+          d.id === doc.id 
+            ? { ...d, status: 'error' as const, errorMessage: errorMsg }
+            : d
+        ));
+        return false;
       }
       
-      setUploadStatus(prev => ({ ...prev, [doc.filename]: "uploading" }));
+      // Set uploading status
+      setQueuedDocs(prev => prev.map(d => 
+        d.id === doc.id ? { ...d, status: 'uploading' as const } : d
+      ));
 
-      // Handle both data URLs (from FileReader) and public paths
+      // Read file blob
       let fileBlob: Blob;
       try {
         if (doc.filePath.startsWith('data:')) {
@@ -156,14 +90,14 @@ const DocumentUploadAdmin = () => {
           fileBlob = await fileResponse.blob();
         }
       } catch (blobError) {
-        const errorMsg = `Failed to read file ${doc.filename}: ${blobError}`;
+        const errorMsg = `Failed to read file: ${blobError}`;
         console.error(errorMsg, blobError);
-        toast({
-          title: "File Read Error",
-          description: errorMsg,
-          variant: "destructive",
-        });
-        throw blobError;
+        setQueuedDocs(prev => prev.map(d => 
+          d.id === doc.id 
+            ? { ...d, status: 'error' as const, errorMessage: errorMsg }
+            : d
+        ));
+        return false;
       }
 
       // Determine correct content type
@@ -180,8 +114,11 @@ const DocumentUploadAdmin = () => {
       // Create File object with explicit MIME type
       const typedFile = new File([fileBlob], doc.filename, { type: contentType });
 
-      // Upload to storage in org-specific folder
-      const storagePath = `${orgId}/${doc.filename}`;
+      // Generate unique filename with UUID to prevent conflicts
+      const uuid = crypto.randomUUID();
+      const sanitizedFilename = doc.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const storagePath = `${orgId}/${uuid}-${sanitizedFilename}`;
+      
       console.log(`Uploading to storage: ${storagePath}`);
       
       const { error: uploadError, data: uploadData } = await supabase.storage
@@ -192,14 +129,14 @@ const DocumentUploadAdmin = () => {
         });
 
       if (uploadError) {
-        const errorMsg = `Storage upload failed for ${doc.filename}: ${uploadError.message}`;
+        const errorMsg = `Storage upload failed: ${uploadError.message}`;
         console.error(errorMsg, uploadError);
-        toast({
-          title: "Storage Upload Failed",
-          description: `${doc.filename}: ${uploadError.message}`,
-          variant: "destructive",
-        });
-        throw uploadError;
+        setQueuedDocs(prev => prev.map(d => 
+          d.id === doc.id 
+            ? { ...d, status: 'error' as const, errorMessage: errorMsg }
+            : d
+        ));
+        return false;
       }
       
       console.log(`Storage upload successful:`, uploadData);
@@ -211,11 +148,11 @@ const DocumentUploadAdmin = () => {
       
       console.log(`Public URL: ${urlData.publicUrl}`);
 
-      // Create doc record - CRITICAL: use "approved" not "published"
+      // Create doc record
       const docRecord = {
         title: doc.title,
         kind: "SOP" as const,
-        status: "approved" as const, // Fixed: valid enum value
+        status: "approved" as const,
         file_url: urlData.publicUrl,
         filename: doc.filename,
         file_type: ext === 'pdf' ? 'pdf' : 'docx',
@@ -232,27 +169,38 @@ const DocumentUploadAdmin = () => {
         .select();
 
       if (docError) {
-        const errorMsg = `Database insert failed for ${doc.filename}: ${docError.message}`;
+        const errorMsg = `Database insert failed: ${docError.message}`;
         console.error(errorMsg, docError);
-        toast({
-          title: "Database Insert Failed",
-          description: `${doc.filename}: ${docError.message}`,
-          variant: "destructive",
-        });
-        throw docError;
+        setQueuedDocs(prev => prev.map(d => 
+          d.id === doc.id 
+            ? { ...d, status: 'error' as const, errorMessage: errorMsg }
+            : d
+        ));
+        return false;
       }
       
       console.log(`Doc record created:`, docData);
 
-      setUploadStatus(prev => ({ ...prev, [doc.filename]: "success" }));
+      // Success - remove from queue and show toast
       toast({
-        title: "Upload Success",
+        title: "Upload Complete",
         description: `${doc.filename} uploaded successfully.`,
       });
+
+      // Remove from queue
+      setQueuedDocs(prev => prev.filter(d => d.id !== doc.id));
+      
+      // Refresh uploaded docs list
+      refetchUploaded();
+      
       return true;
     } catch (error) {
       console.error(`Error uploading ${doc.filename}:`, error);
-      setUploadStatus(prev => ({ ...prev, [doc.filename]: "error" }));
+      setQueuedDocs(prev => prev.map(d => 
+        d.id === doc.id 
+          ? { ...d, status: 'error' as const, errorMessage: String(error) }
+          : d
+      ));
       return false;
     }
   };
@@ -269,15 +217,18 @@ const DocumentUploadAdmin = () => {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const newDocument: DocumentToUpload = {
+      const newQueuedDoc: QueuedDoc = {
+        id: crypto.randomUUID(),
         filename: newDoc.file!.name,
         title: newDoc.title,
         category: newDoc.category,
         parsedText: `User uploaded document: ${newDoc.title}`,
         filePath: e.target?.result as string,
+        file: newDoc.file!,
+        status: 'idle',
       };
       
-      setDocsToUpload([...docsToUpload, newDocument]);
+      setQueuedDocs([...queuedDocs, newQueuedDoc]);
       setNewDoc({ title: "", category: "Forms", file: null });
       setIsAddModalOpen(false);
       
@@ -292,7 +243,9 @@ const DocumentUploadAdmin = () => {
   const handleUploadAll = async () => {
     setIsUploading(true);
     
+    const docsToUpload = queuedDocs.filter(d => d.status !== 'uploading');
     let successCount = 0;
+    
     for (const doc of docsToUpload) {
       const success = await uploadDocument(doc);
       if (success) successCount++;
@@ -300,130 +253,221 @@ const DocumentUploadAdmin = () => {
 
     setIsUploading(false);
     
-    if (successCount === docsToUpload.length) {
+    if (successCount > 0) {
       toast({
         title: "Upload Complete",
-        description: `Successfully uploaded all ${successCount} documents to NW Injury Clinics.`,
-      });
-    } else {
-      toast({
-        title: "Upload Partially Complete",
-        description: `Uploaded ${successCount} of ${docsToUpload.length} documents.`,
-        variant: "destructive",
+        description: `Successfully uploaded ${successCount} document${successCount > 1 ? 's' : ''}.`,
       });
     }
+  };
+
+  const handleRetryUpload = (doc: QueuedDoc) => {
+    uploadDocument(doc);
+  };
+
+  const handleRemoveFromQueue = (docId: string) => {
+    setQueuedDocs(prev => prev.filter(d => d.id !== docId));
+  };
+
+  const handleViewDoc = (fileUrl: string) => {
+    window.open(fileUrl, '_blank');
+  };
+
+  const handleDownloadDoc = (fileUrl: string, filename: string) => {
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = filename;
+    link.click();
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold mb-2">Document Upload - NW Injury Clinics</h1>
-        <p className="text-muted-foreground">Upload and configure documents for Northwest Injury Clinics</p>
+        <h1 className="text-3xl font-bold mb-2">Upload Playbooks and Documents</h1>
+        <p className="text-muted-foreground">Add SOPs, forms, and training documents to your organization's library</p>
       </div>
 
+      {/* Upload Queue Section */}
+      {queuedDocs.length > 0 && (
+        <Card className="glass">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Upload Queue</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setQueuedDocs([])}
+              >
+                Clear Queue
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {queuedDocs.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex items-start justify-between p-4 rounded-lg border bg-card transition-all"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{doc.title}</p>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {doc.filename} • {doc.category}
+                  </p>
+                  {doc.status === 'error' && doc.errorMessage && (
+                    <p className="text-sm text-destructive mt-1">{doc.errorMessage}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                  {doc.status === 'idle' && (
+                    <span className="text-sm text-muted-foreground">Ready</span>
+                  )}
+                  {doc.status === 'uploading' && (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <span className="text-sm text-primary">Uploading...</span>
+                    </>
+                  )}
+                  {doc.status === 'error' && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRetryUpload(doc)}
+                      >
+                        Retry
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleRemoveFromQueue(doc.id)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </>
+                  )}
+                  {doc.status === 'idle' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleRemoveFromQueue(doc.id)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            <Button
+              onClick={handleUploadAll}
+              disabled={isUploading || !orgId || queuedDocs.length === 0}
+              className="w-full"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              {isUploading ? "Uploading..." : !orgId ? "Loading organization..." : "Upload All Documents"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add Document Button */}
+      <div className="flex justify-center">
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <DialogTrigger asChild>
+            <Button variant="default" size="lg">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Document to Queue
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Document</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="file">Select File</Label>
+                <Input
+                  id="file"
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => setNewDoc({ ...newDoc, file: e.target.files?.[0] || null })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="title">Document Title</Label>
+                <Input
+                  id="title"
+                  value={newDoc.title}
+                  onChange={(e) => setNewDoc({ ...newDoc, title: e.target.value })}
+                  placeholder="Enter document title"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Select value={newDoc.category} onValueChange={(value) => setNewDoc({ ...newDoc, category: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Forms">Forms</SelectItem>
+                    <SelectItem value="Legal">Legal</SelectItem>
+                    <SelectItem value="Intake">Intake</SelectItem>
+                    <SelectItem value="Policy">Policy</SelectItem>
+                    <SelectItem value="Training">Training</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleAddDocument} className="w-full">
+                Add to Queue
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Uploaded Documents Section */}
       <Card className="glass">
         <CardHeader>
-          <CardTitle>Documents Ready for Upload</CardTitle>
+          <CardTitle>Uploaded Documents</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-end gap-2">
-            <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-              <DialogTrigger asChild>
-                <Button variant="default">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Document
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Document</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="file">Select File</Label>
-                    <Input
-                      id="file"
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      onChange={(e) => setNewDoc({ ...newDoc, file: e.target.files?.[0] || null })}
-                    />
+        <CardContent>
+          {uploadedDocs && uploadedDocs.length > 0 ? (
+            <div className="space-y-2">
+              {uploadedDocs.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{doc.title}</p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {doc.filename} • {doc.kind}
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Document Title</Label>
-                    <Input
-                      id="title"
-                      value={newDoc.title}
-                      onChange={(e) => setNewDoc({ ...newDoc, title: e.target.value })}
-                      placeholder="Enter document title"
-                    />
+                  <div className="flex items-center gap-2 ml-4">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleViewDoc(doc.file_url!)}
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDownloadDoc(doc.file_url!, doc.filename!)}
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Select value={newDoc.category} onValueChange={(value) => setNewDoc({ ...newDoc, category: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Forms">Forms</SelectItem>
-                        <SelectItem value="Legal">Legal</SelectItem>
-                        <SelectItem value="Intake">Intake</SelectItem>
-                        <SelectItem value="Policy">Policy</SelectItem>
-                        <SelectItem value="Training">Training</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button onClick={handleAddDocument} className="w-full">
-                    Add to Queue
-                  </Button>
                 </div>
-              </DialogContent>
-            </Dialog>
-            <Button variant="outline" onClick={() => { setDocsToUpload([]); setUploadStatus({}); }}>
-              Clear All
-            </Button>
-            <Button variant="outline" onClick={() => {
-              setDocsToUpload(defaultDocuments);
-            }}>
-              Reset Defaults
-            </Button>
-          </div>
-
-          {docsToUpload.map((doc) => (
-            <div
-              key={doc.filename}
-              className="flex items-center justify-between p-4 rounded-lg border"
-            >
-              <div className="flex-1">
-                <p className="font-medium">{doc.title}</p>
-                <p className="text-sm text-muted-foreground">
-                  {doc.filename} • Category: {doc.category}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {uploadStatus[doc.filename] === "pending" && (
-                  <span className="text-sm text-muted-foreground">Pending</span>
-                )}
-                {uploadStatus[doc.filename] === "uploading" && (
-                  <span className="text-sm text-blue-500">Uploading...</span>
-                )}
-                {uploadStatus[doc.filename] === "success" && (
-                  <CheckCircle className="w-5 h-5 text-success" />
-                )}
-                {uploadStatus[doc.filename] === "error" && (
-                  <AlertTriangle className="w-5 h-5 text-danger" />
-                )}
-              </div>
+              ))}
             </div>
-          ))}
-
-          <Button
-            onClick={handleUploadAll}
-            disabled={isUploading || !orgId || docsToUpload.length === 0}
-            className="w-full"
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            {isUploading ? "Uploading..." : !orgId ? "Loading organization..." : docsToUpload.length === 0 ? "No documents to upload" : "Upload All Documents"}
-          </Button>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No documents uploaded yet. Add documents to the queue and upload them.
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
