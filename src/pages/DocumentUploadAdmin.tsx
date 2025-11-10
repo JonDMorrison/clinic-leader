@@ -29,53 +29,14 @@ interface DocViewerFrameProps {
 }
 
 function DocViewerFrame({ blobUrl, fileName, contentType }: DocViewerFrameProps) {
-  const [blocked, setBlocked] = useState(false);
-
   const isPdf =
     (contentType && contentType.toLowerCase().includes("pdf")) ||
     fileName.toLowerCase().endsWith(".pdf");
-
-  const onLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
-    try {
-      const iframe = e.currentTarget as HTMLIFrameElement;
-      const loc = iframe.contentWindow?.location;
-      // If Chrome/extension swapped it out, protocol will not be blob:
-      if (!loc || (loc.protocol && loc.protocol !== "blob:")) {
-        console.warn("[Viewer] Detected non-blob iframe content, marking as blocked.");
-        setBlocked(true);
-      } else {
-        console.log("[Viewer] Iframe loaded successfully with blob: protocol");
-      }
-    } catch (err) {
-      // Cross-origin / blocked -> treat as blocked
-      console.warn("[Viewer] Error inspecting iframe content, marking as blocked.", err);
-      setBlocked(true);
-    }
-  };
-
-  if (blocked) {
-    return (
-      <div className="p-4 text-xs">
-        <p className="mb-2 text-muted-foreground">
-          Your browser or an extension is blocking the inline preview.
-        </p>
-        <a
-          href={blobUrl}
-          download={fileName}
-          className="inline-flex items-center px-3 py-1 border rounded hover:bg-accent"
-        >
-          <Download className="w-3 h-3 mr-2" />
-          Download {fileName}
-        </a>
-      </div>
-    );
-  }
 
   if (isPdf) {
     return (
       <iframe
         src={blobUrl}
-        onLoad={onLoad}
         className="w-full h-full border-0"
         title={fileName}
       />
