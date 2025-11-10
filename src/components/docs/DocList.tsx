@@ -13,6 +13,8 @@ interface Doc {
   owner_id: string | null;
   requires_ack: boolean;
   updated_at: string;
+  storage_path?: string | null;
+  file_type?: string | null;
   users?: {
     full_name: string;
   } | null;
@@ -114,6 +116,11 @@ export const DocList = ({
                     <Badge variant="brand" className="gap-1">
                       <BookOpen className="w-3 h-3" />
                       Official Manual
+                    </Badge>
+                  )}
+                  {doc.file_type && (
+                    <Badge variant="muted" className="text-xs uppercase">
+                      {doc.file_type}
                     </Badge>
                   )}
                   <Badge variant={getStatusVariant(doc.status) as "success" | "warning" | "muted"}>

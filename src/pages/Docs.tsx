@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, FileText, BookOpen, Upload, Search } from "lucide-react";
+import { Plus, FileText, BookOpen, Upload, Search, Download } from "lucide-react";
+import { InlinePdfViewer } from "@/components/InlinePdfViewer";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HelpHint } from "@/components/help/HelpHint";
@@ -24,6 +25,54 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 
+// DocViewerFrame component for binary files
+function DocViewerFrame({ 
+  blobUrl, 
+  fileName, 
+  contentType,
+  onDownload 
+}: { 
+  blobUrl: string; 
+  fileName: string; 
+  contentType: string | null;
+  onDownload: () => void;
+}) {
+  const isPdf = contentType?.includes("pdf") || fileName.toLowerCase().endsWith(".pdf");
+  
+  const DownloadButton = (
+    <Button variant="outline" size="sm" onClick={onDownload}>
+      <Download className="w-3 h-3 mr-2" />
+      Download
+    </Button>
+  );
+  
+  if (isPdf) {
+    return (
+      <div className="w-full h-full flex flex-col">
+        <div className="flex items-center justify-between p-3 border-b border-border bg-muted/20">
+          <span className="text-xs font-medium text-foreground truncate flex-1">{fileName}</span>
+          {DownloadButton}
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <InlinePdfViewer blobUrl={blobUrl} />
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
+      <FileText className="w-16 h-16 text-muted-foreground" />
+      <p className="text-sm text-muted-foreground text-center">
+        Preview not available for this file type.
+        <br />
+        Download to view the document.
+      </p>
+      {DownloadButton}
+    </div>
+  );
+}
+
 const Docs = () => {
   const navigate = useNavigate();
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
@@ -35,6 +84,12 @@ const Docs = () => {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  
+  // Binary file viewer state
+  const [viewerBlobUrl, setViewerBlobUrl] = useState<string | null>(null);
+  const [viewerContentType, setViewerContentType] = useState<string | null>(null);
+  const [viewerLoading, setViewerLoading] = useState(false);
+  const [viewerError, setViewerError] = useState<string | null>(null);
   
   const debouncedSearch = useDebounce(searchQuery, 300);
 
@@ -144,9 +199,31 @@ const Docs = () => {
     setIsEditorOpen(true);
   };
 
-  const handleViewDoc = (doc: any) => {
+  const handleViewDoc = async (doc: any) => {
     setSelectedDoc(doc);
     setIsViewerOpen(true);
+    
+    // If it's a binary file, fetch via get-document
+    if (doc.storage_path) {
+      setViewerLoading(true);
+      setViewerError(null);
+      try {
+        const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const res = await fetch(
+          `${baseUrl}/functions/v1/get-document?path=${encodeURIComponent(doc.storage_path)}&mode=view`
+        );
+        if (!res.ok) throw new Error(`Failed to load document (${res.status})`);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setViewerBlobUrl(url);
+        setViewerContentType(res.headers.get("Content-Type") || "");
+        setViewerLoading(false);
+      } catch (err: any) {
+        console.error("Error loading document:", err);
+        setViewerError(err.message || "Failed to load document");
+        setViewerLoading(false);
+      }
+    }
   };
 
   const handleCloseEditor = () => {
@@ -155,8 +232,40 @@ const Docs = () => {
   };
 
   const handleCloseViewer = () => {
+    if (viewerBlobUrl) {
+      URL.revokeObjectURL(viewerBlobUrl);
+    }
+    setViewerBlobUrl(null);
+    setViewerContentType(null);
+    setViewerError(null);
+    setViewerLoading(false);
     setIsViewerOpen(false);
     setSelectedDoc(null);
+  };
+
+  const handleDownloadDoc = async (doc: any) => {
+    if (!doc.storage_path) return;
+    
+    try {
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const res = await fetch(
+        `${baseUrl}/functions/v1/get-document?path=${encodeURIComponent(doc.storage_path)}&mode=download`
+      );
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = doc.filename || doc.title;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Download started");
+    } catch (err: any) {
+      console.error("Error downloading document:", err);
+      toast.error("Failed to download document");
+    }
   };
 
   const handleSuccess = () => {
@@ -376,57 +485,86 @@ const Docs = () => {
             <DialogTitle>{selectedDoc?.title}</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6">
-            <div className="flex gap-2 text-sm text-muted-foreground">
-              <span className="capitalize">{selectedDoc?.kind}</span>
-              <span>•</span>
-              <span>v{selectedDoc?.version}</span>
-              <span>•</span>
-              <span>
-                Updated {selectedDoc?.updated_at && new Date(selectedDoc.updated_at).toLocaleDateString()}
-              </span>
-            </div>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="prose prose-base max-w-none dark:prose-invert 
-                  prose-headings:font-extrabold prose-headings:text-foreground
-                  prose-h1:text-3xl prose-h1:mb-6 prose-h1:mt-8
-                  prose-h2:text-2xl prose-h2:mb-4 prose-h2:mt-6
-                  prose-h3:text-xl prose-h3:mb-3 prose-h3:mt-5
-                  prose-p:text-foreground prose-p:leading-7 prose-p:mb-4
-                  prose-strong:font-extrabold prose-strong:text-foreground
-                  prose-ul:list-disc prose-ul:my-4 prose-ul:pl-6
-                  prose-ol:list-decimal prose-ol:my-4 prose-ol:pl-6
-                  prose-li:text-foreground prose-li:my-2">
-                  <ReactMarkdown>{selectedDoc?.body}</ReactMarkdown>
+          {selectedDoc?.storage_path ? (
+            // Binary file viewer
+            <div className="h-[80vh]">
+              {viewerLoading && (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  Loading document preview...
                 </div>
-              </CardContent>
-            </Card>
-
-            {selectedDoc?.requires_ack && (
-              <AckPanel
-                docId={selectedDoc.id}
-                docTitle={selectedDoc.title}
-                isAcknowledged={selectedDoc.acknowledgements?.some(
-                  (ack: any) => ack.user_id === currentUser?.id
-                )}
-                withQuiz={true}
-                onAcknowledged={handleSuccess}
-              />
-            )}
-
-            {isManager && (
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => {
-                  handleCloseViewer();
-                  handleEditDoc(selectedDoc);
-                }}>
-                  Edit Document
-                </Button>
+              )}
+              {viewerError && (
+                <div className="flex flex-col items-center justify-center h-full gap-4">
+                  <p className="text-destructive">{viewerError}</p>
+                  <Button onClick={() => handleDownloadDoc(selectedDoc)}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Document
+                  </Button>
+                </div>
+              )}
+              {viewerBlobUrl && !viewerLoading && !viewerError && (
+                <DocViewerFrame 
+                  blobUrl={viewerBlobUrl} 
+                  fileName={selectedDoc.filename || selectedDoc.title}
+                  contentType={viewerContentType}
+                  onDownload={() => handleDownloadDoc(selectedDoc)}
+                />
+              )}
+            </div>
+          ) : (
+            // Markdown viewer
+            <div className="space-y-6">
+              <div className="flex gap-2 text-sm text-muted-foreground">
+                <span className="capitalize">{selectedDoc?.kind}</span>
+                <span>•</span>
+                <span>v{selectedDoc?.version}</span>
+                <span>•</span>
+                <span>
+                  Updated {selectedDoc?.updated_at && new Date(selectedDoc.updated_at).toLocaleDateString()}
+                </span>
               </div>
-            )}
-          </div>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="prose prose-base max-w-none dark:prose-invert 
+                    prose-headings:font-extrabold prose-headings:text-foreground
+                    prose-h1:text-3xl prose-h1:mb-6 prose-h1:mt-8
+                    prose-h2:text-2xl prose-h2:mb-4 prose-h2:mt-6
+                    prose-h3:text-xl prose-h3:mb-3 prose-h3:mt-5
+                    prose-p:text-foreground prose-p:leading-7 prose-p:mb-4
+                    prose-strong:font-extrabold prose-strong:text-foreground
+                    prose-ul:list-disc prose-ul:my-4 prose-ul:pl-6
+                    prose-ol:list-decimal prose-ol:my-4 prose-ol:pl-6
+                    prose-li:text-foreground prose-li:my-2">
+                    <ReactMarkdown>{selectedDoc?.body}</ReactMarkdown>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {selectedDoc?.requires_ack && (
+                <AckPanel
+                  docId={selectedDoc.id}
+                  docTitle={selectedDoc.title}
+                  isAcknowledged={selectedDoc.acknowledgements?.some(
+                    (ack: any) => ack.user_id === currentUser?.id
+                  )}
+                  withQuiz={true}
+                  onAcknowledged={handleSuccess}
+                />
+              )}
+
+              {isManager && (
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => {
+                    handleCloseViewer();
+                    handleEditDoc(selectedDoc);
+                  }}>
+                    Edit Document
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
