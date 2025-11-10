@@ -462,7 +462,7 @@ const DocumentUploadAdmin = () => {
                       variant="ghost"
                     >
                       <a
-                        href={getDocumentProxyUrl(doc.storage_path, 'view') || '#'}
+                        href={doc.storage_path ? `/doc-viewer?path=${encodeURIComponent(doc.storage_path)}&name=${encodeURIComponent(doc.filename)}` : '#'}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => {
@@ -485,7 +485,7 @@ const DocumentUploadAdmin = () => {
                       variant="ghost"
                     >
                       <a
-                        href={getDocumentProxyUrl(doc.storage_path, 'download') || '#'}
+                        href={doc.storage_path ? `/doc-download?path=${encodeURIComponent(doc.storage_path)}&name=${encodeURIComponent(doc.filename)}` : '#'}
                         onClick={(e) => {
                           if (!doc.storage_path) {
                             e.preventDefault();
