@@ -277,7 +277,7 @@ const DocumentUploadAdmin = () => {
     });
   };
 
-  const handleViewDoc = (e: React.MouseEvent, fileUrl: string | null) => {
+  const handleViewDoc = async (e: React.MouseEvent, fileUrl: string | null) => {
     e.preventDefault();
     e.stopPropagation();
     if (!fileUrl) {
@@ -288,10 +288,41 @@ const DocumentUploadAdmin = () => {
       });
       return;
     }
-    window.open(fileUrl, '_blank', 'noopener,noreferrer');
+
+    // Derive storage path from public URL: /object/public/documents/<path>
+    const match = fileUrl.match(/\/object\/public\/documents\/(.+)$/);
+    const storagePath = match ? match[1] : null;
+
+    if (!storagePath) {
+      // Fallback to opening the original URL
+      window.open(fileUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .download(storagePath);
+
+      if (error || !data) {
+        throw error || new Error('No data returned');
+      }
+
+      const blobUrl = URL.createObjectURL(data);
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      // Revoke later to free memory
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (err) {
+      console.error('Failed to open document via storage download', err);
+      toast({
+        title: "Unable to open",
+        description: "We couldn't open the file. Try downloading instead.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDownloadDoc = (e: React.MouseEvent, fileUrl: string | null, filename: string | null) => {
+  const handleDownloadDoc = async (e: React.MouseEvent, fileUrl: string | null, filename: string | null) => {
     e.preventDefault();
     e.stopPropagation();
     if (!fileUrl || !filename) {
@@ -302,14 +333,48 @@ const DocumentUploadAdmin = () => {
       });
       return;
     }
-    
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = filename;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    const match = fileUrl.match(/\/object\/public\/documents\/(.+)$/);
+    const storagePath = match ? match[1] : null;
+
+    try {
+      if (!storagePath) {
+        // Fallback: direct link
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .download(storagePath);
+
+      if (error || !data) {
+        throw error || new Error('No data returned');
+      }
+
+      const blobUrl = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (err) {
+      console.error('Failed to download document via storage download', err);
+      toast({
+        title: "Unable to download",
+        description: "We couldn't download the file. Please try again later.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
