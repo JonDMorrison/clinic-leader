@@ -349,7 +349,7 @@ const DocumentUploadAdmin = () => {
                     <p className="text-sm text-destructive mt-1">{doc.errorMessage}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 ml-4">
+                <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
                   {doc.status === 'idle' && (
                     <span className="text-sm text-muted-foreground">Ready</span>
                   )}
@@ -362,6 +362,7 @@ const DocumentUploadAdmin = () => {
                   {doc.status === 'error' && (
                     <>
                       <Button
+                        type="button"
                         size="sm"
                         variant="outline"
                         onClick={(e) => handleRetryUpload(e, doc)}
@@ -369,6 +370,7 @@ const DocumentUploadAdmin = () => {
                         Retry
                       </Button>
                       <Button
+                        type="button"
                         size="sm"
                         variant="ghost"
                         onClick={(e) => handleRemoveFromQueue(e, doc.id)}
@@ -379,6 +381,7 @@ const DocumentUploadAdmin = () => {
                   )}
                   {doc.status === 'idle' && (
                     <Button
+                      type="button"
                       size="sm"
                       variant="ghost"
                       onClick={(e) => handleRemoveFromQueue(e, doc.id)}
@@ -391,6 +394,7 @@ const DocumentUploadAdmin = () => {
             ))}
 
             <Button
+              type="button"
               onClick={handleUploadAll}
               disabled={isUploading || !orgId || queuedDocs.length === 0}
               className="w-full"
@@ -406,7 +410,7 @@ const DocumentUploadAdmin = () => {
       <div className="flex justify-center">
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogTrigger asChild>
-            <Button variant="default" size="lg">
+            <Button variant="default" size="lg" type="button">
               <Plus className="w-4 h-4 mr-2" />
               Add Document to Queue
             </Button>
@@ -449,7 +453,7 @@ const DocumentUploadAdmin = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleAddDocument} className="w-full">
+              <Button onClick={handleAddDocument} className="w-full" type="button">
                 Add to Queue
               </Button>
             </div>
@@ -476,8 +480,9 @@ const DocumentUploadAdmin = () => {
                       {doc.filename} • {doc.kind}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 ml-4">
+                  <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
                     <Button
+                      type="button"
                       size="sm"
                       variant="ghost"
                       onClick={(e) => handleViewDoc(e, doc.file_url)}
