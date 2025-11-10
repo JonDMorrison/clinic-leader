@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { GlobalWorkerOptions } from "pdfjs-dist";
+// @ts-ignore - Vite will resolve to an asset URL string
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
 
-// Initialize worker via local ESM path (Vite-friendly)
-if (typeof window !== "undefined" && !GlobalWorkerOptions.workerSrc) {
-  GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.mjs",
-    import.meta.url
-  ).toString();
+// Configure PDF.js worker using bundled URL to avoid resolution issues
+if (typeof window !== "undefined") {
+  GlobalWorkerOptions.workerSrc = pdfjsWorker as unknown as string;
 }
 
 interface InlinePdfViewerProps {
@@ -29,15 +28,19 @@ export function InlinePdfViewer({ blobUrl }: InlinePdfViewerProps) {
 
       try {
         if (!containerRef.current) {
-          console.warn("[InlinePdfViewer] Container ref not ready");
-          return;
+          // Wait one frame for ref to mount
+          await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
         }
 
-        // Clear previous render
-        containerRef.current.innerHTML = "";
+        // Clear previous render (if any)
+        if (containerRef.current) {
+          containerRef.current.innerHTML = "";
+        }
 
-        console.log("[InlinePdfViewer] Calling getDocument...");
-        const loadingTask = (pdfjsLib as any).getDocument({ url: blobUrl });
+        console.log("[InlinePdfViewer] Fetching ArrayBuffer from blob URL...");
+        const ab = await fetch(blobUrl).then((r) => r.arrayBuffer());
+        console.log("[InlinePdfViewer] ArrayBuffer size:", ab.byteLength);
+        const loadingTask = (pdfjsLib as any).getDocument({ data: ab });
         const pdf = await loadingTask.promise;
         
         if (cancelled) {
@@ -99,26 +102,22 @@ export function InlinePdfViewer({ blobUrl }: InlinePdfViewerProps) {
     };
   }, [blobUrl]);
 
-  if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
-        Loading PDF preview...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 text-xs text-muted-foreground">
-        {error}
-      </div>
-    );
-  }
-
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full overflow-auto bg-muted/10 p-2"
-    />
+    <div className="relative w-full h-full">
+      <div
+        ref={containerRef}
+        className="w-full h-full overflow-auto bg-muted/10 p-2"
+      />
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground bg-background/60">
+          Loading PDF preview...
+        </div>
+      )}
+      {error && (
+        <div className="absolute inset-0 p-4 text-xs text-muted-foreground bg-background/60">
+          {error}
+        </div>
+      )}
+    </div>
   );
 }
