@@ -1,5 +1,8 @@
 project_id = "uyfsfmxwrbukfhkskizu"
 
+[functions.get-document]
+verify_jwt = false
+
 [functions.admin-impersonate]
 verify_jwt = true
 
