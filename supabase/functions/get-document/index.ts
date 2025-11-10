@@ -67,14 +67,41 @@ serve(async (req) => {
 
     console.log('[get-document] Successfully created signed URL');
 
-    // Redirect to the signed URL
-    return new Response(null, {
-      status: 302,
-      headers: {
-        ...corsHeaders,
-        'Location': data.signedUrl,
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-      },
+    // Stream the file from the signed URL back through this first-party endpoint
+    const signedUrl = data.signedUrl;
+    const fileResp = await fetch(signedUrl);
+
+    if (!fileResp.ok || !fileResp.body) {
+      console.error('[get-document] Error fetching file via signed URL:', fileResp.status, await fileResp.text().catch(() => ''));
+      return new Response(
+        JSON.stringify({ error: 'Document fetch failed' }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Derive filename from path
+    const filename = path.split('/').pop() || 'document';
+    const contentType = fileResp.headers.get('Content-Type') || 'application/octet-stream';
+    const contentLength = fileResp.headers.get('Content-Length') || undefined;
+    const disposition = mode === 'download' ? `attachment; filename="${filename}"` : `inline; filename="${filename}"`;
+
+    const headers: Record<string, string> = {
+      ...corsHeaders,
+      'Content-Type': contentType,
+      'Content-Disposition': disposition,
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'X-Content-Type-Options': 'nosniff',
+    };
+    if (contentLength) headers['Content-Length'] = contentLength;
+
+    return new Response(fileResp.body, {
+      status: 200,
+      headers,
     });
   } catch (error) {
     console.error('[get-document] Unexpected error:', error);
