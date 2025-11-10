@@ -64,24 +64,39 @@ const ReportView = () => {
               Generated {new Date(report.created_at).toLocaleDateString()}
             </p>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {report.sent_at && (
-            <Badge variant="success" className="flex items-center gap-1">
-              <Mail className="w-3 h-3" />
-              Sent {new Date(report.sent_at).toLocaleDateString()}
-            </Badge>
-          )}
-          <Badge variant="brand">{report.period}</Badge>
-          {report.file_url && (
-            <Button variant="outline" size="sm" asChild>
-              <a href={report.file_url} target="_blank" rel="noopener noreferrer">
+          </div>
+          <div className="flex items-center gap-2">
+            {report.sent_at && (
+              <Badge variant="success" className="flex items-center gap-1">
+                <Mail className="w-3 h-3" />
+                Sent {new Date(report.sent_at).toLocaleDateString()}
+              </Badge>
+            )}
+            <Badge variant="brand">{report.period}</Badge>
+            {report.file_url && (
+              <Button variant="outline" size="sm" onClick={async () => {
+                try {
+                  const res = await fetch(report.file_url as string);
+                  if (!res.ok) throw new Error(`Download failed (${res.status})`);
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  const fileName = decodeURIComponent((report.file_url as string).split('/').pop() || 'report.pdf');
+                  a.href = url;
+                  a.download = fileName;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                } catch (e) {
+                  console.error('Report download failed', e);
+                }
+              }}>
                 <Download className="w-4 h-4 mr-2" />
                 Download PDF
-              </a>
-            </Button>
-          )}
-        </div>
+              </Button>
+            )}
+          </div>
       </div>
 
       {/* Executive Summary */}

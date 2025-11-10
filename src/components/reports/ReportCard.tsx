@@ -19,6 +19,25 @@ export const ReportCard = ({ report }: ReportCardProps) => {
       : <Badge variant="muted">Monthly</Badge>;
   };
 
+  const handleDownload = async () => {
+    if (!report.file_url) return;
+    try {
+      const res = await fetch(report.file_url);
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const fileName = decodeURIComponent(report.file_url.split('/').pop() || 'report.pdf');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Report download failed', e);
+    }
+  };
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader>
@@ -86,10 +105,8 @@ export const ReportCard = ({ report }: ReportCardProps) => {
             </Link>
           </Button>
           {report.file_url && (
-            <Button asChild variant="outline" size="sm">
-              <a href={report.file_url} target="_blank" rel="noopener noreferrer">
-                <Download className="w-4 h-4" />
-              </a>
+            <Button variant="outline" size="sm" onClick={handleDownload}>
+              <Download className="w-4 h-4" />
             </Button>
           )}
         </div>

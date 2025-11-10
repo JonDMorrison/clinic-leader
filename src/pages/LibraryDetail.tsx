@@ -61,13 +61,18 @@ export default function LibraryDetail() {
 
       if (error) throw error;
 
-      // Trigger download
+      // Fetch and download via blob URL
+      const fileRes = await fetch(data.signedUrl);
+      if (!fileRes.ok) throw new Error(`Download failed (${fileRes.status})`);
+      const blob = await fileRes.blob();
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = data.signedUrl;
+      link.href = url;
       link.download = playbook.filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
       toast.success('Download started');
     } catch (error: any) {
