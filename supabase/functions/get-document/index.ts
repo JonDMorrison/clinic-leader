@@ -19,24 +19,17 @@ serve(async (req) => {
 
     // Validate input
     if (!path) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameter: path' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      console.error('[get-document] Missing path parameter');
+      return new Response('Missing path', { status: 400, headers: corsHeaders });
     }
 
     // Validate mode
     if (!['view', 'download'].includes(mode)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid mode. Must be "view" or "download"' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      console.error('[get-document] Invalid mode:', mode);
+      return new Response('Invalid mode. Must be "view" or "download"', { 
+        status: 400, 
+        headers: corsHeaders 
+      });
     }
 
     console.log(`[get-document] Serving document: ${path}, mode: ${mode}`);
@@ -50,68 +43,67 @@ serve(async (req) => {
     // Create a signed URL (valid for 60 seconds)
     const { data, error } = await supabase.storage
       .from('documents')
-      .createSignedUrl(path, 60, {
-        download: mode === 'download'
-      });
+      .createSignedUrl(path, 60);
 
     if (error || !data?.signedUrl) {
       console.error('[get-document] Error creating signed URL:', error);
-      return new Response(
-        JSON.stringify({ error: 'Document not found or access denied' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      return new Response('Document not found or access denied', { 
+        status: 404, 
+        headers: corsHeaders 
+      });
     }
 
-    console.log('[get-document] Successfully created signed URL');
+    console.log('[get-document] Successfully created signed URL, fetching file...');
 
-    // Stream the file from the signed URL back through this first-party endpoint
-    const signedUrl = data.signedUrl;
-    const fileResp = await fetch(signedUrl);
+    // Fetch the file from the signed URL
+    const fileRes = await fetch(data.signedUrl);
 
-    if (!fileResp.ok || !fileResp.body) {
-      console.error('[get-document] Error fetching file via signed URL:', fileResp.status, await fileResp.text().catch(() => ''));
-      return new Response(
-        JSON.stringify({ error: 'Document fetch failed' }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    if (!fileRes.ok) {
+      console.error('[get-document] Error fetching file via signed URL:', fileRes.status);
+      return new Response('Failed to fetch file', {
+        status: 502,
+        headers: corsHeaders
+      });
     }
 
+    // Stream the file bytes
+    const buf = await fileRes.arrayBuffer();
+    
     // Derive filename from path
-    const filename = path.split('/').pop() || 'document';
-    const contentType = fileResp.headers.get('Content-Type') || 'application/octet-stream';
-    const contentLength = fileResp.headers.get('Content-Length') || undefined;
-    const disposition = mode === 'download' ? `attachment; filename="${filename}"` : `inline; filename="${filename}"`;
+    const fileName = path.split('/').pop() || 'document';
+    const contentType = fileRes.headers.get('Content-Type') || 'application/pdf';
+    const contentLength = fileRes.headers.get('Content-Length');
 
-    const headers: Record<string, string> = {
+    const disposition = mode === 'download' 
+      ? `attachment; filename="${fileName}"` 
+      : `inline; filename="${fileName}"`;
+
+    console.log(`[get-document] Returning ${buf.byteLength} bytes, CT: ${contentType}, disposition: ${disposition}`);
+
+    const responseHeaders: Record<string, string> = {
       ...corsHeaders,
       'Content-Type': contentType,
       'Content-Disposition': disposition,
       'Cache-Control': 'no-store, no-cache, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0',
-      'X-Content-Type-Options': 'nosniff',
     };
-    if (contentLength) headers['Content-Length'] = contentLength;
+    
+    if (contentLength) {
+      responseHeaders['Content-Length'] = contentLength;
+    }
 
-    return new Response(fileResp.body, {
+    // Return pure binary response - NO redirects, NO HTML
+    return new Response(buf, {
       status: 200,
-      headers,
+      headers: responseHeaders,
     });
   } catch (error) {
     console.error('[get-document] Unexpected error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    return new Response(errorMessage, { 
+      status: 500, 
+      headers: corsHeaders 
+    });
   }
 });

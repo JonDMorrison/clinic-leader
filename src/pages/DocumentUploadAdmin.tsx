@@ -22,6 +22,81 @@ interface QueuedDoc {
   errorMessage?: string;
 }
 
+interface DocViewerFrameProps {
+  blobUrl: string;
+  fileName: string;
+  contentType: string | null;
+}
+
+function DocViewerFrame({ blobUrl, fileName, contentType }: DocViewerFrameProps) {
+  const [blocked, setBlocked] = useState(false);
+
+  const isPdf =
+    (contentType && contentType.toLowerCase().includes("pdf")) ||
+    fileName.toLowerCase().endsWith(".pdf");
+
+  const onLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
+    try {
+      const iframe = e.currentTarget as HTMLIFrameElement;
+      const loc = iframe.contentWindow?.location;
+      // If Chrome/extension swapped it out, protocol will not be blob:
+      if (!loc || (loc.protocol && loc.protocol !== "blob:")) {
+        console.warn("[Viewer] Detected non-blob iframe content, marking as blocked.");
+        setBlocked(true);
+      } else {
+        console.log("[Viewer] Iframe loaded successfully with blob: protocol");
+      }
+    } catch (err) {
+      // Cross-origin / blocked -> treat as blocked
+      console.warn("[Viewer] Error inspecting iframe content, marking as blocked.", err);
+      setBlocked(true);
+    }
+  };
+
+  if (blocked) {
+    return (
+      <div className="p-4 text-xs">
+        <p className="mb-2 text-muted-foreground">
+          Your browser or an extension is blocking the inline preview.
+        </p>
+        <a
+          href={blobUrl}
+          download={fileName}
+          className="inline-flex items-center px-3 py-1 border rounded hover:bg-accent"
+        >
+          <Download className="w-3 h-3 mr-2" />
+          Download {fileName}
+        </a>
+      </div>
+    );
+  }
+
+  if (isPdf) {
+    return (
+      <iframe
+        src={blobUrl}
+        onLoad={onLoad}
+        className="w-full h-full border-0"
+        title={fileName}
+      />
+    );
+  }
+
+  return (
+    <div className="p-4 text-xs">
+      <p className="mb-2 text-muted-foreground">Preview not available for this file type.</p>
+      <a
+        href={blobUrl}
+        download={fileName}
+        className="inline-flex items-center px-3 py-1 border rounded hover:bg-accent"
+      >
+        <Download className="w-3 h-3 mr-2" />
+        Download {fileName}
+      </a>
+    </div>
+  );
+}
+
 const DocumentUploadAdmin = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -30,12 +105,11 @@ const DocumentUploadAdmin = () => {
   const [newDoc, setNewDoc] = useState({ title: "", category: "Forms", file: null as File | null });
   
   // Inline viewer state
-  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerDoc, setViewerDoc] = useState<any | null>(null);
+  const [viewerBlobUrl, setViewerBlobUrl] = useState<string | null>(null);
+  const [viewerContentType, setViewerContentType] = useState<string | null>(null);
   const [viewerLoading, setViewerLoading] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
-  const [viewerBlobUrl, setViewerBlobUrl] = useState<string | null>(null);
-  const [viewerFileName, setViewerFileName] = useState("document");
-  const [viewerContentType, setViewerContentType] = useState<string | null>(null);
   
   const { toast } = useToast();
 
@@ -287,8 +361,9 @@ const DocumentUploadAdmin = () => {
     });
   };
 
-  const handleViewDoc = async (doc: any) => {
+  const openViewer = async (doc: any) => {
     if (!doc.storage_path) {
+      console.error("[Viewer] Missing storage_path", doc);
       toast({
         title: "Error",
         description: "No file path found for this document.",
@@ -297,23 +372,24 @@ const DocumentUploadAdmin = () => {
       return;
     }
 
-    // Reset state and clean up previous blob if exists
+    // Cleanup old blob if exists
     if (viewerBlobUrl) {
       URL.revokeObjectURL(viewerBlobUrl);
       setViewerBlobUrl(null);
     }
     
-    setViewerFileName(doc.filename || "Document");
+    setViewerDoc(doc);
     setViewerContentType(null);
     setViewerError(null);
     setViewerLoading(true);
-    setViewerOpen(true);
 
     try {
+      console.log("[Viewer] Fetching", doc.storage_path);
       const baseUrl = import.meta.env.VITE_SUPABASE_URL;
       const res = await fetch(
         `${baseUrl}/functions/v1/get-document?path=${encodeURIComponent(doc.storage_path)}&mode=view`
       );
+      console.log("[Viewer] Response status", res.status);
 
       if (!res.ok) {
         throw new Error(`Failed to load document (${res.status})`);
@@ -323,27 +399,31 @@ const DocumentUploadAdmin = () => {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
 
+      console.log("[Viewer] Blob URL created", url, "CT:", ct);
+
       setViewerContentType(ct);
       setViewerBlobUrl(url);
       setViewerLoading(false);
     } catch (err: any) {
-      console.error(err);
+      console.error("[Viewer] Error", err);
       setViewerError(err.message || "Could not load document.");
       setViewerLoading(false);
     }
   };
 
-  const handleCloseViewer = () => {
+  const closeViewer = () => {
     if (viewerBlobUrl) {
       URL.revokeObjectURL(viewerBlobUrl);
     }
     setViewerBlobUrl(null);
+    setViewerDoc(null);
     setViewerError(null);
-    setViewerOpen(false);
+    setViewerLoading(false);
   };
 
   const handleDownloadDoc = async (doc: any) => {
     if (!doc.storage_path) {
+      console.error("[Download] Missing storage_path", doc);
       toast({
         title: "Error",
         description: "No file path found for this document.",
@@ -353,10 +433,12 @@ const DocumentUploadAdmin = () => {
     }
 
     try {
+      console.log("[Download] Fetching", doc.storage_path);
       const baseUrl = import.meta.env.VITE_SUPABASE_URL;
       const res = await fetch(
         `${baseUrl}/functions/v1/get-document?path=${encodeURIComponent(doc.storage_path)}&mode=download`
       );
+      console.log("[Download] Response", res.status);
 
       if (!res.ok) {
         throw new Error(`Download failed (${res.status})`);
@@ -372,12 +454,13 @@ const DocumentUploadAdmin = () => {
       a.remove();
       URL.revokeObjectURL(url);
 
+      console.log("[Download] Success");
       toast({
         title: "Download Started",
         description: `Downloading ${doc.filename}...`,
       });
     } catch (err: any) {
-      console.error(err);
+      console.error("[Download] Error", err);
       toast({
         title: "Download Failed",
         description: "Could not download document.",
@@ -560,7 +643,7 @@ const DocumentUploadAdmin = () => {
                       type="button"
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleViewDoc(doc)}
+                      onClick={() => openViewer(doc)}
                     >
                       <Eye className="w-4 h-4" />
                     </Button>
@@ -584,31 +667,31 @@ const DocumentUploadAdmin = () => {
         </CardContent>
       </Card>
 
-      {/* Inline Document Viewer Modal */}
-      {viewerOpen && (
+      {/* Inline Document Viewer Modal with Blocked-Page Detection */}
+      {viewerDoc && (
         <div 
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
-          onClick={handleCloseViewer}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={closeViewer}
         >
           <div 
-            className="bg-card rounded-lg shadow-lg w-[95vw] h-[90vh] flex flex-col"
+            className="bg-card rounded-lg shadow-lg w-[95vw] h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-3 border-b">
-              <div className="text-sm font-medium truncate">
-                {viewerFileName}
+            <div className="flex items-center justify-between px-3 py-2 border-b">
+              <div className="text-xs font-medium truncate">
+                {viewerDoc.filename}
               </div>
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
-                onClick={handleCloseViewer}
+                onClick={closeViewer}
               >
                 <X className="w-4 h-4" />
               </Button>
             </div>
             
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 bg-muted/20">
               {viewerLoading && (
                 <div className="w-full h-full flex items-center justify-center">
                   <Loader2 className="w-8 h-8 animate-spin text-primary mr-2" />
@@ -627,37 +710,11 @@ const DocumentUploadAdmin = () => {
               )}
               
               {!viewerLoading && !viewerError && viewerBlobUrl && (
-                <>
-                  {((viewerContentType && viewerContentType.toLowerCase().includes("pdf")) || 
-                    viewerFileName.toLowerCase().endsWith(".pdf")) ? (
-                    <iframe
-                      src={viewerBlobUrl}
-                      className="w-full h-full border-0"
-                      title={viewerFileName}
-                    />
-                  ) : (
-                    <div className="p-4">
-                      <p className="text-sm mb-2">
-                        Preview not available for this file type.
-                      </p>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => {
-                          const a = document.createElement("a");
-                          a.href = viewerBlobUrl;
-                          a.download = viewerFileName;
-                          document.body.appendChild(a);
-                          a.click();
-                          a.remove();
-                        }}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download {viewerFileName}
-                      </Button>
-                    </div>
-                  )}
-                </>
+                <DocViewerFrame
+                  blobUrl={viewerBlobUrl}
+                  fileName={viewerDoc.filename}
+                  contentType={viewerContentType}
+                />
               )}
             </div>
           </div>
