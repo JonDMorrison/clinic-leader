@@ -261,23 +261,55 @@ const DocumentUploadAdmin = () => {
     }
   };
 
-  const handleRetryUpload = (doc: QueuedDoc) => {
+  const handleRetryUpload = (e: React.MouseEvent, doc: QueuedDoc) => {
+    e.preventDefault();
+    e.stopPropagation();
     uploadDocument(doc);
   };
 
-  const handleRemoveFromQueue = (docId: string) => {
+  const handleRemoveFromQueue = (e: React.MouseEvent, docId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
     setQueuedDocs(prev => prev.filter(d => d.id !== docId));
+    toast({
+      title: "Removed",
+      description: "Document removed from queue.",
+    });
   };
 
-  const handleViewDoc = (fileUrl: string) => {
-    window.open(fileUrl, '_blank');
+  const handleViewDoc = (e: React.MouseEvent, fileUrl: string | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!fileUrl) {
+      toast({
+        title: "Error",
+        description: "File URL not available.",
+        variant: "destructive",
+      });
+      return;
+    }
+    window.open(fileUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const handleDownloadDoc = (fileUrl: string, filename: string) => {
+  const handleDownloadDoc = (e: React.MouseEvent, fileUrl: string | null, filename: string | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!fileUrl || !filename) {
+      toast({
+        title: "Error",
+        description: "File information not available.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const link = document.createElement('a');
     link.href = fileUrl;
     link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -332,14 +364,14 @@ const DocumentUploadAdmin = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleRetryUpload(doc)}
+                        onClick={(e) => handleRetryUpload(e, doc)}
                       >
                         Retry
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => handleRemoveFromQueue(doc.id)}
+                        onClick={(e) => handleRemoveFromQueue(e, doc.id)}
                       >
                         <X className="w-4 h-4" />
                       </Button>
@@ -349,7 +381,7 @@ const DocumentUploadAdmin = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleRemoveFromQueue(doc.id)}
+                      onClick={(e) => handleRemoveFromQueue(e, doc.id)}
                     >
                       <X className="w-4 h-4" />
                     </Button>
@@ -448,14 +480,14 @@ const DocumentUploadAdmin = () => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleViewDoc(doc.file_url!)}
+                      onClick={(e) => handleViewDoc(e, doc.file_url)}
                     >
                       <Eye className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleDownloadDoc(doc.file_url!, doc.filename!)}
+                      onClick={(e) => handleDownloadDoc(e, doc.file_url, doc.filename)}
                     >
                       <Download className="w-4 h-4" />
                     </Button>
