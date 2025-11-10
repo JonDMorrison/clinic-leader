@@ -287,7 +287,7 @@ const DocumentUploadAdmin = () => {
     });
   };
 
-  const handleView = async (doc: any) => {
+  const handleViewDoc = async (doc: any) => {
     if (!doc.storage_path) {
       toast({
         title: "Error",
@@ -297,12 +297,17 @@ const DocumentUploadAdmin = () => {
       return;
     }
 
-    setViewerOpen(true);
-    setViewerLoading(true);
-    setViewerError(null);
-    setViewerBlobUrl(null);
-    setViewerFileName(doc.filename || "document");
+    // Reset state and clean up previous blob if exists
+    if (viewerBlobUrl) {
+      URL.revokeObjectURL(viewerBlobUrl);
+      setViewerBlobUrl(null);
+    }
+    
+    setViewerFileName(doc.filename || "Document");
     setViewerContentType(null);
+    setViewerError(null);
+    setViewerLoading(true);
+    setViewerOpen(true);
 
     try {
       const baseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -322,19 +327,22 @@ const DocumentUploadAdmin = () => {
       setViewerBlobUrl(url);
       setViewerLoading(false);
     } catch (err: any) {
+      console.error(err);
       setViewerError(err.message || "Could not load document.");
       setViewerLoading(false);
     }
   };
 
   const handleCloseViewer = () => {
-    if (viewerBlobUrl) URL.revokeObjectURL(viewerBlobUrl);
-    setViewerOpen(false);
+    if (viewerBlobUrl) {
+      URL.revokeObjectURL(viewerBlobUrl);
+    }
     setViewerBlobUrl(null);
     setViewerError(null);
+    setViewerOpen(false);
   };
 
-  const handleDownload = async (doc: any) => {
+  const handleDownloadDoc = async (doc: any) => {
     if (!doc.storage_path) {
       toast({
         title: "Error",
@@ -355,15 +363,15 @@ const DocumentUploadAdmin = () => {
       }
 
       const blob = await res.blob();
-      const downloadUrl = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = downloadUrl;
+      a.href = url;
       a.download = doc.filename || "document";
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(downloadUrl);
-      
+      URL.revokeObjectURL(url);
+
       toast({
         title: "Download Started",
         description: `Downloading ${doc.filename}...`,
@@ -552,7 +560,7 @@ const DocumentUploadAdmin = () => {
                       type="button"
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleView(doc)}
+                      onClick={() => handleViewDoc(doc)}
                     >
                       <Eye className="w-4 h-4" />
                     </Button>
@@ -560,7 +568,7 @@ const DocumentUploadAdmin = () => {
                       type="button"
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleDownload(doc)}
+                      onClick={() => handleDownloadDoc(doc)}
                     >
                       <Download className="w-4 h-4" />
                     </Button>
@@ -579,15 +587,17 @@ const DocumentUploadAdmin = () => {
       {/* Inline Document Viewer Modal */}
       {viewerOpen && (
         <div 
-          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
           onClick={handleCloseViewer}
         >
           <div 
-            className="relative bg-card border rounded-lg shadow-lg w-full h-full max-w-6xl max-h-[90vh] flex flex-col"
+            className="bg-card rounded-lg shadow-lg w-[95vw] h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold truncate">{viewerFileName}</h2>
+            <div className="flex items-center justify-between p-3 border-b">
+              <div className="text-sm font-medium truncate">
+                {viewerFileName}
+              </div>
               <Button
                 type="button"
                 size="sm"
@@ -600,23 +610,25 @@ const DocumentUploadAdmin = () => {
             
             <div className="flex-1 overflow-hidden">
               {viewerLoading && (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  <span className="ml-2 text-muted-foreground">Loading document...</span>
+                <div className="w-full h-full flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary mr-2" />
+                  <span className="text-sm">Loading document...</span>
                 </div>
               )}
               
-              {viewerError && (
-                <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                  <AlertTriangle className="w-12 h-12 text-destructive mb-4" />
-                  <p className="text-lg font-medium text-destructive mb-2">Error Loading Document</p>
+              {viewerError && !viewerLoading && (
+                <div className="p-4">
+                  <div className="flex items-center gap-2 text-destructive mb-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    <span className="font-medium">Error Loading Document</span>
+                  </div>
                   <p className="text-sm text-muted-foreground">{viewerError}</p>
                 </div>
               )}
               
-              {viewerBlobUrl && !viewerLoading && !viewerError && (
+              {!viewerLoading && !viewerError && viewerBlobUrl && (
                 <>
-                  {((viewerContentType && viewerContentType.includes("pdf")) || 
+                  {((viewerContentType && viewerContentType.toLowerCase().includes("pdf")) || 
                     viewerFileName.toLowerCase().endsWith(".pdf")) ? (
                     <iframe
                       src={viewerBlobUrl}
@@ -624,15 +636,20 @@ const DocumentUploadAdmin = () => {
                       title={viewerFileName}
                     />
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                      <p className="text-lg mb-4">Preview not available for this file type.</p>
+                    <div className="p-4">
+                      <p className="text-sm mb-2">
+                        Preview not available for this file type.
+                      </p>
                       <Button
                         type="button"
+                        size="sm"
                         onClick={() => {
                           const a = document.createElement("a");
                           a.href = viewerBlobUrl;
                           a.download = viewerFileName;
+                          document.body.appendChild(a);
                           a.click();
+                          a.remove();
                         }}
                       >
                         <Download className="w-4 h-4 mr-2" />

@@ -54,8 +54,6 @@ import AdminDashboard from "./pages/AdminDashboard";
 import DocumentUploadAdmin from "./pages/DocumentUploadAdmin";
 import ScorecardSetup from "./pages/ScorecardSetup";
 import ScorecardUpdate from "./pages/ScorecardUpdate";
-import DocViewer from "./pages/DocViewer";
-import DocDownload from "./pages/DocDownload";
 
 const queryClient = new QueryClient();
 
@@ -179,8 +177,6 @@ const App = () => {
             <Route path="/admin/system-health" element={<AppLayout><SystemHealth /></AppLayout>} />
             <Route path="/admin/demo" element={<AppLayout><AdminDemo /></AppLayout>} />
             <Route path="/admin/impersonate" element={<AppLayout><AdminImpersonate /></AppLayout>} />
-            <Route path="/doc-viewer" element={<DocViewer />} />
-            <Route path="/doc-download" element={<DocDownload />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </OnboardingGuard>
