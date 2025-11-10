@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
+import { GlobalWorkerOptions } from "pdfjs-dist";
+
+// Initialize PDF.js worker when component loads
+if (typeof window !== "undefined" && !GlobalWorkerOptions.workerSrc) {
+  GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.mjs",
+    import.meta.url
+  ).toString();
+}
 
 interface InlinePdfViewerProps {
   blobUrl: string;
