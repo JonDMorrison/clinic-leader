@@ -46,40 +46,24 @@ serve(async (req) => {
     let extractedText = '';
 
     if (isPdf) {
-      console.log('[extract-doc-text] Extracting PDF text');
-      // Simple PDF text extraction
+      console.log('[extract-doc-text] Extracting PDF text with pdf-parse');
+      // Use pdf-parse library for proper PDF text extraction
       const arrayBuffer = await fileData.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      const pdfString = new TextDecoder().decode(uint8Array);
+      const pdfParse = await import('https://esm.sh/pdf-parse@1.1.1');
       
-      // Extract text between BT (begin text) and ET (end text) markers
-      const textBlocks = pdfString.match(/BT(.*?)ET/gs);
-      if (textBlocks) {
-        for (const block of textBlocks) {
-          const matches = block.match(/\((.*?)\)/g) || block.match(/\[(.*?)\]/g);
-          if (matches) {
-            for (const match of matches) {
-              const cleanText = match.replace(/[()[\]]/g, '').trim();
-              if (cleanText && cleanText.length > 0) {
-                extractedText += cleanText + ' ';
-              }
-            }
-          }
-        }
+      try {
+        const data = await pdfParse.default(new Uint8Array(arrayBuffer));
+        extractedText = data.text || '';
+        console.log(`[extract-doc-text] pdf-parse extracted ${extractedText.length} characters from ${data.numpages} pages`);
+      } catch (parseError) {
+        console.error('[extract-doc-text] pdf-parse failed:', parseError);
+        // Fallback: return empty string rather than garbled content
+        extractedText = '';
       }
-
-      // Fallback: try to extract any readable text
-      if (!extractedText || extractedText.length < 50) {
-        const readable = pdfString.match(/[a-zA-Z0-9\s.,!?-]{10,}/g);
-        if (readable) {
-          extractedText = readable.join(' ');
-        }
-      }
-
-      // Clean up
+      
+      // Clean up whitespace
       extractedText = extractedText
         .replace(/\s+/g, ' ')
-        .replace(/[^\x20-\x7E\n]/g, '')
         .trim();
 
     } else if (isDocx) {
