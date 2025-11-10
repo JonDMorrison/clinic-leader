@@ -13,6 +13,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useRef, useMemo, useEffect, useState } from "react";
 import { HelpHint } from "@/components/help/HelpHint";
+import { ValuesList } from "@/components/people/ValuesList";
 
 const Home = () => {
   const ref = useRef(null);
@@ -99,6 +100,25 @@ const Home = () => {
       
       if (error) throw error;
       return data;
+    },
+    enabled: !!currentUser?.team_id,
+  });
+
+  type CoreValue = { id: string; name: string; description: string | null };
+  
+  const { data: coreValues } = useQuery<CoreValue[]>({
+    queryKey: ["core-values", currentUser?.team_id],
+    queryFn: async (): Promise<CoreValue[]> => {
+      if (!currentUser?.team_id) return [];
+
+      const response: any = await (supabase as any)
+        .from("core_values")
+        .select("id, name, description")
+        .eq("organization_id", currentUser.team_id)
+        .order("name");
+      
+      if (response.error) throw response.error;
+      return response.data || [];
     },
     enabled: !!currentUser?.team_id,
   });
@@ -382,6 +402,10 @@ const Home = () => {
         <CopilotWidget />
         
         <VtoCard />
+
+        {coreValues && coreValues.length > 0 && (
+          <ValuesList values={coreValues} />
+        )}
       </motion.div>
 
       <motion.div
