@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import AddUserPendingModal from "@/components/admin/AddUserPendingModal";
 
 export default function AdminAddUser() {
   const [email, setEmail] = useState("");
@@ -23,6 +24,10 @@ export default function AdminAddUser() {
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [inviteSent, setInviteSent] = useState(false);
+  const [signupLink, setSignupLink] = useState("");
 
   const { data: organizations, isLoading: orgsLoading } = useQuery({
     queryKey: ["organizations-admin"],
@@ -82,11 +87,11 @@ export default function AdminAddUser() {
         setFullName("");
         setSelectedRole("");
         setSelectedDepartment("");
-      } else if (data.pending && data.signup_link) {
-        toast.info("Sign-up link generated. Share with the user to complete account creation.", {
-          description: data.signup_link,
-          duration: 10000,
-        });
+      } else if (data.pending) {
+        setPendingEmail(email);
+        setInviteSent(!!data.invite_sent);
+        setSignupLink(data.signup_link || "");
+        setModalOpen(true);
       } else {
         throw new Error(data.error || "Failed to add user");
       }
@@ -103,15 +108,23 @@ export default function AdminAddUser() {
   const selectedOrg = organizations?.find(org => org.id === selectedOrgId);
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          Add User to Organization
-        </h1>
-        <p className="text-muted-foreground">
-          Create a new user and assign them to an organization (Superadmin only)
-        </p>
-      </div>
+    <>
+      <AddUserPendingModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        email={pendingEmail}
+        inviteSent={inviteSent}
+        signupLink={signupLink}
+      />
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Add User to Organization
+          </h1>
+          <p className="text-muted-foreground">
+            Create a new user and assign them to an organization (Superadmin only)
+          </p>
+        </div>
 
       <Card>
         <CardHeader>
@@ -244,6 +257,7 @@ export default function AdminAddUser() {
           </form>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }
