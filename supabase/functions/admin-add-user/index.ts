@@ -48,6 +48,8 @@ serve(async (req) => {
       throw new Error('Missing required fields');
     }
 
+    const department_id = department ?? null;
+
     console.log(`Adding user ${email} to organization ${organization_id}`);
 
     // Normalize email for consistent matching
@@ -95,13 +97,22 @@ serve(async (req) => {
 
       if (createError) {
         console.error('createUser error:', createError.message);
-        // Fallback: if duplicate/DB error, try to locate the user and proceed
+        // Fallbacks: try to locate existing user by email
         const maybeExisting = await findAuthUserByEmail(emailLower);
         if (maybeExisting) {
           console.log('User appears to exist despite create error, proceeding with existing user.');
           authUserId = maybeExisting.id;
         } else {
-          throw new Error(`Failed to create auth user: ${createError.message}`);
+          // Last resort: try sending an invite to create/recover the auth user and get the ID
+          const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(emailLower, {
+            data: { full_name }
+          } as any);
+          if (!inviteErr && invited?.user?.id) {
+            console.log('Invite sent, using invited user id');
+            authUserId = invited.user.id as string;
+          } else {
+            throw new Error(`Failed to create auth user: ${createError.message}`);
+          }
         }
       } else {
         console.log(`Created auth user: ${authUser.user.id}`);
@@ -114,10 +125,10 @@ serve(async (req) => {
       .from('users')
       .upsert({
         id: authUserId,
-        email,
+        email: emailLower,
         full_name,
         team_id: organization_id,
-        department,
+        department_id: department_id,
       }, {
         onConflict: 'id'
       });
