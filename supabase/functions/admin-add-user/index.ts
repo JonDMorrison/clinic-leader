@@ -50,41 +50,63 @@ serve(async (req) => {
 
     console.log(`Adding user ${email} to organization ${organization_id}`);
 
-    // Check if auth user already exists
-    const { data: existingAuthUsers } = await supabaseAdmin.auth.admin.listUsers();
+    // Normalize email for consistent matching
+    const emailLower = String(email).trim().toLowerCase();
+
+    // Helper: find existing auth user by email across all pages
+    const findAuthUserByEmail = async (targetEmail: string) => {
+      let page = 1;
+      const perPage = 1000;
+      // Loop through pages defensively
+      while (true) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+        if (error) {
+          console.warn('listUsers error (page ' + page + '):', error.message);
+          break;
+        }
+        const found = data?.users?.find((u: any) => (u.email || '').toLowerCase() === targetEmail);
+        if (found) return found;
+        if (!data || !data.nextPage || data.nextPage === page) break;
+        page = data.nextPage;
+      }
+      return null;
+    };
+
+    // Find existing user if present
+    let existingUser = await findAuthUserByEmail(emailLower);
     let authUserId: string;
-    let existingUser = existingAuthUsers?.users.find(u => u.email === email);
 
     if (existingUser) {
       console.log(`Auth user already exists: ${existingUser.id}`);
       authUserId = existingUser.id;
-      
-      // Update password if user exists
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-        authUserId,
-        { password }
-      );
-      
+      // Attempt to update password for convenience
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, { password });
       if (updateError) {
-        console.error('Failed to update password:', updateError);
+        console.warn('Failed to update password for existing user (non-fatal):', updateError.message);
       }
     } else {
-      // Create new auth user
+      // Create new auth user (lowercased email)
       const { data: authUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email,
+        email: emailLower,
         password,
         email_confirm: true,
-        user_metadata: {
-          full_name,
-        }
+        user_metadata: { full_name },
       });
 
       if (createError) {
-        throw new Error(`Failed to create auth user: ${createError.message}`);
+        console.error('createUser error:', createError.message);
+        // Fallback: if duplicate/DB error, try to locate the user and proceed
+        const maybeExisting = await findAuthUserByEmail(emailLower);
+        if (maybeExisting) {
+          console.log('User appears to exist despite create error, proceeding with existing user.');
+          authUserId = maybeExisting.id;
+        } else {
+          throw new Error(`Failed to create auth user: ${createError.message}`);
+        }
+      } else {
+        console.log(`Created auth user: ${authUser.user.id}`);
+        authUserId = authUser.user.id;
       }
-
-      console.log(`Created auth user: ${authUser.user.id}`);
-      authUserId = authUser.user.id;
     }
 
     // Upsert into users table (in case user exists)
