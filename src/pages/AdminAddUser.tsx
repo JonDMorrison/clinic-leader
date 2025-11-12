@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import AddUserPendingModal from "@/components/admin/AddUserPendingModal";
 
 export default function AdminAddUser() {
   const [email, setEmail] = useState("");
@@ -24,11 +23,6 @@ export default function AdminAddUser() {
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [pendingEmail, setPendingEmail] = useState("");
-  const [pendingFullName, setPendingFullName] = useState("");
-  const [inviteSent, setInviteSent] = useState(false);
-  const [signupLink, setSignupLink] = useState("");
 
   const { data: organizations, isLoading: orgsLoading } = useQuery({
     queryKey: ["organizations-admin"],
@@ -88,14 +82,8 @@ export default function AdminAddUser() {
         setFullName("");
         setSelectedRole("");
         setSelectedDepartment("");
-      } else if (data.pending) {
-        setPendingEmail(email);
-        setPendingFullName(fullName);
-        setInviteSent(!!data.invite_sent);
-        setSignupLink(data.signup_link || "");
-        setModalOpen(true);
       } else {
-        throw new Error(data.error || "Failed to add user");
+        throw new Error(data.error || data.message || "Failed to add user");
       }
     } catch (error: any) {
       console.error("Error adding user:", error);
@@ -110,16 +98,7 @@ export default function AdminAddUser() {
   const selectedOrg = organizations?.find(org => org.id === selectedOrgId);
 
   return (
-    <>
-      <AddUserPendingModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        email={pendingEmail}
-        fullName={pendingFullName}
-        inviteSent={inviteSent}
-        signupLink={signupLink}
-      />
-      <div className="space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-6 max-w-2xl mx-auto">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Add User to Organization
@@ -260,7 +239,6 @@ export default function AdminAddUser() {
           </form>
         </CardContent>
       </Card>
-      </div>
-    </>
+    </div>
   );
 }
