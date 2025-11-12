@@ -16,7 +16,8 @@ import {
   TestTube,
   UserCog,
   Cpu,
-  ArrowRight
+  ArrowRight,
+  UserPlus
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/Badge";
@@ -141,6 +142,7 @@ const AdminDashboard = () => {
     { title: "Licensing", path: "/licensing", icon: CreditCard, color: "text-amber-500" },
     { title: "AI Settings", path: "/ai-settings", icon: Cpu, color: "text-cyan-500" },
     { title: "System Health", path: "/system/health", icon: TestTube, color: "text-red-500" },
+    { title: "Add User to Org", path: "/admin/add-user", icon: UserPlus, color: "text-emerald-500" },
     { title: "Reset Organization", path: "/admin/reset-organization", icon: AlertTriangle, color: "text-destructive" },
   ];
 
