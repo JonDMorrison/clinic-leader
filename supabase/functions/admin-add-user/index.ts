@@ -127,7 +127,13 @@ serve(async (req) => {
         });
 
         if (createError) {
-          console.error('createUser error:', createError.message, '| earlier:', createErrMsg);
+          console.error('createUser error detail:', {
+            message: createError.message,
+            status: (createError as any)?.status,
+            name: (createError as any)?.name,
+            code: (createError as any)?.code,
+            earlier: createErrMsg
+          });
           // Fallbacks: try to locate existing user by email
           const maybeExisting = await findAuthUserByEmail(emailLower);
           if (maybeExisting) {
@@ -142,7 +148,12 @@ serve(async (req) => {
               console.log('Invite sent, using invited user id');
               authUserId = invited.user.id as string;
             } else {
-              console.error('inviteUserByEmail failed:', inviteErr?.message);
+              console.error('inviteUserByEmail failed:', {
+                message: inviteErr?.message,
+                status: (inviteErr as any)?.status,
+                name: (inviteErr as any)?.name,
+                code: (inviteErr as any)?.code,
+              });
               // Final fallback: generate a sign-up link (no SMTP required) and return it to the client
               const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
                 type: 'signup',
