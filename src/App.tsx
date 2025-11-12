@@ -57,6 +57,7 @@ import ScorecardUpdate from "./pages/ScorecardUpdate";
 import TeamManagement from "./pages/TeamManagement";
 import ResetOrganization from "./pages/ResetOrganization";
 import AdminAddUser from "./pages/AdminAddUser";
+import AdminUsers from "./pages/AdminUsers";
 
 const queryClient = new QueryClient();
 
@@ -183,6 +184,7 @@ const App = () => {
             <Route path="/admin/impersonate" element={<AppLayout><AdminImpersonate /></AppLayout>} />
             <Route path="/admin/add-user" element={<AppLayout><AdminAddUser /></AppLayout>} />
             <Route path="/admin/reset-organization" element={<AppLayout><ResetOrganization /></AppLayout>} />
+            <Route path="/admin/users" element={<AppLayout><AdminUsers /></AppLayout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </OnboardingGuard>
