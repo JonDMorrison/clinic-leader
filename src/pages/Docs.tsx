@@ -23,6 +23,7 @@ import { PlaybookCard } from "@/components/playbooks/PlaybookCard";
 import { UploadPlaybookModal } from "@/components/playbooks/UploadPlaybookModal";
 import { Playbook, PLAYBOOK_CATEGORIES } from "@/types/playbook";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 
@@ -95,22 +96,8 @@ const Docs = () => {
   
   const debouncedSearch = useDebounce(searchQuery, 300);
 
-  const { data: currentUser } = useQuery({
-    queryKey: ["current-user"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", user.email)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Use custom hook that properly handles impersonation
+  const { data: currentUser } = useCurrentUser();
 
   const { data: docs, refetch: refetchDocs } = useQuery({
     queryKey: ["docs"],

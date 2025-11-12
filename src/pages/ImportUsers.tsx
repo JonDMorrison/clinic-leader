@@ -14,6 +14,7 @@ import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 const VALID_ROLES = ["owner", "director", "manager", "provider", "staff", "billing"] as const;
 
@@ -44,22 +45,8 @@ export default function ImportUsers() {
     },
   });
 
-  // Fetch current user's team
-  const { data: currentUser } = useQuery({
-    queryKey: ["current-user"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-      
-      const { data: userData } = await supabase
-        .from("users")
-        .select("team_id")
-        .eq("email", user.email)
-        .single();
-      
-      return userData;
-    },
-  });
+  // Use custom hook that properly handles impersonation
+  const { data: currentUser } = useCurrentUser();
 
   // Fetch departments for the organization
   const { data: departments } = useQuery({

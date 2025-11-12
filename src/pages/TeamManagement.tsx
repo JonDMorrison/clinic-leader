@@ -35,6 +35,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 const VALID_ROLES = ["owner", "director", "manager", "provider", "staff", "billing"] as const;
 
@@ -64,22 +65,8 @@ export default function TeamManagement() {
     },
   });
 
-  // Fetch current user's team
-  const { data: currentUser } = useQuery({
-    queryKey: ["current-user-team"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data } = await supabase
-        .from("users")
-        .select("team_id, role")
-        .eq("email", user.email)
-        .single();
-
-      return data;
-    },
-  });
+  // Use custom hook that properly handles impersonation
+  const { data: currentUser } = useCurrentUser();
 
   // Fetch team members
   const { data: teamMembers, isLoading: isLoadingMembers } = useQuery({
