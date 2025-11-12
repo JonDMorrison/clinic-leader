@@ -141,6 +141,7 @@ const AdminDashboard = () => {
     { title: "Licensing", path: "/licensing", icon: CreditCard, color: "text-amber-500" },
     { title: "AI Settings", path: "/ai-settings", icon: Cpu, color: "text-cyan-500" },
     { title: "System Health", path: "/system/health", icon: TestTube, color: "text-red-500" },
+    { title: "Reset Organization", path: "/admin/reset-organization", icon: AlertTriangle, color: "text-destructive" },
   ];
 
   if (!currentUser) {

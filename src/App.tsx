@@ -55,6 +55,7 @@ import DocumentUploadAdmin from "./pages/DocumentUploadAdmin";
 import ScorecardSetup from "./pages/ScorecardSetup";
 import ScorecardUpdate from "./pages/ScorecardUpdate";
 import TeamManagement from "./pages/TeamManagement";
+import ResetOrganization from "./pages/ResetOrganization";
 
 const queryClient = new QueryClient();
 
@@ -179,6 +180,7 @@ const App = () => {
             <Route path="/admin/system-health" element={<AppLayout><SystemHealth /></AppLayout>} />
             <Route path="/admin/demo" element={<AppLayout><AdminDemo /></AppLayout>} />
             <Route path="/admin/impersonate" element={<AppLayout><AdminImpersonate /></AppLayout>} />
+            <Route path="/admin/reset-organization" element={<AppLayout><ResetOrganization /></AppLayout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </OnboardingGuard>

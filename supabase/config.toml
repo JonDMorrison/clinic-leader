@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.admin-impersonate]
 verify_jwt = true
 
+[functions.reset-organization]
+verify_jwt = true
+
 [functions.ai-generate-insights]
 verify_jwt = false
 
