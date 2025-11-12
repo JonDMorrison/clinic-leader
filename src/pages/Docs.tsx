@@ -344,6 +344,27 @@ const Docs = () => {
     }
   };
 
+  const handleDeletePlaybook = async (playbook: Playbook) => {
+    if (!confirm('Are you sure you want to delete this playbook? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('playbooks')
+        .delete()
+        .eq('id', playbook.id);
+
+      if (error) throw error;
+
+      toast.success('Playbook deleted successfully');
+      refetchPlaybooks();
+    } catch (error) {
+      console.error('Error deleting playbook:', error);
+      toast.error('Failed to delete playbook');
+    }
+  };
+
   const isAdmin = currentUser?.role === 'owner';
 
   return (
@@ -477,6 +498,8 @@ const Docs = () => {
                       playbook={playbook}
                       onView={handleViewPlaybook}
                       onDownload={handleDownloadPlaybook}
+                      onDelete={handleDeletePlaybook}
+                      showDelete={isAdmin}
                     />
                   ))}
                 </div>

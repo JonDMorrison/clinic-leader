@@ -1,6 +1,6 @@
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Eye } from "lucide-react";
+import { FileText, Download, Eye, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Playbook } from "@/types/playbook";
 
@@ -8,9 +8,11 @@ interface PlaybookCardProps {
   playbook: Playbook;
   onView: (id: string) => void;
   onDownload: (playbook: Playbook) => void;
+  onDelete?: (playbook: Playbook) => void;
+  showDelete?: boolean;
 }
 
-export const PlaybookCard = ({ playbook, onView, onDownload }: PlaybookCardProps) => {
+export const PlaybookCard = ({ playbook, onView, onDownload, onDelete, showDelete }: PlaybookCardProps) => {
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardContent className="pt-6">
@@ -55,6 +57,16 @@ export const PlaybookCard = ({ playbook, onView, onDownload }: PlaybookCardProps
         >
           <Download className="h-4 w-4" />
         </Button>
+        {showDelete && onDelete && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            onClick={() => onDelete(playbook)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

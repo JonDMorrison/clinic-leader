@@ -137,6 +137,27 @@ export default function Library() {
     }
   };
 
+  const handleDelete = async (playbook: Playbook) => {
+    if (!confirm('Are you sure you want to delete this playbook? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('playbooks')
+        .delete()
+        .eq('id', playbook.id);
+
+      if (error) throw error;
+
+      toast.success('Playbook deleted successfully');
+      fetchPlaybooks();
+    } catch (error) {
+      console.error('Error deleting playbook:', error);
+      toast.error('Failed to delete playbook');
+    }
+  };
+
   const isAdmin = userProfile?.role === 'owner' || userProfile?.role === 'admin';
 
   return (
@@ -204,6 +225,8 @@ export default function Library() {
               playbook={playbook}
               onView={handleView}
               onDownload={handleDownload}
+              onDelete={handleDelete}
+              showDelete={isAdmin}
             />
           ))}
         </div>
