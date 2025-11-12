@@ -144,7 +144,7 @@ export const DocList = ({
                   )}
                   {(userRole === 'owner' || userRole === 'manager') && (
                     <div className="flex gap-1">
-                      {doc.storage_path && doc.file_type === 'pdf' && onReExtract && (
+                      {doc.storage_path && onReExtract && (
                         <Button
                           variant="ghost"
                           size="icon"
