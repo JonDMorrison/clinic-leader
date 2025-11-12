@@ -54,6 +54,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import DocumentUploadAdmin from "./pages/DocumentUploadAdmin";
 import ScorecardSetup from "./pages/ScorecardSetup";
 import ScorecardUpdate from "./pages/ScorecardUpdate";
+import TeamManagement from "./pages/TeamManagement";
 
 const queryClient = new QueryClient();
 
@@ -169,6 +170,7 @@ const App = () => {
             <Route path="/imports/sops" element={<AppLayout><ImportSops /></AppLayout>} />
             <Route path="/imports/mapping" element={<AppLayout><ImportMapping /></AppLayout>} />
             <Route path="/settings/organization" element={<AppLayout><OrganizationSettings /></AppLayout>} />
+            <Route path="/settings/team" element={<AppLayout><TeamManagement /></AppLayout>} />
             <Route path="/settings/integrations" element={<AppLayout><Integrations /></AppLayout>} />
             <Route path="/settings/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
             <Route path="/admin/onboarding-analytics" element={<AppLayout><OnboardingAnalytics /></AppLayout>} />

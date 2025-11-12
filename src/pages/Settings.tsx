@@ -211,13 +211,16 @@ const Settings = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              Team
+              Team Management
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Manage team members and permissions
+              Manage team members, roles, and permissions
             </p>
+            <Button variant="outline" onClick={() => navigate("/settings/team")}>
+              Manage Team
+            </Button>
           </CardContent>
         </Card>
       </div>
