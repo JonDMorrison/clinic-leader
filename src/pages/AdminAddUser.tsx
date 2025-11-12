@@ -86,6 +86,7 @@ export default function AdminAddUser() {
         setEmail("");
         setPassword("");
         setFullName("");
+        setSelectedOrgId("");
         setSelectedRole("");
         setSelectedDepartment("");
       } else if (data.pending) {
@@ -113,7 +114,19 @@ export default function AdminAddUser() {
     <>
       <AddUserPendingModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          // Reset form to add another user
+          setEmail("");
+          setPassword("");
+          setFullName("");
+          setSelectedRole("");
+          setSelectedDepartment("");
+          setPendingEmail("");
+          setPendingFullName("");
+          setInviteSent(false);
+          setSignupLink("");
+        }}
         email={pendingEmail}
         fullName={pendingFullName}
         inviteSent={inviteSent}
