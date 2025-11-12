@@ -11,6 +11,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let emailLowerGlobal = '';
+  let passwordGlobal = '';
+
   try {
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -48,12 +51,15 @@ serve(async (req) => {
       throw new Error('Missing required fields');
     }
 
+    passwordGlobal = password;
+
     const department_id = department ?? null;
 
     console.log(`Adding user ${email} to organization ${organization_id}`);
 
     // Normalize email for consistent matching
     const emailLower = String(email).trim().toLowerCase();
+    emailLowerGlobal = emailLower;
 
     // Helper: find existing auth user by email across all pages
     const findAuthUserByEmail = async (targetEmail: string) => {
@@ -228,6 +234,36 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('Error:', error);
+
+    // Graceful fallback: if user creation failed, attempt to generate a signup link
+    try {
+      if (emailLowerGlobal) {
+        const supabaseAdmin = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
+        const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'signup',
+          email: emailLowerGlobal,
+          password: passwordGlobal || undefined,
+          options: { data: {} }
+        } as any);
+        if (!linkErr && linkData?.properties?.action_link) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              pending: true,
+              signup_link: linkData.properties.action_link,
+              error: 'User not yet created. Share the sign-up link to complete account creation, then rerun to assign org/role.'
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    } catch (fallbackErr) {
+      console.error('Fallback generateLink failed:', fallbackErr);
+    }
+
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
