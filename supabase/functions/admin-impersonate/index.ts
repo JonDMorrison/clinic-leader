@@ -91,9 +91,14 @@ serve(async (req) => {
     }
     
     // Generate new session for target user using admin API
+    const appUrl = supabaseUrl.replace('supabase.co', 'lovableproject.com');
+    
     const { data: sessionData, error: sessionError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: targetUser.email,
+      options: {
+        redirectTo: `${appUrl}/`,
+      },
     });
     
     if (sessionError || !sessionData) {
