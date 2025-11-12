@@ -82,6 +82,11 @@ export default function AdminAddUser() {
         setFullName("");
         setSelectedRole("");
         setSelectedDepartment("");
+      } else if (data.pending && data.signup_link) {
+        toast.info("Sign-up link generated. Share with the user to complete account creation.", {
+          description: data.signup_link,
+          duration: 10000,
+        });
       } else {
         throw new Error(data.error || "Failed to add user");
       }

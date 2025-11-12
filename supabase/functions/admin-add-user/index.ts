@@ -88,35 +88,80 @@ serve(async (req) => {
       }
     } else {
       // Create new auth user (lowercased email)
-      const { data: authUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email: emailLower,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name },
-      });
-
-      if (createError) {
-        console.error('createUser error:', createError.message);
-        // Fallbacks: try to locate existing user by email
-        const maybeExisting = await findAuthUserByEmail(emailLower);
-        if (maybeExisting) {
-          console.log('User appears to exist despite create error, proceeding with existing user.');
-          authUserId = maybeExisting.id;
-        } else {
-          // Last resort: try sending an invite to create/recover the auth user and get the ID
-          const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(emailLower, {
-            data: { full_name }
-          } as any);
-          if (!inviteErr && invited?.user?.id) {
-            console.log('Invite sent, using invited user id');
-            authUserId = invited.user.id as string;
-          } else {
-            throw new Error(`Failed to create auth user: ${createError.message}`);
-          }
+      // Strategy A: minimal create first (email only), then set password
+      let createdId: string | null = null;
+      let createErrMsg = '';
+      {
+        const { data: created, error: createMinError } = await supabaseAdmin.auth.admin.createUser({
+          email: emailLower,
+          email_confirm: true,
+          user_metadata: { full_name },
+        });
+        if (!createMinError && created?.user?.id) {
+          createdId = created.user.id as string;
+        } else if (createMinError) {
+          createErrMsg = createMinError.message || 'unknown error';
         }
+      }
+
+      if (createdId) {
+        // Set password after user exists
+        const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(createdId, { password });
+        if (pwErr) {
+          console.warn('Failed to set password after create (non-fatal):', pwErr.message);
+        }
+        authUserId = createdId;
       } else {
-        console.log(`Created auth user: ${authUser.user.id}`);
-        authUserId = authUser.user.id;
+        // Strategy B: full create with password (in case Strategy A yielded a transient error)
+        const { data: authUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email: emailLower,
+          password,
+          email_confirm: true,
+          user_metadata: { full_name },
+        });
+
+        if (createError) {
+          console.error('createUser error:', createError.message, '| earlier:', createErrMsg);
+          // Fallbacks: try to locate existing user by email
+          const maybeExisting = await findAuthUserByEmail(emailLower);
+          if (maybeExisting) {
+            console.log('User appears to exist despite create error, proceeding with existing user.');
+            authUserId = maybeExisting.id;
+          } else {
+            // Last resort: try sending an invite to create/recover the auth user and get the ID
+            const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(emailLower, {
+              data: { full_name }
+            } as any);
+            if (!inviteErr && invited?.user?.id) {
+              console.log('Invite sent, using invited user id');
+              authUserId = invited.user.id as string;
+            } else {
+              console.error('inviteUserByEmail failed:', inviteErr?.message);
+              // Final fallback: generate a sign-up link (no SMTP required) and return it to the client
+              const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+                type: 'signup',
+                email: emailLower,
+                password,
+                options: { data: { full_name } }
+              } as any);
+              if (!linkErr && linkData?.properties?.action_link) {
+                return new Response(
+                  JSON.stringify({
+                    success: false,
+                    pending: true,
+                    signup_link: linkData.properties.action_link,
+                    error: 'User not yet created. Send the sign-up link to the user to complete account creation, then run this action again to assign role/org.'
+                  }),
+                  { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+              throw new Error(`Failed to create auth user: ${createError.message}`);
+            }
+          }
+        } else {
+          console.log(`Created auth user: ${authUser.user.id}`);
+          authUserId = authUser.user.id;
+        }
       }
     }
 
