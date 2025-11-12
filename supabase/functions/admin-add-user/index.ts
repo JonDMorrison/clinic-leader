@@ -68,13 +68,13 @@ serve(async (req) => {
       if (existing?.id) {
         const { error: updErr } = await supa
           .from("users")
-          .update({ full_name, team_id: organization_id, department_id })
+          .update({ full_name, team_id: organization_id, department_id, role })
           .eq("id", existing.id);
         if (updErr) throw new Error(`Failed to update user profile: ${updErr.message}`);
       } else {
         const { error: insErr } = await supa
           .from("users")
-          .insert({ id: authUserId, email: emailLower, full_name, team_id: organization_id, department_id });
+          .insert({ id: authUserId, email: emailLower, full_name, team_id: organization_id, department_id, role });
         if (insErr) throw new Error(`Failed to create user profile: ${insErr.message}`);
       }
       // upsert role
