@@ -48,51 +48,76 @@ serve(async (req) => {
       throw new Error('Missing required fields');
     }
 
-    console.log(`Creating user ${email} for organization ${organization_id}`);
+    console.log(`Adding user ${email} to organization ${organization_id}`);
 
-    // Create auth user
-    const { data: authUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        full_name,
+    // Check if auth user already exists
+    const { data: existingAuthUsers } = await supabaseAdmin.auth.admin.listUsers();
+    let authUserId: string;
+    let existingUser = existingAuthUsers?.users.find(u => u.email === email);
+
+    if (existingUser) {
+      console.log(`Auth user already exists: ${existingUser.id}`);
+      authUserId = existingUser.id;
+      
+      // Update password if user exists
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        authUserId,
+        { password }
+      );
+      
+      if (updateError) {
+        console.error('Failed to update password:', updateError);
       }
-    });
+    } else {
+      // Create new auth user
+      const { data: authUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name,
+        }
+      });
 
-    if (createError) {
-      throw new Error(`Failed to create auth user: ${createError.message}`);
+      if (createError) {
+        throw new Error(`Failed to create auth user: ${createError.message}`);
+      }
+
+      console.log(`Created auth user: ${authUser.user.id}`);
+      authUserId = authUser.user.id;
     }
 
-    console.log(`Created auth user: ${authUser.user.id}`);
-
-    // Insert into users table
-    const { error: userInsertError } = await supabaseAdmin
+    // Upsert into users table (in case user exists)
+    const { error: userUpsertError } = await supabaseAdmin
       .from('users')
-      .insert({
-        id: authUser.user.id,
+      .upsert({
+        id: authUserId,
         email,
         full_name,
         team_id: organization_id,
         department,
+      }, {
+        onConflict: 'id'
       });
 
-    if (userInsertError) {
-      console.error('Failed to insert user:', userInsertError);
-      throw new Error(`Failed to create user profile: ${userInsertError.message}`);
+    if (userUpsertError) {
+      console.error('Failed to upsert user:', userUpsertError);
+      throw new Error(`Failed to create user profile: ${userUpsertError.message}`);
     }
 
-    // Insert into user_roles table
-    const { error: roleInsertError } = await supabaseAdmin
+    // Upsert into user_roles table (in case role exists)
+    const { error: roleUpsertError } = await supabaseAdmin
       .from('user_roles')
-      .insert({
-        user_id: authUser.user.id,
+      .upsert({
+        user_id: authUserId,
         role,
+      }, {
+        onConflict: 'user_id,role'
       });
 
-    if (roleInsertError) {
-      console.error('Failed to insert role:', roleInsertError);
-      throw new Error(`Failed to assign role: ${roleInsertError.message}`);
+    if (roleUpsertError) {
+      console.error('Failed to upsert role:', roleUpsertError);
+      throw new Error(`Failed to assign role: ${roleUpsertError.message}`);
     }
 
     // Log to audit
@@ -100,22 +125,25 @@ serve(async (req) => {
       actor_id: user.id,
       action: 'admin_add_user',
       entity: 'user',
-      entity_id: authUser.user.id,
+      entity_id: authUserId,
       payload: {
         email,
         organization_id,
         role,
         full_name,
+        existing_user: !!existingUser
       }
     });
 
-    console.log(`Successfully created user ${email} with role ${role}`);
+    console.log(`Successfully added user ${email} with role ${role} to organization`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        user_id: authUser.user.id,
-        message: `Successfully created user ${email} with role ${role}`
+        user_id: authUserId,
+        message: existingUser 
+          ? `Successfully added existing user ${email} with role ${role}` 
+          : `Successfully created user ${email} with role ${role}`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
