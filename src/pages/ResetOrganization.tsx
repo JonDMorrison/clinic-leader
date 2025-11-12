@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -26,6 +26,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 
 export default function ResetOrganization() {
+  const queryClient = useQueryClient();
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [deleteOrg, setDeleteOrg] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -76,9 +77,10 @@ export default function ResetOrganization() {
           duration: 10000,
         });
         
-        // Reset form
+        // Reset form and refresh organization list
         setSelectedOrgId("");
         setDeleteOrg(false);
+        queryClient.invalidateQueries({ queryKey: ["organizations-admin"] });
       } else {
         throw new Error(data.error || "Reset failed");
       }
