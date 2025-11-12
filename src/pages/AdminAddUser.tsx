@@ -26,6 +26,7 @@ export default function AdminAddUser() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
+  const [pendingFullName, setPendingFullName] = useState("");
   const [inviteSent, setInviteSent] = useState(false);
   const [signupLink, setSignupLink] = useState("");
 
@@ -89,6 +90,7 @@ export default function AdminAddUser() {
         setSelectedDepartment("");
       } else if (data.pending) {
         setPendingEmail(email);
+        setPendingFullName(fullName);
         setInviteSent(!!data.invite_sent);
         setSignupLink(data.signup_link || "");
         setModalOpen(true);
@@ -113,6 +115,7 @@ export default function AdminAddUser() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         email={pendingEmail}
+        fullName={pendingFullName}
         inviteSent={inviteSent}
         signupLink={signupLink}
       />
