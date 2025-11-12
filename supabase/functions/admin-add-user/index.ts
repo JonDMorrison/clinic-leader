@@ -105,37 +105,76 @@ serve(async (req) => {
       return await attachToOrg(existing.id);
     }
 
-    // 2) Create user directly with confirmed email
-    if (!passwordGlobal) {
-      throw new Error("Password is required to create new users");
-    }
-
-    const created = await supa.auth.admin.createUser({
-      email: emailLower,
-      password: passwordGlobal,
-      email_confirm: true,
-      user_metadata: { full_name }
-    });
-
-    if (created.error) {
-      console.error("createUser failed:", created.error);
-      // If user already exists, try to find and attach them
-      if (created.error.message?.toLowerCase().includes("already") || created.error.message?.toLowerCase().includes("duplicate")) {
+    // 2) Try to create user directly (if password provided)
+    let createdUserId: string | null = null;
+    if (passwordGlobal) {
+      const created = await supa.auth.admin.createUser({
+        email: emailLower,
+        password: passwordGlobal,
+        email_confirm: true,
+        user_metadata: { full_name }
+      });
+      if (!created.error && created.data?.user?.id) {
+        createdUserId = created.data.user.id as string;
+      } else {
+        console.error("createUser failed:", created.error);
+        // If user already exists, try to find and attach them
         const retry = await findAuthUserByEmail(emailLower);
         if (retry?.id) {
           console.log("found existing user on retry:", retry.id);
           return await attachToOrg(retry.id);
         }
       }
-      throw new Error(`Failed to create user: ${created.error.message}`);
     }
 
-    if (!created.data?.user?.id) {
-      throw new Error("User created but no ID returned");
+    if (createdUserId) {
+      console.log("auth user created:", createdUserId);
+      return await attachToOrg(createdUserId);
     }
 
-    console.log("auth user created:", created.data.user.id);
-    return await attachToOrg(created.data.user.id);
+    // 3) Generate signup link as fallback
+    const link = await supa.auth.admin.generateLink({
+      type: "signup",
+      email: emailLower,
+      password: passwordGlobal || undefined,
+      options: { data: { full_name } }
+    } as any);
+    if (!link.error && link.data?.properties?.action_link) {
+      console.log("signup link generated");
+      return new Response(JSON.stringify({
+        success: false,
+        pending: true,
+        signup_link: link.data.properties.action_link,
+        message: "Share this link. After they complete signup, run this again to attach."
+      }), { headers: cors });
+    }
+    if (link.error && (link.error as any)?.message?.toLowerCase?.().includes("already")) {
+      const again = await findAuthUserByEmail(emailLower);
+      if (again?.id) return await attachToOrg(again.id);
+    }
+
+    // 4) Invite as last fallback
+    const invited = await supa.auth.admin.inviteUserByEmail(emailLower, { data: { full_name } } as any);
+    if (!invited.error && invited.data?.user?.id) {
+      console.log("invite sent:", invited.data.user.id);
+      return new Response(JSON.stringify({
+        success: false,
+        pending: true,
+        invite_sent: true,
+        message: "Invite sent. After signup, run this again to attach role and org."
+      }), { headers: cors });
+    }
+    if (invited.error && (invited.error as any)?.message?.toLowerCase?.().includes("already")) {
+      const again = await findAuthUserByEmail(emailLower);
+      if (again?.id) return await attachToOrg(again.id);
+    }
+
+    // Final fallback
+    return new Response(JSON.stringify({
+      success: false,
+      pending: true,
+      message: "Could not auto-create user. Use signup link or invite."
+    }), { headers: cors });
 
   } catch (e: any) {
     console.error("admin-add-user fatal:", e?.message || e);
