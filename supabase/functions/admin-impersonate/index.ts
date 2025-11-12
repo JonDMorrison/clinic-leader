@@ -40,11 +40,10 @@ serve(async (req) => {
       );
     }
     
-    const { targetUserId, action } = await req.json();
+    const { targetUserId, action, logId } = await req.json();
     
     if (action === 'exit') {
       // End impersonation - update log
-      const { logId } = await req.json();
       if (logId) {
         await supabase
           .from('admin_impersonation_logs')
