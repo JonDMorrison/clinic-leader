@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useRef, useMemo, useEffect, useState } from "react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { ValuesList } from "@/components/people/ValuesList";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 const Home = () => {
   const ref = useRef(null);
@@ -21,22 +22,7 @@ const Home = () => {
   useEffect(() => setMounted(true), []);
 
   // Fetch current user first to get team_id
-  const { data: currentUser } = useQuery({
-    queryKey: ["current-user"],
-    queryFn: async () => {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return null;
-
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, team_id")
-        .eq("email", authData.user.email)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-  });
+  const { data: currentUser, isLoading: userLoading } = useCurrentUser();
 
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ["kpis-summary", currentUser?.team_id],
@@ -186,7 +172,7 @@ const Home = () => {
     ? currentScore.percentage - previousScore.percentage 
     : 0;
 
-  const isLoading = kpisLoading || rocksLoading || issuesLoading;
+  const isLoading = userLoading || kpisLoading || rocksLoading || issuesLoading;
 
   // Use viewport scroll to avoid hydration issues with target refs
   const { scrollYProgress } = useScroll();
