@@ -171,22 +171,44 @@ serve(async (req) => {
       }
     }
 
-    // Upsert into users table (in case user exists)
-    const { error: userUpsertError } = await supabaseAdmin
+    // Sync users table safely (avoid unique(email) conflicts)
+    const { data: existingProfile, error: findProfileError } = await supabaseAdmin
       .from('users')
-      .upsert({
-        id: authUserId,
-        email: emailLower,
-        full_name,
-        team_id: organization_id,
-        department_id: department_id,
-      }, {
-        onConflict: 'id'
-      });
+      .select('id')
+      .eq('email', emailLower)
+      .single();
 
-    if (userUpsertError) {
-      console.error('Failed to upsert user:', userUpsertError);
-      throw new Error(`Failed to create user profile: ${userUpsertError.message}`);
+    if (findProfileError && (findProfileError as any).code !== 'PGRST116') {
+      console.warn('Find user by email error (non-fatal):', findProfileError.message);
+    }
+
+    if (existingProfile?.id) {
+      const { error: userUpdateError } = await supabaseAdmin
+        .from('users')
+        .update({
+          full_name,
+          team_id: organization_id,
+          department_id: department_id,
+        })
+        .eq('id', existingProfile.id);
+      if (userUpdateError) {
+        console.error('Failed to update user:', userUpdateError);
+        throw new Error(`Failed to update user profile: ${userUpdateError.message}`);
+      }
+    } else {
+      const { error: userInsertError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          id: authUserId,
+          email: emailLower,
+          full_name,
+          team_id: organization_id,
+          department_id: department_id,
+        });
+      if (userInsertError) {
+        console.error('Failed to insert user:', userInsertError);
+        throw new Error(`Failed to create user profile: ${userInsertError.message}`);
+      }
     }
 
     // Upsert into user_roles table (in case role exists)
