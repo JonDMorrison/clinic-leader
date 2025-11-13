@@ -46,55 +46,94 @@ serve(async (req) => {
     let extractedText = '';
 
     if (isPdf) {
-      console.log('[extract-doc-text] Extracting PDF text with basic extraction');
+      console.log('[extract-doc-text] Extracting PDF text with OCR using PDF.js + Lovable AI Vision');
       
+      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+      if (!lovableApiKey) {
+        throw new Error('LOVABLE_API_KEY is not configured');
+      }
+
       try {
-        // Simple text extraction - look for text between BT and ET operators
+        // Import PDF.js and canvas library
+        const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs');
+        const { createCanvas } = await import('https://deno.land/x/canvas@v1.4.1/mod.ts');
+        
+        // Load PDF
         const arrayBuffer = await fileData.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        const text = new TextDecoder('latin1').decode(bytes);
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
         
-        // Extract text content between BT (Begin Text) and ET (End Text) operators
-        const textBlocks: string[] = [];
-        const btPattern = /BT\s+(.*?)\s+ET/gs;
-        let match;
+        console.log(`[extract-doc-text] PDF has ${pdf.numPages} pages, processing first 5 for OCR`);
         
-        while ((match = btPattern.exec(text)) !== null) {
-          const block = match[1];
-          // Extract strings between parentheses or angle brackets
-          const stringPattern = /\(((?:[^()\\]|\\.)*)\)|<([0-9A-Fa-f]+)>/g;
-          let strMatch;
+        const maxPagesToProcess = Math.min(pdf.numPages, 5); // Limit to 5 pages for cost/performance
+        const pageTexts: string[] = [];
+        
+        // Process each page
+        for (let pageNum = 1; pageNum <= maxPagesToProcess; pageNum++) {
+          console.log(`[extract-doc-text] OCR processing page ${pageNum}/${maxPagesToProcess}`);
           
-          while ((strMatch = stringPattern.exec(block)) !== null) {
-            if (strMatch[1]) {
-              // Parentheses string - decode escape sequences
-              let str = strMatch[1]
-                .replace(/\\n/g, '\n')
-                .replace(/\\r/g, '\r')
-                .replace(/\\t/g, '\t')
-                .replace(/\\b/g, '\b')
-                .replace(/\\f/g, '\f')
-                .replace(/\\(.)/g, '$1');
-              textBlocks.push(str);
-            } else if (strMatch[2]) {
-              // Hex string - convert to text
-              const hexStr = strMatch[2];
-              let decoded = '';
-              for (let i = 0; i < hexStr.length; i += 2) {
-                const code = parseInt(hexStr.substr(i, 2), 16);
-                if (code >= 32 && code <= 126) {
-                  decoded += String.fromCharCode(code);
+          const page = await pdf.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 2.0 });
+          
+          // Create canvas
+          const canvas = createCanvas(viewport.width, viewport.height);
+          const context = canvas.getContext('2d');
+          
+          // Render page to canvas
+          await page.render({
+            canvasContext: context,
+            viewport: viewport
+          }).promise;
+          
+          // Convert canvas to PNG base64
+          const pngData = canvas.toBuffer('image/png');
+          const base64Image = btoa(String.fromCharCode(...new Uint8Array(pngData)));
+          
+          // Send to Lovable AI for OCR
+          const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${lovableApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [
+                {
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Extract all text from this image using OCR. Return only the extracted text, no explanations.'
+                    },
+                    {
+                      type: 'image_url',
+                      image_url: {
+                        url: `data:image/png;base64,${base64Image}`
+                      }
+                    }
+                  ]
                 }
-              }
-              if (decoded) textBlocks.push(decoded);
-            }
+              ],
+              max_tokens: 2000,
+            }),
+          });
+          
+          if (aiResponse.ok) {
+            const aiData = await aiResponse.json();
+            const pageText = aiData.choices[0]?.message?.content || '';
+            pageTexts.push(pageText);
+            console.log(`[extract-doc-text] Page ${pageNum}: extracted ${pageText.length} chars`);
+          } else {
+            const errorText = await aiResponse.text();
+            console.error(`[extract-doc-text] OCR failed for page ${pageNum}:`, aiResponse.status, errorText);
           }
         }
         
-        extractedText = textBlocks.join(' ');
-        console.log(`[extract-doc-text] Extracted ${extractedText.length} characters from PDF`);
+        extractedText = pageTexts.join('\n\n');
+        console.log(`[extract-doc-text] Total extracted: ${extractedText.length} characters from ${maxPagesToProcess} pages`);
+        
       } catch (parseError) {
-        console.error('[extract-doc-text] PDF extraction failed:', parseError);
+        console.error('[extract-doc-text] OCR extraction failed:', parseError);
         extractedText = '';
       }
       
