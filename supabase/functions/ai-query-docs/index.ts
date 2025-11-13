@@ -75,15 +75,10 @@ serve(async (req) => {
 
           if (!downloadErr && fileData) {
             if (isPdf) {
-              const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs');
-              // Disable worker in Deno Edge Function environment
-              pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+              const pdfjsLib = await import('https://esm.sh/pdfjs-dist@5.4.394/legacy/build/pdf.mjs');
+              pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@5.4.394/legacy/build/pdf.worker.mjs';
               const ab = await fileData.arrayBuffer();
-              const pdf = await pdfjsLib.getDocument({ 
-                data: new Uint8Array(ab),
-                useWorkerFetch: false,
-                isEvalSupported: false
-              }).promise;
+              const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
 
               const limit = Math.min(pdf.numPages, MAX_PAGES);
               const pageTexts: string[] = [];

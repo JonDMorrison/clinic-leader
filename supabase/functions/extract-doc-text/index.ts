@@ -97,14 +97,9 @@ serve(async (req) => {
       source = 'pdfjs';
 
       try {
-        const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs');
-        // Disable worker in Deno Edge Function environment
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-        const pdf = await pdfjsLib.getDocument({ 
-          data: new Uint8Array(ab),
-          useWorkerFetch: false,
-          isEvalSupported: false
-        }).promise;
+        const pdfjsLib = await import('https://esm.sh/pdfjs-dist@5.4.394/legacy/build/pdf.mjs');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@5.4.394/legacy/build/pdf.worker.mjs';
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
         
         console.log(`[extract-doc-text] PDF has ${pdf.numPages} pages, extracting text (up to 15 pages)`);
         
@@ -127,6 +122,26 @@ serve(async (req) => {
       } catch (parseError) {
         console.error('[extract-doc-text] PDF extraction failed:', parseError);
         const errorMsg = parseError instanceof Error ? parseError.message : 'Unknown error';
+
+        // If the environment lacks DOM APIs or worker support, treat as needs_ocr instead of hard error
+        const envMismatch = /DOMMatrix is not defined|GlobalWorkerOptions|worker/i.test(String(errorMsg));
+        if (envMismatch) {
+          await supabase.from('docs').update({
+            extract_status: 'needs_ocr',
+            extract_source: source,
+            extract_error: `PDF extraction unavailable in edge environment: ${errorMsg}`,
+            extracted_at: new Date().toISOString(),
+            content_hash: newHash,
+            word_count: 0
+          }).eq('id', doc_id);
+
+          return new Response(
+            JSON.stringify({ status: 'needs_ocr', reason: 'pdfjs-unavailable-in-edge', details: errorMsg }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Default: mark error
         await supabase.from('docs').update({
           extract_status: 'error',
           extract_error: `PDF extraction failed: ${errorMsg}`,
