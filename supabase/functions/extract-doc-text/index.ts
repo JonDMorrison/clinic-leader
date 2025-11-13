@@ -53,10 +53,18 @@ serve(async (req) => {
         throw new Error('LOVABLE_API_KEY is not configured');
       }
 
-      // Convert PDF to base64 for AI processing
+      // Convert PDF to base64 for AI processing - use chunk-based approach to avoid stack overflow
       const arrayBuffer = await fileData.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
-      const base64 = btoa(String.fromCharCode(...bytes));
+      
+      // Convert to base64 in chunks to avoid "Maximum call stack size exceeded"
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      const base64 = btoa(binary);
       
       try {
         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
