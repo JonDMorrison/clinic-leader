@@ -8,7 +8,8 @@ import { RefreshCw, Download, AlertCircle, CheckCircle, Clock, FileQuestion, Sca
 import { toast } from "sonner";
 import { useState } from "react";
 import { createWorker } from "tesseract.js";
-import * as pdfjsLib from "pdfjs-dist";
+// @ts-ignore - using bundled build for no-worker mode
+import * as pdfjsLib from "pdfjs-dist/build/pdf";
 import {
   Table,
   TableBody,
