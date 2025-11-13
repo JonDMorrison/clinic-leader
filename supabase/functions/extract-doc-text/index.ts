@@ -46,67 +46,55 @@ serve(async (req) => {
     let extractedText = '';
 
     if (isPdf) {
-      console.log('[extract-doc-text] Extracting PDF text with Lovable AI');
-      
-      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-      if (!lovableApiKey) {
-        throw new Error('LOVABLE_API_KEY is not configured');
-      }
-
-      // Convert PDF to base64 for AI processing - use chunk-based approach to avoid stack overflow
-      const arrayBuffer = await fileData.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      
-      // Convert to base64 in chunks to avoid "Maximum call stack size exceeded"
-      let binary = '';
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, i + chunkSize);
-        binary += String.fromCharCode.apply(null, Array.from(chunk));
-      }
-      const base64 = btoa(binary);
+      console.log('[extract-doc-text] Extracting PDF text with basic extraction');
       
       try {
-        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: 'Extract all text content from this PDF document. Return only the extracted text, no explanations or formatting.'
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: {
-                      url: `data:application/pdf;base64,${base64}`
-                    }
-                  }
-                ]
+        // Simple text extraction - look for text between BT and ET operators
+        const arrayBuffer = await fileData.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        const text = new TextDecoder('latin1').decode(bytes);
+        
+        // Extract text content between BT (Begin Text) and ET (End Text) operators
+        const textBlocks: string[] = [];
+        const btPattern = /BT\s+(.*?)\s+ET/gs;
+        let match;
+        
+        while ((match = btPattern.exec(text)) !== null) {
+          const block = match[1];
+          // Extract strings between parentheses or angle brackets
+          const stringPattern = /\(((?:[^()\\]|\\.)*)\)|<([0-9A-Fa-f]+)>/g;
+          let strMatch;
+          
+          while ((strMatch = stringPattern.exec(block)) !== null) {
+            if (strMatch[1]) {
+              // Parentheses string - decode escape sequences
+              let str = strMatch[1]
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '\r')
+                .replace(/\\t/g, '\t')
+                .replace(/\\b/g, '\b')
+                .replace(/\\f/g, '\f')
+                .replace(/\\(.)/g, '$1');
+              textBlocks.push(str);
+            } else if (strMatch[2]) {
+              // Hex string - convert to text
+              const hexStr = strMatch[2];
+              let decoded = '';
+              for (let i = 0; i < hexStr.length; i += 2) {
+                const code = parseInt(hexStr.substr(i, 2), 16);
+                if (code >= 32 && code <= 126) {
+                  decoded += String.fromCharCode(code);
+                }
               }
-            ],
-            max_tokens: 4000,
-          }),
-        });
-
-        if (!aiResponse.ok) {
-          const errorText = await aiResponse.text();
-          console.error('[extract-doc-text] AI API error:', aiResponse.status, errorText);
-          extractedText = '';
-        } else {
-          const aiData = await aiResponse.json();
-          extractedText = aiData.choices[0]?.message?.content || '';
-          console.log(`[extract-doc-text] AI extracted ${extractedText.length} characters`);
+              if (decoded) textBlocks.push(decoded);
+            }
+          }
         }
+        
+        extractedText = textBlocks.join(' ');
+        console.log(`[extract-doc-text] Extracted ${extractedText.length} characters from PDF`);
       } catch (parseError) {
-        console.error('[extract-doc-text] AI extraction failed:', parseError);
+        console.error('[extract-doc-text] PDF extraction failed:', parseError);
         extractedText = '';
       }
       
