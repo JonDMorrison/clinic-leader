@@ -1,9 +1,19 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Sparkles, Plus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+const SUGGESTED_VALUES = [
+  "Integrity",
+  "Compassion",
+  "Excellence",
+  "Innovation",
+  "Collaboration",
+  "Respect"
+];
 
 interface CoreValuesEditorProps {
   values: string[];
@@ -66,6 +76,25 @@ export function CoreValuesEditor({ values, onChange, organizationId }: CoreValue
     onChange(newValues);
   };
 
+  const handleSuggestedClick = (suggestedValue: string) => {
+    // Check if already selected
+    if (values.includes(suggestedValue)) {
+      // Remove it
+      onChange(values.filter(v => v !== suggestedValue));
+      return;
+    }
+
+    // Find first empty slot or add new if under limit
+    const emptyIndex = values.findIndex(v => !v || v.trim() === "");
+    if (emptyIndex !== -1) {
+      const newValues = [...values];
+      newValues[emptyIndex] = suggestedValue;
+      onChange(newValues);
+    } else if (values.length < 5) {
+      onChange([...values, suggestedValue]);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -74,6 +103,23 @@ export function CoreValuesEditor({ values, onChange, organizationId }: CoreValue
           <Sparkles className="h-4 w-4 mr-2" />
           {loading ? "Drafting..." : "AI Draft"}
         </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {SUGGESTED_VALUES.map((suggested) => {
+          const isSelected = values.includes(suggested);
+          return (
+            <Badge
+              key={suggested}
+              variant={isSelected ? "default" : "outline"}
+              className="cursor-pointer hover:bg-primary/80"
+              onClick={() => handleSuggestedClick(suggested)}
+            >
+              {suggested}
+              {isSelected && <X className="ml-1 h-3 w-3" />}
+            </Badge>
+          );
+        })}
       </div>
 
       {values.map((value, index) => (
