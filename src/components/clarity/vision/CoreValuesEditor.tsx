@@ -111,21 +111,26 @@ export function CoreValuesEditor({ values, onChange, organizationId }: CoreValue
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {SUGGESTED_VALUES.map((suggested) => {
-          const isSelected = values.includes(suggested);
-          return (
-            <Badge
-              key={suggested}
-              variant={isSelected ? "default" : "outline"}
-              className="cursor-pointer hover:bg-primary/80"
-              onClick={() => handleSuggestedClick(suggested)}
-            >
-              {suggested}
-              {isSelected && <X className="ml-1 h-3 w-3" />}
-            </Badge>
-          );
-        })}
+      <div className="space-y-2">
+        <p className="text-sm text-muted-foreground">
+          Click any values below to add them (3-5 recommended), or write your own:
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {SUGGESTED_VALUES.map((suggested) => {
+            const isSelected = values.includes(suggested);
+            return (
+              <Badge
+                key={suggested}
+                variant={isSelected ? "default" : "outline"}
+                className="cursor-pointer hover:bg-primary/80"
+                onClick={() => handleSuggestedClick(suggested)}
+              >
+                {suggested}
+                {isSelected && <X className="ml-1 h-3 w-3" />}
+              </Badge>
+            );
+          })}
+        </div>
       </div>
 
       {values.map((value, index) => (
