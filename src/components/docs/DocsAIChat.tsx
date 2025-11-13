@@ -90,7 +90,7 @@ export const DocsAIChat = () => {
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
         {messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
+          <div className="flex-1 flex flex-col items-center justify-start gap-4 text-center pt-8">
             <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-full p-6 mb-2">
               <Sparkles className="h-8 w-8 text-primary" />
             </div>
