@@ -102,6 +102,9 @@ verify_jwt = true
 [functions.extract-doc-text]
 verify_jwt = false
 
+[functions.bulk-extract-docs]
+verify_jwt = false
+
 [functions.playbook-ai-parse]
 verify_jwt = true
 
