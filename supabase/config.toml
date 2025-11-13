@@ -1,5 +1,20 @@
 project_id = "uyfsfmxwrbukfhkskizu"
 
+[functions.clarity-save]
+verify_jwt = false
+
+[functions.clarity-compute]
+verify_jwt = false
+
+[functions.clarity-revise]
+verify_jwt = false
+
+[functions.clarity-export]
+verify_jwt = false
+
+[functions.clarity-ai]
+verify_jwt = false
+
 [functions.get-document]
 verify_jwt = false
 
