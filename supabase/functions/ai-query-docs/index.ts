@@ -47,32 +47,88 @@ serve(async (req) => {
 
     console.log(`Found ${teamDocs.length} approved documents for team`);
 
-    // Build context from documents
+    // Build context from documents with fallback extraction for missing parsed_text
     let docsContext = "Available Documents:\n\n";
-    if (teamDocs.length > 0) {
-      teamDocs.forEach((doc: any) => {
+
+    // Limit docs and pages to control cost/perf
+    const MAX_DOCS = 12;
+    const MAX_PAGES = 5;
+
+    const docsToProcess = (teamDocs || []).slice(0, MAX_DOCS);
+    for (const doc of docsToProcess) {
+      try {
         docsContext += `Document: ${doc.title}\n`;
         docsContext += `Type: ${doc.kind}\n`;
-        
-        // Read content from either body (markdown) or parsed_text (binary PDFs/DOCX)
-        const content = doc.body || doc.parsed_text || '';
+
+        let content: string = doc.body || doc.parsed_text || '';
+
+        // Fallback: extract text when content is missing but we have a file
+        if (!content && doc.storage_path) {
+          const isPdf = String(doc.storage_path).toLowerCase().endsWith('.pdf');
+          const isDocx = String(doc.storage_path).toLowerCase().endsWith('.docx');
+
+          // Download from documents bucket
+          const { data: fileData, error: downloadErr } = await supabase
+            .storage
+            .from('documents')
+            .download(doc.storage_path);
+
+          if (!downloadErr && fileData) {
+            if (isPdf) {
+              const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs');
+              const ab = await fileData.arrayBuffer();
+              const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
+
+              const limit = Math.min(pdf.numPages, MAX_PAGES);
+              const pageTexts: string[] = [];
+              for (let p = 1; p <= limit; p++) {
+                const page = await pdf.getPage(p);
+                const textContent = await page.getTextContent();
+                const items = (textContent.items || []) as any[];
+                const pageText = items.map((it: any) => (typeof it?.str === 'string' ? it.str : '')).join(' ');
+                pageTexts.push(pageText);
+              }
+              content = pageTexts.join('\n\n');
+            } else if (isDocx) {
+              const ab = await fileData.arrayBuffer();
+              const mammoth = await import('https://esm.sh/mammoth@1.8.0');
+              const result = await mammoth.extractRawText({ arrayBuffer: ab });
+              content = result.value || '';
+            }
+
+            // Normalize whitespace
+            if (content) {
+              content = content.replace(/\s+/g, ' ').trim();
+
+              // Best-effort cache back to DB for future queries (cap to 100k chars)
+              try {
+                if (!doc.parsed_text && content.length > 0) {
+                  await supabase.from('docs').update({ parsed_text: content.slice(0, 100000) }).eq('id', doc.id);
+                }
+              } catch (e) {
+                console.warn('ai-query-docs: failed to cache parsed_text for', doc.id, e);
+              }
+            }
+          }
+        }
+
         if (content) {
-          // Include more content for better context (first 2000 chars)
-          const contentPreview = content.length > 2000 
-            ? content.substring(0, 2000) + '...' 
-            : content;
+          const contentPreview = content.length > 2000 ? content.substring(0, 2000) + '...' : content;
           docsContext += `Content: ${contentPreview}\n`;
         }
-        
         if (doc.filename) {
           docsContext += `File: ${doc.filename}\n`;
         }
-        
         docsContext += '\n---\n\n';
-      });
-    } else {
+      } catch (e) {
+        console.error('ai-query-docs: error building context for doc', doc?.id, e);
+      }
+    }
+
+    if (docsToProcess.length === 0) {
       docsContext += "No documents found.\n";
     }
+
 
     // Prepare AI prompt
     const systemPrompt = `You are a helpful assistant that answers questions about clinic documents, SOPs, manuals, and training materials.
