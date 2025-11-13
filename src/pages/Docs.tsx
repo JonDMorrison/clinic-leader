@@ -452,13 +452,9 @@ const Docs = () => {
                       <FileText className="w-4 h-4 mr-2" />
                       Bulk Re-extract
                     </Button>
-                    <Button variant="outline" onClick={() => setBulkUploadModalOpen(true)}>
+                    <Button onClick={() => setBulkUploadModalOpen(true)}>
                       <Upload className="w-4 h-4 mr-2" />
                       Upload
-                    </Button>
-                    <Button onClick={handleCreateDoc}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      New Document
                     </Button>
                   </>
                 )}
