@@ -26,7 +26,12 @@ export function useClarityAutosave({
 
     onStatusChange("saving");
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No active session");
+      }
       const { error } = await supabase.functions.invoke("clarity-save", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: {
           organization_id: organizationId,
           vision: debouncedData.vision,
