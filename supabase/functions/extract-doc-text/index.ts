@@ -46,11 +46,11 @@ serve(async (req) => {
     let extractedText = '';
 
     if (isPdf) {
-      console.log('[extract-doc-text] Extracting PDF text with OCR using PDF.js + Lovable AI Vision');
+      console.log('[extract-doc-text] Extracting PDF text with OCR using PDF.js + OpenAI Vision');
       
-      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-      if (!lovableApiKey) {
-        throw new Error('LOVABLE_API_KEY is not configured');
+      const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+      if (!openaiApiKey) {
+        throw new Error('OPENAI_API_KEY is not configured');
       }
 
       try {
@@ -88,15 +88,15 @@ serve(async (req) => {
           const pngData = canvas.toBuffer('image/png');
           const base64Image = btoa(String.fromCharCode(...new Uint8Array(pngData)));
           
-          // Send to Lovable AI for OCR
-          const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          // Send to OpenAI for OCR
+          const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${lovableApiKey}`,
+              'Authorization': `Bearer ${openaiApiKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
+              model: 'gpt-4o',
               messages: [
                 {
                   role: 'user',
