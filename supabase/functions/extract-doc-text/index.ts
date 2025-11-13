@@ -46,18 +46,59 @@ serve(async (req) => {
     let extractedText = '';
 
     if (isPdf) {
-      console.log('[extract-doc-text] Extracting PDF text with pdf-parse');
-      // Use pdf-parse library for proper PDF text extraction
+      console.log('[extract-doc-text] Extracting PDF text with Lovable AI');
+      
+      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+      if (!lovableApiKey) {
+        throw new Error('LOVABLE_API_KEY is not configured');
+      }
+
+      // Convert PDF to base64 for AI processing
       const arrayBuffer = await fileData.arrayBuffer();
-      const pdfParse = await import('https://esm.sh/pdf-parse@1.1.1');
+      const bytes = new Uint8Array(arrayBuffer);
+      const base64 = btoa(String.fromCharCode(...bytes));
       
       try {
-        const data = await pdfParse.default(new Uint8Array(arrayBuffer));
-        extractedText = data.text || '';
-        console.log(`[extract-doc-text] pdf-parse extracted ${extractedText.length} characters from ${data.numpages} pages`);
+        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: 'Extract all text content from this PDF document. Return only the extracted text, no explanations or formatting.'
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: {
+                      url: `data:application/pdf;base64,${base64}`
+                    }
+                  }
+                ]
+              }
+            ],
+            max_tokens: 4000,
+          }),
+        });
+
+        if (!aiResponse.ok) {
+          const errorText = await aiResponse.text();
+          console.error('[extract-doc-text] AI API error:', aiResponse.status, errorText);
+          extractedText = '';
+        } else {
+          const aiData = await aiResponse.json();
+          extractedText = aiData.choices[0]?.message?.content || '';
+          console.log(`[extract-doc-text] AI extracted ${extractedText.length} characters`);
+        }
       } catch (parseError) {
-        console.error('[extract-doc-text] pdf-parse failed:', parseError);
-        // Fallback: return empty string rather than garbled content
+        console.error('[extract-doc-text] AI extraction failed:', parseError);
         extractedText = '';
       }
       
