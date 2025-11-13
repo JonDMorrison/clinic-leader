@@ -24,8 +24,23 @@ serve(async (req) => {
       }
     );
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    // Get authenticated user from Authorization header (explicit token)
+    const authHeader = req.headers.get('Authorization') || '';
+    const token = authHeader.replace('Bearer ', '').trim();
+
+    let user = null as any;
+    let authError: any = null;
+
+    if (token) {
+      const { data, error } = await supabaseClient.auth.getUser(token);
+      user = data?.user ?? null;
+      authError = error ?? null;
+    } else {
+      authError = new Error('Missing Authorization header');
+    }
+
     if (authError || !user) {
+      console.error('clarity-ai auth error:', authError);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
