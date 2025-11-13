@@ -75,26 +75,38 @@ serve(async (req) => {
 
           if (!downloadErr && fileData) {
             if (isPdf) {
-              const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs');
-              // Disable worker completely for Deno Edge Function environment
-              pdfjsLib.GlobalWorkerOptions.workerSrc = '';
               const ab = await fileData.arrayBuffer();
-              const pdf = await pdfjsLib.getDocument({ 
-                data: new Uint8Array(ab),
-                useWorkerFetch: false,
-                isEvalSupported: false
-              }).promise;
+              const u8 = new Uint8Array(ab);
+              const pdfString = new TextDecoder().decode(u8);
+              let text = '';
 
-              const limit = Math.min(pdf.numPages, MAX_PAGES);
-              const pageTexts: string[] = [];
-              for (let p = 1; p <= limit; p++) {
-                const page = await pdf.getPage(p);
-                const textContent = await page.getTextContent();
-                const items = (textContent.items || []) as any[];
-                const pageText = items.map((it: any) => (typeof it?.str === 'string' ? it.str : '')).join(' ');
-                pageTexts.push(pageText);
+              // Extract text between BT (begin text) and ET (end text) markers
+              const textBlocks = pdfString.match(/BT(.*?)ET/gs);
+              if (textBlocks) {
+                const limit = Math.min(textBlocks.length, MAX_PAGES * 20); // rough estimate
+                for (let i = 0; i < limit && i < textBlocks.length; i++) {
+                  const block = textBlocks[i];
+                  const matches = block.match(/\((.*?)\)/g) || block.match(/\[(.*?)\]/g);
+                  if (matches) {
+                    for (const match of matches) {
+                      const cleanText = match.replace(/[()[\]]/g, '').trim();
+                      if (cleanText && cleanText.length > 0) {
+                        text += cleanText + ' ';
+                      }
+                    }
+                  }
+                }
               }
-              content = pageTexts.join('\n\n');
+
+              // Fallback: try to extract any readable text
+              if (!text || text.length < 50) {
+                const readable = pdfString.match(/[a-zA-Z0-9\s.,!?-]{10,}/g);
+                if (readable) {
+                  text = readable.slice(0, MAX_PAGES * 100).join(' ');
+                }
+              }
+
+              content = text;
             } else if (isDocx) {
               const ab = await fileData.arrayBuffer();
               const mammoth = await import('https://esm.sh/mammoth@1.8.0');
