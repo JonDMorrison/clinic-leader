@@ -688,6 +688,8 @@ const Docs = () => {
                 docId={selectedDoc?.id || ''}
                 docTitle={selectedDoc?.title || ''}
                 docContent={selectedDoc?.body || selectedDoc?.parsed_text || ''}
+                extractStatus={selectedDoc?.extract_status}
+                onTriggerExtraction={() => handleReExtract(selectedDoc?.id, selectedDoc?.storage_path)}
               />
             </div>
           </div>

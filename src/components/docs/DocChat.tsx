@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -15,12 +15,16 @@ interface DocChatProps {
   docId: string;
   docTitle: string;
   docContent: string;
+  extractStatus?: string;
+  onTriggerExtraction?: () => void;
 }
 
-export const DocChat = ({ docId, docTitle, docContent }: DocChatProps) => {
+export const DocChat = ({ docId, docTitle, docContent, extractStatus, onTriggerExtraction }: DocChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  
+  const hasNoContent = !docContent || docContent.trim().length === 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +65,28 @@ export const DocChat = ({ docId, docTitle, docContent }: DocChatProps) => {
 
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
-          {messages.length === 0 ? (
+          {hasNoContent ? (
+            <div className="flex flex-col items-center justify-center text-center py-8 px-4 space-y-4">
+              <AlertCircle className="w-12 h-12 text-amber-500" />
+              <div className="space-y-2">
+                <p className="font-medium text-foreground">Document content not available</p>
+                <p className="text-sm text-muted-foreground">
+                  {extractStatus === 'needs_ocr' 
+                    ? 'This appears to be a scanned document that requires OCR processing.'
+                    : extractStatus === 'error'
+                    ? 'Text extraction failed for this document.'
+                    : extractStatus === 'extracting' || extractStatus === 'queued'
+                    ? 'This document is still being processed. Please wait a moment.'
+                    : 'Text has not been extracted from this document yet.'}
+                </p>
+                {onTriggerExtraction && extractStatus !== 'extracting' && extractStatus !== 'queued' && (
+                  <Button onClick={onTriggerExtraction} size="sm" className="mt-2">
+                    {extractStatus === 'needs_ocr' ? 'Run OCR' : 'Extract Text'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="text-center text-muted-foreground text-sm py-8">
               Ask a question about this document to get started
             </div>
@@ -100,6 +125,7 @@ export const DocChat = ({ docId, docTitle, docContent }: DocChatProps) => {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a question about this document..."
             className="min-h-[60px] resize-none"
+            disabled={hasNoContent}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -107,7 +133,7 @@ export const DocChat = ({ docId, docTitle, docContent }: DocChatProps) => {
               }
             }}
           />
-          <Button type="submit" disabled={isLoading || !input.trim()} size="icon">
+          <Button type="submit" disabled={isLoading || !input.trim() || hasNoContent} size="icon">
             <Send className="w-4 h-4" />
           </Button>
         </div>
