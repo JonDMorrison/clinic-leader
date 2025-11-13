@@ -229,7 +229,7 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Bulk Upload Documents</DialogTitle>
+          <DialogTitle>Upload Documents</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
