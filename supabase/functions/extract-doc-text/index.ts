@@ -98,6 +98,7 @@ serve(async (req) => {
 
       try {
         const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.worker.mjs';
         const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
         
         console.log(`[extract-doc-text] PDF has ${pdf.numPages} pages, extracting text (up to 15 pages)`);

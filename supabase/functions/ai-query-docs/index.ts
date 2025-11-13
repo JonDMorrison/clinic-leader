@@ -76,6 +76,7 @@ serve(async (req) => {
           if (!downloadErr && fileData) {
             if (isPdf) {
               const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs');
+              pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.worker.mjs';
               const ab = await fileData.arrayBuffer();
               const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
 
