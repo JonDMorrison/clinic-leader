@@ -18,7 +18,13 @@ export function DifferentiatorsEditor({ values, onChange, organizationId }: Diff
   const handleAIDraft = async () => {
     setLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No active session");
+      }
+
       const { data, error } = await supabase.functions.invoke("clarity-ai", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: {
           intent: "draft",
           context: { organization_id: organizationId },
