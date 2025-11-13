@@ -18,9 +18,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-// Configure PDF.js worker for client-side rendering
+// Configure PDF.js for client-side rendering (no worker)
 if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  // Disable worker to avoid dynamic import/CORS issues in sandbox
+  // @ts-ignore
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 }
 
 export default function AdminIngestion() {
@@ -99,9 +101,14 @@ export default function AdminIngestion() {
 
       setOcrProgress((prev) => ({ ...prev, [docId]: "Rendering pages..." }));
 
-      // Load PDF with PDF.js
+      // Load PDF with PDF.js (disable worker to avoid dynamic import)
       const arrayBuffer = await fileData.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await (pdfjsLib.getDocument as any)({ 
+        data: arrayBuffer,
+        disableWorker: true,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+      }).promise;
       const numPages = Math.min(pdf.numPages, 10); // Limit to 10 pages for performance
 
       // Initialize Tesseract worker
