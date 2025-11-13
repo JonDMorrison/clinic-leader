@@ -271,6 +271,47 @@ const Docs = () => {
     }
   };
 
+  const handleBulkReExtract = async () => {
+    if (!docs) return;
+
+    // Find all documents with storage_path but no parsed_text
+    const docsToExtract = docs.filter(
+      (doc: any) => doc.storage_path && !doc.parsed_text
+    );
+
+    if (docsToExtract.length === 0) {
+      toast.info('All documents have already been extracted');
+      return;
+    }
+
+    if (!confirm(`This will re-extract text from ${docsToExtract.length} documents. Continue?`)) {
+      return;
+    }
+
+    toast.info(`Starting bulk extraction for ${docsToExtract.length} documents...`);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Process documents sequentially to avoid overwhelming the system
+    for (const doc of docsToExtract) {
+      try {
+        const { error } = await supabase.functions.invoke('extract-doc-text', {
+          body: { doc_id: doc.id, storage_path: doc.storage_path }
+        });
+
+        if (error) throw error;
+        successCount++;
+      } catch (error) {
+        console.error(`Error extracting ${doc.title}:`, error);
+        errorCount++;
+      }
+    }
+
+    toast.success(`Bulk extraction complete. Success: ${successCount}, Errors: ${errorCount}`);
+    setTimeout(() => refetchDocs(), 3000);
+  };
+
   const handleDownloadDoc = async (doc: any) => {
     if (!doc.storage_path) return;
     
@@ -398,6 +439,10 @@ const Docs = () => {
               <div className="flex justify-end gap-2 mb-4">
                 {isManager && (
                   <>
+                    <Button variant="outline" onClick={handleBulkReExtract}>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Bulk Re-extract
+                    </Button>
                     <Button variant="outline" onClick={() => setBulkUploadModalOpen(true)}>
                       <Upload className="w-4 h-4 mr-2" />
                       Bulk Upload
