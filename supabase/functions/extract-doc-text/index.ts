@@ -46,94 +46,36 @@ serve(async (req) => {
     let extractedText = '';
 
     if (isPdf) {
-      console.log('[extract-doc-text] Extracting PDF text with OCR using PDF.js + OpenAI Vision');
-      
-      const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-      if (!openaiApiKey) {
-        throw new Error('OPENAI_API_KEY is not configured');
-      }
+      console.log('[extract-doc-text] Extracting PDF text using PDF.js text layer (no OCR)');
 
       try {
-        // Import PDF.js and canvas library
+        // Import PDF.js
         const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs');
-        const { createCanvas } = await import('https://deno.land/x/canvas@v1.4.1/mod.ts');
         
         // Load PDF
         const arrayBuffer = await fileData.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
         
-        console.log(`[extract-doc-text] PDF has ${pdf.numPages} pages, processing first 5 for OCR`);
+        console.log(`[extract-doc-text] PDF has ${pdf.numPages} pages, extracting text (up to 15 pages)`);
         
-        const maxPagesToProcess = Math.min(pdf.numPages, 5); // Limit to 5 pages for cost/performance
+        const maxPagesToProcess = Math.min(pdf.numPages, 15); // Limit pages for performance
         const pageTexts: string[] = [];
         
         // Process each page
         for (let pageNum = 1; pageNum <= maxPagesToProcess; pageNum++) {
-          console.log(`[extract-doc-text] OCR processing page ${pageNum}/${maxPagesToProcess}`);
-          
+          console.log(`[extract-doc-text] Text extraction for page ${pageNum}/${maxPagesToProcess}`);
           const page = await pdf.getPage(pageNum);
-          const viewport = page.getViewport({ scale: 2.0 });
-          
-          // Create canvas
-          const canvas = createCanvas(viewport.width, viewport.height);
-          const context = canvas.getContext('2d');
-          
-          // Render page to canvas
-          await page.render({
-            canvasContext: context,
-            viewport: viewport
-          }).promise;
-          
-          // Convert canvas to PNG base64
-          const pngData = canvas.toBuffer('image/png');
-          const base64Image = btoa(String.fromCharCode(...new Uint8Array(pngData)));
-          
-          // Send to OpenAI for OCR
-          const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${openaiApiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o',
-              messages: [
-                {
-                  role: 'user',
-                  content: [
-                    {
-                      type: 'text',
-                      text: 'Extract all text from this image using OCR. Return only the extracted text, no explanations.'
-                    },
-                    {
-                      type: 'image_url',
-                      image_url: {
-                        url: `data:image/png;base64,${base64Image}`
-                      }
-                    }
-                  ]
-                }
-              ],
-              max_tokens: 2000,
-            }),
-          });
-          
-          if (aiResponse.ok) {
-            const aiData = await aiResponse.json();
-            const pageText = aiData.choices[0]?.message?.content || '';
-            pageTexts.push(pageText);
-            console.log(`[extract-doc-text] Page ${pageNum}: extracted ${pageText.length} chars`);
-          } else {
-            const errorText = await aiResponse.text();
-            console.error(`[extract-doc-text] OCR failed for page ${pageNum}:`, aiResponse.status, errorText);
-          }
+          const textContent = await page.getTextContent();
+          const items = (textContent.items || []) as any[];
+          const pageText = items.map((it: any) => (typeof it?.str === 'string' ? it.str : '')).join(' ');
+          pageTexts.push(pageText);
         }
         
         extractedText = pageTexts.join('\n\n');
-        console.log(`[extract-doc-text] Total extracted: ${extractedText.length} characters from ${maxPagesToProcess} pages`);
+        console.log(`[extract-doc-text] Total extracted: ${extractedText.length} characters from ${maxPagesToProcess} pages (text layer)`);
         
       } catch (parseError) {
-        console.error('[extract-doc-text] OCR extraction failed:', parseError);
+        console.error('[extract-doc-text] PDF text extraction failed:', parseError);
         extractedText = '';
       }
       
@@ -141,6 +83,7 @@ serve(async (req) => {
       extractedText = extractedText
         .replace(/\s+/g, ' ')
         .trim();
+      
 
     } else if (isDocx) {
       console.log('[extract-doc-text] Extracting DOCX text');
