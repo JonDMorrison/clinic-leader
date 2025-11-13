@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { FileText, Clock, CheckCircle2, BookOpen, Trash2, RefreshCw } from "lucide-react";
+import { FileText, Clock, CheckCircle2, BookOpen, Trash2, RefreshCw, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,7 @@ interface DocListProps {
   onKindFilterChange: (value: string) => void;
   onOwnerFilterChange: (value: string) => void;
   onSelectDoc: (doc: Doc) => void;
+  onEditDoc?: (doc: Doc) => void;
   users: Array<{ id: string; full_name: string }>;
   onDelete?: (docId: string) => void;
   onReExtract?: (docId: string, storagePath: string) => void;
@@ -44,6 +45,7 @@ export const DocList = ({
   onKindFilterChange,
   onOwnerFilterChange,
   onSelectDoc,
+  onEditDoc,
   users,
   onDelete,
   onReExtract,
@@ -142,8 +144,23 @@ export const DocList = ({
                   {doc.requires_ack && isAcknowledged(doc) && (
                     <CheckCircle2 className="w-5 h-5 text-success" />
                   )}
-                  {(userRole === 'owner' || userRole === 'manager') && (
+                  {(userRole === 'owner' || userRole === 'manager' || userRole === 'director') && (
                     <div className="flex gap-1">
+                      {onEditDoc && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditDoc(doc);
+                          }}
+                          title="Edit document"
+                          className="h-8"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                      )}
                       {doc.storage_path && onReExtract && (
                         <Button
                           variant="ghost"

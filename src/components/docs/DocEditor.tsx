@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const docSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(200, "Title too long"),
+  description: z.string().max(500, "Description too long").optional(),
   kind: z.enum(["SOP", "Policy", "Handbook"]),
   body: z.string().min(10, "Body must be at least 10 characters"),
   status: z.enum(["draft", "approved", "archived"]),
@@ -25,6 +26,7 @@ interface DocEditorProps {
   doc: {
     id?: string;
     title: string;
+    description?: string;
     kind: string;
     body: string;
     status: string;
@@ -38,6 +40,7 @@ interface DocEditorProps {
 
 export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorProps) => {
   const [title, setTitle] = useState(doc?.title || "");
+  const [description, setDescription] = useState(doc?.description || "");
   const [kind, setKind] = useState(doc?.kind || "SOP");
   const [body, setBody] = useState(doc?.body || "");
   const [status, setStatus] = useState(doc?.status || "draft");
@@ -367,6 +370,17 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
               placeholder="Document title"
             />
             {errors.title && <p className="text-xs text-danger">{errors.title}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Input
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief summary of the document (optional)"
+            />
+            {errors.description && <p className="text-xs text-danger">{errors.description}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

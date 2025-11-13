@@ -482,6 +482,7 @@ const Docs = () => {
                   onKindFilterChange={setKindFilter}
                   onOwnerFilterChange={setOwnerFilter}
                   onSelectDoc={handleViewDoc}
+                  onEditDoc={handleEditDoc}
                   users={users || []}
                   onDelete={handleDelete}
                   onReExtract={handleReExtract}
