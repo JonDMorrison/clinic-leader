@@ -102,6 +102,7 @@ serve(async (req) => {
         pdfjsLib.GlobalWorkerOptions.workerSrc = '';
         const pdf = await pdfjsLib.getDocument({ 
           data: new Uint8Array(ab),
+          
           useWorkerFetch: false,
           isEvalSupported: false
         }).promise;
