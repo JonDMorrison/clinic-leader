@@ -14,6 +14,7 @@ import { DocList } from "@/components/docs/DocList";
 import { DocEditor } from "@/components/docs/DocEditor";
 import { AckPanel } from "@/components/docs/AckPanel";
 import { ManagerDashboard } from "@/components/docs/ManagerDashboard";
+import { DocChat } from "@/components/docs/DocChat";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardContent } from "@/components/ui/Card";
 import { HandbookViewer } from "@/components/docs/HandbookViewer";
@@ -587,94 +588,109 @@ const Docs = () => {
       )}
 
       <Dialog open={isViewerOpen} onOpenChange={handleCloseViewer}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>{selectedDoc?.title}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              {selectedDoc?.title}
+            </DialogTitle>
           </DialogHeader>
 
-          {selectedDoc?.storage_path ? (
-            // Binary file viewer
-            <div className="h-[80vh]">
-              {viewerLoading && (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  Loading document preview...
-                </div>
-              )}
-              {viewerError && (
-                <div className="flex flex-col items-center justify-center h-full gap-4">
-                  <p className="text-destructive">{viewerError}</p>
-                  <Button onClick={() => handleDownloadDoc(selectedDoc)}>
-                    <Download className="w-4 h-4 mr-2" />
-                    Download Document
-                  </Button>
-                </div>
-              )}
-              {viewerBlobUrl && !viewerLoading && !viewerError && (
-                <DocViewerFrame 
-                  blobUrl={viewerBlobUrl} 
-                  fileName={selectedDoc.filename || selectedDoc.title}
-                  contentType={viewerContentType}
-                  onDownload={() => handleDownloadDoc(selectedDoc)}
-                />
-              )}
-            </div>
-          ) : (
-            // Markdown viewer
-            <div className="space-y-6">
-              <div className="flex gap-2 text-sm text-muted-foreground">
-                <span className="capitalize">{selectedDoc?.kind}</span>
-                <span>•</span>
-                <span>v{selectedDoc?.version}</span>
-                <span>•</span>
-                <span>
-                  Updated {selectedDoc?.updated_at && new Date(selectedDoc.updated_at).toLocaleDateString()}
-                </span>
-              </div>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="prose prose-base max-w-none dark:prose-invert 
-                    prose-headings:font-extrabold prose-headings:text-foreground
-                    prose-h1:text-3xl prose-h1:mb-6 prose-h1:mt-8
-                    prose-h2:text-2xl prose-h2:mb-4 prose-h2:mt-6
-                    prose-h3:text-xl prose-h3:mb-3 prose-h3:mt-5
-                    prose-p:text-foreground prose-p:leading-7 prose-p:mb-4
-                    prose-strong:font-extrabold prose-strong:text-foreground
-                    prose-ul:list-disc prose-ul:my-4 prose-ul:pl-6
-                    prose-ol:list-decimal prose-ol:my-4 prose-ol:pl-6
-                    prose-li:text-foreground prose-li:my-2">
-                    <ReactMarkdown>{selectedDoc?.body}</ReactMarkdown>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {selectedDoc?.requires_ack && (
-                <AckPanel
-                  docId={selectedDoc.id}
-                  docTitle={selectedDoc.title}
-                  isAcknowledged={selectedDoc.acknowledgements?.some(
-                    (ack: any) => ack.user_id === currentUser?.id
+          <div className="grid grid-cols-2 gap-4 h-[75vh]">
+            <div className="overflow-y-auto border rounded-lg">
+              {selectedDoc?.storage_path ? (
+                // Binary file viewer
+                <div className="h-full">
+                  {viewerLoading && (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      Loading document preview...
+                    </div>
                   )}
-                  acknowledgedAt={selectedDoc.acknowledgements?.find(
-                    (ack: any) => ack.user_id === currentUser?.id
-                  )?.created_at}
-                  withQuiz={true}
-                  onAcknowledged={handleSuccess}
-                />
-              )}
+                  {viewerError && (
+                    <div className="flex flex-col items-center justify-center h-full gap-4">
+                      <p className="text-destructive">{viewerError}</p>
+                      <Button onClick={() => handleDownloadDoc(selectedDoc)}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Download Document
+                      </Button>
+                    </div>
+                  )}
+                  {viewerBlobUrl && !viewerLoading && !viewerError && (
+                    <DocViewerFrame 
+                      blobUrl={viewerBlobUrl} 
+                      fileName={selectedDoc.filename || selectedDoc.title}
+                      contentType={viewerContentType}
+                      onDownload={() => handleDownloadDoc(selectedDoc)}
+                    />
+                  )}
+                </div>
+              ) : (
+                // Markdown viewer
+                <div className="space-y-6 p-4">
+                  <div className="flex gap-2 text-sm text-muted-foreground">
+                    <span className="capitalize">{selectedDoc?.kind}</span>
+                    <span>•</span>
+                    <span>v{selectedDoc?.version}</span>
+                    <span>•</span>
+                    <span>
+                      Updated {selectedDoc?.updated_at && new Date(selectedDoc.updated_at).toLocaleDateString()}
+                    </span>
+                  </div>
 
-              {isManager && (
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => {
-                    handleCloseViewer();
-                    handleEditDoc(selectedDoc);
-                  }}>
-                    Edit Document
-                  </Button>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="prose prose-base max-w-none dark:prose-invert 
+                        prose-headings:font-extrabold prose-headings:text-foreground
+                        prose-h1:text-3xl prose-h1:mb-6 prose-h1:mt-8
+                        prose-h2:text-2xl prose-h2:mb-4 prose-h2:mt-6
+                        prose-h3:text-xl prose-h3:mb-3 prose-h3:mt-5
+                        prose-p:text-foreground prose-p:leading-7 prose-p:mb-4
+                        prose-strong:font-extrabold prose-strong:text-foreground
+                        prose-ul:list-disc prose-ul:my-4 prose-ul:pl-6
+                        prose-ol:list-decimal prose-ol:my-4 prose-ol:pl-6
+                        prose-li:text-foreground prose-li:my-2">
+                        <ReactMarkdown>{selectedDoc?.body}</ReactMarkdown>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {selectedDoc?.requires_ack && (
+                    <AckPanel
+                      docId={selectedDoc.id}
+                      docTitle={selectedDoc.title}
+                      isAcknowledged={selectedDoc.acknowledgements?.some(
+                        (ack: any) => ack.user_id === currentUser?.id
+                      )}
+                      acknowledgedAt={selectedDoc.acknowledgements?.find(
+                        (ack: any) => ack.user_id === currentUser?.id
+                      )?.created_at}
+                      withQuiz={true}
+                      onAcknowledged={handleSuccess}
+                    />
+                  )}
+
+                  {isManager && (
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={() => {
+                        handleCloseViewer();
+                        handleEditDoc(selectedDoc);
+                      }}>
+                        Edit Document
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
+            
+            <div className="border rounded-lg overflow-hidden">
+              <DocChat
+                docId={selectedDoc?.id || ''}
+                docTitle={selectedDoc?.title || ''}
+                docContent={selectedDoc?.body || selectedDoc?.parsed_text || ''}
+              />
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
