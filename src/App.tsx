@@ -58,6 +58,7 @@ import TeamManagement from "./pages/TeamManagement";
 import ResetOrganization from "./pages/ResetOrganization";
 import AdminAddUser from "./pages/AdminAddUser";
 import AdminUsers from "./pages/AdminUsers";
+import AdminIngestion from "./pages/AdminIngestion";
 
 const queryClient = new QueryClient();
 
@@ -179,6 +180,7 @@ const App = () => {
             <Route path="/admin/onboarding-analytics" element={<AppLayout><OnboardingAnalytics /></AppLayout>} />
             <Route path="/admin" element={<AppLayout><AdminDashboard /></AppLayout>} />
             <Route path="/admin/upload-docs" element={<AppLayout><DocumentUploadAdmin /></AppLayout>} />
+            <Route path="/admin/ingestion" element={<AppLayout><AdminIngestion /></AppLayout>} />
             <Route path="/admin/system-health" element={<AppLayout><SystemHealth /></AppLayout>} />
             <Route path="/admin/demo" element={<AppLayout><AdminDemo /></AppLayout>} />
             <Route path="/admin/impersonate" element={<AppLayout><AdminImpersonate /></AppLayout>} />

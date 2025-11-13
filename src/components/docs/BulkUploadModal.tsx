@@ -131,7 +131,7 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
 
         console.log("[BulkUpload] Storage upload successful, inserting into docs table");
 
-        // Insert into docs table
+        // Insert into docs table with extract_status='queued'
         const { data: insertData, error: insertError } = await supabase.from("docs").insert([{
           title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
           organization_id: organizationId,
@@ -142,6 +142,8 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess, organizationId,
           storage_path: storagePath,
           filename: file.name,
           file_type: fileExt,
+          mime_type: file.type,
+          extract_status: "queued",
           requires_ack: false,
         }]).select('id').single();
 
