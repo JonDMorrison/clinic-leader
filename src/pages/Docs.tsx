@@ -24,6 +24,7 @@ import { UploadPlaybookModal } from "@/components/playbooks/UploadPlaybookModal"
 import { Playbook, PLAYBOOK_CATEGORIES } from "@/types/playbook";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useAutoOcr } from "@/hooks/useAutoOcr";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 
@@ -340,6 +341,13 @@ const Docs = () => {
   const handleSuccess = () => {
     refetchDocs();
   };
+
+  // Enable automatic OCR for uploaded documents
+  useAutoOcr({
+    organizationId: currentUser?.team_id || '',
+    enabled: !!currentUser?.team_id && isManager,
+    onComplete: handleSuccess,
+  });
 
   const handleViewPlaybook = (id: string) => {
     navigate(`/library/${id}`);
