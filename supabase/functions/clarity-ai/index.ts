@@ -95,7 +95,7 @@ serve(async (req) => {
     const suggestion = aiData.choices[0].message.content;
 
     // Parse suggestions based on intent
-    const suggestions = parseSuggestions(intent, suggestion, current_value);
+    const suggestions = parseSuggestions(intent, suggestion, current_value, field);
 
     console.log('AI Coach generated', suggestions.length, 'suggestions');
 
@@ -152,6 +152,9 @@ function buildUserPrompt(intent: string, context: any, field?: string, current_v
 
   switch (intent) {
     case 'draft':
+      if (field === 'core_values') {
+        return `Generate 3-5 core values for a healthcare clinic. Return ONLY the values as a comma-separated list. Each value should be 1-2 words maximum (e.g., "Integrity, Excellence, Compassion, Innovation, Care"). Do not include numbers, explanations, or descriptions - just the values separated by commas.`;
+      }
       if (field === 'ten_year_target') {
         return `Create 3 distinct 10-year targets for a clinic with:\n- Core Focus: ${vision.core_focus?.purpose || 'healing and wellness'}\n- Niche: ${vision.core_focus?.niche || 'integrated care'}\n\nEach target should be inspiring, specific, and achievable.`;
       }
@@ -177,7 +180,21 @@ function buildUserPrompt(intent: string, context: any, field?: string, current_v
   }
 }
 
-function parseSuggestions(intent: string, aiResponse: string, current_value?: string): any[] {
+function parseSuggestions(intent: string, aiResponse: string, current_value?: string, field?: string): any[] {
+  // Special handling for comma-separated core values
+  if (intent === 'draft' && field === 'core_values') {
+    // Return the entire comma-separated string as a single suggestion
+    const cleanedResponse = aiResponse
+      .replace(/^\d+\.\s*/gm, '') // Remove numbered list markers
+      .replace(/^[-*]\s*/gm, '')  // Remove bullet points
+      .trim();
+    
+    return [{
+      text: cleanedResponse,
+      rationale: 'AI-generated core values'
+    }];
+  }
+
   // Split by numbered list (1., 2., 3.) or bullet points
   const lines = aiResponse.split(/\n+/).filter(line => line.trim());
   
