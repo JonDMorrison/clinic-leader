@@ -4,9 +4,11 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Download, AlertCircle, CheckCircle, Clock, FileQuestion } from "lucide-react";
+import { RefreshCw, Download, AlertCircle, CheckCircle, Clock, FileQuestion, Scan } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { createWorker } from "tesseract.js";
+import * as pdfjsLib from "pdfjs-dist";
 import {
   Table,
   TableBody,
@@ -16,9 +18,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+// Configure PDF.js worker for client-side rendering
+if (typeof window !== "undefined") {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+}
+
 export default function AdminIngestion() {
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
   const [processing, setProcessing] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState<{ [key: string]: string }>({});
 
   const { data: docs, isLoading, refetch } = useQuery({
     queryKey: ["admin-docs-ingestion", currentUser?.team_id],
@@ -75,6 +83,97 @@ export default function AdminIngestion() {
       toast.error(error.message || "Failed to bulk re-extract documents");
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleRunOcr = async (docId: string, storagePath: string) => {
+    try {
+      setOcrProgress((prev) => ({ ...prev, [docId]: "Downloading PDF..." }));
+
+      // Download PDF from storage
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from("documents")
+        .download(storagePath);
+
+      if (downloadError) throw downloadError;
+
+      setOcrProgress((prev) => ({ ...prev, [docId]: "Rendering pages..." }));
+
+      // Load PDF with PDF.js
+      const arrayBuffer = await fileData.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const numPages = Math.min(pdf.numPages, 10); // Limit to 10 pages for performance
+
+      // Initialize Tesseract worker
+      setOcrProgress((prev) => ({ ...prev, [docId]: "Initializing OCR..." }));
+      const worker = await createWorker("eng");
+
+      let fullText = "";
+
+      // Process each page
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        setOcrProgress((prev) => ({ 
+          ...prev, 
+          [docId]: `Processing page ${pageNum}/${numPages}...` 
+        }));
+
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 2.0 });
+
+        // Render page to canvas
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext("2d")!;
+
+        await page.render({ 
+          canvasContext: context, 
+          viewport,
+          canvas 
+        }).promise;
+
+        // Convert canvas to blob and run OCR
+        const blob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((b) => resolve(b!), "image/png");
+        });
+
+        const { data: { text } } = await worker.recognize(blob);
+        fullText += text + "\n\n";
+      }
+
+      await worker.terminate();
+
+      setOcrProgress((prev) => ({ ...prev, [docId]: "Saving results..." }));
+
+      // Update database with extracted text
+      const wordCount = fullText.trim().split(/\s+/).length;
+      const { error: updateError } = await supabase
+        .from("docs")
+        .update({
+          parsed_text: fullText.slice(0, 250000),
+          extract_status: "ready",
+          extract_source: "client_ocr",
+          extracted_at: new Date().toISOString(),
+          word_count: wordCount,
+          extract_error: null,
+        })
+        .eq("id", docId);
+
+      if (updateError) throw updateError;
+
+      toast.success(`OCR complete: ${wordCount} words extracted`);
+      await refetch();
+      setOcrProgress((prev) => {
+        const { [docId]: _, ...rest } = prev;
+        return rest;
+      });
+    } catch (error: any) {
+      console.error("OCR error:", error);
+      toast.error(error.message || "Failed to run OCR");
+      setOcrProgress((prev) => {
+        const { [docId]: _, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -200,16 +299,30 @@ export default function AdminIngestion() {
                     {(doc as any).extract_error || "-"}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleReExtract(doc.id, doc.storage_path!)}
-                      disabled={processing}
-                      className="gap-1"
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                      Re-extract
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleReExtract(doc.id, doc.storage_path!)}
+                        disabled={processing || !!ocrProgress[doc.id]}
+                        className="gap-1"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        Re-extract
+                      </Button>
+                      {(doc as any).extract_status === "needs_ocr" && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleRunOcr(doc.id, doc.storage_path!)}
+                          disabled={!!ocrProgress[doc.id]}
+                          className="gap-1"
+                        >
+                          <Scan className="h-3 w-3" />
+                          {ocrProgress[doc.id] || "Run OCR"}
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
