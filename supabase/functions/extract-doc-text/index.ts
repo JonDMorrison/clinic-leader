@@ -93,61 +93,52 @@ serve(async (req) => {
     let wordCount = 0;
 
     if (isPdf) {
-      console.log('[extract-doc-text] Extracting PDF text using PDF.js text layer');
-      source = 'pdfjs';
+      console.log('[extract-doc-text] Extracting PDF text using basic parser');
+      source = 'basic-pdf-parse';
 
       try {
-        const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/legacy/build/pdf.mjs');
-        // Disable worker completely for Deno Edge Function environment
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-        const pdf = await pdfjsLib.getDocument({ 
-          data: new Uint8Array(ab),
-          
-          useWorkerFetch: false,
-          isEvalSupported: false
-        }).promise;
-        
-        console.log(`[extract-doc-text] PDF has ${pdf.numPages} pages, extracting text (up to 15 pages)`);
-        
-        const maxPagesToProcess = Math.min(pdf.numPages, 15);
-        const pageTexts: string[] = [];
-        
-        for (let pageNum = 1; pageNum <= maxPagesToProcess; pageNum++) {
-          const page = await pdf.getPage(pageNum);
-          const textContent = await page.getTextContent();
-          const items = (textContent.items || []) as any[];
-          const pageText = items.map((it: any) => (typeof it?.str === 'string' ? it.str : '')).join(' ');
-          pageTexts.push(pageText);
+        const u8 = new Uint8Array(ab);
+        const pdfString = new TextDecoder().decode(u8);
+        let text = '';
+
+        // Extract text between BT (begin text) and ET (end text) markers
+        const textBlocks = pdfString.match(/BT(.*?)ET/gs);
+        if (textBlocks) {
+          for (const block of textBlocks) {
+            // Extract text in parentheses or brackets
+            const matches = block.match(/\((.*?)\)/g) || block.match(/\[(.*?)\]/g);
+            if (matches) {
+              for (const match of matches) {
+                const cleanText = match.replace(/[()[\]]/g, '').trim();
+                if (cleanText && cleanText.length > 0) {
+                  text += cleanText + ' ';
+                }
+              }
+            }
+          }
         }
+
+        // Fallback: try to extract any readable text
+        if (!text || text.length < 50) {
+          const readable = pdfString.match(/[a-zA-Z0-9\s.,!?-]{10,}/g);
+          if (readable) {
+            text = readable.join(' ');
+          }
+        }
+
+        // Clean up the extracted text
+        extractedText = text
+          .replace(/\s+/g, ' ')
+          .replace(/[^\x20-\x7E\n]/g, '') // Remove non-printable characters
+          .trim();
         
-        extractedText = pageTexts.join('\n\n').replace(/\s+/g, ' ').trim();
         wordCount = extractedText ? extractedText.split(/\s+/).length : 0;
-        
-        console.log(`[extract-doc-text] Extracted ${extractedText.length} chars, ${wordCount} words from ${maxPagesToProcess} pages`);
+        console.log(`[extract-doc-text] Extracted ${extractedText.length} chars, ${wordCount} words`);
         
       } catch (parseError) {
         console.error('[extract-doc-text] PDF extraction failed:', parseError);
         const errorMsg = parseError instanceof Error ? parseError.message : 'Unknown error';
-
-        // If the environment lacks DOM APIs or worker support, treat as needs_ocr instead of hard error
-        const envMismatch = /DOMMatrix is not defined|GlobalWorkerOptions|worker/i.test(String(errorMsg));
-        if (envMismatch) {
-          await supabase.from('docs').update({
-            extract_status: 'needs_ocr',
-            extract_source: source,
-            extract_error: `PDF extraction unavailable in edge environment: ${errorMsg}`,
-            extracted_at: new Date().toISOString(),
-            content_hash: newHash,
-            word_count: 0
-          }).eq('id', doc_id);
-
-          return new Response(
-            JSON.stringify({ status: 'needs_ocr', reason: 'pdfjs-unavailable-in-edge', details: errorMsg }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Default: mark error
+        
         await supabase.from('docs').update({
           extract_status: 'error',
           extract_error: `PDF extraction failed: ${errorMsg}`,
