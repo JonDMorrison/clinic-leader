@@ -655,6 +655,9 @@ const Docs = () => {
                   isAcknowledged={selectedDoc.acknowledgements?.some(
                     (ack: any) => ack.user_id === currentUser?.id
                   )}
+                  acknowledgedAt={selectedDoc.acknowledgements?.find(
+                    (ack: any) => ack.user_id === currentUser?.id
+                  )?.created_at}
                   withQuiz={true}
                   onAcknowledged={handleSuccess}
                 />

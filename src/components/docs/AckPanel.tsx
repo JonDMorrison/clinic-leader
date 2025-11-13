@@ -17,6 +17,7 @@ interface AckPanelProps {
   docId: string;
   docTitle: string;
   isAcknowledged: boolean;
+  acknowledgedAt?: string;
   withQuiz?: boolean;
   onAcknowledged: () => void;
 }
@@ -43,6 +44,7 @@ export const AckPanel = ({
   docId,
   docTitle,
   isAcknowledged,
+  acknowledgedAt,
   withQuiz = false,
   onAcknowledged,
 }: AckPanelProps) => {
@@ -160,6 +162,17 @@ export const AckPanel = ({
           <p className="text-sm text-muted-foreground">
             You have acknowledged this document.
           </p>
+          {acknowledgedAt && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Completed on {new Date(acknowledgedAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </p>
+          )}
         </CardContent>
       </Card>
     );
