@@ -149,16 +149,15 @@ export const DocList = ({
                       {onEditDoc && (
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="icon"
                           onClick={(e) => {
                             e.stopPropagation();
                             onEditDoc(doc);
                           }}
                           title="Edit document"
-                          className="h-8"
+                          className="h-8 w-8"
                         >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
+                          <Edit className="h-4 w-4" />
                         </Button>
                       )}
                       {doc.storage_path && onReExtract && (
