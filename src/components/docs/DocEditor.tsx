@@ -9,8 +9,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
 import { RichTextEditor } from "./RichTextEditor";
-import { Upload, FileText, Loader2, Download, X } from "lucide-react";
+import { Upload, FileText, Loader2, Download, X, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ContentComparisonDialog } from "./ContentComparisonDialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const docSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(200, "Title too long"),
@@ -58,6 +60,13 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
     filename: string;
     filePath: string;
   } | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
+  const [originalContent, setOriginalContent] = useState<{
+    title: string;
+    body: string;
+    kind: string;
+  } | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<string>("");
 
   // Update form fields when doc changes or dialog opens
   useEffect(() => {
@@ -99,6 +108,15 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
 
   const processFile = async (file: File) => {
     setIsProcessing(true);
+    setProcessingStatus("Uploading file...");
+    
+    // Store original content before processing
+    setOriginalContent({
+      title,
+      body,
+      kind,
+    });
+    
     try {
       // Get current user's organization_id
       const { data: { user } } = await supabase.auth.getUser();
@@ -145,23 +163,31 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
       if (parseError) throw parseError;
 
       // Set extracted data
-      setExtractedData({
+      const newExtractedData = {
         title: parseData.title || file.name.replace(/\.[^/.]+$/, ""),
         body: parseData.body || extractData.text,
         suggestedType: parseData.suggestedType || "SOP",
         filename: file.name,
         filePath: tempPath
-      });
+      };
+      
+      setExtractedData(newExtractedData);
+      setProcessingStatus("Extraction complete!");
 
-      setTitle(parseData.title || file.name.replace(/\.[^/.]+$/, ""));
-      setBody(parseData.body || extractData.text);
-      setKind(parseData.suggestedType || "SOP");
-
-      toast.success("Document processed successfully!");
+      // Show comparison dialog if editing existing document
+      if (doc?.id) {
+        setShowComparison(true);
+        toast.success("Review the extracted content before applying");
+      } else {
+        // For new documents, apply directly
+        applyExtractedContent(newExtractedData);
+        toast.success("Document processed successfully!");
+      }
     } catch (error) {
       console.error('File processing error:', error);
       toast.error("Failed to process file. You can still enter content manually.");
       setUploadMode("manual");
+      setProcessingStatus("");
     } finally {
       setIsProcessing(false);
     }
@@ -176,6 +202,33 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
     setExtractedData(null);
     setTitle("");
     setBody("");
+  };
+
+  const applyExtractedContent = (data: typeof extractedData) => {
+    if (!data) return;
+    setTitle(data.title);
+    setBody(data.body);
+    setKind(data.suggestedType);
+  };
+
+  const handleConfirmComparison = () => {
+    if (extractedData) {
+      applyExtractedContent(extractedData);
+      setShowComparison(false);
+      toast.success("New content applied successfully!");
+    }
+  };
+
+  const handleCancelComparison = () => {
+    setShowComparison(false);
+    setExtractedData(null);
+    setSelectedFile(null);
+    if (originalContent) {
+      setTitle(originalContent.title);
+      setBody(originalContent.body);
+      setKind(originalContent.kind);
+    }
+    toast.info("Changes cancelled, keeping current content");
   };
 
   const handleSubmit = async () => {
@@ -305,11 +358,12 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{doc?.id ? "Edit Document" : "Create Document"}</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{doc?.id ? "Edit Document" : "Create Document"}</DialogTitle>
+          </DialogHeader>
 
         <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as "file" | "manual")}>
           <TabsList className="grid w-full grid-cols-2">
@@ -318,54 +372,81 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
           </TabsList>
 
           <TabsContent value="file" className="space-y-4 mt-4">
-            {!selectedFile ? (
-              <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  id="file-upload"
-                  disabled={isProcessing}
-                />
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-sm font-medium mb-1">Upload PDF or Word Document</p>
-                  <p className="text-xs text-muted-foreground">Max 20MB • AI will extract and format content</p>
-                </label>
-              </div>
-            ) : (
-              <div className="border rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-8 w-8 text-primary" />
-                    <div>
-                      <p className="font-medium">{selectedFile.name}</p>
+            <div className="border-2 border-dashed rounded-lg p-8 text-center">
+              <input
+                type="file"
+                id="file-upload"
+                accept=".pdf,.docx"
+                onChange={handleFileSelect}
+                className="hidden"
+                disabled={isProcessing}
+              />
+              <label
+                htmlFor="file-upload"
+                className={`cursor-pointer flex flex-col items-center gap-4 ${
+                  isProcessing ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-12 w-12 text-primary animate-spin" />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-primary">
+                        {processingStatus || "Processing document..."}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        This may take a moment for large documents
                       </p>
                     </div>
-                  </div>
-                  {!isProcessing && (
-                    <Button variant="ghost" size="sm" onClick={handleRemoveFile}>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-12 w-12 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">
+                        Click to upload or drag and drop
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        PDF or Word documents (max 20MB)
+                      </p>
+                    </div>
+                  </>
+                )}
+              </label>
+            </div>
+
+            {selectedFile && (
+              <div className="mt-4 space-y-3">
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="text-sm font-medium">{selectedFile.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleRemoveFile}
+                      disabled={isProcessing}
+                    >
                       <X className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
-                {isProcessing && (
-                  <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    AI is analyzing your document...
                   </div>
+                </div>
+                
+                {doc?.id && !isProcessing && extractedData && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      New content has been extracted. Review the changes in the comparison dialog before applying.
+                    </AlertDescription>
+                  </Alert>
                 )}
-              </div>
-            )}
-
-            {extractedData && (
-              <div className="space-y-4 pt-4 border-t">
-                <p className="text-sm text-muted-foreground">
-                  Review and edit the AI-extracted content below:
-                </p>
               </div>
             )}
           </TabsContent>
@@ -485,5 +566,17 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
         </div>
       </DialogContent>
     </Dialog>
+
+      {showComparison && extractedData && originalContent && (
+        <ContentComparisonDialog
+          open={showComparison}
+          onClose={handleCancelComparison}
+          onConfirm={handleConfirmComparison}
+          oldContent={originalContent}
+          newContent={extractedData}
+          filename={extractedData.filename}
+        />
+      )}
+    </>
   );
 };
