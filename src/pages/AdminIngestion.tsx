@@ -182,22 +182,22 @@ export default function AdminIngestion() {
                     {doc.filename || "-"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{doc.mime_type || doc.kind}</Badge>
+                    <Badge variant="outline">{(doc as any).mime_type || doc.kind}</Badge>
                   </TableCell>
-                  <TableCell>{getStatusBadge(doc.extract_status)}</TableCell>
+                  <TableCell>{getStatusBadge((doc as any).extract_status)}</TableCell>
                   <TableCell>
-                    {doc.word_count ? doc.word_count.toLocaleString() : "-"}
+                    {(doc as any).word_count ? (doc as any).word_count.toLocaleString() : "-"}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {doc.extract_source || "-"}
+                    {(doc as any).extract_source || "-"}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {doc.extracted_at
-                      ? new Date(doc.extracted_at).toLocaleDateString()
+                    {(doc as any).extracted_at
+                      ? new Date((doc as any).extracted_at).toLocaleDateString()
                       : "-"}
                   </TableCell>
                   <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
-                    {doc.extract_error || "-"}
+                    {(doc as any).extract_error || "-"}
                   </TableCell>
                   <TableCell>
                     <Button
