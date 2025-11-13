@@ -87,7 +87,7 @@ Answer the user's questions about this document only.`
   } catch (error) {
     console.error("Error in ai-query-single-doc:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message || "Unknown error occurred" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
