@@ -16,7 +16,7 @@ const docSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(200, "Title too long"),
   description: z.string().max(500, "Description too long").optional(),
   kind: z.enum(["SOP", "Policy", "Handbook"]),
-  body: z.string().min(10, "Body must be at least 10 characters"),
+  body: z.string(),
   status: z.enum(["draft", "approved", "archived"]),
 });
 
