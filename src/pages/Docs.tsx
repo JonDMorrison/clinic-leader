@@ -454,7 +454,7 @@ const Docs = () => {
                     </Button>
                     <Button variant="outline" onClick={() => setBulkUploadModalOpen(true)}>
                       <Upload className="w-4 h-4 mr-2" />
-                      Bulk Upload
+                      Upload
                     </Button>
                     <Button onClick={handleCreateDoc}>
                       <Plus className="w-4 h-4 mr-2" />
