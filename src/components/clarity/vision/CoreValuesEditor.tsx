@@ -12,7 +12,13 @@ const SUGGESTED_VALUES = [
   "Excellence",
   "Innovation",
   "Collaboration",
-  "Respect"
+  "Respect",
+  "Accountability",
+  "Empathy",
+  "Quality",
+  "Trust",
+  "Growth",
+  "Service"
 ];
 
 interface CoreValuesEditorProps {
