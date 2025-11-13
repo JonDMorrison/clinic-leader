@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +58,23 @@ export const DocEditor = ({ open, onClose, doc, users, onSuccess }: DocEditorPro
     filename: string;
     filePath: string;
   } | null>(null);
+
+  // Update form fields when doc changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      setTitle(doc?.title || "");
+      setDescription(doc?.description || "");
+      setKind(doc?.kind || "SOP");
+      setBody(doc?.body || "");
+      setStatus(doc?.status || "draft");
+      setRequiresAck(doc?.requires_ack || false);
+      setOwnerId(doc?.owner_id || "");
+      setErrors({});
+      setSelectedFile(null);
+      setExtractedData(null);
+      setUploadMode("manual");
+    }
+  }, [open, doc]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
