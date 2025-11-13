@@ -1,13 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ClarityShell } from "@/components/clarity/ClarityShell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/use-toast";
+import { useClarityAutosave, AutosaveStatus } from "@/hooks/useClarityAutosave";
+import { Stepper } from "@/components/ui/Stepper";
+import { CoreValuesEditor } from "@/components/clarity/vision/CoreValuesEditor";
+import { CoreFocusEditor } from "@/components/clarity/vision/CoreFocusEditor";
+import { TenYearTargetEditor } from "@/components/clarity/vision/TenYearTargetEditor";
+import { IdealClientEditor } from "@/components/clarity/vision/IdealClientEditor";
+import { DifferentiatorsEditor } from "@/components/clarity/vision/DifferentiatorsEditor";
+import { ProvenProcessEditor } from "@/components/clarity/vision/ProvenProcessEditor";
+import { PromiseEditor } from "@/components/clarity/vision/PromiseEditor";
+import { ThreeYearPictureEditor } from "@/components/clarity/vision/ThreeYearPictureEditor";
+import { CultureEditor } from "@/components/clarity/vision/CultureEditor";
+import { SummaryStep } from "@/components/clarity/vision/SummaryStep";
 
 const STEPS = [
   { id: 'core_values', title: 'Core Values', description: 'What principles guide your decisions?' },
@@ -27,6 +37,29 @@ export default function VisionStudio() {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("saved");
+
+  const [visionData, setVisionData] = useState({
+    vision: {
+      core_values: ["", "", ""],
+      core_focus: { purpose: "", niche: "" },
+      ten_year_target: "",
+      ideal_client: "",
+      differentiators: ["", "", ""],
+      proven_process: ["", "", ""],
+      promise: "",
+      three_year_picture: { revenue: 0, profit: 0, headcount: 0, descriptors: "" },
+      culture: "",
+    },
+    traction: {},
+    metrics: {},
+  });
+
+  useClarityAutosave({
+    organizationId: user?.team_id || "",
+    vtoData: visionData,
+    onStatusChange: setAutosaveStatus,
+  });
 
   const step = STEPS[currentStep];
   const progress = ((currentStep + 1) / STEPS.length) * 100;
@@ -62,30 +95,27 @@ export default function VisionStudio() {
     }
   };
 
+  const stepperSteps = STEPS.map((s, idx) => ({
+    id: idx,
+    label: s.title,
+    completed: idx < currentStep,
+  }));
+
   const miniMapSections = STEPS.map((s, idx) => ({
     id: s.id,
     label: s.title,
     complete: idx < currentStep,
-    href: `/clarity/vision#${s.id}`
+    href: `/clarity/vision#${s.id}`,
   }));
 
   return (
     <ClarityShell
-      organizationId={user?.team_id || ''}
-      autosaveStatus="saved"
+      organizationId={user?.team_id || ""}
+      autosaveStatus={autosaveStatus}
       miniMapSections={miniMapSections}
     >
       <div className="space-y-6">
-        {/* Progress */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-medium text-muted-foreground">
-              Step {currentStep + 1} of {STEPS.length}
-            </h2>
-            <span className="text-sm font-medium">{Math.round(progress)}%</span>
-          </div>
-          <Progress value={progress} />
-        </div>
+        <Stepper steps={stepperSteps} currentStep={currentStep} />
 
         {/* Step Content */}
         <Card>
@@ -94,149 +124,127 @@ export default function VisionStudio() {
             <CardDescription>{step.description}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {step.id === 'core_values' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Core Values (3-5 values)
-                  </label>
-                  <Input placeholder="e.g., Compassion, Excellence, Growth" />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    These principles guide every decision your team makes
-                  </p>
-                </div>
-              </div>
+            {step.id === "core_values" && (
+              <CoreValuesEditor
+                values={visionData.vision.core_values}
+                onChange={(values) =>
+                  setVisionData({
+                    ...visionData,
+                    vision: { ...visionData.vision, core_values: values },
+                  })
+                }
+                organizationId={user?.team_id || ""}
+              />
             )}
 
-            {step.id === 'core_focus' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Purpose</label>
-                  <Input placeholder="Why your clinic exists" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Niche</label>
-                  <Input placeholder="What you specialize in" />
-                </div>
-              </div>
+            {step.id === "core_focus" && (
+              <CoreFocusEditor
+                purpose={visionData.vision.core_focus.purpose}
+                niche={visionData.vision.core_focus.niche}
+                onChange={(data) =>
+                  setVisionData({
+                    ...visionData,
+                    vision: { ...visionData.vision, core_focus: data },
+                  })
+                }
+                organizationId={user?.team_id || ""}
+              />
             )}
 
-            {step.id === 'ten_year_target' && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  10-Year Target
-                </label>
-                <Textarea 
-                  placeholder="Describe where you'll be in 10 years. Be specific and inspiring."
-                  rows={4}
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Example: "Most trusted rehab network in BC with 10 locations and 200 team members"
-                </p>
-              </div>
+            {step.id === "ten_year_target" && (
+              <TenYearTargetEditor
+                value={visionData.vision.ten_year_target}
+                onChange={(value) =>
+                  setVisionData({
+                    ...visionData,
+                    vision: { ...visionData.vision, ten_year_target: value },
+                  })
+                }
+                organizationId={user?.team_id || ""}
+              />
             )}
 
-            {step.id === 'ideal_client' && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Ideal Client Profile
-                </label>
-                <Textarea 
-                  placeholder="Describe your perfect client. Who do you serve best?"
-                  rows={4}
-                />
-              </div>
+            {step.id === "ideal_client" && (
+              <IdealClientEditor
+                value={visionData.vision.ideal_client}
+                onChange={(value) =>
+                  setVisionData({
+                    ...visionData,
+                    vision: { ...visionData.vision, ideal_client: value },
+                  })
+                }
+                organizationId={user?.team_id || ""}
+              />
             )}
 
-            {step.id === 'differentiators' && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Top 3 Differentiators
-                </label>
-                <Input placeholder="1. Same-week start times" className="mb-2" />
-                <Input placeholder="2. Integrated care approach" className="mb-2" />
-                <Input placeholder="3. Measurable results guarantee" />
-              </div>
+            {step.id === "differentiators" && (
+              <DifferentiatorsEditor
+                values={visionData.vision.differentiators}
+                onChange={(values) =>
+                  setVisionData({
+                    ...visionData,
+                    vision: { ...visionData.vision, differentiators: values },
+                  })
+                }
+                organizationId={user?.team_id || ""}
+              />
             )}
 
-            {step.id === 'proven_process' && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Proven Process (3-5 steps)
-                </label>
-                <Input placeholder="1. Assess" className="mb-2" />
-                <Input placeholder="2. Treat" className="mb-2" />
-                <Input placeholder="3. Strengthen" className="mb-2" />
-                <Input placeholder="4. Sustain" />
-              </div>
+            {step.id === "proven_process" && (
+              <ProvenProcessEditor
+                steps={visionData.vision.proven_process}
+                onChange={(steps) =>
+                  setVisionData({
+                    ...visionData,
+                    vision: { ...visionData.vision, proven_process: steps },
+                  })
+                }
+                organizationId={user?.team_id || ""}
+              />
             )}
 
-            {step.id === 'promise' && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Promise/Guarantee
-                </label>
-                <Textarea 
-                  placeholder="What can clients count on from you?"
-                  rows={3}
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Example: "Clear treatment plan within first visit"
-                </p>
-              </div>
+            {step.id === "promise" && (
+              <PromiseEditor
+                value={visionData.vision.promise}
+                onChange={(value) =>
+                  setVisionData({
+                    ...visionData,
+                    vision: { ...visionData.vision, promise: value },
+                  })
+                }
+                organizationId={user?.team_id || ""}
+              />
             )}
 
-            {step.id === 'three_year_picture' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Revenue</label>
-                    <Input type="number" placeholder="2000000" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Profit %</label>
-                    <Input type="number" placeholder="18" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Headcount</label>
-                    <Input type="number" placeholder="28" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Descriptors</label>
-                  <Input placeholder="Teaching clinic, Data-driven, Award-winning" />
-                </div>
-              </div>
+            {step.id === "three_year_picture" && (
+              <ThreeYearPictureEditor
+                revenue={visionData.vision.three_year_picture.revenue}
+                profit={visionData.vision.three_year_picture.profit}
+                headcount={visionData.vision.three_year_picture.headcount}
+                descriptors={visionData.vision.three_year_picture.descriptors}
+                onChange={(data) =>
+                  setVisionData({
+                    ...visionData,
+                    vision: { ...visionData.vision, three_year_picture: data },
+                  })
+                }
+              />
             )}
 
-            {step.id === 'culture' && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Culture Statement
-                </label>
-                <Textarea 
-                  placeholder="How does it feel to work here? What's the atmosphere?"
-                  rows={4}
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Example: "We grow people and outcomes together"
-                </p>
-              </div>
+            {step.id === "culture" && (
+              <CultureEditor
+                value={visionData.vision.culture}
+                onChange={(value) =>
+                  setVisionData({
+                    ...visionData,
+                    vision: { ...visionData.vision, culture: value },
+                  })
+                }
+                organizationId={user?.team_id || ""}
+              />
             )}
 
-            {step.id === 'summary' && (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Review your vision and save when ready. You can always come back to edit.
-                </p>
-                <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                  <p className="text-sm">
-                    🎉 <strong>Great work!</strong> Your vision is taking shape. 
-                    Click Save to lock it in, then move to Traction to set your goals.
-                  </p>
-                </div>
-              </div>
-            )}
+            {step.id === "summary" && <SummaryStep />}
           </CardContent>
         </Card>
 
