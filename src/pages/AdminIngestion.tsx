@@ -8,8 +8,10 @@ import { RefreshCw, Download, AlertCircle, CheckCircle, Clock, FileQuestion, Sca
 import { toast } from "sonner";
 import { useState } from "react";
 import { createWorker } from "tesseract.js";
-// @ts-ignore - using bundled build for no-worker mode
-import * as pdfjsLib from "pdfjs-dist/build/pdf";
+// Use pdf.js with bundler-provided worker URL
+import * as pdfjsLib from "pdfjs-dist";
+// @ts-ignore - Vite provides a URL for the worker bundle
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
 import {
   Table,
   TableBody,
@@ -19,11 +21,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-// Configure PDF.js for client-side rendering (no worker)
+// Configure PDF.js worker for client-side rendering using bundled worker URL
 if (typeof window !== "undefined") {
-  // Disable worker to avoid dynamic import/CORS issues in sandbox
   // @ts-ignore
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker as unknown as string;
 }
 
 export default function AdminIngestion() {
@@ -102,14 +103,9 @@ export default function AdminIngestion() {
 
       setOcrProgress((prev) => ({ ...prev, [docId]: "Rendering pages..." }));
 
-      // Load PDF with PDF.js (disable worker to avoid dynamic import)
+      // Load PDF with PDF.js using real worker
       const arrayBuffer = await fileData.arrayBuffer();
-      const pdf = await (pdfjsLib.getDocument as any)({ 
-        data: arrayBuffer,
-        disableWorker: true,
-        useWorkerFetch: false,
-        isEvalSupported: false,
-      }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const numPages = Math.min(pdf.numPages, 10); // Limit to 10 pages for performance
 
       // Initialize Tesseract worker
