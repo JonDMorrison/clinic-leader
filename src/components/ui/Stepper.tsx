@@ -37,7 +37,7 @@ export const Stepper = ({ steps, currentStep }: StepperProps) => {
               </div>
               <span
                 className={cn(
-                  "text-xs mt-2 text-center max-w-[80px]",
+                  "text-xs mt-2 text-center max-w-[60px]",
                   currentStep === step.id
                     ? "text-foreground font-medium"
                     : "text-muted-foreground"
