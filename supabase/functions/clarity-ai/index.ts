@@ -152,6 +152,13 @@ function buildUserPrompt(intent: string, context: any, field?: string, current_v
 
   switch (intent) {
     case 'draft':
+      if (field === 'core_focus') {
+        return `Generate a core focus for a healthcare clinic. Return exactly 2 lines:
+Line 1: A one-sentence purpose statement (why the clinic exists)
+Line 2: A one-sentence niche statement (what the clinic specializes in)
+
+Do not include labels like "Purpose:" or "Niche:" - just the two sentences, one per line.`;
+      }
       if (field === 'core_values') {
         return `Generate 3-5 core values for a healthcare clinic. Return ONLY the values as a comma-separated list. Each value should be 1-2 words maximum (e.g., "Integrity, Excellence, Compassion, Innovation, Care"). Do not include numbers, explanations, or descriptions - just the values separated by commas.`;
       }

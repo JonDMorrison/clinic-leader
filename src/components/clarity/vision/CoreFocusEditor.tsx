@@ -36,10 +36,21 @@ export function CoreFocusEditor({ purpose, niche, onChange, organizationId }: Co
 
       if (error) throw error;
       if (data?.suggestions?.[0]?.text) {
-        const parts = data.suggestions[0].text.split("\n");
+        const text = data.suggestions[0].text;
+        const lines = text.split("\n").filter(line => line.trim());
+        
+        // Extract purpose and niche from the response
+        let purposeText = purpose;
+        let nicheText = niche;
+        
+        if (lines.length >= 2) {
+          purposeText = lines[0].replace(/^(Purpose:|1\.|•)\s*/i, "").trim();
+          nicheText = lines[1].replace(/^(Niche:|2\.|•)\s*/i, "").trim();
+        }
+        
         onChange({
-          purpose: parts[0]?.replace("Purpose:", "").trim() || purpose,
-          niche: parts[1]?.replace("Niche:", "").trim() || niche,
+          purpose: purposeText,
+          niche: nicheText,
         });
       }
     } catch (error) {
