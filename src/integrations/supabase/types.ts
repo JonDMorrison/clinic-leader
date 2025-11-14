@@ -338,6 +338,66 @@ export type Database = {
           },
         ]
       }
+      clarity_activity: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json
+          id: string
+          user_id: string
+          vto_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json
+          id?: string
+          user_id: string
+          vto_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          user_id?: string
+          vto_id?: string
+        }
+        Relationships: []
+      }
+      clarity_vto: {
+        Row: {
+          created_at: string
+          id: string
+          metrics: Json
+          organization_id: string
+          traction: Json
+          updated_at: string
+          version_current: number
+          vision: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metrics?: Json
+          organization_id: string
+          traction?: Json
+          updated_at?: string
+          version_current?: number
+          vision?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metrics?: Json
+          organization_id?: string
+          traction?: Json
+          updated_at?: string
+          version_current?: number
+          vision?: Json
+        }
+        Relationships: []
+      }
       core_values: {
         Row: {
           created_at: string
@@ -425,12 +485,20 @@ export type Database = {
       docs: {
         Row: {
           body: string | null
+          content_hash: string | null
+          content_version: number | null
           created_at: string
+          description: string | null
+          extract_error: string | null
+          extract_source: string | null
+          extract_status: string | null
+          extracted_at: string | null
           file_type: string | null
           file_url: string | null
           filename: string | null
           id: string
           kind: Database["public"]["Enums"]["doc_kind"]
+          mime_type: string | null
           organization_id: string
           owner_id: string | null
           parsed_text: string | null
@@ -440,15 +508,24 @@ export type Database = {
           title: string
           updated_at: string
           version: number
+          word_count: number | null
         }
         Insert: {
           body?: string | null
+          content_hash?: string | null
+          content_version?: number | null
           created_at?: string
+          description?: string | null
+          extract_error?: string | null
+          extract_source?: string | null
+          extract_status?: string | null
+          extracted_at?: string | null
           file_type?: string | null
           file_url?: string | null
           filename?: string | null
           id?: string
           kind: Database["public"]["Enums"]["doc_kind"]
+          mime_type?: string | null
           organization_id: string
           owner_id?: string | null
           parsed_text?: string | null
@@ -458,15 +535,24 @@ export type Database = {
           title: string
           updated_at?: string
           version?: number
+          word_count?: number | null
         }
         Update: {
           body?: string | null
+          content_hash?: string | null
+          content_version?: number | null
           created_at?: string
+          description?: string | null
+          extract_error?: string | null
+          extract_source?: string | null
+          extract_status?: string | null
+          extracted_at?: string | null
           file_type?: string | null
           file_url?: string | null
           filename?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["doc_kind"]
+          mime_type?: string | null
           organization_id?: string
           owner_id?: string | null
           parsed_text?: string | null
@@ -476,6 +562,7 @@ export type Database = {
           title?: string
           updated_at?: string
           version?: number
+          word_count?: number | null
         }
         Relationships: [
           {
