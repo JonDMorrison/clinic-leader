@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ClarityShell } from "@/components/clarity/ClarityShell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/use-toast";
 import { useClarityAutosave, AutosaveStatus } from "@/hooks/useClarityAutosave";
+import { supabase } from "@/integrations/supabase/client";
 import { Stepper } from "@/components/ui/Stepper";
 import { CoreValuesEditor } from "@/components/clarity/vision/CoreValuesEditor";
 import { CoreFocusEditor } from "@/components/clarity/vision/CoreFocusEditor";
@@ -35,6 +37,7 @@ const STEPS = [
 export default function VisionStudio() {
   const { data: user } = useCurrentUser();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("saved");
@@ -77,17 +80,46 @@ export default function VisionStudio() {
   };
 
   const handleSave = async () => {
-    setSaving(true);
-    try {
-      // TODO: Implement save logic
-      toast({
-        title: "Saved",
-        description: "Your vision has been saved successfully.",
-      });
-    } catch (error) {
+    if (!user?.team_id) {
       toast({
         title: "Error",
-        description: "Failed to save. Please try again.",
+        description: "Organization ID is missing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("No active session");
+      }
+
+      const { error } = await supabase.functions.invoke("vto-save", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: {
+          organization_id: user.team_id,
+          vto_data: visionData,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Vision Complete!",
+        description: "Your vision has been saved. Moving to Traction...",
+      });
+
+      // Navigate to traction page after successful save
+      setTimeout(() => {
+        navigate("/clarity/traction");
+      }, 1500);
+    } catch (error: any) {
+      console.error("Save error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save. Please try again.",
         variant: "destructive",
       });
     } finally {
