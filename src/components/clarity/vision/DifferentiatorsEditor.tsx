@@ -1,9 +1,21 @@
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/hooks/use-toast";
+
+const SUGGESTED_DIFFERENTIATORS = [
+  "Advanced technology and treatment techniques",
+  "Personalized, one-on-one patient care",
+  "Comprehensive, multi-disciplinary approach",
+  "Extended appointment times for thorough care",
+  "Evidence-based treatment protocols",
+  "Focus on patient education and empowerment",
+  "Same-day and emergency appointments available",
+  "Specialized expertise in chronic conditions",
+  "Holistic mind-body wellness approach",
+  "State-of-the-art facility and equipment",
+  "Collaborative care with other specialists",
+  "Long-term patient relationships and continuity"
+];
 
 interface DifferentiatorsEditorProps {
   values: string[];
@@ -12,43 +24,7 @@ interface DifferentiatorsEditorProps {
 }
 
 export function DifferentiatorsEditor({ values, onChange, organizationId }: DifferentiatorsEditorProps) {
-  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-
-  const handleAIDraft = async () => {
-    setLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("No active session");
-      }
-
-      const { data, error } = await supabase.functions.invoke("clarity-ai", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: {
-          intent: "draft",
-          context: { organization_id: organizationId },
-          field: "differentiators",
-          current_value: values.join(", "),
-        },
-      });
-
-      if (error) throw error;
-      if (data?.suggestions?.[0]?.text) {
-        const suggested = data.suggestions[0].text.split("\n").map((v: string) => v.trim());
-        onChange(suggested.slice(0, 3));
-      }
-    } catch (error) {
-      console.error("AI draft error:", error);
-      toast({
-        title: "AI draft failed",
-        description: "Could not generate suggestions. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const updateValue = (index: number, value: string) => {
     const newValues = [...values];
@@ -56,14 +32,50 @@ export function DifferentiatorsEditor({ values, onChange, organizationId }: Diff
     onChange(newValues);
   };
 
+  const handleSuggestedClick = (suggested: string) => {
+    // If already selected, remove it
+    if (values.includes(suggested)) {
+      onChange(values.filter(v => v !== suggested));
+      return;
+    }
+
+    // Find first empty slot
+    const emptyIndex = values.findIndex(v => !v || v.trim() === "");
+    if (emptyIndex !== -1) {
+      updateValue(emptyIndex, suggested);
+    } else if (values.length < 3) {
+      // Add if we have room
+      onChange([...values, suggested]);
+    } else {
+      toast({
+        title: "Maximum reached",
+        description: "You can only have 3 differentiators. Remove one to add another.",
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium">Top 3 Differentiators</label>
-        <Button variant="outline" size="sm" onClick={handleAIDraft} disabled={loading}>
-          <Sparkles className="h-4 w-4 mr-2" />
-          {loading ? "Drafting..." : "AI Draft"}
-        </Button>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm text-muted-foreground">
+          Click suggestions below or write your own:
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {SUGGESTED_DIFFERENTIATORS.map((suggested) => (
+            <Badge
+              key={suggested}
+              variant={values.includes(suggested) ? "brand" : "muted"}
+              className="cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => handleSuggestedClick(suggested)}
+            >
+              {suggested.length > 45 ? suggested.slice(0, 45) + "..." : suggested}
+            </Badge>
+          ))}
+        </div>
       </div>
 
       {[0, 1, 2].map((index) => (
