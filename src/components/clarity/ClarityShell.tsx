@@ -29,6 +29,7 @@ interface ClarityShellProps {
     label: string;
     complete: boolean;
     href: string;
+    onClick?: () => void;
   }[];
   onAICoachOpen?: () => void;
 }
@@ -139,11 +140,11 @@ export function ClarityShell({
                                    location.hash === `#${section.id}`;
                   
                   return (
-                    <Link
+                    <button
                       key={section.id}
-                      to={section.href}
+                      onClick={section.onClick}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                        "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors w-full text-left",
                         isActive 
                           ? "bg-primary text-primary-foreground" 
                           : "hover:bg-muted"
@@ -156,7 +157,7 @@ export function ClarityShell({
                       )}
                       <span className="flex-1 truncate">{section.label}</span>
                       {isActive && <ChevronRight className="h-4 w-4 flex-shrink-0" />}
-                    </Link>
+                    </button>
                   );
                 })}
               </div>

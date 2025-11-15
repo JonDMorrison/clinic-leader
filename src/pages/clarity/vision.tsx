@@ -183,6 +183,7 @@ export default function VisionStudio() {
     label: s.title,
     complete: idx < currentStep,
     href: `/clarity/vision#${s.id}`,
+    onClick: () => setCurrentStep(idx),
   }));
 
   if (loading) {
