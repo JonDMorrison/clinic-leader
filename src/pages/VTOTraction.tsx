@@ -1,18 +1,20 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Plus, X, Send } from "lucide-react";
+import { ArrowLeft, Plus, X, Send } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { QuarterlyRock, VTOIssue } from "@/lib/vto/models";
 import { getCurrentQuarter } from "@/lib/rocks/templates";
+import { VTOMiniMap, VTOMiniMapSection } from "@/components/vto/VTOMiniMap";
+import { AutosaveIndicator } from "@/components/vto/AutosaveIndicator";
+import { useVTOAutosave, AutosaveStatus } from "@/hooks/useVTOAutosave";
 
 const VTOTraction = () => {
   const { toast } = useToast();
@@ -30,6 +32,15 @@ const VTOTraction = () => {
   const [issuesCompany, setIssuesCompany] = useState<VTOIssue[]>([]);
   const [issuesDepartment, setIssuesDepartment] = useState<VTOIssue[]>([]);
   const [issuesPersonal, setIssuesPersonal] = useState<VTOIssue[]>([]);
+  const [currentSection, setCurrentSection] = useState<string>("one-year");
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("saved");
+
+  // Refs for smooth scrolling
+  const oneYearRef = useRef<HTMLDivElement>(null);
+  const rocksRef = useRef<HTMLDivElement>(null);
+  const issuesCompanyRef = useRef<HTMLDivElement>(null);
+  const issuesDeptRef = useRef<HTMLDivElement>(null);
+  const issuesPersonalRef = useRef<HTMLDivElement>(null);
 
   // Fetch VTO data and users
   const { data: vtoData, isLoading } = useQuery({
@@ -89,398 +100,544 @@ const VTOTraction = () => {
     }
   }, [vtoData]);
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!vtoData?.vto || !vtoData?.userId) throw new Error("VTO not found");
+  // Autosave
+  const versionData = {
+    one_year_plan: oneYearPlan,
+    quarter_key: quarterKey,
+    quarterly_rocks: quarterlyRocks,
+    issues_company: issuesCompany,
+    issues_department: issuesDepartment,
+    issues_personal: issuesPersonal,
+  };
 
-      const versionData = {
-        vto_id: vtoData.vto.id,
-        version: (vtoData.version?.version || 0) + 1,
-        status: 'draft' as const,
-        one_year_plan: oneYearPlan as any,
-        quarter_key: quarterKey,
-        quarterly_rocks: quarterlyRocks as any,
-        issues_company: issuesCompany as any,
-        issues_department: issuesDepartment as any,
-        issues_personal: issuesPersonal as any,
-        created_by: vtoData.userId,
-        // Keep vision fields from existing version
-        core_values: (vtoData.version?.core_values as string[]) || [],
-        core_focus: (vtoData.version?.core_focus as any) || {},
-        ten_year_target: vtoData.version?.ten_year_target || null,
-        marketing_strategy: (vtoData.version?.marketing_strategy as any) || {},
-        three_year_picture: (vtoData.version?.three_year_picture as any) || {},
-      };
-
-      const { data, error } = await supabase
-        .from("vto_versions")
-        .insert(versionData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Traction saved!" });
-      queryClient.invalidateQueries({ queryKey: ["vto-traction"] });
-    },
-    onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+  useVTOAutosave({
+    vtoId: vtoData?.vto?.id || "",
+    versionData,
+    onStatusChange: setAutosaveStatus,
+    enabled: !!vtoData?.vto?.id,
   });
 
+  // Calculate progress
+  const calculateProgress = () => {
+    let completed = 0;
+    let total = 5;
+
+    if (oneYearPlan.revenue > 0 || oneYearPlan.profit > 0) completed++;
+    if (quarterlyRocks.length > 0) completed++;
+    if (issuesCompany.length > 0) completed++;
+    if (issuesDepartment.length > 0) completed++;
+    if (issuesPersonal.length > 0) completed++;
+
+    return Math.round((completed / total) * 100);
+  };
+
+  // Mini-map sections
+  const miniMapSections: VTOMiniMapSection[] = [
+    {
+      id: "one-year",
+      label: "1-Year Plan",
+      complete: oneYearPlan.revenue > 0 || oneYearPlan.profit > 0,
+      onClick: () => oneYearRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    },
+    {
+      id: "rocks",
+      label: "Quarterly Rocks",
+      complete: quarterlyRocks.length > 0,
+      onClick: () => rocksRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    },
+    {
+      id: "issues-company",
+      label: "Issues - Company",
+      complete: issuesCompany.length > 0,
+      onClick: () => issuesCompanyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    },
+    {
+      id: "issues-dept",
+      label: "Issues - Department",
+      complete: issuesDepartment.length > 0,
+      onClick: () => issuesDeptRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    },
+    {
+      id: "issues-personal",
+      label: "Issues - Personal",
+      complete: issuesPersonal.length > 0,
+      onClick: () => issuesPersonalRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    },
+  ];
+
+  // 1-Year Plan handlers
   const addGoal = () => {
-    setOneYearPlan({
-      ...oneYearPlan,
-      goals: [...oneYearPlan.goals, { title: "", owner_id: "", target_date: "", status: "on_track" }],
-    });
+    setOneYearPlan((prev) => ({
+      ...prev,
+      goals: [...prev.goals, { title: "", owner_id: "", target_date: "", status: "on_track" }],
+    }));
   };
 
   const updateGoal = (index: number, field: string, value: any) => {
-    const updated = [...oneYearPlan.goals];
-    updated[index] = { ...updated[index], [field]: value };
-    setOneYearPlan({ ...oneYearPlan, goals: updated });
+    setOneYearPlan((prev) => ({
+      ...prev,
+      goals: prev.goals.map((g, i) => (i === index ? { ...g, [field]: value } : g)),
+    }));
   };
 
   const removeGoal = (index: number) => {
-    setOneYearPlan({
-      ...oneYearPlan,
-      goals: oneYearPlan.goals.filter((_, i) => i !== index),
-    });
+    setOneYearPlan((prev) => ({
+      ...prev,
+      goals: prev.goals.filter((_, i) => i !== index),
+    }));
   };
 
+  // Rock handlers
   const addRock = () => {
-    setQuarterlyRocks([
-      ...quarterlyRocks,
-      { title: "", owner_id: "", due: "", status: "on_track", weight: 1.0 },
+    setQuarterlyRocks((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), title: "", owner_id: "", status: "on_track", progress: 0 },
     ]);
   };
 
-  const updateRock = (index: number, field: string, value: any) => {
-    const updated = [...quarterlyRocks];
-    updated[index] = { ...updated[index], [field]: value };
-    setQuarterlyRocks(updated);
+  const updateRock = (id: string, field: string, value: any) => {
+    setQuarterlyRocks((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
   };
 
-  const removeRock = (index: number) => {
-    setQuarterlyRocks(quarterlyRocks.filter((_, i) => i !== index));
+  const removeRock = (id: string) => {
+    setQuarterlyRocks((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const addIssue = (type: 'company' | 'department' | 'personal') => {
-    const newIssue = { title: "", status: "open" as const };
-    if (type === 'company') setIssuesCompany([...issuesCompany, newIssue]);
-    if (type === 'department') setIssuesDepartment([...issuesDepartment, newIssue]);
-    if (type === 'personal') setIssuesPersonal([...issuesPersonal, newIssue]);
+  // Issue handlers
+  const addIssue = (list: "company" | "department" | "personal") => {
+    const newIssue: VTOIssue = {
+      id: crypto.randomUUID(),
+      title: "",
+      owner_id: "",
+      priority: 1,
+      status: "identified",
+    };
+
+    if (list === "company") setIssuesCompany((prev) => [...prev, newIssue]);
+    if (list === "department") setIssuesDepartment((prev) => [...prev, newIssue]);
+    if (list === "personal") setIssuesPersonal((prev) => [...prev, newIssue]);
   };
 
-  const updateIssue = (type: 'company' | 'department' | 'personal', index: number, field: string, value: any) => {
-    if (type === 'company') {
-      const updated = [...issuesCompany];
-      updated[index] = { ...updated[index], [field]: value };
-      setIssuesCompany(updated);
-    }
-    if (type === 'department') {
-      const updated = [...issuesDepartment];
-      updated[index] = { ...updated[index], [field]: value };
-      setIssuesDepartment(updated);
-    }
-    if (type === 'personal') {
-      const updated = [...issuesPersonal];
-      updated[index] = { ...updated[index], [field]: value };
-      setIssuesPersonal(updated);
-    }
+  const updateIssue = (list: "company" | "department" | "personal", id: string, field: string, value: any) => {
+    const updateFn = (prev: VTOIssue[]) => prev.map((i) => (i.id === id ? { ...i, [field]: value } : i));
+
+    if (list === "company") setIssuesCompany(updateFn);
+    if (list === "department") setIssuesDepartment(updateFn);
+    if (list === "personal") setIssuesPersonal(updateFn);
   };
 
-  const removeIssue = (type: 'company' | 'department' | 'personal', index: number) => {
-    if (type === 'company') setIssuesCompany(issuesCompany.filter((_, i) => i !== index));
-    if (type === 'department') setIssuesDepartment(issuesDepartment.filter((_, i) => i !== index));
-    if (type === 'personal') setIssuesPersonal(issuesPersonal.filter((_, i) => i !== index));
+  const removeIssue = (list: "company" | "department" | "personal", id: string) => {
+    if (list === "company") setIssuesCompany((prev) => prev.filter((i) => i.id !== id));
+    if (list === "department") setIssuesDepartment((prev) => prev.filter((i) => i.id !== id));
+    if (list === "personal") setIssuesPersonal((prev) => prev.filter((i) => i.id !== id));
   };
 
   const sendToL10 = async (issue: VTOIssue) => {
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("Not authenticated");
+
       const { data: userProfile } = await supabase
         .from("users")
         .select("team_id")
-        .eq("email", (await supabase.auth.getUser()).data.user?.email)
+        .eq("email", userData.user.email)
         .single();
 
-      const { error } = await supabase
-        .from("issues")
-        .insert({
-          title: issue.title,
-          organization_id: userProfile.team_id,
-          status: "open",
-          context: "From V/TO",
-        });
+      await supabase.from("issues").insert({
+        title: issue.title,
+        organization_id: userProfile.team_id,
+        owner_id: issue.owner_id || null,
+        priority: issue.priority,
+        status: "open",
+      });
 
-      if (error) throw error;
-
-      toast({ title: "Success", description: "Issue added to meeting!" });
+      toast({ title: "Issue sent to IDS", description: "Issue added to your issues list." });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   if (isLoading) {
-    return <div className="p-6">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading traction data...</p>
+        </div>
+      </div>
+    );
   }
 
-  const tractionScore = 0; // Will be calculated from linked items
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/vto')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to V/TO
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Traction</h1>
-            <p className="text-sm text-muted-foreground">Execute on your vision with quarterly goals</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-sm text-muted-foreground">Traction Score</div>
-            <div className="text-2xl font-bold text-foreground">{tractionScore}%</div>
-          </div>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-            <Save className="w-4 h-4 mr-2" />
-            Save Draft
-          </Button>
-        </div>
-      </div>
-
-      <Progress value={tractionScore} className="h-2" />
-
-      <div className="space-y-6">
-        {/* 1-Year Plan */}
-        <Card>
-          <CardHeader>
-            <CardTitle>1-Year Plan</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              What must be true 12 months from now?
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Revenue Target</label>
-                <Input
-                  type="number"
-                  value={oneYearPlan.revenue}
-                  onChange={(e) => setOneYearPlan({ ...oneYearPlan, revenue: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Profit Target</label>
-                <Input
-                  type="number"
-                  value={oneYearPlan.profit}
-                  onChange={(e) => setOneYearPlan({ ...oneYearPlan, profit: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Goals</label>
-              {oneYearPlan.goals.map((goal, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-center">
-                  <Input
-                    value={goal.title}
-                    onChange={(e) => updateGoal(i, 'title', e.target.value)}
-                    placeholder="Goal title"
-                    className="col-span-5"
-                  />
-                  <Select value={goal.owner_id || ""} onValueChange={(v) => updateGoal(i, 'owner_id', v)}>
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Owner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {vtoData?.users?.map((user: any) => (
-                        <SelectItem key={user.id} value={user.id}>{user.full_name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="date"
-                    value={goal.target_date || ""}
-                    onChange={(e) => updateGoal(i, 'target_date', e.target.value)}
-                    className="col-span-2"
-                  />
-                  <Select value={goal.status} onValueChange={(v) => updateGoal(i, 'status', v)}>
-                    <SelectTrigger className="col-span-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="on_track">✓</SelectItem>
-                      <SelectItem value="at_risk">⚠</SelectItem>
-                      <SelectItem value="off_track">✗</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="ghost" size="sm" onClick={() => removeGoal(i)} className="col-span-1">
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={addGoal}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Goal
+    <div className="flex h-full">
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="container mx-auto p-6 max-w-5xl space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate("/vto")}>
+                <ArrowLeft className="h-4 w-4" />
               </Button>
+              <div>
+                <h1 className="text-3xl font-bold">Traction</h1>
+                <p className="text-muted-foreground">Manage your 1-year plan, rocks, and issues</p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+            <AutosaveIndicator status={autosaveStatus} />
+          </div>
 
-        {/* Quarterly Rocks */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quarterly Rocks</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Top 3-7 priorities for {quarterKey}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Quarter</label>
-              <Input value={quarterKey} onChange={(e) => setQuarterKey(e.target.value)} />
+          {/* Progress Bar */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Traction Progress</span>
+              <span className="font-medium">{calculateProgress()}%</span>
             </div>
+            <Progress value={calculateProgress()} className="h-2" />
+          </div>
 
-            {quarterlyRocks.map((rock, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 items-center glass p-3 rounded-lg">
-                <Input
-                  value={rock.title}
-                  onChange={(e) => updateRock(i, 'title', e.target.value)}
-                  placeholder="Rock title"
-                  className="col-span-5"
-                />
-                <Select value={rock.owner_id || ""} onValueChange={(v) => updateRock(i, 'owner_id', v)}>
-                  <SelectTrigger className="col-span-2">
-                    <SelectValue placeholder="Owner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vtoData?.users?.map((user: any) => (
-                      <SelectItem key={user.id} value={user.id}>{user.full_name}</SelectItem>
+          {/* 1-Year Plan */}
+          <div ref={oneYearRef}>
+            <Card>
+              <CardHeader>
+                <CardTitle>1-Year Plan</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Revenue Target ($)</label>
+                    <Input
+                      type="number"
+                      value={oneYearPlan.revenue || ""}
+                      onChange={(e) =>
+                        setOneYearPlan((prev) => ({ ...prev, revenue: Number(e.target.value) }))
+                      }
+                      placeholder="1000000"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Profit Target ($)</label>
+                    <Input
+                      type="number"
+                      value={oneYearPlan.profit || ""}
+                      onChange={(e) =>
+                        setOneYearPlan((prev) => ({ ...prev, profit: Number(e.target.value) }))
+                      }
+                      placeholder="200000"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-medium">Goals</label>
+                    <Button size="sm" variant="outline" onClick={addGoal}>
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Goal
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                    {oneYearPlan.goals.map((goal, idx) => (
+                      <div key={idx} className="flex gap-2 items-start p-3 border rounded-lg">
+                        <div className="flex-1 space-y-2">
+                          <Input
+                            placeholder="Goal title"
+                            value={goal.title}
+                            onChange={(e) => updateGoal(idx, "title", e.target.value)}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <Select
+                              value={goal.owner_id}
+                              onValueChange={(val) => updateGoal(idx, "owner_id", val)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Owner" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {vtoData?.users.map((user) => (
+                                  <SelectItem key={user.id} value={user.id}>
+                                    {user.full_name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              type="date"
+                              value={goal.target_date}
+                              onChange={(e) => updateGoal(idx, "target_date", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => removeGoal(idx)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="date"
-                  value={rock.due || ""}
-                  onChange={(e) => updateRock(i, 'due', e.target.value)}
-                  className="col-span-2"
-                />
-                <Select value={rock.status} onValueChange={(v) => updateRock(i, 'status', v)}>
-                  <SelectTrigger className="col-span-2">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="on_track">On Track</SelectItem>
-                    <SelectItem value="at_risk">At Risk</SelectItem>
-                    <SelectItem value="off_track">Off Track</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="ghost" size="sm" onClick={() => removeRock(i)} className="col-span-1">
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
-            <Button variant="outline" onClick={addRock}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Rock
-            </Button>
-          </CardContent>
-        </Card>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Issues Lists */}
-        <div className="grid md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Company Issues</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {issuesCompany.map((issue, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Input
-                    value={issue.title}
-                    onChange={(e) => updateIssue('company', i, 'title', e.target.value)}
-                    placeholder="Issue"
-                    className="flex-1"
-                  />
-                  <Button variant="ghost" size="sm" onClick={() => sendToL10(issue)}>
-                    <Send className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => removeIssue('company', i)}>
-                    <X className="w-4 h-4" />
+          {/* Quarterly Rocks */}
+          <div ref={rocksRef}>
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Quarterly Rocks ({quarterKey})</CardTitle>
+                  <Button size="sm" variant="outline" onClick={addRock}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Rock
                   </Button>
                 </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={() => addIssue('company')}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Issue
-              </Button>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {quarterlyRocks.map((rock) => (
+                  <div key={rock.id} className="flex gap-2 items-start p-3 border rounded-lg">
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        placeholder="Rock title"
+                        value={rock.title}
+                        onChange={(e) => updateRock(rock.id, "title", e.target.value)}
+                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        <Select
+                          value={rock.owner_id}
+                          onValueChange={(val) => updateRock(rock.id, "owner_id", val)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Owner" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vtoData?.users.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.full_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={rock.status}
+                          onValueChange={(val) => updateRock(rock.id, "status", val)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="on_track">On Track</SelectItem>
+                            <SelectItem value="at_risk">At Risk</SelectItem>
+                            <SelectItem value="off_track">Off Track</SelectItem>
+                            <SelectItem value="complete">Complete</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          placeholder="Progress %"
+                          value={rock.progress || ""}
+                          onChange={(e) =>
+                            updateRock(rock.id, "progress", Number(e.target.value))
+                          }
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => removeRock(rock.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                {quarterlyRocks.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No rocks yet. Add your first rock to get started.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Department Issues</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {issuesDepartment.map((issue, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Input
-                    value={issue.title}
-                    onChange={(e) => updateIssue('department', i, 'title', e.target.value)}
-                    placeholder="Issue"
-                    className="flex-1"
-                  />
-                  <Button variant="ghost" size="sm" onClick={() => sendToL10(issue)}>
-                    <Send className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => removeIssue('department', i)}>
-                    <X className="w-4 h-4" />
+          {/* Issues - Company */}
+          <div ref={issuesCompanyRef}>
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Issues - Company</CardTitle>
+                  <Button size="sm" variant="outline" onClick={() => addIssue("company")}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Issue
                   </Button>
                 </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={() => addIssue('department')}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Issue
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Personal Issues</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {issuesPersonal.map((issue, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Input
-                    value={issue.title}
-                    onChange={(e) => updateIssue('personal', i, 'title', e.target.value)}
-                    placeholder="Issue"
-                    className="flex-1"
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {issuesCompany.map((issue) => (
+                  <IssueRow
+                    key={issue.id}
+                    issue={issue}
+                    users={vtoData?.users || []}
+                    onUpdate={(field, value) => updateIssue("company", issue.id, field, value)}
+                    onRemove={() => removeIssue("company", issue.id)}
+                    onSendToL10={() => sendToL10(issue)}
                   />
-                  <Button variant="ghost" size="sm" onClick={() => sendToL10(issue)}>
-                    <Send className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => removeIssue('personal', i)}>
-                    <X className="w-4 h-4" />
+                ))}
+                {issuesCompany.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No company issues identified yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Issues - Department */}
+          <div ref={issuesDeptRef}>
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Issues - Department</CardTitle>
+                  <Button size="sm" variant="outline" onClick={() => addIssue("department")}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Issue
                   </Button>
                 </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={() => addIssue('personal')}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Issue
-              </Button>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {issuesDepartment.map((issue) => (
+                  <IssueRow
+                    key={issue.id}
+                    issue={issue}
+                    users={vtoData?.users || []}
+                    onUpdate={(field, value) => updateIssue("department", issue.id, field, value)}
+                    onRemove={() => removeIssue("department", issue.id)}
+                    onSendToL10={() => sendToL10(issue)}
+                  />
+                ))}
+                {issuesDepartment.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No department issues identified yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Issues - Personal */}
+          <div ref={issuesPersonalRef}>
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Issues - Personal</CardTitle>
+                  <Button size="sm" variant="outline" onClick={() => addIssue("personal")}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Issue
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {issuesPersonal.map((issue) => (
+                  <IssueRow
+                    key={issue.id}
+                    issue={issue}
+                    users={vtoData?.users || []}
+                    onUpdate={(field, value) => updateIssue("personal", issue.id, field, value)}
+                    onRemove={() => removeIssue("personal", issue.id)}
+                    onSendToL10={() => sendToL10(issue)}
+                  />
+                ))}
+                {issuesPersonal.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No personal issues identified yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
+
+      {/* Mini-Map Sidebar */}
+      <VTOMiniMap
+        sections={miniMapSections}
+        currentSection={currentSection}
+        title="Traction Sections"
+      />
+    </div>
+  );
+};
+
+// Issue Row Component
+interface IssueRowProps {
+  issue: VTOIssue;
+  users: { id: string; full_name: string }[];
+  onUpdate: (field: string, value: any) => void;
+  onRemove: () => void;
+  onSendToL10: () => void;
+}
+
+const IssueRow = ({ issue, users, onUpdate, onRemove, onSendToL10 }: IssueRowProps) => {
+  return (
+    <div className="flex gap-2 items-start p-3 border rounded-lg">
+      <div className="flex-1 space-y-2">
+        <Input
+          placeholder="Issue description"
+          value={issue.title}
+          onChange={(e) => onUpdate("title", e.target.value)}
+        />
+        <div className="grid grid-cols-3 gap-2">
+          <Select value={issue.owner_id} onValueChange={(val) => onUpdate("owner_id", val)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Owner" />
+            </SelectTrigger>
+            <SelectContent>
+              {users.map((user) => (
+                <SelectItem key={user.id} value={user.id}>
+                  {user.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={String(issue.priority)}
+            onValueChange={(val) => onUpdate("priority", Number(val))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">P1 - Critical</SelectItem>
+              <SelectItem value="2">P2 - High</SelectItem>
+              <SelectItem value="3">P3 - Medium</SelectItem>
+              <SelectItem value="4">P4 - Low</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={issue.status} onValueChange={(val) => onUpdate("status", val)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="identified">Identified</SelectItem>
+              <SelectItem value="discussed">Discussed</SelectItem>
+              <SelectItem value="solved">Solved</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {issue.status === "identified" && (
+          <Button size="sm" variant="outline" onClick={onSendToL10} className="w-full">
+            <Send className="h-3 w-3 mr-1" />
+            Send to L10 IDS
+          </Button>
+        )}
+      </div>
+      <Button size="icon" variant="ghost" onClick={onRemove}>
+        <X className="h-4 w-4" />
+      </Button>
     </div>
   );
 };

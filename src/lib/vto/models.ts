@@ -49,16 +49,21 @@ export interface OneYearPlan {
 }
 
 export interface QuarterlyRock {
+  id: string;
   title: string;
   owner_id?: string;
   due?: string;
-  status: 'on_track' | 'at_risk' | 'off_track';
-  weight: number;
+  status: 'on_track' | 'at_risk' | 'off_track' | 'complete';
+  weight?: number;
+  progress?: number;
 }
 
 export interface VTOIssue {
+  id: string;
   title: string;
-  status: 'open' | 'resolved';
+  owner_id?: string;
+  priority?: number;
+  status: 'open' | 'resolved' | 'identified' | 'discussed' | 'solved';
 }
 
 export interface VTOVersion {
