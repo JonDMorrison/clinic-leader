@@ -40,6 +40,7 @@ export default function VisionStudio() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("saved");
 
   const [visionData, setVisionData] = useState({
@@ -57,6 +58,48 @@ export default function VisionStudio() {
     traction: {},
     metrics: {},
   });
+
+  // Load existing VTO data on mount
+  useEffect(() => {
+    async function loadVTOData() {
+      if (!user?.team_id) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('clarity_vto')
+          .select('*')
+          .eq('organization_id', user.team_id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+          throw error;
+        }
+
+        if (data) {
+          const loadedVision = data.vision as typeof visionData.vision;
+          const loadedTraction = data.traction as typeof visionData.traction;
+          const loadedMetrics = data.metrics as typeof visionData.metrics;
+          
+          setVisionData({
+            vision: loadedVision || visionData.vision,
+            traction: loadedTraction || {},
+            metrics: loadedMetrics || {},
+          });
+        }
+      } catch (error) {
+        console.error('Error loading VTO data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load your saved progress.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadVTOData();
+  }, [user?.team_id]);
 
   useClarityAutosave({
     organizationId: user?.team_id || "",
@@ -139,6 +182,20 @@ export default function VisionStudio() {
     complete: idx < currentStep,
     href: `/clarity/vision#${s.id}`,
   }));
+
+  if (loading) {
+    return (
+      <ClarityShell
+        organizationId={user?.team_id || ""}
+        autosaveStatus={autosaveStatus}
+        miniMapSections={miniMapSections}
+      >
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Loading your progress...</p>
+        </div>
+      </ClarityShell>
+    );
+  }
 
   return (
     <ClarityShell
