@@ -139,11 +139,13 @@ export default function VisionStudio() {
         throw new Error("No active session");
       }
 
-      const { error } = await supabase.functions.invoke("vto-save", {
+      const { error } = await supabase.functions.invoke("clarity-save", {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: {
           organization_id: user.team_id,
-          vto_data: visionData,
+          vision: visionData.vision,
+          traction: visionData.traction,
+          action: 'complete_vision'
         },
       });
 
