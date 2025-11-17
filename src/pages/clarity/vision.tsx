@@ -20,6 +20,8 @@ import { PromiseEditor } from "@/components/clarity/vision/PromiseEditor";
 import { ThreeYearPictureEditor } from "@/components/clarity/vision/ThreeYearPictureEditor";
 import { CultureEditor } from "@/components/clarity/vision/CultureEditor";
 import { SummaryStep } from "@/components/clarity/vision/SummaryStep";
+import { MigrationBanner } from "@/components/clarity/MigrationBanner";
+import { ReadOnlyNotice } from "@/components/clarity/ReadOnlyNotice";
 
 const STEPS = [
   { id: 'core_values', title: 'Core Values', description: 'What principles guide your decisions?' },
@@ -42,6 +44,7 @@ export default function VisionStudio() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("saved");
+  const [isReadOnly] = useState(true); // Read-only mode for migration
 
   const [visionData, setVisionData] = useState({
     vision: {

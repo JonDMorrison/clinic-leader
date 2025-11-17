@@ -17,6 +17,7 @@ import {
   FileText
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { MigrationBanner } from "@/components/clarity/MigrationBanner";
 
 export default function ClarityPulseDashboard() {
   const navigate = useNavigate();
@@ -77,6 +78,9 @@ export default function ClarityPulseDashboard() {
       autosaveStatus="saved"
     >
       <div className="space-y-6">
+        {/* Migration Banner */}
+        <MigrationBanner organizationId={user?.team_id || ''} />
+
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Pulse Dashboard</h1>
