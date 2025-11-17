@@ -8,6 +8,8 @@ import { GoalCard } from "@/components/clarity/traction/GoalCard";
 import { LinkDrawer } from "@/components/clarity/traction/LinkDrawer";
 import { ActivityFeed } from "@/components/clarity/traction/ActivityFeed";
 import { NewGoalDialog } from "@/components/clarity/traction/NewGoalDialog";
+import { MigrationBanner } from "@/components/clarity/MigrationBanner";
+import { ReadOnlyNotice } from "@/components/clarity/ReadOnlyNotice";
 
 interface Goal {
   id: string;
@@ -21,6 +23,7 @@ interface Goal {
 
 export default function TractionEngine() {
   const { data: user } = useCurrentUser();
+  const [isReadOnly] = useState(true); // Read-only mode for migration
   const [linkDrawerOpen, setLinkDrawerOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [newGoalDialog, setNewGoalDialog] = useState<{
@@ -188,7 +191,7 @@ export default function TractionEngine() {
       autosaveStatus="saved"
       miniMapSections={miniMapSections}
     >
-      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext collisionDetection={closestCenter} onDragEnd={isReadOnly ? undefined : handleDragEnd}>
         <div className="grid grid-cols-[1fr_1fr_1fr_300px] gap-6">
           <DroppableBoard
             id="one_year"
