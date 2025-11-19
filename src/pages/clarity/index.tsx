@@ -14,8 +14,10 @@ import {
   CheckCircle2,
   ArrowRight,
   Calendar,
-  FileText
+  FileText,
+  Info
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { MigrationBanner } from "@/components/clarity/MigrationBanner";
 
@@ -23,27 +25,38 @@ export default function ClarityPulseDashboard() {
   const navigate = useNavigate();
   const { data: user } = useCurrentUser();
 
+  // Fetch VTO data with progress from unified VTO tables
   const { data: vtoData, isLoading } = useQuery({
-    queryKey: ['clarity-vto', user?.team_id],
+    queryKey: ['vto-review', user?.team_id],
     queryFn: async () => {
       if (!user?.team_id) return null;
 
-      const { data: vto, error } = await supabase
-        .from('clarity_vto' as any)
-        .select('*')
+      // Get latest active VTO for this organization
+      const { data: vto, error: vtoError } = await supabase
+        .from('vto')
+        .select(`
+          *,
+          vto_versions!inner(
+            *,
+            vto_progress(*)
+          )
+        `)
         .eq('organization_id', user.team_id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
-      return vto as any;
+      if (vtoError && vtoError.code !== 'PGRST116') throw vtoError;
+      return vto;
     },
     enabled: !!user?.team_id,
   });
 
-  // Redirect to vision if no VTO exists
+  // Redirect to VTO if no data exists
   useEffect(() => {
     if (!isLoading && !vtoData && user?.team_id) {
-      navigate('/clarity/vision');
+      navigate('/vto');
     }
   }, [vtoData, isLoading, user?.team_id, navigate]);
 
@@ -64,22 +77,38 @@ export default function ClarityPulseDashboard() {
     return null; // Will redirect
   }
 
-  const metrics = vtoData.metrics || {};
-  const visionClarity = metrics.vision_clarity || 0;
-  const tractionHealth = metrics.traction_health || 0;
-  const offTrackItems = metrics.breakdown?.off_track_items || [];
+  // Extract progress data from VTO progress table
+  const latestVersion = vtoData?.vto_versions?.[0];
+  const progressData = latestVersion?.vto_progress?.[0];
+  const visionClarity = progressData?.vision_score || 0;
+  const tractionHealth = progressData?.traction_score || 0;
+  const offTrackItems: any[] = [];
 
   return (
     <ClarityShell
       organizationId={user?.team_id || ''}
       vtoId={vtoData.id}
-      versionCurrent={vtoData.version_current}
-      versionStatus="draft"
+      versionCurrent={latestVersion?.version || 1}
+      versionStatus={latestVersion?.status === 'published' ? 'published' : 'draft'}
       autosaveStatus="saved"
     >
       <div className="space-y-6">
-        {/* Migration Banner */}
-        <MigrationBanner organizationId={user?.team_id || ''} />
+        {/* Edit in VTO Banner */}
+        <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
+          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <AlertTitle className="text-blue-900 dark:text-blue-100">Strategy Review Mode</AlertTitle>
+          <AlertDescription className="text-blue-800 dark:text-blue-200">
+            <div className="flex items-start justify-between gap-4 mt-2">
+              <p className="text-sm flex-1">
+                This page shows your current VTO data in read-only mode. To make changes, use the V/TO editor.
+              </p>
+              <Button onClick={() => navigate('/vto')} className="shrink-0">
+                <Target className="mr-2 h-4 w-4" />
+                Edit in V/TO
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
 
         {/* Header */}
         <div>
