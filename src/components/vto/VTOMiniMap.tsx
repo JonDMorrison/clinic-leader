@@ -15,28 +15,39 @@ interface VTOMiniMapProps {
 }
 
 export function VTOMiniMap({ sections, currentSection, title = "Navigation" }: VTOMiniMapProps) {
+  const handleKeyDown = (e: React.KeyboardEvent, section: VTOMiniMapSection) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      section.onClick?.();
+    }
+  };
+
   return (
-    <div className="w-64 flex-shrink-0 border-l bg-background/50 p-4 overflow-y-auto">
-      <div className="space-y-4 sticky top-4">
+    <div className="w-full lg:w-64 flex-shrink-0 lg:border-l bg-background/50 p-4 overflow-y-auto">
+      <div className="space-y-4 lg:sticky lg:top-4">
         <div>
           <h3 className="font-semibold text-sm text-foreground mb-2">{title}</h3>
           <div className="h-1 w-12 bg-primary rounded-full" />
         </div>
 
-        <div className="space-y-1">
-          {sections.map((section) => {
+        <nav className="space-y-1" role="navigation" aria-label={title}>
+          {sections.map((section, index) => {
             const isActive = currentSection === section.id;
             
             return (
               <button
                 key={section.id}
                 onClick={section.onClick}
+                onKeyDown={(e) => handleKeyDown(e, section)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors w-full text-left",
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-200 w-full text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
                   isActive 
-                    ? "bg-primary text-primary-foreground" 
-                    : "hover:bg-muted"
+                    ? "bg-primary text-primary-foreground shadow-sm" 
+                    : "hover:bg-muted hover:scale-[1.02]"
                 )}
+                aria-label={`Navigate to ${section.label}`}
+                aria-current={isActive ? 'page' : undefined}
+                tabIndex={0}
               >
                 {section.complete ? (
                   <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
@@ -48,7 +59,7 @@ export function VTOMiniMap({ sections, currentSection, title = "Navigation" }: V
               </button>
             );
           })}
-        </div>
+        </nav>
 
         {/* Progress Summary */}
         <div className="pt-4 border-t">
