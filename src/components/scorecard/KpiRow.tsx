@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertTriangle, Check, X, Edit2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 
 interface KpiRowProps {
   kpi: any;
@@ -124,7 +125,12 @@ export const KpiRow = ({ kpi, users, onUpdate, onCreateIssue }: KpiRowProps) => 
               </button>
             )}
           </div>
-          <div className="text-xs text-muted-foreground mt-1">{kpi.category}</div>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <Badge variant="muted" className="text-xs">
+              {kpi.category}
+            </Badge>
+            <VTOGoalBadge linkType="kpi" linkId={kpi.id} />
+          </div>
         </div>
       </TableCell>
 
