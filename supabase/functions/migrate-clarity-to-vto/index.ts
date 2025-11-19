@@ -57,11 +57,10 @@ serve(async (req) => {
 
     console.log(`[Migration] Starting migration${dryRun ? ' (DRY RUN)' : ''}`);
 
-    // Get all clarity_vto records that haven't been migrated
+    // Get all clarity_vto records for the organization
     let query = supabaseClient
       .from('clarity_vto' as any)
-      .select('*')
-      .is('migrated_to_vto_id', null);
+      .select('*');
 
     if (organizationId) {
       query = query.eq('organization_id', organizationId);
@@ -224,17 +223,6 @@ serve(async (req) => {
 
           if (progressError) throw progressError;
           console.log(`[Migration] Created progress record`);
-
-          // Mark clarity_vto as migrated
-          const { error: updateError } = await supabaseClient
-            .from('clarity_vto' as any)
-            .update({
-              migrated_to_vto_id: vtoId,
-              migrated_at: new Date().toISOString(),
-            })
-            .eq('id', clarityVto.id);
-
-          if (updateError) throw updateError;
 
           // Log to audit
           await supabaseClient
