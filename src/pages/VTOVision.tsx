@@ -739,7 +739,6 @@ const VTOVision = () => {
       <VTOMiniMap 
         sections={miniMapSections}
         currentSection={currentSection}
-        title="Vision Sections"
       />
     </div>
   );
