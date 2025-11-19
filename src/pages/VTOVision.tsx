@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Save, X } from "lucide-react";
+import { ArrowLeft, Save, X, Sparkles } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { VTO_TEMPLATES, VTOTemplateKey } from "@/lib/vto/models";
 import { calculateVisionScore } from "@/lib/vto/rollup";
@@ -43,6 +43,16 @@ const VTOVision = () => {
     measurables: [{ name: "", target: "" }],
     headcount: 0,
     notes: "",
+  });
+
+  // AI Draft loading states
+  const [aiLoading, setAiLoading] = useState({
+    purpose: false,
+    niche: false,
+    tenYear: false,
+    idealClient: false,
+    provenProcess: false,
+    guarantee: false,
   });
 
   // Section refs for smooth scrolling
@@ -231,6 +241,50 @@ const VTOVision = () => {
     setThreeYearPicture({ ...threeYearPicture, measurables: updated });
   };
 
+  // AI Draft handlers
+  const handleAIDraft = async (field: string, currentValue: string, setter: (value: string) => void, loadingKey: keyof typeof aiLoading) => {
+    setAiLoading({ ...aiLoading, [loadingKey]: true });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No active session");
+
+      const { data: userData } = await supabase.auth.getUser();
+      const { data: userProfile } = await supabase
+        .from("users")
+        .select("team_id")
+        .eq("email", userData.user!.email)
+        .single();
+
+      const { data, error } = await supabase.functions.invoke("clarity-ai", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: {
+          intent: "draft",
+          context: { organization_id: userProfile.team_id },
+          field,
+          current_value: currentValue,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.suggestions?.[0]?.text) {
+        setter(data.suggestions[0].text);
+        toast({
+          title: "AI Draft Generated",
+          description: "Review and edit the suggestion as needed.",
+        });
+      }
+    } catch (error) {
+      console.error("AI draft error:", error);
+      toast({
+        title: "AI draft failed",
+        description: "Could not generate suggestions. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setAiLoading({ ...aiLoading, [loadingKey]: false });
+    }
+  };
+
   // Scroll to section
   const scrollToSection = (sectionId: string) => {
     setCurrentSection(sectionId);
@@ -345,23 +399,53 @@ const VTOVision = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Purpose (Why do you exist?)</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium">Purpose (Why do you exist?)</label>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleAIDraft(
+                        "core_purpose",
+                        coreFocus.purpose,
+                        (value) => setCoreFocus({ ...coreFocus, purpose: value }),
+                        "purpose"
+                      )}
+                      disabled={aiLoading.purpose}
+                    >
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      {aiLoading.purpose ? "Drafting..." : "AI Draft"}
+                    </Button>
+                  </div>
                   <Textarea
                     value={coreFocus.purpose}
                     onChange={(e) => setCoreFocus({ ...coreFocus, purpose: e.target.value })}
                     placeholder="Our purpose is to..."
                     rows={3}
-                    className="mt-2"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Niche (What do you do best?)</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium">Niche (What do you do best?)</label>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleAIDraft(
+                        "niche",
+                        coreFocus.niche,
+                        (value) => setCoreFocus({ ...coreFocus, niche: value }),
+                        "niche"
+                      )}
+                      disabled={aiLoading.niche}
+                    >
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      {aiLoading.niche ? "Drafting..." : "AI Draft"}
+                    </Button>
+                  </div>
                   <Textarea
                     value={coreFocus.niche}
                     onChange={(e) => setCoreFocus({ ...coreFocus, niche: e.target.value })}
                     placeholder="We specialize in..."
                     rows={3}
-                    className="mt-2"
                   />
                 </div>
               </CardContent>
@@ -372,10 +456,28 @@ const VTOVision = () => {
             <div ref={sectionRefs["ten-year-target"]} id="ten-year-target" className="scroll-mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>10-Year Target</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Where do you see your organization 10 years from now?
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>10-Year Target</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Where do you see your organization 10 years from now?
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleAIDraft(
+                      "ten_year_target",
+                      tenYearTarget,
+                      setTenYearTarget,
+                      "tenYear"
+                    )}
+                    disabled={aiLoading.tenYear}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {aiLoading.tenYear ? "Drafting..." : "AI Draft"}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <Textarea
@@ -392,10 +494,28 @@ const VTOVision = () => {
             <div ref={sectionRefs["ideal-client"]} id="ideal-client" className="scroll-mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Ideal Client Profile</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Who do you serve best?
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Ideal Client Profile</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Who do you serve best?
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleAIDraft(
+                      "ideal_client",
+                      marketingStrategy.ideal_client,
+                      (value) => setMarketingStrategy({ ...marketingStrategy, ideal_client: value }),
+                      "idealClient"
+                    )}
+                    disabled={aiLoading.idealClient}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {aiLoading.idealClient ? "Drafting..." : "AI Draft"}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <Textarea
@@ -461,10 +581,28 @@ const VTOVision = () => {
             <div ref={sectionRefs["proven-process"]} id="proven-process" className="scroll-mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Proven Process</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Your unique method or system
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Proven Process</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Your unique method or system
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleAIDraft(
+                      "proven_process",
+                      marketingStrategy.proven_process,
+                      (value) => setMarketingStrategy({ ...marketingStrategy, proven_process: value }),
+                      "provenProcess"
+                    )}
+                    disabled={aiLoading.provenProcess}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {aiLoading.provenProcess ? "Drafting..." : "AI Draft"}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <Textarea
@@ -481,10 +619,28 @@ const VTOVision = () => {
             <div ref={sectionRefs["guarantee"]} id="guarantee" className="scroll-mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Guarantee / Promise</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  What do you promise your clients?
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Guarantee / Promise</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      What do you promise your clients?
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleAIDraft(
+                      "promise",
+                      marketingStrategy.guarantee,
+                      (value) => setMarketingStrategy({ ...marketingStrategy, guarantee: value }),
+                      "guarantee"
+                    )}
+                    disabled={aiLoading.guarantee}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {aiLoading.guarantee ? "Drafting..." : "AI Draft"}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <Textarea
