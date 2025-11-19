@@ -1,11 +1,13 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
-import { X, AlertTriangle, TrendingDown, AlertCircle, RefreshCw } from "lucide-react";
+import { X, AlertTriangle, TrendingDown, AlertCircle, RefreshCw, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { generateAlertsForOrganization } from "@/lib/alerts/alertGenerator";
+import { ConvertToIssueDialog } from "@/components/issues/ConvertToIssueDialog";
 
 interface AlertsPanelProps {
   organizationId: string | undefined;
@@ -27,6 +29,8 @@ const ALERT_COLORS = {
 export const AlertsPanel = ({ organizationId, currentUserId }: AlertsPanelProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedAlert, setSelectedAlert] = useState<any>(null);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
 
   const { data: alerts, isLoading } = useQuery({
     queryKey: ["metric-alerts", organizationId],
@@ -35,7 +39,7 @@ export const AlertsPanel = ({ organizationId, currentUserId }: AlertsPanelProps)
 
       const { data, error } = await supabase
         .from("metric_alerts")
-        .select("*, metrics(name)")
+        .select("*, metrics(name, owner, organization_id)")
         .eq("organization_id", organizationId)
         .is("resolved_at", null)
         .order("created_at", { ascending: false })
@@ -155,15 +159,31 @@ export const AlertsPanel = ({ organizationId, currentUserId }: AlertsPanelProps)
               <div className="flex-1 space-y-1">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-medium">{alert.message}</p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 flex-shrink-0"
-                    onClick={() => dismissMutation.mutate(alert.id)}
-                    disabled={dismissMutation.isPending}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => {
+                        setSelectedAlert(alert);
+                        setConvertDialogOpen(true);
+                      }}
+                      title="Create issue from this alert"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      <span className="text-xs">Issue</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => dismissMutation.mutate(alert.id)}
+                      disabled={dismissMutation.isPending}
+                      title="Dismiss alert"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
                 {alert.tip && (
                   <p className="text-xs text-muted-foreground">
@@ -175,6 +195,19 @@ export const AlertsPanel = ({ organizationId, currentUserId }: AlertsPanelProps)
           );
         })}
       </div>
+
+      <ConvertToIssueDialog
+        open={convertDialogOpen}
+        onClose={() => {
+          setConvertDialogOpen(false);
+          setSelectedAlert(null);
+        }}
+        alert={selectedAlert}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["issues"] });
+          queryClient.invalidateQueries({ queryKey: ["metric-alerts", organizationId] });
+        }}
+      />
     </Card>
   );
 };

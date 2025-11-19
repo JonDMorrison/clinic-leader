@@ -138,4 +138,10 @@ verify_jwt = false
 [functions.vto-plan-quarter]
 verify_jwt = false
 
+[functions.create-issue-from-alert]
+verify_jwt = false
+
+[functions.rules-weekly-issue-creation]
+verify_jwt = false
+
 
