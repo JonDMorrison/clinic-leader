@@ -12,8 +12,9 @@ export const VtoL10Panel = () => {
   const { toast } = useToast();
   const [isAttachingSnapshot, setIsAttachingSnapshot] = useState(false);
 
-  const { data: vtoSummary } = useQuery({
+  const { data: vtoSummary, refetch } = useQuery({
     queryKey: ["vto-l10-summary"],
+    refetchInterval: 30000, // Auto-refetch every 30s during meeting
     queryFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Not authenticated");

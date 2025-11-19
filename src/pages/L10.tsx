@@ -14,11 +14,31 @@ import { IDSSection } from "@/components/l10/IDSSection";
 import { VtoL10Panel } from "@/components/vto/VtoL10Panel";
 import { exportMeetingMinutes } from "@/utils/exportMinutes";
 import { AgendaSuggestions } from "@/components/l10/AgendaSuggestions";
+import { useVTORealtimeSync } from "@/hooks/useVTORealtimeSync";
 
 const L10 = () => {
   const [headlines, setHeadlines] = useState<string[]>([]);
   const [decisions, setDecisions] = useState<string[]>([]);
   const { toast } = useToast();
+
+  const { data: teamData } = useQuery({
+    queryKey: ["current-team-l10"],
+    queryFn: async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return null;
+
+      const { data: userData } = await supabase
+        .from("users")
+        .select("team_id")
+        .eq("email", authData.user.email)
+        .single();
+      
+      return userData;
+    },
+  });
+
+  // Enable real-time VTO progress sync during L10
+  useVTORealtimeSync(teamData?.team_id);
 
   const { data: kpis, refetch: refetchKpis } = useQuery({
     queryKey: ["kpis-l10"],
