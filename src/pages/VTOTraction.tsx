@@ -8,13 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, X, Send } from "lucide-react";
+import { ArrowLeft, Plus, X, Send, Sparkles } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { QuarterlyRock, VTOIssue } from "@/lib/vto/models";
 import { getCurrentQuarter } from "@/lib/rocks/templates";
 import { VTOMiniMap, VTOMiniMapSection } from "@/components/vto/VTOMiniMap";
 import { AutosaveIndicator } from "@/components/vto/AutosaveIndicator";
 import { useVTOAutosave, AutosaveStatus } from "@/hooks/useVTOAutosave";
+import { QuarterlyPlanningWizard } from "@/components/rocks/QuarterlyPlanningWizard";
 
 const VTOTraction = () => {
   const { toast } = useToast();
@@ -34,6 +35,7 @@ const VTOTraction = () => {
   const [issuesPersonal, setIssuesPersonal] = useState<VTOIssue[]>([]);
   const [currentSection, setCurrentSection] = useState<string>("one-year");
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("saved");
+  const [planningWizardOpen, setPlanningWizardOpen] = useState(false);
 
   // Refs for smooth scrolling
   const oneYearRef = useRef<HTMLDivElement>(null);
@@ -284,7 +286,17 @@ const VTOTraction = () => {
                 <p className="text-muted-foreground">Manage your 1-year plan, rocks, and issues</p>
               </div>
             </div>
-            <AutosaveIndicator status={autosaveStatus} />
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setPlanningWizardOpen(true)}
+                disabled={!vtoData?.version || oneYearPlan.goals.length === 0}
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Plan Quarter
+              </Button>
+              <AutosaveIndicator status={autosaveStatus} />
+            </div>
           </div>
 
           {/* Progress Bar */}
@@ -642,4 +654,3 @@ const IssueRow = ({ issue, users, onUpdate, onRemove, onSendToL10 }: IssueRowPro
   );
 };
 
-export default VTOTraction;

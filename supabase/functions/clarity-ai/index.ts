@@ -135,6 +135,9 @@ function getSystemPrompt(intent: string): string {
     case 'measurable':
       return `${basePrompt}\n\nTransform vague goals into measurable objectives. Include: (1) specific metric, (2) target number, (3) timeframe, (4) who's responsible. Make it SMART.`;
     
+    case 'suggest_rocks':
+      return `${basePrompt}\n\nYou are helping break down annual goals into quarterly rocks. Create 2-3 specific, achievable quarterly priorities (rocks) that directly support the 1-year goal. Each rock should be concrete, measurable, and completable in a single quarter. Focus on healthcare/clinic context.`;
+    
     case 'gap_scan':
       return `${basePrompt}\n\nAnalyze the 1-year plan and identify 3 missing KPIs that would validate progress. Focus on leading indicators for clinics (patient outcomes, efficiency, team health, growth).`;
     
@@ -176,6 +179,26 @@ Do not include labels like "Purpose:" or "Niche:" - just the two sentences, one 
     case 'measurable':
       return `Make this goal measurable:\n\n"${current_value}"\n\nProvide: metric, target, timeframe, and owner. Format as bullet points.`;
     
+    case 'suggest_rocks':
+      const goal = context.goal || '';
+      const quarter = context.quarter || 'this quarter';
+      const allGoals = context.oneYearGoals || [];
+      
+      return `I need to create quarterly rocks for ${quarter} to support this 1-year goal:
+
+"${goal}"
+
+Context - All 1-Year Goals:
+${allGoals.map((g: string, i: number) => `${i + 1}. ${g}`).join('\n')}
+
+Create 2-3 specific quarterly rocks (90-day priorities) that directly advance this goal. Each rock should be:
+- Concrete and actionable (starts with a verb)
+- Achievable in a single quarter
+- Measurable (has clear completion criteria)
+- Focused on a single outcome
+
+Return ONLY the rock titles as a simple list, one per line. Be concise - each title should be under 60 characters.`;
+    
     case 'gap_scan':
       return `Given this 1-year plan:\n${JSON.stringify(traction.one_year_plan, null, 2)}\n\nWhat are 3 critical KPIs we're missing? Focus on clinic-specific leading indicators.`;
     
@@ -190,16 +213,22 @@ Do not include labels like "Purpose:" or "Niche:" - just the two sentences, one 
 function parseSuggestions(intent: string, aiResponse: string, current_value?: string, field?: string): any[] {
   // Special handling for comma-separated core values
   if (intent === 'draft' && field === 'core_values') {
-    // Return the entire comma-separated string as a single suggestion
     const cleanedResponse = aiResponse
-      .replace(/^\d+\.\s*/gm, '') // Remove numbered list markers
-      .replace(/^[-*]\s*/gm, '')  // Remove bullet points
+      .replace(/^\d+\.\s*/gm, '')
+      .replace(/^[-*]\s*/gm, '')
       .trim();
+    return [cleanedResponse];
+  }
+
+  // For suggest_rocks, parse as simple list
+  if (intent === 'suggest_rocks') {
+    const lines = aiResponse.split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+      .map(l => l.replace(/^[\d•\-*]+[.)]\s*/, '').trim())
+      .filter(l => l.length > 5 && l.length < 200);
     
-    return [{
-      text: cleanedResponse,
-      rationale: 'AI-generated core values'
-    }];
+    return lines.slice(0, 3);
   }
 
   // Split by numbered list (1., 2., 3.) or bullet points
