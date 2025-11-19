@@ -60,10 +60,18 @@ export const VtoCard = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Vision/Traction</CardTitle>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-muted animate-pulse rounded" />
+            <div className="h-5 w-32 bg-muted animate-pulse rounded" />
+          </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Loading...</p>
+        <CardContent className="space-y-4">
+          <div className="h-20 bg-muted animate-pulse rounded-lg" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="h-16 bg-muted animate-pulse rounded" />
+            <div className="h-16 bg-muted animate-pulse rounded" />
+          </div>
+          <div className="h-10 bg-muted animate-pulse rounded" />
         </CardContent>
       </Card>
     );
@@ -97,12 +105,15 @@ export const VtoCard = () => {
     ? Math.round((progress.vision_score + progress.traction_score) / 2)
     : 0;
 
+  // Celebrate 100% completion
+  const isComplete = overallScore === 100;
+
   return (
-    <Card className="hover-scale">
+    <Card className={`hover-scale transition-all duration-300 ${isComplete ? 'ring-2 ring-primary shadow-lg' : ''}`}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Compass className="w-5 h-5 text-brand" />
+            <Compass className={`w-5 h-5 ${isComplete ? 'text-primary animate-pulse' : 'text-brand'}`} />
             <CardTitle>Strategic Progress</CardTitle>
           </div>
           <Badge variant={version.status === 'published' ? 'default' : 'secondary'}>
@@ -113,8 +124,8 @@ export const VtoCard = () => {
       <CardContent className="space-y-4">
         {progress && (
           <>
-            {/* Overall Score */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+            {/* Overall Score with celebration */}
+            <div className={`flex items-center justify-between p-3 rounded-lg bg-muted/50 transition-all duration-300 ${isComplete ? 'bg-primary/10 border border-primary/20' : ''}`}>
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-brand" />
                 <span className="text-sm font-medium">Overall Progress</span>
