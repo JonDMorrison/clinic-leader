@@ -4,55 +4,39 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, AlertTriangle, FileText } from "lucide-react";
+import { TrendingUp, AlertTriangle, FileText, Compass, Target } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 export const VtoCard = () => {
   const navigate = useNavigate();
+  const { data: currentUser } = useCurrentUser();
 
   const { data: vtoSummary, isLoading } = useQuery({
-    queryKey: ["vto-dashboard-summary"],
+    queryKey: ["vto-dashboard-summary", currentUser?.team_id],
     queryFn: async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) throw new Error("Not authenticated");
+      if (!currentUser?.team_id) return null;
 
-      const { data: userProfile } = await supabase
-        .from("users")
-        .select("team_id")
-        .eq("email", userData.user.email)
-        .single();
-
-      if (!userProfile?.team_id) return null;
-
-      // Get active VTO
+      // Get active VTO with latest version and progress
       const { data: vto } = await supabase
         .from("vto")
-        .select("*")
-        .eq("organization_id", userProfile.team_id)
+        .select(`
+          *,
+          vto_versions(
+            *,
+            vto_progress(*)
+          )
+        `)
+        .eq("organization_id", currentUser.team_id)
         .eq("is_active", true)
-        .maybeSingle();
-
-      if (!vto) return null;
-
-      // Get latest version (published or draft)
-      const { data: version } = await supabase
-        .from("vto_versions")
-        .select("*")
-        .eq("vto_id", vto.id)
-        .order("version", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (!version) return null;
+      if (!vto || !vto.vto_versions || vto.vto_versions.length === 0) return null;
 
-      // Get latest progress
-      const { data: progress } = await supabase
-        .from("vto_progress")
-        .select("*")
-        .eq("vto_version_id", version.id)
-        .order("computed_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const version = vto.vto_versions[0];
+      const progress = version.vto_progress?.[0] || null;
 
       // Find off-track goals
       const offTrackGoals = progress?.details
@@ -69,6 +53,7 @@ export const VtoCard = () => {
         offTrackGoals,
       };
     },
+    enabled: !!currentUser?.team_id,
   });
 
   if (isLoading) {
@@ -86,17 +71,20 @@ export const VtoCard = () => {
 
   if (!vtoSummary?.version) {
     return (
-      <Card>
+      <Card className="border-dashed">
         <CardHeader>
-          <CardTitle>Vision/Traction Organizer</CardTitle>
+          <div className="flex items-center gap-2">
+            <Compass className="w-5 h-5 text-brand" />
+            <CardTitle>Vision/Traction Organizer</CardTitle>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Build your strategic vision and track progress toward your goals
+            Define your strategic vision and track execution progress toward your long-term goals.
           </p>
           <Button onClick={() => navigate('/vto')} className="w-full">
             <FileText className="w-4 h-4 mr-2" />
-            Create V/TO
+            Build Your V/TO
           </Button>
         </CardContent>
       </Card>
@@ -105,11 +93,18 @@ export const VtoCard = () => {
 
   const { version, progress, offTrackGoals } = vtoSummary;
 
+  const overallScore = progress 
+    ? Math.round((progress.vision_score + progress.traction_score) / 2)
+    : 0;
+
   return (
-    <Card>
+    <Card className="hover-scale">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Vision/Traction</CardTitle>
+          <div className="flex items-center gap-2">
+            <Compass className="w-5 h-5 text-brand" />
+            <CardTitle>Strategic Progress</CardTitle>
+          </div>
           <Badge variant={version.status === 'published' ? 'default' : 'secondary'}>
             V{version.version}
           </Badge>
@@ -118,43 +113,61 @@ export const VtoCard = () => {
       <CardContent className="space-y-4">
         {progress && (
           <>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Vision</span>
-                <span className="font-semibold">{progress.vision_score}%</span>
+            {/* Overall Score */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-brand" />
+                <span className="text-sm font-medium">Overall Progress</span>
               </div>
-              <Progress value={progress.vision_score} className="h-2" />
+              <span className="text-2xl font-bold text-brand">{overallScore}%</span>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Traction</span>
-                <span className="font-semibold">{progress.traction_score}%</span>
+            {/* Vision & Traction Scores */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Vision</span>
+                  <span className="font-semibold">{progress.vision_score}%</span>
+                </div>
+                <Progress value={progress.vision_score} className="h-1.5" />
               </div>
-              <Progress value={progress.traction_score} className="h-2" />
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Traction</span>
+                  <span className="font-semibold">{progress.traction_score}%</span>
+                </div>
+                <Progress value={progress.traction_score} className="h-1.5" />
+              </div>
             </div>
           </>
         )}
 
         {offTrackGoals && offTrackGoals.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-2 p-3 rounded-lg bg-warning/5 border border-warning/20">
             <div className="flex items-center gap-2 text-sm font-medium">
               <AlertTriangle className="w-4 h-4 text-warning" />
-              <span>Top Risks</span>
+              <span>Needs Attention</span>
             </div>
             {offTrackGoals.map(([goalKey, data]: [string, any], i) => (
-              <div key={i} className="text-xs text-muted-foreground flex justify-between">
-                <span className="truncate">{goalKey}</span>
-                <span className="text-warning">{data.progress}%</span>
+              <div key={i} className="text-xs flex justify-between items-center">
+                <span className="truncate text-muted-foreground">{goalKey.replace(/_/g, ' ')}</span>
+                <Badge variant="outline" className="text-warning border-warning/30">
+                  {data.progress}%
+                </Badge>
               </div>
             ))}
           </div>
         )}
 
-        <div className="pt-2">
-          <Button variant="outline" onClick={() => navigate('/vto')} className="w-full">
+        <div className="flex gap-2 pt-2">
+          <Button variant="outline" onClick={() => navigate('/vto')} className="flex-1">
             <TrendingUp className="w-4 h-4 mr-2" />
-            View Full V/TO
+            Edit V/TO
+          </Button>
+          <Button variant="ghost" onClick={() => navigate('/clarity')} className="flex-1">
+            <FileText className="w-4 h-4 mr-2" />
+            Review
           </Button>
         </div>
       </CardContent>
