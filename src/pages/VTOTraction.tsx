@@ -654,3 +654,4 @@ const IssueRow = ({ issue, users, onUpdate, onRemove, onSendToL10 }: IssueRowPro
   );
 };
 
+export default VTOTraction;
