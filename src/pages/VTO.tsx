@@ -15,7 +15,6 @@ import { HelpHint } from "@/components/help/HelpHint";
 const VTO = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
   // Fetch active VTO for current user's team
   const { data: vtoData, isLoading } = useQuery({
@@ -150,64 +149,20 @@ const VTO = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Get Started with Your V/TO</CardTitle>
+            <CardTitle>Create Your V/TO</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Choose a template to begin building your Vision/Traction Organizer
+              Build your clinic's strategic vision with our pre-configured template designed for healthcare practices
             </p>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-3 gap-4">
-              <Card className={selectedTemplate === 'classic-eos' ? 'border-primary' : ''}>
-                <CardHeader>
-                  <CardTitle className="text-lg">🚀 Classic EOS</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Standard EOS Vision/Traction Organizer format
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    onClick={() => handleCreateVTO('classic-eos')}
-                    className="w-full"
-                  >
-                    Start with Classic EOS
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className={selectedTemplate === 'clinic-growth' ? 'border-primary' : ''}>
-                <CardHeader>
-                  <CardTitle className="text-lg">🏥 Clinic Growth</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Pre-configured for healthcare practice growth
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    onClick={() => handleCreateVTO('clinic-growth')}
-                    className="w-full"
-                  >
-                    Start with Clinic Growth
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className={selectedTemplate === 'lean-vto' ? 'border-primary' : ''}>
-                <CardHeader>
-                  <CardTitle className="text-lg">⚡ Lean VTO</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Simplified starter to expand later
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    onClick={() => handleCreateVTO('lean-vto')}
-                    className="w-full"
-                  >
-                    Start with Lean VTO
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+            <Button
+              onClick={() => handleCreateVTO('clinic_standard')}
+              size="lg"
+              className="w-full"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create V/TO
+            </Button>
           </CardContent>
         </Card>
       </div>
