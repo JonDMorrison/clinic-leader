@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -12,7 +12,6 @@ import { ArrowLeft, Save, X, Sparkles } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { VTO_TEMPLATES, VTOTemplateKey } from "@/lib/vto/models";
 import { calculateVisionScore } from "@/lib/vto/rollup";
-import { VTOMiniMap } from "@/components/vto/VTOMiniMap";
 import { AutosaveIndicator } from "@/components/vto/AutosaveIndicator";
 import { ClickableBadges, CORE_VALUE_SUGGESTIONS, DIFFERENTIATOR_SUGGESTIONS } from "@/components/vto/ClickableBadges";
 import { useVTOAutosave, AutosaveStatus } from "@/hooks/useVTOAutosave";
@@ -24,7 +23,6 @@ const VTOVision = () => {
   const [searchParams] = useSearchParams();
   const templateKey = searchParams.get('template') as VTOTemplateKey;
 
-  const [currentSection, setCurrentSection] = useState("core-values");
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("saved");
 
   const [coreValues, setCoreValues] = useState<string[]>([]);
@@ -55,17 +53,6 @@ const VTOVision = () => {
     guarantee: false,
   });
 
-  // Section refs for smooth scrolling
-  const sectionRefs = {
-    "core-values": useRef<HTMLDivElement>(null),
-    "core-focus": useRef<HTMLDivElement>(null),
-    "ten-year-target": useRef<HTMLDivElement>(null),
-    "ideal-client": useRef<HTMLDivElement>(null),
-    "differentiators": useRef<HTMLDivElement>(null),
-    "proven-process": useRef<HTMLDivElement>(null),
-    "guarantee": useRef<HTMLDivElement>(null),
-    "three-year-picture": useRef<HTMLDivElement>(null),
-  };
 
   // Fetch VTO data
   const { data: vtoData, isLoading } = useQuery({
@@ -285,40 +272,15 @@ const VTOVision = () => {
     }
   };
 
-  // Scroll to section
-  const scrollToSection = (sectionId: string) => {
-    setCurrentSection(sectionId);
-    const ref = sectionRefs[sectionId as keyof typeof sectionRefs];
-    ref?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   // Calculate vision score for progress
   const visionScore = calculateVisionScore(versionData as any);
-
-  // Mini-map sections
-  const miniMapSections = [
-    { id: "core-values", label: "Core Values", complete: coreValues.length >= 3 },
-    { id: "core-focus", label: "Core Focus", complete: !!coreFocus.purpose && !!coreFocus.niche },
-    { id: "ten-year-target", label: "10-Year Target", complete: !!tenYearTarget },
-    { id: "ideal-client", label: "Ideal Client", complete: !!marketingStrategy.ideal_client },
-    { id: "differentiators", label: "Differentiators", complete: marketingStrategy.differentiators.filter(d => d).length >= 3 },
-    { id: "proven-process", label: "Proven Process", complete: !!marketingStrategy.proven_process },
-    { id: "guarantee", label: "Guarantee", complete: !!marketingStrategy.guarantee },
-    { id: "three-year-picture", label: "3-Year Picture", complete: threeYearPicture.measurables.some(m => m.name && m.target) },
-  ].map(section => ({
-    ...section,
-    onClick: () => scrollToSection(section.id),
-  }));
 
   if (isLoading) {
     return <div className="p-6">Loading...</div>;
   }
 
   return (
-    <div className="flex h-full">
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-6 space-y-6 overflow-y-auto h-full">
           <Button variant="ghost" size="sm" onClick={() => navigate('/vto')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to V/TO
@@ -344,7 +306,7 @@ const VTOVision = () => {
 
           <div className="space-y-8">
             {/* Core Values */}
-            <div ref={sectionRefs["core-values"]} id="core-values" className="scroll-mt-6">
+            <div id="core-values">
             <Card>
               <CardHeader>
                 <CardTitle>Core Values</CardTitle>
@@ -391,7 +353,7 @@ const VTOVision = () => {
             </div>
 
             {/* Core Focus */}
-            <div ref={sectionRefs["core-focus"]} id="core-focus" className="scroll-mt-6">
+            <div id="core-focus">
             <Card>
               <CardHeader>
                 <CardTitle>Core Focus</CardTitle>
@@ -453,7 +415,7 @@ const VTOVision = () => {
             </div>
 
             {/* 10-Year Target */}
-            <div ref={sectionRefs["ten-year-target"]} id="ten-year-target" className="scroll-mt-6">
+            <div id="ten-year-target">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -491,7 +453,7 @@ const VTOVision = () => {
             </div>
 
             {/* Ideal Client */}
-            <div ref={sectionRefs["ideal-client"]} id="ideal-client" className="scroll-mt-6">
+            <div id="ideal-client">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -529,7 +491,7 @@ const VTOVision = () => {
             </div>
 
             {/* Differentiators */}
-            <div ref={sectionRefs["differentiators"]} id="differentiators" className="scroll-mt-6">
+            <div id="differentiators">
             <Card>
               <CardHeader>
                 <CardTitle>Differentiators</CardTitle>
@@ -578,7 +540,7 @@ const VTOVision = () => {
             </div>
 
             {/* Proven Process */}
-            <div ref={sectionRefs["proven-process"]} id="proven-process" className="scroll-mt-6">
+            <div id="proven-process">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -616,7 +578,7 @@ const VTOVision = () => {
             </div>
 
             {/* Guarantee */}
-            <div ref={sectionRefs["guarantee"]} id="guarantee" className="scroll-mt-6">
+            <div id="guarantee">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -654,7 +616,7 @@ const VTOVision = () => {
             </div>
 
             {/* 3-Year Picture */}
-            <div ref={sectionRefs["three-year-picture"]} id="three-year-picture" className="scroll-mt-6">
+            <div id="three-year-picture">
             <Card>
               <CardHeader>
                 <CardTitle>3-Year Picture</CardTitle>
@@ -732,14 +694,6 @@ const VTOVision = () => {
             </Card>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Mini-Map Sidebar */}
-      <VTOMiniMap 
-        sections={miniMapSections}
-        currentSection={currentSection}
-      />
     </div>
   );
 };
