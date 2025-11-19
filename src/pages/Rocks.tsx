@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { LoadDefaultRocksDialog } from "@/components/rocks/LoadDefaultRocksDialog";
+import { QuarterTransitionBanner } from "@/components/rocks/QuarterTransitionBanner";
+import { ArchiveRocksDialog } from "@/components/rocks/ArchiveRocksDialog";
+import { getCurrentQuarter } from "@/lib/rocks/templates";
 import {
   DndContext,
   DragEndEvent,
@@ -30,6 +33,9 @@ const Rocks = () => {
   const ownerFilter = searchParams.get("owner") || "all";
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loadDefaultsOpen, setLoadDefaultsOpen] = useState(false);
+  const [showTransitionBanner, setShowTransitionBanner] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const currentQuarter = getCurrentQuarter();
 
   const { data: rocks, isLoading, refetch } = useQuery({
     queryKey: ["rocks"],
@@ -95,6 +101,34 @@ const Rocks = () => {
       done: filteredRocks.filter((r) => r.status === "done"),
     };
   }, [filteredRocks]);
+
+  // Check if we should show transition banner
+  const lastQuarterRocks = useMemo(() => {
+    if (!rocks) return { completed: [], incomplete: [] };
+    
+    // Get the previous quarter's rocks
+    const lastQuarter = quarters[quarters.length - 2]; // Second to last quarter
+    if (!lastQuarter) return { completed: [], incomplete: [] };
+    
+    const lastQuarterRocksFiltered = rocks.filter(r => r.quarter === lastQuarter);
+    return {
+      completed: lastQuarterRocksFiltered.filter(r => r.status === 'done'),
+      incomplete: lastQuarterRocksFiltered.filter(r => r.status !== 'done'),
+    };
+  }, [rocks, quarters]);
+
+  // Show banner if there are completed or incomplete rocks from last quarter
+  useEffect(() => {
+    const dismissed = localStorage.getItem(`transition-banner-dismissed-${currentQuarter}`);
+    if (!dismissed && (lastQuarterRocks.completed.length > 0 || lastQuarterRocks.incomplete.length > 0)) {
+      setShowTransitionBanner(true);
+    }
+  }, [lastQuarterRocks, currentQuarter]);
+
+  const handleDismissBanner = () => {
+    localStorage.setItem(`transition-banner-dismissed-${currentQuarter}`, 'true');
+    setShowTransitionBanner(false);
+  };
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -178,6 +212,19 @@ const Rocks = () => {
 
   return (
     <div className="space-y-6">
+      {/* Quarterly Transition Banner */}
+      {showTransitionBanner && (
+        <QuarterTransitionBanner
+          completedCount={lastQuarterRocks.completed.length}
+          incompleteCount={lastQuarterRocks.incomplete.length}
+          onPlanQuarter={() => {
+            window.location.href = '/vto/traction';
+          }}
+          onHandleIncomplete={() => setArchiveDialogOpen(true)}
+          onDismiss={handleDismissBanner}
+        />
+      )}
+
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
@@ -282,6 +329,21 @@ const Rocks = () => {
           </div>
         </DndContext>
       )}
+
+      <NewRockModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={refetch} />
+      
+      <LoadDefaultRocksDialog 
+        open={loadDefaultsOpen}
+        onOpenChange={setLoadDefaultsOpen}
+        organizationId={currentUser?.team_id || ''}
+      />
+
+      <ArchiveRocksDialog
+        open={archiveDialogOpen}
+        onClose={() => setArchiveDialogOpen(false)}
+        incompleteRocks={lastQuarterRocks.incomplete}
+        onSuccess={refetch}
+      />
     </div>
   );
 };

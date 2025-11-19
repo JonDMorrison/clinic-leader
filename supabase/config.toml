@@ -135,3 +135,7 @@ verify_jwt = false
 [functions.jane-verify]
 verify_jwt = false
 
+[functions.vto-plan-quarter]
+verify_jwt = false
+
+
