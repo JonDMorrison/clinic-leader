@@ -44,11 +44,11 @@ serve(async (req) => {
     // Verify VTO belongs to user's team
     const { data: vto } = await supabaseClient
       .from('vto')
-      .select('team_id')
+      .select('organization_id')
       .eq('id', vto_id)
       .single();
 
-    if (!vto || vto.team_id !== profile.team_id) {
+    if (!vto || vto.organization_id !== profile.team_id) {
       throw new Error('VTO not found or access denied');
     }
 
