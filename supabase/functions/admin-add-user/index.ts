@@ -42,6 +42,7 @@ serve(async (req) => {
     const emailLower = String(email).trim().toLowerCase();
     emailLowerGlobal = emailLower;
     passwordGlobal = String(password || "");
+    console.log("Password received:", passwordGlobal ? "YES (length:" + passwordGlobal.length + ")" : "NO");
     const department_id = department ?? null;
 
     // helper: find existing auth user by email (paged)
