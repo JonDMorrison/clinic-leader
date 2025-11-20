@@ -1,5 +1,5 @@
 export const SYSTEM_HANDBOOK = {
-  title: "EOS Clinic System Training Guide",
+  title: "ClinicLeader System Training Guide",
   version: "1.0",
   lastUpdated: "2025-10-23",
   sections: [
@@ -9,7 +9,7 @@ export const SYSTEM_HANDBOOK = {
       order: 1,
       content: [
         {
-          heading: "Welcome to EOS Clinic",
+          heading: "Welcome to ClinicLeader",
           body: `This system helps your clinic run the Entrepreneurial Operating System (EOS) framework. Whether you're managing patients, tracking performance, or running meetings, this guide will help you master the platform.
 
 **What is EOS?**

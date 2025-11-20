@@ -18,7 +18,7 @@ const tourSteps: TourStep[] = [
   {
     id: 0,
     target: '[href="/"]',
-    title: "Welcome to EOS Clinic! 👋",
+    title: "Welcome to ClinicLeader! 👋",
     text: "Let's take a quick tour of the key features. This is your main dashboard where you'll see an overview of everything happening in your clinic.",
     path: "/",
   },
@@ -54,7 +54,7 @@ const tourSteps: TourStep[] = [
     id: 5,
     target: null,
     title: "All set! 🚀",
-    text: "You're ready to start using EOS Clinic! Explore at your own pace, and remember you can always restart this tour from the Help menu.",
+    text: "You're ready to start using ClinicLeader! Explore at your own pace, and remember you can always restart this tour from the Help menu.",
   },
 ];
 

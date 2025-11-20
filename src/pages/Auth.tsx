@@ -79,7 +79,7 @@ const Auth = () => {
             {isForgotPassword 
               ? "Enter your email to receive a password reset link" 
               : isLogin 
-              ? "Welcome back to EOS Clinic" 
+              ? "Welcome back to ClinicLeader" 
               : "Create your account"}
           </p>
         </CardHeader>
