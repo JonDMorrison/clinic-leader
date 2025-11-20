@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Calendar, Target, Link as LinkIcon } from "lucide-react";
+import { Calendar, Target, Link as LinkIcon, GripVertical } from "lucide-react";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 import { useSortable } from "@dnd-kit/sortable";
@@ -109,10 +109,16 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <Card className="cursor-move hover:shadow-md transition-shadow">
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
           <div className="flex items-start justify-between gap-2">
+            <div 
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-1 -m-1 hover:bg-muted/50 rounded"
+            >
+              <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
+            </div>
             <div className="flex items-start gap-2 flex-1">
               <Target className="w-4 h-4 text-brand mt-1 shrink-0" />
               <CardTitle className="text-sm">{rock.title}</CardTitle>
