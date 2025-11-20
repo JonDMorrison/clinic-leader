@@ -60,7 +60,7 @@ export function useVTOAutosave({
   }, [debouncedData, vtoId, onStatusChange, toast, enabled]);
 
   useEffect(() => {
-    if (debouncedData && vtoId && enabled) {
+    if (debouncedData && vtoId && vtoId.trim() !== "" && enabled) {
       save();
     }
   }, [debouncedData, vtoId, save, enabled]);

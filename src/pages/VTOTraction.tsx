@@ -365,13 +365,13 @@ const VTOTraction = () => {
                               <SelectTrigger>
                                 <SelectValue placeholder="Owner" />
                               </SelectTrigger>
-                              <SelectContent>
-                                {vtoData?.users.map((user) => (
-                                  <SelectItem key={user.id} value={user.id}>
-                                    {user.full_name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
+                          <SelectContent>
+                            {(vtoData?.users || []).map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.full_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
                             </Select>
                             <Input
                               type="date"
@@ -425,7 +425,7 @@ const VTOTraction = () => {
                             <SelectValue placeholder="Owner" />
                           </SelectTrigger>
                           <SelectContent>
-                            {vtoData?.users.map((user) => (
+                            {(vtoData?.users || []).map((user) => (
                               <SelectItem key={user.id} value={user.id}>
                                 {user.full_name}
                               </SelectItem>
