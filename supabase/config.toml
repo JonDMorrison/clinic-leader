@@ -36,6 +36,9 @@ verify_jwt = false
 [functions.debug-auth-env]
 verify_jwt = false
 
+[functions.delete-auth-user]
+verify_jwt = false
+
 [functions.ai-generate-insights]
 verify_jwt = false
 

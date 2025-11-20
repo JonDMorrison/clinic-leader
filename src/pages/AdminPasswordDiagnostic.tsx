@@ -11,6 +11,7 @@ export default function AdminPasswordDiagnostic() {
   const [auditResult, setAuditResult] = useState<any>(null);
   const [fixResult, setFixResult] = useState<any>(null);
   const [envResult, setEnvResult] = useState<any>(null);
+  const [deleteResult, setDeleteResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const runAudit = async () => {
@@ -71,6 +72,32 @@ export default function AdminPasswordDiagnostic() {
     }
   };
 
+  const deleteAuthUser = async () => {
+    if (!confirm(`This will DELETE the auth.users record for ${email}. The profile will remain. Continue?`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-auth-user', {
+        body: { email }
+      });
+      
+      if (error) throw error;
+      setDeleteResult(data);
+      
+      if (data.ok) {
+        toast.success("Auth user deleted! Now recreate via /admin/add-user");
+      } else {
+        toast.error(data.error || "Failed to delete auth user");
+      }
+    } catch (error: any) {
+      toast.error(`Delete failed: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <Card>
@@ -95,7 +122,7 @@ export default function AdminPasswordDiagnostic() {
             />
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button onClick={runAudit} disabled={isLoading}>
               1. Run Audit
             </Button>
@@ -104,6 +131,9 @@ export default function AdminPasswordDiagnostic() {
             </Button>
             <Button onClick={checkEnv} disabled={isLoading} variant="outline">
               3. Check Env
+            </Button>
+            <Button onClick={deleteAuthUser} disabled={isLoading} variant="destructive">
+              4. Delete Auth User
             </Button>
           </div>
 
@@ -148,6 +178,19 @@ export default function AdminPasswordDiagnostic() {
                 <div className={`text-sm font-semibold ${envResult.edge_SUPABASE_URL === import.meta.env.VITE_SUPABASE_URL ? 'text-green-600' : 'text-red-600'}`}>
                   {envResult.edge_SUPABASE_URL === import.meta.env.VITE_SUPABASE_URL ? '✓ Match' : '✗ Mismatch'}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {deleteResult && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Delete Result</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <pre className="text-xs bg-muted p-4 rounded overflow-auto">
+                  {JSON.stringify(deleteResult, null, 2)}
+                </pre>
               </CardContent>
             </Card>
           )}
