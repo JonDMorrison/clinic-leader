@@ -5,10 +5,11 @@ import { KpiSparkline } from "@/components/ui/KpiSparkline";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Check, X, Edit2 } from "lucide-react";
+import { AlertTriangle, Check, X, Edit2, Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
+import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 
 interface KpiRowProps {
   kpi: any;
@@ -22,6 +23,7 @@ export const KpiRow = ({ kpi, users, onUpdate, onCreateIssue }: KpiRowProps) => 
   const [editTarget, setEditTarget] = useState(kpi.target?.toString() || "");
   const [editOwner, setEditOwner] = useState(kpi.owner_id || "");
   const [weekValue, setWeekValue] = useState("");
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const latestReading = kpi.kpi_readings?.[0];
@@ -130,6 +132,15 @@ export const KpiRow = ({ kpi, users, onUpdate, onCreateIssue }: KpiRowProps) => 
               {kpi.category}
             </Badge>
             <VTOGoalBadge linkType="kpi" linkId={kpi.id} />
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-5 px-2 text-xs"
+              onClick={() => setLinkDialogOpen(true)}
+            >
+              <LinkIcon className="w-3 h-3 mr-1" />
+              Link to V/TO
+            </Button>
           </div>
         </div>
       </TableCell>
@@ -226,6 +237,14 @@ export const KpiRow = ({ kpi, users, onUpdate, onCreateIssue }: KpiRowProps) => 
           </TableCell>
         </>
       )}
+
+      <LinkToVTODialog
+        open={linkDialogOpen}
+        onClose={() => setLinkDialogOpen(false)}
+        linkType="kpi"
+        linkId={kpi.id}
+        itemName={kpi.name}
+      />
     </TableRow>
   );
 };
