@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, CheckCircle2, ListTodo, GripVertical } from "lucide-react";
+import { AlertCircle, CheckCircle2, ListTodo, GripVertical, Link as LinkIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConvertToTodoModal } from "./ConvertToTodoModal";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
+import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 
 interface IssueCardProps {
   issue: any;
@@ -16,6 +17,7 @@ interface IssueCardProps {
 
 export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) => {
   const [convertModalOpen, setConvertModalOpen] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const getPriorityBadge = (priority: number) => {
@@ -114,6 +116,15 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                     {statusBadge.label}
                   </Badge>
                   <VTOGoalBadge linkType="issue" linkId={issue.id} />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setLinkDialogOpen(true)}
+                  >
+                    <LinkIcon className="w-3 h-3 mr-1" />
+                    Link to V/TO
+                  </Button>
                 </div>
               </div>
 
@@ -175,6 +186,14 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
         onClose={() => setConvertModalOpen(false)}
         issue={issue}
         onSuccess={onUpdate}
+      />
+
+      <LinkToVTODialog
+        open={linkDialogOpen}
+        onClose={() => setLinkDialogOpen(false)}
+        linkType="issue"
+        linkId={issue.id}
+        itemName={issue.title}
       />
     </>
   );
