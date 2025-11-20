@@ -140,12 +140,17 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
                     if (e.key === "Enter") handleDueDateUpdate();
                     if (e.key === "Escape") setIsEditingDueDate(false);
                   }}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className="h-6 text-xs"
                   autoFocus
                 />
               ) : (
                 <span
-                  onClick={() => setIsEditingDueDate(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditingDueDate(true);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className="cursor-pointer hover:text-foreground"
                 >
                   {rock.due_date
@@ -165,7 +170,11 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
                   size="sm"
                   variant="ghost"
                   className="h-6 px-2 text-xs"
-                  onClick={() => setLinkDialogOpen(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLinkDialogOpen(true);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
                 >
                   <LinkIcon className="w-3 h-3 mr-1" />
                   Link to V/TO
@@ -184,12 +193,17 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
                     if (e.key === "Enter") handleConfidenceUpdate();
                     if (e.key === "Escape") setIsEditingConfidence(false);
                   }}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className="h-6 w-16 text-xs"
                   autoFocus
                 />
               ) : (
                 <div
-                  onClick={() => setIsEditingConfidence(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditingConfidence(true);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className="cursor-pointer flex items-center gap-1"
                 >
                   <span
