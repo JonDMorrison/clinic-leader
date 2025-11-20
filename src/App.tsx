@@ -63,6 +63,8 @@ import ResetOrganization from "./pages/ResetOrganization";
 import AdminAddUser from "./pages/AdminAddUser";
 import AdminUsers from "./pages/AdminUsers";
 import AdminIngestion from "./pages/AdminIngestion";
+import SetPassword from "./pages/SetPassword";
+import AdminPasswordDiagnostic from "./pages/AdminPasswordDiagnostic";
 
 const queryClient = new QueryClient();
 
@@ -197,6 +199,8 @@ const App = () => {
             <Route path="/admin/add-user" element={<AppLayout><AdminAddUser /></AppLayout>} />
             <Route path="/admin/reset-organization" element={<AppLayout><ResetOrganization /></AppLayout>} />
             <Route path="/admin/users" element={<AppLayout><AdminUsers /></AppLayout>} />
+            <Route path="/admin/password-diagnostic" element={<AppLayout><AdminPasswordDiagnostic /></AppLayout>} />
+            <Route path="/account/set-password" element={<SetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </OnboardingGuard>
