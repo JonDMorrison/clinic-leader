@@ -218,7 +218,7 @@ export default function Integrations() {
                 Need a specific integration?
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Let us know which tools you'd like to connect with EOS Clinic
+                Let us know which tools you'd like to connect with ClinicLeader
               </p>
               <Button variant="outline">Request Integration</Button>
             </div>
