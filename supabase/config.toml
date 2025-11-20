@@ -27,6 +27,15 @@ verify_jwt = true
 [functions.admin-add-user]
 verify_jwt = true
 
+[functions.auth-audit-user]
+verify_jwt = false
+
+[functions.admin-fix-password]
+verify_jwt = false
+
+[functions.debug-auth-env]
+verify_jwt = false
+
 [functions.ai-generate-insights]
 verify_jwt = false
 
