@@ -59,6 +59,20 @@ serve(async (req) => {
     };
 
     const attachToOrg = async (authUserId: string) => {
+      // Update password if provided
+      if (passwordGlobal) {
+        console.log("Updating password for existing user:", authUserId);
+        const { error: pwErr } = await supa.auth.admin.updateUserById(
+          authUserId,
+          { password: passwordGlobal }
+        );
+        if (pwErr) {
+          console.error("Password update failed:", pwErr.message);
+          throw new Error(`Failed to update password: ${pwErr.message}`);
+        }
+        console.log("Password updated successfully");
+      }
+
       // sync users
       const { data: existing, error: findErr } = await supa
         .from("users").select("id").eq("email", emailLower).single();
