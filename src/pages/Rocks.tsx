@@ -17,12 +17,13 @@ import { getCurrentQuarter } from "@/lib/rocks/templates";
 import {
   DndContext,
   DragEndEvent,
-  MouseSensor,
-  TouchSensor,
+  DragStartEvent,
+  PointerSensor,
   useSensor,
   useSensors,
   closestCenter,
   useDroppable,
+  DragOverlay,
 } from "@dnd-kit/core";
 
 import { toast } from "sonner";
@@ -35,6 +36,8 @@ const Rocks = () => {
   const [loadDefaultsOpen, setLoadDefaultsOpen] = useState(false);
   const [showTransitionBanner, setShowTransitionBanner] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeRock, setActiveRock] = useState<any>(null);
   const currentQuarter = getCurrentQuarter();
 
   const { data: rocks, isLoading, refetch } = useQuery({
@@ -131,13 +134,17 @@ const Rocks = () => {
   };
 
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: { distance: 5 },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 200, tolerance: 5 },
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
     })
   );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveId(active.id as string);
+    const rock = rocks?.find(r => r.id === active.id);
+    setActiveRock(rock);
+  };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -161,6 +168,9 @@ const Rocks = () => {
 
     toast.success("Rock status updated");
     refetch();
+    
+    setActiveId(null);
+    setActiveRock(null);
   };
 
   const handleFilterChange = (key: string, value: string) => {
@@ -319,12 +329,20 @@ const Rocks = () => {
           description="No rocks match the selected filters."
         />
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="flex gap-4 overflow-x-auto pb-4">
             <StatusColumn status="on_track" title="On Track" rocks={rocksByStatus.on_track} />
             <StatusColumn status="off_track" title="Off Track" rocks={rocksByStatus.off_track} />
             <StatusColumn status="done" title="Done" rocks={rocksByStatus.done} />
           </div>
+
+          <DragOverlay>
+            {activeId && activeRock ? (
+              <div className="opacity-90 rotate-2 scale-105">
+                <RockCard rock={activeRock} onUpdate={() => {}} />
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
       )}
 
