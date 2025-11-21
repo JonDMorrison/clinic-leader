@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, Target, Link as LinkIcon, GripVertical } from "lucide-react";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { useDraggable } from "@dnd-kit/core";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -39,14 +38,10 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
     attributes,
     listeners,
     setNodeRef,
-    transform,
-    transition,
     isDragging,
-  } = useSortable({ id: rock.id });
+  } = useDraggable({ id: rock.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
     opacity: isDragging ? 0.5 : 1,
   };
 
