@@ -24,7 +24,7 @@ import {
   closestCenter,
   useDroppable,
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+
 import { toast } from "sonner";
 
 const Rocks = () => {
@@ -185,17 +185,15 @@ const Rocks = () => {
               {rocks.length}
             </span>
           </h3>
-          <SortableContext items={rocks.map((r) => r.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-3">
-              {rocks.length === 0 ? (
-                <div className="text-sm text-muted-foreground text-center py-8">
-                  No rocks in this status
-                </div>
-              ) : (
-                rocks.map((rock) => <RockCard key={rock.id} rock={rock} onUpdate={refetch} />)
-              )}
-            </div>
-          </SortableContext>
+          <div className="space-y-3">
+            {rocks.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-8">
+                No rocks in this status
+              </div>
+            ) : (
+              rocks.map((rock) => <RockCard key={rock.id} rock={rock} onUpdate={refetch} />)
+            )}
+          </div>
         </div>
       </div>
     );
