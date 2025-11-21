@@ -38,17 +38,19 @@ const People = () => {
     },
   });
 
-  const { data: users, refetch: refetchUsers } = useQuery({
+  const { data: users = [], refetch: refetchUsers } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("users")
-        .select("id, full_name")
+        .select("id, full_name, email, role")
+        .eq("team_id", currentUser?.team_id)
         .order("full_name");
 
       if (error) throw error;
       return data || [];
     },
+    enabled: !!currentUser?.team_id,
   });
 
   const { data: coreValues } = useQuery({
@@ -123,8 +125,8 @@ const People = () => {
             </h2>
             <PeopleAnalyzer
               users={users || []}
-              values={coreValues || []}
-              ratings={valueRatings || []}
+              coreValues={coreValues || []}
+              valueRatings={valueRatings || []}
               onUpdate={() => {
                 refetchRatings();
                 refetchUsers();
