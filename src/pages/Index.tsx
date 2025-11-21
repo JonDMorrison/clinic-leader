@@ -46,8 +46,18 @@ const Index = () => {
         <main id="main-content" className="flex-1">
           {/* Hero Section - Modern Animated */}
           <section className="relative py-24 md:py-32 overflow-hidden">
-            {/* Animated gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-brand/10 via-accent/5 to-background animate-gradient-shift" />
+            {/* Background Image */}
+            <div className="absolute inset-0">
+              <img 
+                src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=2000&q=80" 
+                alt="Modern healthcare clinic" 
+                className="w-full h-full object-cover"
+              />
+              {/* Dark overlay for text readability */}
+              <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/90 to-background/80" />
+            </div>
+            {/* Animated gradient accents */}
+            <div className="absolute inset-0 bg-gradient-to-br from-brand/10 via-accent/5 to-transparent animate-gradient-shift" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--brand)/0.15),transparent_50%)]" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,hsl(var(--accent)/0.1),transparent_50%)]" />
             
