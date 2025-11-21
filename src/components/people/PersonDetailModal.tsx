@@ -10,9 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Trash2, ChevronDown, Target, AlertCircle, CheckCircle2, Calendar } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trash2, ChevronDown, Target, AlertCircle, CheckCircle2, Calendar, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { GWCAssessmentForm } from "./GWCAssessmentForm";
+import { GWCAssessmentHistory } from "./GWCAssessmentHistory";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface PersonDetailModalProps {
   userId: string | null;
@@ -39,9 +43,11 @@ interface ValueRatingData {
 
 export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate }: PersonDetailModalProps) {
   const queryClient = useQueryClient();
+  const { data: currentUser } = useCurrentUser();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [localNotes, setLocalNotes] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [showAssessmentForm, setShowAssessmentForm] = useState(false);
 
   // Fetch user data
   const { data: user, isLoading: userLoading } = useQuery({
@@ -308,7 +314,7 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -343,7 +349,14 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6 mt-4">
+          <Tabs defaultValue="overview" className="mt-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="gwc-assessment">GWC Assessment</TabsTrigger>
+              <TabsTrigger value="history">History</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6 mt-4">
             {/* Right Person, Right Seat Indicator */}
             <div className="p-4 border rounded-lg bg-card">
               <div className="flex items-center gap-2 mb-2">
@@ -560,7 +573,38 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
                 </div>
               </div>
             )}
-          </div>
+            </TabsContent>
+
+            <TabsContent value="gwc-assessment" className="space-y-4 mt-4">
+              {showAssessmentForm ? (
+                <GWCAssessmentForm
+                  userId={userId!}
+                  assessedBy={currentUser?.id || ""}
+                  assessmentType="manager"
+                  onSuccess={() => {
+                    setShowAssessmentForm(false);
+                    queryClient.invalidateQueries({ queryKey: ["gwc-assessments", userId] });
+                    toast({ title: "Assessment completed", description: "GWC assessment has been saved successfully." });
+                  }}
+                  onCancel={() => setShowAssessmentForm(false)}
+                />
+              ) : (
+                <div className="space-y-4">
+                  {isManager && (
+                    <Button onClick={() => setShowAssessmentForm(true)} className="w-full">
+                      <Plus className="mr-2 h-4 w-4" />
+                      New GWC Assessment
+                    </Button>
+                  )}
+                  <GWCAssessmentHistory userId={userId!} />
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-4 mt-4">
+              <GWCAssessmentHistory userId={userId!} />
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 

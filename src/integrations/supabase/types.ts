@@ -611,6 +611,84 @@ export type Database = {
         }
         Relationships: []
       }
+      gwc_assessments: {
+        Row: {
+          action_items: string | null
+          assessed_by: string
+          assessment_date: string
+          assessment_type: Database["public"]["Enums"]["assessment_type"]
+          capacity_notes: string | null
+          capacity_rating: Database["public"]["Enums"]["gwc_rating"] | null
+          created_at: string
+          gets_it_notes: string | null
+          gets_it_rating: Database["public"]["Enums"]["gwc_rating"] | null
+          id: string
+          next_review_date: string | null
+          overall_notes: string | null
+          quarter: string
+          status: Database["public"]["Enums"]["assessment_status"]
+          updated_at: string
+          user_id: string
+          wants_it_notes: string | null
+          wants_it_rating: Database["public"]["Enums"]["gwc_rating"] | null
+        }
+        Insert: {
+          action_items?: string | null
+          assessed_by: string
+          assessment_date?: string
+          assessment_type?: Database["public"]["Enums"]["assessment_type"]
+          capacity_notes?: string | null
+          capacity_rating?: Database["public"]["Enums"]["gwc_rating"] | null
+          created_at?: string
+          gets_it_notes?: string | null
+          gets_it_rating?: Database["public"]["Enums"]["gwc_rating"] | null
+          id?: string
+          next_review_date?: string | null
+          overall_notes?: string | null
+          quarter: string
+          status?: Database["public"]["Enums"]["assessment_status"]
+          updated_at?: string
+          user_id: string
+          wants_it_notes?: string | null
+          wants_it_rating?: Database["public"]["Enums"]["gwc_rating"] | null
+        }
+        Update: {
+          action_items?: string | null
+          assessed_by?: string
+          assessment_date?: string
+          assessment_type?: Database["public"]["Enums"]["assessment_type"]
+          capacity_notes?: string | null
+          capacity_rating?: Database["public"]["Enums"]["gwc_rating"] | null
+          created_at?: string
+          gets_it_notes?: string | null
+          gets_it_rating?: Database["public"]["Enums"]["gwc_rating"] | null
+          id?: string
+          next_review_date?: string | null
+          overall_notes?: string | null
+          quarter?: string
+          status?: Database["public"]["Enums"]["assessment_status"]
+          updated_at?: string
+          user_id?: string
+          wants_it_notes?: string | null
+          wants_it_rating?: Database["public"]["Enums"]["gwc_rating"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gwc_assessments_assessed_by_fkey"
+            columns: ["assessed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gwc_assessments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       help_dismissed: {
         Row: {
           dismissed: boolean | null
@@ -2822,8 +2900,11 @@ export type Database = {
     }
     Enums: {
       ar_bucket: "30-60" | "60-90" | "90-120" | "120+"
+      assessment_status: "draft" | "pending_review" | "completed"
+      assessment_type: "manager" | "self" | "peer"
       doc_kind: "SOP" | "Policy" | "Handbook" | "Training"
       doc_status: "draft" | "approved" | "archived"
+      gwc_rating: "+" | "±" | "-"
       ingest_status: "pending" | "processing" | "success" | "error"
       issue_status: "open" | "in_progress" | "solved" | "parked"
       kpi_direction: ">=" | "<=" | "=="
@@ -2977,8 +3058,11 @@ export const Constants = {
   public: {
     Enums: {
       ar_bucket: ["30-60", "60-90", "90-120", "120+"],
+      assessment_status: ["draft", "pending_review", "completed"],
+      assessment_type: ["manager", "self", "peer"],
       doc_kind: ["SOP", "Policy", "Handbook", "Training"],
       doc_status: ["draft", "approved", "archived"],
+      gwc_rating: ["+", "±", "-"],
       ingest_status: ["pending", "processing", "success", "error"],
       issue_status: ["open", "in_progress", "solved", "parked"],
       kpi_direction: [">=", "<=", "=="],
