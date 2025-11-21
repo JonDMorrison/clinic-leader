@@ -42,7 +42,7 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
   } = useDraggable({ id: rock.id });
 
   const style = {
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.3 : 1,
   };
 
   const handleConfidenceUpdate = async () => {
@@ -104,7 +104,7 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style} {...attributes} className="transition-opacity duration-200">
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
           <div className="flex items-start justify-between gap-2">
