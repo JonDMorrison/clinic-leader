@@ -1,13 +1,18 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Users as UsersIcon } from "lucide-react";
+import { Users as UsersIcon, Settings } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { SeatTile } from "@/components/people/SeatTile";
 import { ValuesList } from "@/components/people/ValuesList";
 import { PeopleAnalyzer } from "@/components/people/PeopleAnalyzer";
+import { SeatManagementDialog } from "@/components/people/SeatManagementDialog";
+import { Button } from "@/components/ui/button";
 
 const People = () => {
+  const [seatManagementOpen, setSeatManagementOpen] = useState(false);
+  
   const { data: currentUser } = useQuery({
     queryKey: ["current-user"],
     queryFn: async () => {
@@ -96,7 +101,19 @@ const People = () => {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div>
-            <h2 className="text-xl font-semibold text-foreground mb-4">Seats</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-foreground">Seats</h2>
+              {isManager && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSeatManagementOpen(true)}
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Manage Seats
+                </Button>
+              )}
+            </div>
             {seats && seats.length > 0 ? (
               <div className="grid md:grid-cols-2 gap-4">
                 {seats.map((seat) => (
@@ -140,6 +157,15 @@ const People = () => {
           <ValuesList values={coreValues || []} />
         </div>
       </div>
+
+      {/* Seat Management Dialog */}
+      <SeatManagementDialog
+        open={seatManagementOpen}
+        onOpenChange={setSeatManagementOpen}
+        seats={seats || []}
+        onUpdate={refetchSeats}
+        organizationId={currentUser?.team_id || null}
+      />
     </div>
   );
 };
