@@ -2337,7 +2337,12 @@ export type Database = {
           department_id: string | null
           email: string
           full_name: string
+          gwc_capacity: boolean | null
+          gwc_gets_it: boolean | null
+          gwc_wants_it: boolean | null
+          hire_date: string | null
           id: string
+          manager_notes: string | null
           role: Database["public"]["Enums"]["user_role"]
           team_id: string | null
           updated_at: string
@@ -2348,7 +2353,12 @@ export type Database = {
           department_id?: string | null
           email: string
           full_name: string
+          gwc_capacity?: boolean | null
+          gwc_gets_it?: boolean | null
+          gwc_wants_it?: boolean | null
+          hire_date?: string | null
           id?: string
+          manager_notes?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           team_id?: string | null
           updated_at?: string
@@ -2359,7 +2369,12 @@ export type Database = {
           department_id?: string | null
           email?: string
           full_name?: string
+          gwc_capacity?: boolean | null
+          gwc_gets_it?: boolean | null
+          gwc_wants_it?: boolean | null
+          hire_date?: string | null
           id?: string
+          manager_notes?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           team_id?: string | null
           updated_at?: string
