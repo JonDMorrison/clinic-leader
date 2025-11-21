@@ -173,7 +173,7 @@ const Index = () => {
                     <div className="flex-1 relative rounded-2xl overflow-hidden bg-gradient-to-br from-brand/5 to-accent/5 p-6">
                       <img 
                         src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80" 
-                        alt="Dashboard" 
+                        alt="Performance Dashboard with KPI Metrics" 
                         className="rounded-xl w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     </div>
@@ -421,8 +421,8 @@ const Index = () => {
                 <div className="absolute -inset-6 gradient-brand opacity-10 blur-3xl rounded-full" />
                 <div className="glass-dark rounded-3xl p-4 shadow-2xl relative border border-white/20">
                   <img 
-                    src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1600&q=80" 
-                    alt="Platform interface" 
+                    src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=80" 
+                    alt="Analytics Platform Dashboard Interface" 
                     className="rounded-2xl w-full"
                   />
                 </div>
