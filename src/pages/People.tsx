@@ -38,7 +38,7 @@ const People = () => {
     },
   });
 
-  const { data: users } = useQuery({
+  const { data: users, refetch: refetchUsers } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -125,7 +125,10 @@ const People = () => {
               users={users || []}
               values={coreValues || []}
               ratings={valueRatings || []}
-              onUpdate={refetchRatings}
+              onUpdate={() => {
+                refetchRatings();
+                refetchUsers();
+              }}
               isManager={isManager}
             />
           </div>

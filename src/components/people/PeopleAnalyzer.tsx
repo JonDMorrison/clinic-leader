@@ -4,11 +4,21 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { UserCircle2, Download } from "lucide-react";
+import { UserCircle2, Download, Trash2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface User {
   id: string;
@@ -46,6 +56,7 @@ export const PeopleAnalyzer = ({
   const [selectedUserId, setSelectedUserId] = useState<string>(users[0]?.id || "");
   const [localRatings, setLocalRatings] = useState<Record<string, { rating: string; notes: string }>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
 
@@ -164,6 +175,40 @@ export const PeopleAnalyzer = ({
       .slice(0, 2);
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      // Delete from user_roles first (foreign key constraint)
+      const { error: rolesError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId);
+
+      if (rolesError) throw rolesError;
+
+      // Delete from users table
+      const { error: userError } = await supabase
+        .from("users")
+        .delete()
+        .eq("id", userId);
+
+      if (userError) throw userError;
+
+      toast.success("User deleted successfully");
+      
+      // If deleted user was selected, select first available user
+      if (selectedUserId === userId && users.length > 1) {
+        const nextUser = users.find(u => u.id !== userId);
+        if (nextUser) setSelectedUserId(nextUser.id);
+      }
+      
+      onUpdate();
+      setUserToDelete(null);
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast.error("Failed to delete user");
+    }
+  };
+
   if (users.length === 0 || values.length === 0) {
     return (
       <Card>
@@ -195,21 +240,35 @@ export const PeopleAnalyzer = ({
           {users.map((user) => (
             <div
               key={user.id}
-              onClick={() => setSelectedUserId(user.id)}
-              className={`flex flex-col items-center gap-2 cursor-pointer p-3 rounded-lg transition-colors ${
+              className={`relative flex flex-col items-center gap-2 cursor-pointer p-3 rounded-lg transition-colors ${
                 selectedUserId === user.id
                   ? "bg-brand/10 border-2 border-brand"
                   : "hover:bg-muted/50 border-2 border-transparent"
               }`}
             >
-              <Avatar className="h-12 w-12">
-                <AvatarFallback className="bg-primary/10 text-primary">
-                  {getInitials(user.full_name)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-xs font-medium text-center whitespace-nowrap">
-                {user.full_name}
-              </span>
+              {isManager && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="absolute -top-1 -right-1 h-6 w-6 p-0 rounded-full bg-background hover:bg-danger hover:text-danger-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setUserToDelete(user);
+                  }}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              )}
+              <div onClick={() => setSelectedUserId(user.id)} className="flex flex-col items-center gap-2">
+                <Avatar className="h-12 w-12">
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {getInitials(user.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs font-medium text-center whitespace-nowrap">
+                  {user.full_name}
+                </span>
+              </div>
             </div>
           ))}
         </div>
@@ -287,6 +346,26 @@ export const PeopleAnalyzer = ({
           </div>
         )}
       </CardContent>
+
+      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {userToDelete?.full_name}? This action cannot be undone and will remove all associated data including ratings and seat assignments.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => userToDelete && handleDeleteUser(userToDelete.id)}
+              className="bg-danger hover:bg-danger/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
