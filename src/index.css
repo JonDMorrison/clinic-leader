@@ -150,4 +150,8 @@ All colors MUST be HSL.
   .gradient-glow:hover::before {
     opacity: 1;
   }
+
+  .animate-gradient-shift {
+    background-size: 200% 200%;
+  }
 }
