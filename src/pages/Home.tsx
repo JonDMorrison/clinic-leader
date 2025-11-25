@@ -15,6 +15,7 @@ import { useRef, useMemo, useEffect, useState } from "react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { ValuesList } from "@/components/people/ValuesList";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
 
 const Home = () => {
   const ref = useRef(null);
@@ -237,6 +238,9 @@ const Home = () => {
           Welcome back! Here's your clinic overview.
         </p>
       </motion.div>
+
+      {/* Getting Started Widget */}
+      <GettingStartedWidget />
 
       <motion.div
         initial={{ opacity: 0 }}
