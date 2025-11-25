@@ -28,6 +28,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAutoOcr } from "@/hooks/useAutoOcr";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import { UserManualViewer } from "@/components/docs/UserManualViewer";
 
 // DocViewerFrame component for binary files
 function DocViewerFrame({ 
@@ -89,6 +90,7 @@ const Docs = () => {
   const [bulkUploadModalOpen, setBulkUploadModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [isUserManualOpen, setIsUserManualOpen] = useState(false);
   
   // Binary file viewer state
   const [viewerBlobUrl, setViewerBlobUrl] = useState<string | null>(null);
@@ -428,6 +430,10 @@ const Docs = () => {
           <p className="text-muted-foreground">SOPs, policies, training materials, and PDF playbooks</p>
         </div>
         <div className="flex gap-2">
+          <Button onClick={() => setIsUserManualOpen(true)}>
+            <BookOpen className="w-4 h-4 mr-2" />
+            User Manual
+          </Button>
           <Button variant="outline" onClick={() => setIsHandbookOpen(true)}>
             <BookOpen className="w-4 h-4 mr-2" />
             Training Handbook
@@ -696,6 +702,11 @@ const Docs = () => {
       <HandbookViewer 
         open={isHandbookOpen} 
         onClose={() => setIsHandbookOpen(false)} 
+      />
+
+      <UserManualViewer
+        open={isUserManualOpen}
+        onClose={() => setIsUserManualOpen(false)}
       />
 
       {isManager && (
