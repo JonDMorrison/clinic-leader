@@ -20,34 +20,68 @@ export function useSetupProgress() {
 
       const orgId = currentUser.team_id;
 
-      // Fetch counts directly to avoid deep type instantiation
-      const [
-        teamCount,
-        usersCount,
-        seatsCount,
-        vtoCount,
-        coreValuesCount,
-        metricsCount,
-        rocksCount,
-        docsCount,
-        janeStatus,
-      ] = await Promise.all([
-        supabase.from("teams").select("id", { count: "exact", head: false }).eq("id", orgId).single().then(r => r.data),
-        supabase.from("users").select("id", { count: "exact", head: false }).eq("team_id", orgId).then(r => r.count || 0),
-        supabase.from("seats").select("id", { count: "exact", head: false }).eq("organization_id", orgId).then(r => r.count || 0),
-        supabase.from("vto").select("id", { count: "exact", head: false }).eq("organization_id", orgId).eq("active", true).then(r => r.count || 0),
-        supabase.from("org_core_values").select("id", { count: "exact", head: false }).eq("organization_id", orgId).then(r => r.count || 0),
-        supabase.from("metrics").select("id", { count: "exact", head: false }).eq("organization_id", orgId).then(r => r.count || 0),
-        supabase.rpc("count_user_rocks", { org_id: orgId }).then(r => r.data || 0).catch(() => 0),
-        supabase.from("docs").select("id", { count: "exact", head: false }).eq("organization_id", orgId).then(r => r.count || 0),
-        supabase.from("jane_integrations").select("status").eq("organization_id", orgId).maybeSingle().then(r => r.data?.status),
-      ]);
+      // Fetch team info
+      const { data: teamData } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("id", orgId)
+        .maybeSingle();
+
+      // Fetch counts
+      const usersResult = await supabase
+        .from("users")
+        .select("id", { count: "exact", head: true })
+        .eq("team_id", orgId);
+      const usersCount = usersResult.count || 0;
+
+      const seatsResult = await supabase
+        .from("seats")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", orgId);
+      const seatsCount = seatsResult.count || 0;
+
+      const { data: vtoData } = await (supabase as any)
+        .from("vto")
+        .select("id")
+        .eq("organization_id", orgId)
+        .eq("active", true);
+      const vtoCount = vtoData?.length || 0;
+
+      const coreValuesResult = await supabase
+        .from("org_core_values")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", orgId);
+      const coreValuesCount = coreValuesResult.count || 0;
+
+      const metricsResult = await supabase
+        .from("metrics")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", orgId);
+      const metricsCount = metricsResult.count || 0;
+
+      const rocksResult = await supabase
+        .from("rocks")
+        .select("id", { count: "exact", head: true })
+        .eq("owner_id", orgId);
+      const rocksCount = rocksResult.count || 0;
+
+      const docsResult = await supabase
+        .from("docs")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", orgId);
+      const docsCount = docsResult.count || 0;
+
+      const { data: janeIntegration } = await supabase
+        .from("jane_integrations")
+        .select("status")
+        .eq("organization_id", orgId)
+        .maybeSingle();
 
       const items: SetupChecklistItem[] = [
         {
           id: "org-profile",
           label: "Organization Profile",
-          completed: !!teamCount,
+          completed: !!teamData,
           route: "/settings/organization",
           description: "Configure basic organization information and settings",
         },
@@ -103,7 +137,7 @@ export function useSetupProgress() {
         {
           id: "jane-integration",
           label: "Jane Integration (Optional)",
-          completed: janeStatus === "active",
+          completed: janeIntegration?.status === "active",
           route: "/integrations/jane",
           description: "Connect Jane App for automatic data sync",
         },
