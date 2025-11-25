@@ -141,53 +141,57 @@ const People = () => {
     mutationFn: async (values: UserFormValues) => {
       if (!currentUser?.team_id) throw new Error("No organization found");
 
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: values.email,
-        password: values.password,
-        email_confirm: true,
-        user_metadata: {
+      // Call the admin-add-user Edge Function
+      const { data, error } = await supabase.functions.invoke('admin-add-user', {
+        body: {
+          email: values.email,
+          password: values.password,
           full_name: values.full_name,
+          role: values.role,
+          organization_id: currentUser.team_id,
+          department: values.department_ids[0] || null, // Edge function takes single department
         },
       });
 
-      if (authError) throw authError;
+      if (error) throw error;
+      if (!data?.success) {
+        throw new Error(data?.message || 'Failed to create user');
+      }
 
-      const { error: userError } = await supabase
-        .from("users")
-        .insert({
-          id: authData.user.id,
-          email: values.email,
-          full_name: values.full_name,
-          role: values.role,
-          team_id: currentUser.team_id,
-          demo_user: false,
-        });
+      const userId = data.user_id;
 
-      if (userError) throw userError;
+      // Handle additional department assignments (if more than one department selected)
+      if (values.department_ids.length > 1) {
+        const additionalDepts = values.department_ids.slice(1); // Skip first one already assigned
+        const departmentInserts = additionalDepts.map(deptId => ({
+          user_id: userId,
+          department_id: deptId,
+        }));
 
-      // Insert department assignments
-      const departmentInserts = values.department_ids.map(deptId => ({
-        user_id: authData.user.id,
-        department_id: deptId,
-      }));
+        const { error: deptError } = await supabase
+          .from("user_departments")
+          .insert(departmentInserts);
 
-      const { error: deptError } = await supabase
-        .from("user_departments")
-        .insert(departmentInserts);
+        if (deptError) {
+          console.error('Failed to assign additional departments:', deptError);
+          // Don't throw, user is created, just log the error
+        }
+      }
 
-      if (deptError) throw deptError;
-
-      // Assign to seat if selected
+      // Handle seat assignment
       if (values.seat_id) {
         const { error: seatError } = await supabase
           .from("seats")
-          .update({ user_id: authData.user.id })
+          .update({ user_id: userId })
           .eq("id", values.seat_id);
 
-        if (seatError) throw seatError;
+        if (seatError) {
+          console.error('Failed to assign seat:', seatError);
+          // Don't throw, user is created, just log the error
+        }
       }
 
-      return authData.user;
+      return data;
     },
     onSuccess: () => {
       toast({
