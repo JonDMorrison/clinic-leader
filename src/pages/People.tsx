@@ -83,7 +83,8 @@ const People = () => {
         .from("users")
         .select("id, full_name, email, role")
         .eq("team_id", currentUser?.team_id)
-        .order("full_name");
+        .order("full_name")
+        .limit(1000); // Ensure we fetch all users
 
       if (error) throw error;
       return data || [];
