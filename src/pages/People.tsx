@@ -41,6 +41,7 @@ const userSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters").max(72),
   role: z.enum(VALID_ROLES, { required_error: "Please select a role" }),
   department_ids: z.array(z.string().uuid()).min(1, "Select at least one department"),
+  seat_id: z.string().uuid().optional(),
 });
 
 type UserFormValues = z.infer<typeof userSchema>;
@@ -59,6 +60,7 @@ const People = () => {
       password: "",
       role: undefined,
       department_ids: [],
+      seat_id: undefined,
     },
   });
   
@@ -175,6 +177,16 @@ const People = () => {
 
       if (deptError) throw deptError;
 
+      // Assign to seat if selected
+      if (values.seat_id) {
+        const { error: seatError } = await supabase
+          .from("seats")
+          .update({ user_id: authData.user.id })
+          .eq("id", values.seat_id);
+
+        if (seatError) throw seatError;
+      }
+
       return authData.user;
     },
     onSuccess: () => {
@@ -185,6 +197,7 @@ const People = () => {
       form.reset();
       setIsAddUserOpen(false);
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["seats"] });
     },
     onError: (error: Error) => {
       toast({
@@ -203,6 +216,9 @@ const People = () => {
     currentUser?.role === "manager" ||
     currentUser?.role === "director" ||
     currentUser?.role === "owner";
+
+  // Filter unassigned seats for the dropdown
+  const unassignedSeats = seats?.filter(seat => !seat.user_id);
 
   return (
     <div className="space-y-6">
@@ -335,6 +351,32 @@ const People = () => {
                                     </div>
                                   ))}
                                 </div>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="seat_id"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Assign to Seat (Optional)</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value || ""}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select a seat" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="">No seat assignment</SelectItem>
+                                    {unassignedSeats?.map((seat) => (
+                                      <SelectItem key={seat.id} value={seat.id}>
+                                        {seat.title}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
