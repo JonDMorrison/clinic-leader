@@ -362,14 +362,13 @@ const People = () => {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Assign to Seat (Optional)</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value || ""}>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder="Select a seat" />
+                                      <SelectValue placeholder="No seat assignment" />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    <SelectItem value="">No seat assignment</SelectItem>
                                     {unassignedSeats?.map((seat) => (
                                       <SelectItem key={seat.id} value={seat.id}>
                                         {seat.title}
