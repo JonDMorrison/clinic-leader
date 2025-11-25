@@ -18,9 +18,10 @@ interface SeatTileProps {
   users: Array<{ id: string; full_name: string }>;
   onUpdate: () => void;
   isManager: boolean;
+  onClick?: () => void;
 }
 
-export const SeatTile = ({ seat, users, onUpdate, isManager }: SeatTileProps) => {
+export const SeatTile = ({ seat, users, onUpdate, isManager, onClick }: SeatTileProps) => {
   const handleUserAssignment = async (userId: string) => {
     const { error } = await supabase
       .from("seats")
@@ -46,8 +47,19 @@ export const SeatTile = ({ seat, users, onUpdate, isManager }: SeatTileProps) =>
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <div 
+      className="cursor-pointer" 
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onClick?.();
+        }
+      }}
+    >
+      <Card className="hover:bg-accent/50 transition-colors">
+        <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 flex-1">
             <Briefcase className="w-5 h-5 text-brand mt-1 shrink-0" />
@@ -118,5 +130,6 @@ export const SeatTile = ({ seat, users, onUpdate, isManager }: SeatTileProps) =>
         )}
       </CardContent>
     </Card>
+    </div>
   );
 };
