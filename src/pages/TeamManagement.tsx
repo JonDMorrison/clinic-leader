@@ -44,7 +44,7 @@ const userSchema = z.object({
   email: z.string().trim().email("Invalid email").max(255),
   password: z.string().min(6, "Password must be at least 6 characters").max(72),
   role: z.enum(VALID_ROLES, { required_error: "Please select a role" }),
-  department_id: z.string().uuid("Please select a department"),
+  department_ids: z.array(z.string().uuid()).min(1, "Select at least one department"),
 });
 
 type UserFormValues = z.infer<typeof userSchema>;
@@ -61,7 +61,7 @@ export default function TeamManagement() {
       email: "",
       password: "",
       role: undefined,
-      department_id: "",
+      department_ids: [],
     },
   });
 
@@ -137,11 +137,22 @@ export default function TeamManagement() {
           full_name: values.full_name,
           role: values.role,
           team_id: currentUser.team_id,
-          department_id: values.department_id,
           demo_user: false,
         });
 
       if (userError) throw userError;
+
+      // Insert department assignments
+      const departmentInserts = values.department_ids.map(deptId => ({
+        user_id: authData.user.id,
+        department_id: deptId,
+      }));
+
+      const { error: deptError } = await supabase
+        .from("user_departments")
+        .insert(departmentInserts);
+
+      if (deptError) throw deptError;
 
       return authData.user;
     },
@@ -281,24 +292,33 @@ export default function TeamManagement() {
 
                   <FormField
                     control={form.control}
-                    name="department_id"
+                    name="department_ids"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Department</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a department" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {departments?.map((dept) => (
-                              <SelectItem key={dept.id} value={dept.id}>
+                        <FormLabel>Departments</FormLabel>
+                        <div className="space-y-2 border rounded-md p-3">
+                          {departments?.map((dept) => (
+                            <div key={dept.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={dept.id}
+                                checked={field.value?.includes(dept.id)}
+                                onChange={(e) => {
+                                  const current = field.value || [];
+                                  if (e.target.checked) {
+                                    field.onChange([...current, dept.id]);
+                                  } else {
+                                    field.onChange(current.filter((id) => id !== dept.id));
+                                  }
+                                }}
+                                className="h-4 w-4 rounded border-border text-primary focus:ring-2 focus:ring-ring cursor-pointer"
+                              />
+                              <Label htmlFor={dept.id} className="cursor-pointer">
                                 {dept.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
