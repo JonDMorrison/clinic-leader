@@ -8,6 +8,7 @@ import { SeatTile } from "@/components/people/SeatTile";
 import { ValuesList } from "@/components/people/ValuesList";
 import { PeopleAnalyzer } from "@/components/people/PeopleAnalyzer";
 import { SeatManagementDialog } from "@/components/people/SeatManagementDialog";
+import { SeatDetailModal } from "@/components/people/SeatDetailModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +50,8 @@ type UserFormValues = z.infer<typeof userSchema>;
 const People = () => {
   const [seatManagementOpen, setSeatManagementOpen] = useState(false);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [selectedSeat, setSelectedSeat] = useState<any>(null);
+  const [seatDetailOpen, setSeatDetailOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -417,6 +420,10 @@ const People = () => {
                     users={users || []}
                     onUpdate={refetchSeats}
                     isManager={isManager}
+                    onClick={() => {
+                      setSelectedSeat(seat);
+                      setSeatDetailOpen(true);
+                    }}
                   />
                 ))}
               </div>
@@ -459,6 +466,16 @@ const People = () => {
         seats={seats || []}
         onUpdate={refetchSeats}
         organizationId={currentUser?.team_id || null}
+      />
+
+      {/* Seat Detail Modal */}
+      <SeatDetailModal
+        seat={selectedSeat}
+        users={users || []}
+        open={seatDetailOpen}
+        onOpenChange={setSeatDetailOpen}
+        onUpdate={refetchSeats}
+        isManager={isManager}
       />
     </div>
   );
