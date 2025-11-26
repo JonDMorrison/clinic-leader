@@ -162,6 +162,39 @@ const ImportMonthlyReport = () => {
 
       <Card className="p-6">
         <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-3">How It Works</h3>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <span className="text-primary mt-0.5">1.</span>
+                <span><strong>Download the template</strong> (optional) to see the expected format with all KPI columns</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary mt-0.5">2.</span>
+                <span><strong>Upload your report</strong> - Excel (.xlsx, .xls) or CSV format with your clinic's monthly data</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary mt-0.5">3.</span>
+                <span><strong>AI automatically maps</strong> your column headers to scorecard metrics (e.g., "# MVAs" → "MVAs")</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary mt-0.5">4.</span>
+                <span><strong>Review and confirm</strong> the mapping, select the reporting period, then import</span>
+              </li>
+            </ul>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-4 border border-border">
+            <p className="text-sm text-muted-foreground">
+              <strong className="text-foreground">💡 Tips:</strong> Include metrics like MVAs, New Patients, LNI Cases, Close Rate, Total Visits, 
+              Outgoing Charges, Avg $ Per Visit, Avg $ Per Case, and Gross Income. The AI handles common formats like percentages, 
+              dollar signs, and commas automatically.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Label>Upload Report</Label>
             <Button variant="outline" size="sm" onClick={downloadTemplate}>
