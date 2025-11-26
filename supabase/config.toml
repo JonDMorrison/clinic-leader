@@ -156,4 +156,7 @@ verify_jwt = false
 [functions.rules-weekly-issue-creation]
 verify_jwt = false
 
+[functions.parse-monthly-report]
+verify_jwt = false
+
 
