@@ -90,43 +90,84 @@ const VTOVision = () => {
     },
   });
 
+  // Helper to normalize core values (handles both string[] and CoreValueItem[])
+  const normalizeCoreValues = (raw: unknown): string[] => {
+    if (!raw || !Array.isArray(raw)) return [];
+    return raw.map((v: any) => (typeof v === 'string' ? v : v?.label || '')).filter(Boolean);
+  };
+
+  // Helper to normalize differentiators (handles both string[] and object[])
+  const normalizeDifferentiators = (raw: unknown): string[] => {
+    if (!raw || !Array.isArray(raw)) return [];
+    return raw.map((d: any) => (typeof d === 'string' ? d : d?.text || d?.label || '')).filter(Boolean);
+  };
+
+  // Helper to normalize measurables
+  const normalizeMeasurables = (raw: unknown): { name: string; target: string }[] => {
+    if (!raw || !Array.isArray(raw)) return [{ name: "", target: "" }];
+    const result = raw.map((m: any) => ({
+      name: m?.name || m?.label || '',
+      target: String(m?.target || m?.value || ''),
+    }));
+    return result.length > 0 ? result : [{ name: "", target: "" }];
+  };
+
+  // Helper to normalize core focus (handles string or object)
+  const normalizeCoreFocus = (raw: unknown): { purpose: string; niche: string } => {
+    if (!raw) return { purpose: "", niche: "" };
+    if (typeof raw === 'string') return { purpose: raw, niche: "" };
+    const obj = raw as any;
+    return { 
+      purpose: obj.purpose || obj.why || "", 
+      niche: obj.niche || obj.what || "" 
+    };
+  };
+
   // Load template or existing data
   useEffect(() => {
     if (templateKey && VTO_TEMPLATES[templateKey]) {
       const template = VTO_TEMPLATES[templateKey].data as any;
-      setCoreValues(template.core_values ? [...template.core_values] : []);
-      setCoreFocus(template.core_focus ? { ...template.core_focus } : { purpose: "", niche: "" });
+      setCoreValues(normalizeCoreValues(template.core_values));
+      setCoreFocus(normalizeCoreFocus(template.core_focus));
       setTenYearTarget(template.ten_year_target || "");
       setMarketingStrategy({
-        ideal_client: template.marketing_strategy?.ideal_client || "",
-        differentiators: template.marketing_strategy?.differentiators ? [...template.marketing_strategy.differentiators] : [],
-        proven_process: template.marketing_strategy?.proven_process || "",
-        guarantee: template.marketing_strategy?.guarantee || "",
+        ideal_client: template.marketing_strategy?.ideal_client || template.marketing_strategy?.target_markets?.[0] || "",
+        differentiators: normalizeDifferentiators(template.marketing_strategy?.differentiators || template.marketing_strategy?.uniques),
+        proven_process: typeof template.marketing_strategy?.proven_process === 'string' 
+          ? template.marketing_strategy.proven_process 
+          : template.marketing_strategy?.proven_process?.steps?.map((s: any) => s.title || s).join(', ') || "",
+        guarantee: template.marketing_strategy?.guarantee || template.promise || "",
       });
       setThreeYearPicture({
-        revenue: template.three_year_picture?.revenue || 0,
-        profit: template.three_year_picture?.profit || 0,
-        measurables: template.three_year_picture?.measurables ? template.three_year_picture.measurables.map((m: any) => ({ ...m })) : [{ name: "", target: "" }],
+        revenue: template.three_year_picture?.revenue || template.three_year_picture?.revenue_target || 0,
+        profit: template.three_year_picture?.profit || template.three_year_picture?.profit_target || 0,
+        measurables: normalizeMeasurables(template.three_year_picture?.measurables),
         headcount: template.three_year_picture?.headcount || 0,
         notes: template.three_year_picture?.notes || "",
       });
     } else if (vtoData?.version) {
       const v = vtoData.version;
-      setCoreValues((v.core_values as string[]) || []);
-      setCoreFocus((v.core_focus as any) || { purpose: "", niche: "" });
+      setCoreValues(normalizeCoreValues(v.core_values));
+      setCoreFocus(normalizeCoreFocus(v.core_focus));
       setTenYearTarget(v.ten_year_target || "");
-      setMarketingStrategy((v.marketing_strategy as any) || {
-        ideal_client: "",
-        differentiators: [],
-        proven_process: "",
-        guarantee: "",
+      
+      const ms = v.marketing_strategy as any;
+      setMarketingStrategy({
+        ideal_client: ms?.ideal_client || ms?.ideal_customer_description || ms?.target_markets?.[0] || "",
+        differentiators: normalizeDifferentiators(ms?.differentiators || ms?.uniques),
+        proven_process: typeof ms?.proven_process === 'string' 
+          ? ms.proven_process 
+          : ms?.proven_process?.steps?.map((s: any) => s.title || s).join(', ') || "",
+        guarantee: ms?.guarantee || (v as any).promise || "",
       });
-      setThreeYearPicture((v.three_year_picture as any) || {
-        revenue: 0,
-        profit: 0,
-        measurables: [{ name: "", target: "" }],
-        headcount: 0,
-        notes: "",
+      
+      const typ = v.three_year_picture as any;
+      setThreeYearPicture({
+        revenue: typ?.revenue || typ?.revenue_target || 0,
+        profit: typ?.profit || typ?.profit_target || 0,
+        measurables: normalizeMeasurables(typ?.measurables),
+        headcount: typ?.headcount || 0,
+        notes: typ?.notes || "",
       });
     }
   }, [templateKey, vtoData]);
