@@ -61,7 +61,7 @@ const Scorecard = () => {
   const queryClient = useQueryClient();
 
   // Fetch metrics with last 12 weeks of data
-  const { data: metricsData, isLoading, refetch } = useQuery({
+  const { data: metricsData, isLoading, isError, refetch } = useQuery({
     queryKey: ["scorecard-metrics", currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return [];
@@ -382,6 +382,10 @@ const Scorecard = () => {
       {isLoading ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">Loading your scorecard...</p>
+        </div>
+      ) : isError ? (
+        <div className="text-center py-12">
+          <p className="text-destructive">Failed to load scorecard. Please try refreshing.</p>
         </div>
       ) : totalMetrics === 0 ? (
         <ScorecardOnboardingWizard
