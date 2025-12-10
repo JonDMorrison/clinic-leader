@@ -115,7 +115,14 @@ Keep each item concise (under 100 characters). Focus on numeric insights and act
     }
 
     const aiData = await aiResponse.json();
-    const summary = JSON.parse(aiData.choices[0].message.content);
+    let content = aiData.choices[0].message.content;
+    
+    // Strip markdown code fences if present
+    if (content.includes('```')) {
+      content = content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    }
+    
+    const summary = JSON.parse(content);
 
     // Track usage
     const tokensUsed = aiData.usage?.total_tokens || 0;
