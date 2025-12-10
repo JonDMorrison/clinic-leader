@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings, PenSquare, Search, Filter, Star, Smartphone, GripVertical, Sparkles, Target } from "lucide-react";
+import { Plus, Settings, PenSquare, Search, Filter, Star, Smartphone, GripVertical, Sparkles, Target, ClipboardList } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -28,6 +28,7 @@ import { AlertsPanel } from "@/components/scorecard/AlertsPanel";
 import { PerformanceScoreCard } from "@/components/scorecard/PerformanceScoreCard";
 import { MilestoneCelebration } from "@/components/scorecard/MilestoneCelebration";
 import { QuickEntryMobile } from "@/components/scorecard/QuickEntryMobile";
+import { WeeklyCheckinWizard } from "@/components/scorecard/WeeklyCheckinWizard";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -48,6 +49,7 @@ const Scorecard = () => {
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [celebratingMilestone, setCelebratingMilestone] = useState<any>(null);
   const [showQuickEntry, setShowQuickEntry] = useState(false);
+  const [showCheckinWizard, setShowCheckinWizard] = useState(false);
   const [customOrder, setCustomOrder] = useState<string[]>([]);
 
   const sensors = useSensors(
@@ -325,6 +327,13 @@ const Scorecard = () => {
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
+              onClick={() => setShowCheckinWizard(true)}
+            >
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Weekly Check-in
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => setShowQuickEntry(true)}
             >
               <Smartphone className="w-4 h-4 mr-2" />
@@ -569,6 +578,13 @@ const Scorecard = () => {
           onClose={() => setShowQuickEntry(false)}
         />
       )}
+
+      {/* Weekly Check-in Wizard */}
+      <WeeklyCheckinWizard
+        open={showCheckinWizard}
+        onOpenChange={setShowCheckinWizard}
+        onComplete={refetch}
+      />
 
       {/* Create from VTO Dialog */}
         <CreateFromVTODialog
