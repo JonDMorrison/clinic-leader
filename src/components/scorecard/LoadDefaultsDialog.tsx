@@ -73,7 +73,7 @@ export function LoadDefaultsDialog({ open, onOpenChange, organizationId }: LoadD
           title: "KPIs Loaded",
           description: `Created ${result.createdCount} KPIs${result.skippedNames.length > 0 ? `, skipped ${result.skippedNames.length} existing` : ""}.`,
         });
-        queryClient.invalidateQueries({ queryKey: ["kpis"] });
+        queryClient.invalidateQueries({ queryKey: ["scorecard-metrics"] });
         setStep(4);
       } else {
         toast({
