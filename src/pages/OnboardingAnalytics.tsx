@@ -10,8 +10,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/Table";
-import { Badge } from "@/components/ui/Badge";
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Users, CheckCircle, Clock, TrendingUp, RefreshCw } from "lucide-react";
 import { userTourService } from "@/lib/userTourService";
 import { toast } from "sonner";

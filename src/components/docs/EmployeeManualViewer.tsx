@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { EMPLOYEE_MANUAL, searchManual } from "@/lib/docs/manuals/employeeManual";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Search, ChevronDown, ChevronRight, BookOpen, Sparkles } from "lucide-react";

@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
 const SUGGESTED_PURPOSES = [

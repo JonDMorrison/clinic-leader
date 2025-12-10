@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { TableRow, TableCell } from "@/components/ui/Table";
-import { Badge } from "@/components/ui/Badge";
+import { TableRow, TableCell } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { KpiSparkline } from "@/components/ui/KpiSparkline";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

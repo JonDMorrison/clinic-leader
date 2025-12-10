@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus, Target } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AnimatedCounter } from "@/components/ui/AnimatedCounter";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
