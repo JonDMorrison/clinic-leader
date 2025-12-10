@@ -368,8 +368,8 @@ const Scorecard = () => {
         </div>
       ) : totalMetrics === 0 ? (
         <ScorecardOnboardingWizard
-          onQuickStart={() => setCreateFromVTOOpen(true)}
-          onCustomKpi={() => setAddKpiModalOpen(true)}
+          onCreateFromVTO={() => setCreateFromVTOOpen(true)}
+          onManualSetup={() => setAddKpiModalOpen(true)}
         />
       ) : (
         <div className="space-y-6">
