@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, Settings, PenSquare, Search, Filter, Star, Smartphone, GripVertical, Sparkles, Target } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/integrations/supabase/client";
 import { AddKpiModal } from "@/components/scorecard/AddKpiModal";
 import { LoadDefaultsDialog } from "@/components/scorecard/LoadDefaultsDialog";
@@ -55,23 +56,9 @@ const Scorecard = () => {
     })
   );
 
-  // Fetch current user first
-  const { data: currentUser } = useQuery({
-    queryKey: ["current-user"],
-    queryFn: async () => {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return null;
-
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, team_id")
-        .eq("email", authData.user.email)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Use the shared hook for proper impersonation support
+  const { data: currentUser } = useCurrentUser();
+  const queryClient = useQueryClient();
 
   // Fetch metrics with last 12 weeks of data
   const { data: metricsData, isLoading, refetch } = useQuery({
