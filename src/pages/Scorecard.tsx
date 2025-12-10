@@ -576,10 +576,11 @@ const Scorecard = () => {
       )}
 
       {/* Create from VTO Dialog */}
-      <CreateFromVTODialog
-        open={createFromVTOOpen}
-        onClose={() => setCreateFromVTOOpen(false)}
-      />
+        <CreateFromVTODialog
+          open={createFromVTOOpen}
+          onClose={() => setCreateFromVTOOpen(false)}
+          onSuccess={refetch}
+        />
     </div>
   );
 };
