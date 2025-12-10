@@ -290,7 +290,7 @@ const VTOTraction = () => {
               <Button
                 variant="outline"
                 onClick={() => setPlanningWizardOpen(true)}
-                disabled={!vtoData?.version || oneYearPlan.goals.length === 0}
+                disabled={!vtoData?.version || (oneYearPlan.goals || []).length === 0}
               >
                 <Sparkles className="h-4 w-4 mr-2" />
                 Plan Quarter
@@ -349,7 +349,7 @@ const VTOTraction = () => {
                     </Button>
                   </div>
                   <div className="space-y-3">
-                    {oneYearPlan.goals.map((goal, idx) => (
+                    {(oneYearPlan.goals || []).map((goal, idx) => (
                       <div key={idx} className="flex gap-2 items-start p-3 border rounded-lg">
                         <div className="flex-1 space-y-2">
                           <Input
