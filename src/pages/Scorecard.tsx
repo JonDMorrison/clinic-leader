@@ -31,6 +31,7 @@ import { QuickEntryMobile } from "@/components/scorecard/QuickEntryMobile";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { VTOAlignmentBanner } from "@/components/vto/VTOAlignmentBanner";
 
 const Scorecard = () => {
   const navigate = useNavigate();
@@ -298,6 +299,9 @@ const Scorecard = () => {
 
   return (
     <div className="space-y-6">
+      {/* VTO Alignment Banner */}
+      <VTOAlignmentBanner />
+
       {/* Hero Section */}
       <div className="flex items-center justify-between">
         <div>

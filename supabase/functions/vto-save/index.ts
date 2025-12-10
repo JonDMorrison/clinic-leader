@@ -6,6 +6,34 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Strategic fields that trigger alignment review when changed
+const STRATEGIC_FIELDS = [
+  'core_values',
+  'core_focus',
+  'ten_year_target',
+  'three_year_picture',
+  'one_year_plan',
+  'marketing_strategy',
+];
+
+// Deep comparison for strategic fields
+function hasStrategicChanges(oldVersion: any, newVersion: any): boolean {
+  if (!oldVersion) return true; // New VTO counts as strategic change
+  
+  for (const field of STRATEGIC_FIELDS) {
+    const oldVal = oldVersion[field];
+    const newVal = newVersion[field];
+    
+    // Compare JSON stringified versions for deep equality
+    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+      console.log(`Strategic field changed: ${field}`);
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -53,8 +81,22 @@ serve(async (req) => {
     }
 
     let result;
+    let strategicChanged = false;
 
     if (action === 'save_draft') {
+      // Fetch the current published or most recent version for comparison
+      const { data: currentVersion } = await supabaseClient
+        .from('vto_versions')
+        .select('*')
+        .eq('vto_id', vto_id)
+        .in('status', ['published', 'draft'])
+        .order('version', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Check for strategic changes
+      strategicChanged = hasStrategicChanges(currentVersion, version_data);
+
       // Create or update draft version
       const { data: existingDraft } = await supabaseClient
         .from('vto_versions')
@@ -119,6 +161,33 @@ serve(async (req) => {
           action: 'create',
         });
       }
+
+      // If strategic fields changed, set organization review flags
+      if (strategicChanged) {
+        console.log('Strategic changes detected, setting review flags for org:', profile.team_id);
+        
+        const { error: flagError } = await supabaseClient
+          .from('teams')
+          .update({
+            needs_scorecard_review: true,
+            needs_rocks_review: true,
+          })
+          .eq('id', profile.team_id);
+
+        if (flagError) {
+          console.error('Failed to set review flags:', flagError);
+        }
+
+        // Log the diff event for audit purposes
+        await supabaseClient.from('vto_diff_events').insert({
+          organization_id: profile.team_id,
+          previous_vto_version: currentVersion || null,
+          updated_vto_version: version_data,
+          diff: { strategic_changed: true, fields: STRATEGIC_FIELDS.filter(f => 
+            JSON.stringify(currentVersion?.[f]) !== JSON.stringify(version_data[f])
+          )},
+        });
+      }
     } else if (action === 'publish') {
       // Publish version (only owner/director can publish)
       if (profile.role !== 'owner' && profile.role !== 'director') {
@@ -160,10 +229,26 @@ serve(async (req) => {
       });
 
       console.log('Progress computation triggered:', progressResponse);
+      
+      // Publishing always triggers review flags
+      strategicChanged = true;
+      await supabaseClient
+        .from('teams')
+        .update({
+          needs_scorecard_review: true,
+          needs_rocks_review: true,
+        })
+        .eq('id', profile.team_id);
     }
 
     return new Response(
-      JSON.stringify({ success: true, data: result }),
+      JSON.stringify({ 
+        success: true, 
+        data: result,
+        strategicChanged,
+        needsScorecardReview: strategicChanged,
+        needsRocksReview: strategicChanged,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
