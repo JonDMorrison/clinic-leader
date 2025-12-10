@@ -2824,6 +2824,63 @@ export type Database = {
           },
         ]
       }
+      vto_history: {
+        Row: {
+          ai_insights: string | null
+          change_summary: string | null
+          changed_at: string | null
+          changed_by: string | null
+          id: string
+          impacted_sections: string[] | null
+          is_manual: boolean | null
+          organization_id: string
+          rocks_impact: Json | null
+          rocks_snapshot: Json
+          scorecard_impact: Json | null
+          scorecard_snapshot: Json
+          tags: string[] | null
+          vto_snapshot: Json
+          vto_version: number
+          vto_version_id: string | null
+        }
+        Insert: {
+          ai_insights?: string | null
+          change_summary?: string | null
+          changed_at?: string | null
+          changed_by?: string | null
+          id?: string
+          impacted_sections?: string[] | null
+          is_manual?: boolean | null
+          organization_id: string
+          rocks_impact?: Json | null
+          rocks_snapshot?: Json
+          scorecard_impact?: Json | null
+          scorecard_snapshot?: Json
+          tags?: string[] | null
+          vto_snapshot: Json
+          vto_version: number
+          vto_version_id?: string | null
+        }
+        Update: {
+          ai_insights?: string | null
+          change_summary?: string | null
+          changed_at?: string | null
+          changed_by?: string | null
+          id?: string
+          impacted_sections?: string[] | null
+          is_manual?: boolean | null
+          organization_id?: string
+          rocks_impact?: Json | null
+          rocks_snapshot?: Json
+          scorecard_impact?: Json | null
+          scorecard_snapshot?: Json
+          tags?: string[] | null
+          vto_snapshot?: Json
+          vto_version?: number
+          vto_version_id?: string | null
+        }
+        Relationships: []
+      }
       vto_links: {
         Row: {
           created_at: string | null
@@ -2945,6 +3002,7 @@ export type Database = {
           core_values: string[] | null
           created_at: string | null
           created_by: string | null
+          history_id: string | null
           id: string
           issues: Json | null
           issues_company: Json | null
@@ -2968,6 +3026,7 @@ export type Database = {
           core_values?: string[] | null
           created_at?: string | null
           created_by?: string | null
+          history_id?: string | null
           id?: string
           issues?: Json | null
           issues_company?: Json | null
@@ -2991,6 +3050,7 @@ export type Database = {
           core_values?: string[] | null
           created_at?: string | null
           created_by?: string | null
+          history_id?: string | null
           id?: string
           issues?: Json | null
           issues_company?: Json | null
