@@ -218,16 +218,20 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
       return created;
     },
     onSuccess: (count) => {
-      queryClient.invalidateQueries({ queryKey: ['scorecard-metrics'] });
-      onSuccess?.();
+      // Force refetch by invalidating with refetchType 'all' to bypass staleTime
+      queryClient.invalidateQueries({ 
+        queryKey: ['scorecard-metrics'],
+        refetchType: 'all'
+      });
       toast({
         title: "Scorecard Created!",
         description: `Created ${count} metrics linked to your Vision Planner goals`,
       });
-      // Auto-close after brief delay to show success
+      // Auto-close and trigger parent refetch
       setTimeout(() => {
+        onSuccess?.();
         handleClose();
-      }, 1500);
+      }, 500);
     },
     onError: (err: any) => {
       toast({
