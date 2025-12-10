@@ -15,34 +15,24 @@ import { VtoL10Panel } from "@/components/vto/VtoL10Panel";
 import { exportMeetingMinutes } from "@/utils/exportMinutes";
 import { AgendaSuggestions } from "@/components/l10/AgendaSuggestions";
 import { useVTORealtimeSync } from "@/hooks/useVTORealtimeSync";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 const L10 = () => {
   const [headlines, setHeadlines] = useState<string[]>([]);
   const [decisions, setDecisions] = useState<string[]>([]);
   const { toast } = useToast();
 
-  const { data: teamData } = useQuery({
-    queryKey: ["current-team-l10"],
-    queryFn: async () => {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return null;
-
-      const { data: userData } = await supabase
-        .from("users")
-        .select("team_id")
-        .eq("email", authData.user.email)
-        .single();
-      
-      return userData;
-    },
-  });
+  // Use centralized current user hook for org context
+  const { data: currentUser } = useCurrentUser();
+  const organizationId = currentUser?.team_id;
 
   // Enable real-time VTO progress sync during L10
-  useVTORealtimeSync(teamData?.team_id);
+  useVTORealtimeSync(organizationId);
 
   const { data: kpis, refetch: refetchKpis } = useQuery({
-    queryKey: ["kpis-l10"],
+    queryKey: ["kpis-l10", organizationId],
     queryFn: async () => {
+      if (!organizationId) return [];
       const { data, error } = await supabase
         .from("kpis")
         .select("*, kpi_readings(value, week_start), users(full_name)")
@@ -53,25 +43,30 @@ const L10 = () => {
       if (error) throw error;
       return data;
     },
+    enabled: !!organizationId,
   });
 
   const { data: rocks, refetch: refetchRocks } = useQuery({
-    queryKey: ["rocks-l10"],
+    queryKey: ["rocks-l10", organizationId],
     queryFn: async () => {
+      if (!organizationId) return [];
       const { data, error } = await supabase
         .from("rocks")
         .select("*, users(full_name)")
+        .eq("organization_id", organizationId)
         .neq("status", "done")
         .order("level");
       
       if (error) throw error;
       return data;
     },
+    enabled: !!organizationId,
   });
 
   const { data: todos, refetch: refetchTodos } = useQuery({
-    queryKey: ["todos-l10"],
+    queryKey: ["todos-l10", organizationId],
     queryFn: async () => {
+      if (!organizationId) return [];
       const { data, error } = await supabase
         .from("todos")
         .select("*, users(full_name)")
@@ -80,36 +75,39 @@ const L10 = () => {
       if (error) throw error;
       return data;
     },
+    enabled: !!organizationId,
   });
 
   const { data: issues, refetch: refetchIssues } = useQuery({
-    queryKey: ["issues-l10"],
+    queryKey: ["issues-l10", organizationId],
     queryFn: async () => {
+      if (!organizationId) return [];
       const { data, error } = await supabase
         .from("issues")
         .select("*, users(full_name)")
+        .eq("organization_id", organizationId)
         .neq("status", "solved")
         .order("priority");
       
       if (error) throw error;
       return data;
     },
+    enabled: !!organizationId,
   });
 
   const { data: currentTeam } = useQuery({
-    queryKey: ["current-team"],
+    queryKey: ["current-team", organizationId],
     queryFn: async () => {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return null;
-
-      const { data: userData } = await supabase
-        .from("users")
-        .select("team_id, teams(name)")
-        .eq("email", authData.user.email)
+      if (!organizationId) return null;
+      const { data } = await supabase
+        .from("teams")
+        .select("id, name")
+        .eq("id", organizationId)
         .single();
       
-      return userData;
+      return data;
     },
+    enabled: !!organizationId,
   });
 
   const handleCloseMeeting = async () => {
@@ -140,7 +138,7 @@ const L10 = () => {
         .from("meetings")
         .insert({
           type: "L10",
-          team_id: currentTeam?.team_id || null,
+          team_id: organizationId || null,
           scheduled_for: new Date().toISOString(),
           duration_minutes: 90,
         })
@@ -219,7 +217,7 @@ const L10 = () => {
 
     exportMeetingMinutes({
       meetingDate: new Date().toISOString(),
-      teamName: currentTeam?.teams?.name || "Team",
+      teamName: currentTeam?.name || "Team",
       kpiSnapshot,
       rockCheck,
       headlines,
@@ -258,7 +256,7 @@ const L10 = () => {
         </div>
       </div>
 
-      <AgendaSuggestions teamId={currentTeam?.team_id || null} />
+      <AgendaSuggestions teamId={organizationId || null} />
 
       <VtoL10Panel />
 

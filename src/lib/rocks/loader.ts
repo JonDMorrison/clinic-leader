@@ -65,10 +65,11 @@ export async function loadDefaultRocks(options: LoadDefaultRocksOptions): Promis
       }
     });
 
-    // Get existing Rocks for this org
+    // Get existing Rocks for this org (filter by organization_id)
     const { data: existingRocks } = await supabase
       .from("rocks")
-      .select("title, level");
+      .select("title, level")
+      .eq("organization_id", organizationId);
 
     const existingKeys = new Set(
       (existingRocks || []).map(r => `${r.level}:${r.title}`)
@@ -76,12 +77,13 @@ export async function loadDefaultRocks(options: LoadDefaultRocksOptions): Promis
     const skippedTitles: string[] = [];
     const rocksToCreate: any[] = [];
 
-    // Get users for auto-owner assignment
+    // Get users for auto-owner assignment (filter by organization)
     let usersByRole: Record<string, string> = {};
     if (ownerStrategy === "auto") {
       const { data: users } = await supabase
         .from("users")
-        .select("id, role");
+        .select("id, role")
+        .eq("team_id", organizationId);
       
       if (users) {
         usersByRole = {
@@ -116,7 +118,8 @@ export async function loadDefaultRocks(options: LoadDefaultRocksOptions): Promis
         display_group: item.group,
         display_order: index,
         default_batch_id: batch.id,
-        note: item.note || null
+        note: item.note || null,
+        organization_id: organizationId
       });
     });
 
@@ -206,21 +209,23 @@ export async function previewDefaultRocks(options: LoadDefaultRocksOptions) {
     }
   });
 
-  // Get existing Rocks
+  // Get existing Rocks (filter by organization)
   const { data: existingRocks } = await supabase
     .from("rocks")
-    .select("title, level");
+    .select("title, level")
+    .eq("organization_id", organizationId);
 
   const existingKeys = new Set(
     (existingRocks || []).map(r => `${r.level}:${r.title}`)
   );
 
-  // Get users for owner suggestions
+  // Get users for owner suggestions (filter by organization)
   let usersByRole: Record<string, any> = {};
   if (ownerStrategy === "auto") {
     const { data: users } = await supabase
       .from("users")
-      .select("id, full_name, role");
+      .select("id, full_name, role")
+      .eq("team_id", organizationId);
     
     if (users) {
       usersByRole = {

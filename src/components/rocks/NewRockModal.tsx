@@ -20,7 +20,8 @@ const rockSchema = z.object({
   confidence: z.number().min(1).max(5).optional().nullable(),
   due_date: z.string().optional().nullable(),
   owner_id: z.string().uuid().optional().nullable(),
-  status: z.enum(["on_track", "off_track", "done"])
+  status: z.enum(["on_track", "off_track", "done"]),
+  organization_id: z.string().uuid()
 });
 
 interface NewRockModalProps {
@@ -28,9 +29,10 @@ interface NewRockModalProps {
   onClose: () => void;
   users?: Array<{ id: string; full_name: string }>;
   onSuccess: () => void;
+  organizationId: string;
 }
 
-export const NewRockModal = ({ open, onClose, users, onSuccess }: NewRockModalProps) => {
+export const NewRockModal = ({ open, onClose, users, onSuccess, organizationId }: NewRockModalProps) => {
   const [formData, setFormData] = useState({
     title: "",
     level: "team" as "company" | "team" | "individual",
@@ -56,7 +58,8 @@ export const NewRockModal = ({ open, onClose, users, onSuccess }: NewRockModalPr
         confidence: formData.confidence ? parseInt(formData.confidence) : null,
         due_date: formData.due_date ? format(formData.due_date, "yyyy-MM-dd") : null,
         owner_id: formData.owner_id || null,
-        status: formData.status
+        status: formData.status,
+        organization_id: organizationId
       };
 
       const validated = rockSchema.parse(payload);
@@ -68,7 +71,8 @@ export const NewRockModal = ({ open, onClose, users, onSuccess }: NewRockModalPr
         confidence: validated.confidence ?? null,
         due_date: validated.due_date ?? null,
         owner_id: validated.owner_id ?? null,
-        status: validated.status
+        status: validated.status,
+        organization_id: validated.organization_id
       }]);
 
       if (error) throw error;
