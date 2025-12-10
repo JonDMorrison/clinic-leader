@@ -1,19 +1,21 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings, PenSquare, Search, Filter, Star, Smartphone, GripVertical } from "lucide-react";
+import { Plus, Settings, PenSquare, Search, Filter, Star, Smartphone, GripVertical, Sparkles, Target } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AddKpiModal } from "@/components/scorecard/AddKpiModal";
 import { LoadDefaultsDialog } from "@/components/scorecard/LoadDefaultsDialog";
 import { ScorecardOnboardingWizard } from "@/components/scorecard/ScorecardOnboardingWizard";
+import { CreateFromVTODialog } from "@/components/scorecard/CreateFromVTODialog";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { BackfillButton } from "@/components/scorecard/BackfillButton";
 import { MetricCard } from "@/components/scorecard/MetricCard";
@@ -34,11 +36,13 @@ const Scorecard = () => {
   const [searchParams] = useSearchParams();
   const [addKpiModalOpen, setAddKpiModalOpen] = useState(false);
   const [loadDefaultsOpen, setLoadDefaultsOpen] = useState(false);
+  const [createFromVTOOpen, setCreateFromVTOOpen] = useState(false);
   const [selectedMetricId, setSelectedMetricId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [vtoGoalFilter, setVtoGoalFilter] = useState("all");
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [celebratingMilestone, setCelebratingMilestone] = useState<any>(null);
   const [showQuickEntry, setShowQuickEntry] = useState(false);
@@ -326,11 +330,19 @@ const Scorecard = () => {
               <Settings className="w-4 h-4 mr-2" />
               Setup Wizard
             </Button>
+            <Button 
+              onClick={() => setCreateFromVTOOpen(true)}
+              className="gradient-brand"
+              disabled={!currentUser?.team_id}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Create from V/TO
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="gradient-brand">
+                <Button variant="outline">
                   <Plus className="w-4 h-4 mr-2" />
-                  New Metric
+                  More Options
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -338,7 +350,7 @@ const Scorecard = () => {
                   onClick={() => setLoadDefaultsOpen(true)}
                   disabled={!currentUser?.team_id}
                 >
-                  Load Defaults
+                  Load Template Defaults
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>
                   Custom Metric
@@ -356,7 +368,7 @@ const Scorecard = () => {
         </div>
       ) : totalMetrics === 0 ? (
         <ScorecardOnboardingWizard
-          onQuickStart={() => setLoadDefaultsOpen(true)}
+          onQuickStart={() => setCreateFromVTOOpen(true)}
           onCustomKpi={() => setAddKpiModalOpen(true)}
         />
       ) : (
@@ -532,6 +544,12 @@ const Scorecard = () => {
           onClose={() => setShowQuickEntry(false)}
         />
       )}
+
+      {/* Create from VTO Dialog */}
+      <CreateFromVTODialog
+        open={createFromVTOOpen}
+        onClose={() => setCreateFromVTOOpen(false)}
+      />
     </div>
   );
 };
