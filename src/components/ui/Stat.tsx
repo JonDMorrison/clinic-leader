@@ -35,15 +35,15 @@ export const Stat = ({ label, value, icon, variant = "default", className, toolt
   const getGlowColor = () => {
     switch (variant) {
       case "brand":
-        return "rgba(139, 92, 246, 0.2)";
+        return "hsl(210 100% 50% / 0.2)"; // --brand
       case "success":
-        return "rgba(34, 197, 94, 0.2)";
+        return "hsl(142 76% 42% / 0.2)"; // --success
       case "warning":
-        return "rgba(251, 146, 60, 0.2)";
+        return "hsl(38 92% 55% / 0.2)"; // --warning
       case "accent":
-        return "rgba(14, 165, 233, 0.2)";
+        return "hsl(172 100% 48% / 0.2)"; // --accent
       default:
-        return "rgba(0, 0, 0, 0.1)";
+        return "hsl(210 20% 50% / 0.1)";
     }
   };
 

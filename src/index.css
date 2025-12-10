@@ -83,10 +83,13 @@ All colors MUST be HSL.
     --blur-md: 12px;
     --blur-lg: 16px;
     
-    /* Shadows */
-    --shadow-glass: 0 8px 32px rgba(31, 38, 135, 0.15);
-    --shadow-glow: 0 0 20px rgba(0, 89, 255, 0.3);
-    --shadow-elevated: 0 12px 40px rgba(0, 0, 0, 0.12);
+    /* Shadows - using HSL for consistency */
+    --shadow-glass: 0 8px 32px hsl(210 30% 30% / 0.08);
+    --shadow-glow: 0 0 20px hsl(210 100% 50% / 0.25);
+    --shadow-elevated: 0 12px 40px hsl(210 20% 20% / 0.1);
+    --shadow-brand: 0 4px 16px hsl(210 100% 50% / 0.2);
+    --shadow-success: 0 4px 16px hsl(142 76% 42% / 0.2);
+    --shadow-warning: 0 4px 16px hsl(38 92% 55% / 0.2);
 
     --radius: 1.5rem;
   }

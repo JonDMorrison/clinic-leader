@@ -179,7 +179,7 @@ export const CopilotWidget = () => {
                         "text-xs h-auto py-2.5 px-3 w-full",
                         "bg-gradient-to-br from-white/5 to-white/0",
                         "border-white/10 hover:border-brand/30",
-                        "hover:shadow-[0_4px_12px_rgba(139,92,246,0.15)]",
+                        "hover:shadow-[0_4px_12px_hsl(210_100%_50%_/_0.15)]",
                         "transition-all duration-300 text-left justify-start"
                       )}
                     >
@@ -205,7 +205,7 @@ export const CopilotWidget = () => {
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
                 size="icon"
-                className="shrink-0 bg-gradient-to-br from-brand to-accent hover:shadow-[0_4px_16px_rgba(139,92,246,0.3)] min-h-[44px] min-w-[44px]"
+                className="shrink-0 bg-gradient-to-br from-brand to-accent hover:shadow-[0_4px_16px_hsl(210_100%_50%_/_0.3)] min-h-[44px] min-w-[44px]"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
