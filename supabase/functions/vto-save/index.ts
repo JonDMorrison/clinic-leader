@@ -230,6 +230,19 @@ serve(async (req) => {
 
       console.log('Progress computation triggered:', progressResponse);
       
+      // Create snapshot for history timeline
+      try {
+        const snapshotResponse = await supabaseClient.functions.invoke('vto-create-snapshot', {
+          body: { 
+            organization_id: profile.team_id,
+            change_summary: 'VTO published',
+          },
+        });
+        console.log('Snapshot created:', snapshotResponse);
+      } catch (snapshotErr) {
+        console.error('Failed to create snapshot (non-blocking):', snapshotErr);
+      }
+      
       // Publishing always triggers review flags
       strategicChanged = true;
       await supabaseClient
