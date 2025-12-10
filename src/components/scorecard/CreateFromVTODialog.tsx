@@ -48,6 +48,7 @@ interface VTOGoal {
 interface CreateFromVTODialogProps {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 type Step = 'intro' | 'loading' | 'review' | 'creating' | 'done' | 'error';
@@ -76,7 +77,7 @@ const ERROR_UI: Record<string, { title: string; body: string; icon: React.ReactN
   },
 };
 
-export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps) => {
+export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTODialogProps) => {
   const { data: currentUser } = useCurrentUser();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -217,12 +218,16 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
       return created;
     },
     onSuccess: (count) => {
-      setStep('done');
       queryClient.invalidateQueries({ queryKey: ['scorecard-metrics'] });
+      onSuccess?.();
       toast({
         title: "Scorecard Created!",
         description: `Created ${count} metrics linked to your Vision Planner goals`,
       });
+      // Auto-close after brief delay to show success
+      setTimeout(() => {
+        handleClose();
+      }, 1500);
     },
     onError: (err: any) => {
       toast({
