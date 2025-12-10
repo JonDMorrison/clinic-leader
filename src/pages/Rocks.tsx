@@ -4,8 +4,9 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { RockCard } from "@/components/rocks/RockCard";
 import { NewRockModal } from "@/components/rocks/NewRockModal";
+import { CreateFromScorecardDialog } from "@/components/rocks/CreateFromScorecardDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Target, Filter, Plus, Sparkles } from "lucide-react";
+import { Target, Filter, Plus, Sparkles, BarChart3 } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -35,6 +36,7 @@ const Rocks = () => {
   const ownerFilter = searchParams.get("owner") || "all";
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loadDefaultsOpen, setLoadDefaultsOpen] = useState(false);
+  const [createFromScorecardOpen, setCreateFromScorecardOpen] = useState(false);
   const [showTransitionBanner, setShowTransitionBanner] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -240,6 +242,10 @@ const Rocks = () => {
           <p className="text-muted-foreground">90-day priorities and goals</p>
         </div>
         <div className="flex gap-2">
+          <Button onClick={() => setCreateFromScorecardOpen(true)} variant="outline">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Create from Scorecard
+          </Button>
           {rocks && rocks.length > 0 && (
             <Button onClick={() => setLoadDefaultsOpen(true)} variant="outline">
               <Sparkles className="w-4 h-4 mr-2" />
@@ -313,12 +319,18 @@ const Rocks = () => {
         <EmptyState
           icon={<Target className="w-12 h-12" />}
           title="No Rocks yet"
-          description="Start your 90-day priorities with industry-standard EOS Rocks"
+          description="Create 90-day priorities from your scorecard insights or start with EOS defaults"
           action={
-            <Button onClick={() => setLoadDefaultsOpen(true)} className="gradient-brand">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Load Default Rocks (EOS)
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button onClick={() => setCreateFromScorecardOpen(true)} className="gradient-brand">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Create from Scorecard
+              </Button>
+              <Button onClick={() => setLoadDefaultsOpen(true)} variant="outline">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Load Default Rocks
+              </Button>
+            </div>
           }
         />
       ) : filteredRocks.length === 0 ? (
@@ -351,6 +363,12 @@ const Rocks = () => {
         open={loadDefaultsOpen}
         onOpenChange={setLoadDefaultsOpen}
         organizationId={currentUser?.team_id || ''}
+      />
+
+      <CreateFromScorecardDialog
+        open={createFromScorecardOpen}
+        onClose={() => setCreateFromScorecardOpen(false)}
+        onSuccess={refetch}
       />
 
       <ArchiveRocksDialog
