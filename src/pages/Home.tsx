@@ -25,24 +25,16 @@ const Home = () => {
   // Fetch current user first to get team_id
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
 
-  const { data: kpis, isLoading: kpisLoading } = useQuery({
-    queryKey: ["kpis-summary", currentUser?.team_id],
+  const { data: metrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ["dashboard-metrics", currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return [];
 
-      const { data: users } = await supabase
-        .from("users")
-        .select("id")
-        .eq("team_id", currentUser.team_id);
-
-      const userIds = users?.map(u => u.id) || [];
-
       const { data, error } = await supabase
-        .from("kpis")
-        .select("*, kpi_readings(value, week_start)")
-        .in("owner_id", userIds)
-        .eq("active", true)
-        .order("week_start", { foreignTable: "kpi_readings", ascending: false });
+        .from("metrics")
+        .select("*, metric_results(value, week_start)")
+        .eq("organization_id", currentUser.team_id)
+        .order("week_start", { foreignTable: "metric_results", ascending: false });
       
       if (error) throw error;
       return data;
@@ -114,26 +106,26 @@ const Home = () => {
   const totalRocks = rocks?.length || 0;
   const openIssues = issues?.filter(i => i.status === "open").length || 0;
 
-  // Get New Patients KPI latest value
-  const newPatientsKpi = kpis?.find(k => k.name === "New Patients");
-  const newPatientsValue = newPatientsKpi?.kpi_readings?.[0]?.value || 0;
+  // Get New Patients metric latest value
+  const newPatientsMetric = metrics?.find(m => m.name === "New Patients");
+  const newPatientsValue = newPatientsMetric?.metric_results?.[0]?.value || 0;
 
-  // Calculate Team Performance Score - % of KPIs hitting targets over last 8 weeks
+  // Calculate Team Performance Score - % of metrics hitting targets over last 8 weeks
   const performanceScores = useMemo(() => {
-    if (!kpis || kpis.length === 0) return [];
+    if (!metrics || metrics.length === 0) return [];
     
     // Get last 8 weeks of data
     const weekMap = new Map<string, { total: number; onTarget: number }>();
     
-    kpis.forEach(kpi => {
-      // Skip KPIs without targets
-      if (kpi.target === null) return;
+    metrics.forEach(metric => {
+      // Skip metrics without targets
+      if (metric.target === null) return;
       
-      const readings = kpi.kpi_readings?.slice(0, 8) || [];
+      const results = metric.metric_results?.slice(0, 8) || [];
       
-      readings.forEach(reading => {
-        const week = reading.week_start;
-        const value = parseFloat(String(reading.value));
+      results.forEach(result => {
+        const week = result.week_start;
+        const value = parseFloat(String(result.value));
         
         if (!weekMap.has(week)) {
           weekMap.set(week, { total: 0, onTarget: 0 });
@@ -142,12 +134,12 @@ const Home = () => {
         const weekData = weekMap.get(week)!;
         weekData.total += 1;
         
-        // Check if KPI hit target based on direction
-        const hitTarget = kpi.direction === '>=' 
-          ? value >= kpi.target 
-          : kpi.direction === '<='
-          ? value <= kpi.target
-          : value === kpi.target;
+        // Check if metric hit target based on direction
+        const hitTarget = metric.direction === 'up' 
+          ? value >= metric.target 
+          : metric.direction === 'down'
+          ? value <= metric.target
+          : value === metric.target;
         
         if (hitTarget) {
           weekData.onTarget += 1;
@@ -165,7 +157,7 @@ const Home = () => {
         total: data.total
       }))
       .slice(-8); // Last 8 weeks
-  }, [kpis]);
+  }, [metrics]);
 
   const currentScore = performanceScores[performanceScores.length - 1];
   const previousScore = performanceScores[performanceScores.length - 2];
@@ -173,7 +165,7 @@ const Home = () => {
     ? currentScore.percentage - previousScore.percentage 
     : 0;
 
-  const isLoading = userLoading || kpisLoading || rocksLoading || issuesLoading;
+  const isLoading = userLoading || metricsLoading || rocksLoading || issuesLoading;
 
   // Use viewport scroll to avoid hydration issues with target refs
   const { scrollYProgress } = useScroll();
@@ -271,7 +263,7 @@ const Home = () => {
         />
         <Stat
           label="Active KPIs"
-          value={kpis?.length || 0}
+          value={metrics?.length || 0}
           icon={<TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-accent" />}
           variant="accent"
           tooltip="Key metrics being tracked"
@@ -320,7 +312,7 @@ const Home = () => {
                 { 
                   type: "success", 
                   label: "System active", 
-                  desc: `Tracking ${kpis?.length || 0} KPIs across the team`,
+                  desc: `Tracking ${metrics?.length || 0} KPIs across the team`,
                   time: "Just now",
                   icon: "✓"
                 },
