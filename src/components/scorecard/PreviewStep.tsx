@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
 interface PreviewStepProps {
@@ -38,7 +38,7 @@ export function PreviewStep({ preview, includeTargets }: PreviewStepProps) {
                       {item.name}
                     </span>
                     {item.is_computed && (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="muted" className="text-xs">
                         Computed
                       </Badge>
                     )}
@@ -50,7 +50,7 @@ export function PreviewStep({ preview, includeTargets }: PreviewStepProps) {
                       </span>
                     )}
                     {includeTargets && item.target && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="brand" className="text-xs">
                         Target: {item.target}
                       </Badge>
                     )}

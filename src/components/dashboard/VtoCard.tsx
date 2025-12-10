@@ -116,7 +116,7 @@ export const VtoCard = () => {
             <Compass className={`w-5 h-5 ${isComplete ? 'text-primary animate-pulse' : 'text-brand'}`} />
             <CardTitle>Strategic Progress</CardTitle>
           </div>
-          <Badge variant={version.status === 'published' ? 'default' : 'secondary'}>
+          <Badge variant={version.status === 'published' ? 'brand' : 'muted'}>
             V{version.version}
           </Badge>
         </div>
@@ -163,7 +163,7 @@ export const VtoCard = () => {
             {offTrackGoals.map(([goalKey, data]: [string, any], i) => (
               <div key={i} className="text-xs flex justify-between items-center">
                 <span className="truncate text-muted-foreground">{goalKey.replace(/_/g, ' ')}</span>
-                <Badge variant="outline" className="text-warning border-warning/30">
+                <Badge variant="warning">
                   {data.progress}%
                 </Badge>
               </div>

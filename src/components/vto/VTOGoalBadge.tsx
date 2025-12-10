@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import { Target, ExternalLink } from "lucide-react";
 import { useVTOLinks, getGoalDescription } from "@/hooks/useVTOLinks";
 import { useNavigate } from "react-router-dom";
@@ -28,7 +28,7 @@ export const VTOGoalBadge = ({ linkType, linkId }: VTOGoalBadgeProps) => {
     <HoverCard>
       <HoverCardTrigger asChild>
         <Badge 
-          variant="secondary" 
+          variant="muted" 
           className="gap-1 cursor-pointer hover:bg-primary/20 transition-colors"
           onClick={(e) => {
             e.stopPropagation();

@@ -27,8 +27,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui/Table";
+import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Pencil, Trash2, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
