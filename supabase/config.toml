@@ -1,5 +1,11 @@
 project_id = "uyfsfmxwrbukfhkskizu"
 
+[functions.ai-review-scorecard-against-vto]
+verify_jwt = false
+
+[functions.ai-review-rocks-against-vto-scorecard]
+verify_jwt = false
+
 [functions.clarity-save]
 verify_jwt = false
 
