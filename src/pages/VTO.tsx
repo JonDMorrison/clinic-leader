@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useVTORealtimeSync } from "@/hooks/useVTORealtimeSync";
 import { HelpHint } from "@/components/help/HelpHint";
+import { VTOAlignmentBanner } from "@/components/vto/VTOAlignmentBanner";
 
 const VTO = () => {
   const { toast } = useToast();
@@ -173,6 +174,7 @@ const VTO = () => {
 
   return (
     <div className="space-y-6">
+      <VTOAlignmentBanner />
       <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to Dashboard

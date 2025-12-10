@@ -2217,6 +2217,8 @@ export type Database = {
           logo_url: string | null
           meeting_rhythm: string | null
           name: string
+          needs_rocks_review: boolean | null
+          needs_scorecard_review: boolean | null
           onboarding_status: string | null
           review_cadence: string | null
           team_size: number | null
@@ -2240,6 +2242,8 @@ export type Database = {
           logo_url?: string | null
           meeting_rhythm?: string | null
           name: string
+          needs_rocks_review?: boolean | null
+          needs_scorecard_review?: boolean | null
           onboarding_status?: string | null
           review_cadence?: string | null
           team_size?: number | null
@@ -2263,6 +2267,8 @@ export type Database = {
           logo_url?: string | null
           meeting_rhythm?: string | null
           name?: string
+          needs_rocks_review?: boolean | null
+          needs_scorecard_review?: boolean | null
           onboarding_status?: string | null
           review_cadence?: string | null
           team_size?: number | null
@@ -2763,6 +2769,51 @@ export type Database = {
           },
           {
             foreignKeyName: "vto_audit_vto_version_id_fkey"
+            columns: ["vto_version_id"]
+            isOneToOne: false
+            referencedRelation: "vto_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vto_diff_events: {
+        Row: {
+          changed_fields: string[] | null
+          created_at: string | null
+          id: string
+          organization_id: string | null
+          previous_snapshot: Json | null
+          updated_snapshot: Json | null
+          vto_version_id: string | null
+        }
+        Insert: {
+          changed_fields?: string[] | null
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          previous_snapshot?: Json | null
+          updated_snapshot?: Json | null
+          vto_version_id?: string | null
+        }
+        Update: {
+          changed_fields?: string[] | null
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          previous_snapshot?: Json | null
+          updated_snapshot?: Json | null
+          vto_version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vto_diff_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vto_diff_events_vto_version_id_fkey"
             columns: ["vto_version_id"]
             isOneToOne: false
             referencedRelation: "vto_versions"
