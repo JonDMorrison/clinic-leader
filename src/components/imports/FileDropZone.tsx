@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Card, CardContent } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Upload, FileText, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 

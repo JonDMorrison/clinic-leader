@@ -19,7 +19,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/Table";
+} from "@/components/ui/table";
 
 // Configure PDF.js worker for client-side rendering using bundled worker URL
 if (typeof window !== "undefined") {
