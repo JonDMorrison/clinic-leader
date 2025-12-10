@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sparklines, SparklinesLine } from "react-sparklines";
-import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight } from "lucide-react";
+import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight, Link as LinkIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { calculateTrend, calculateWeekOverWeek, getCategoryColor } from "@/lib/scorecard/trendCalculator";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
+import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 
 interface MetricData {
   id: string;
@@ -66,6 +69,7 @@ export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [linkToVTOOpen, setLinkToVTOOpen] = useState(false);
   
   const performanceColor = getPerformanceColor(
     metric.current_value,
@@ -158,6 +162,7 @@ export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
                     {metric.owner_name}
                   </span>
                 )}
+                <VTOGoalBadge linkType="kpi" linkId={metric.id} />
               </div>
             </div>
             <Badge 
@@ -260,18 +265,40 @@ export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
             </div>
           </div>
 
-          {/* Update Link */}
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-full"
-            onClick={handleUpdateClick}
-          >
-            <ExternalLink className="w-3 h-3 mr-2" />
-            Update Data
-          </Button>
+          {/* Actions */}
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex-1"
+              onClick={handleUpdateClick}
+            >
+              <ExternalLink className="w-3 h-3 mr-2" />
+              Update
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLinkToVTOOpen(true);
+              }}
+            >
+              <LinkIcon className="w-3 h-3 mr-2" />
+              Link V/TO
+            </Button>
+          </div>
         </div>
       </Card>
+
+      <LinkToVTODialog
+        open={linkToVTOOpen}
+        onClose={() => setLinkToVTOOpen(false)}
+        linkType="kpi"
+        linkId={metric.id}
+        itemName={metric.name}
+      />
     </div>
   );
 };

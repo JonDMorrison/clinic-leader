@@ -60,20 +60,30 @@ serve(async (req) => {
       let item = null;
 
       if (link.link_type === 'kpi') {
-        const { data: kpi } = await supabaseClient
-          .from('kpis')
-          .select('id, name, target, direction, kpi_readings(value, week_start)')
+        // Query the metrics table (scorecard) instead of deprecated kpis table
+        const { data: metric } = await supabaseClient
+          .from('metrics')
+          .select('id, name, target, direction')
           .eq('id', link.link_id)
           .single();
 
-        if (kpi && kpi.kpi_readings?.[0]) {
-          const reading = kpi.kpi_readings[0];
+        if (metric) {
+          // Get latest metric result
+          const { data: results } = await supabaseClient
+            .from('metric_results')
+            .select('value, week_start')
+            .eq('metric_id', link.link_id)
+            .order('week_start', { ascending: false })
+            .limit(1);
+
+          const latestValue = results?.[0]?.value;
+          
           item = {
             type: 'kpi',
-            id: kpi.id,
-            value: reading.value,
-            target: kpi.target,
-            direction: kpi.direction,
+            id: metric.id,
+            value: latestValue ?? null,
+            target: metric.target,
+            direction: metric.direction,
           };
         }
       } else if (link.link_type === 'rock') {
