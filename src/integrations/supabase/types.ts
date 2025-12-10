@@ -2001,6 +2001,7 @@ export type Database = {
           id: string
           organization_id: string | null
           reports_to: string | null
+          reports_to_seat_id: string | null
           responsibilities: string[] | null
           title: string
           updated_at: string
@@ -2012,6 +2013,7 @@ export type Database = {
           id?: string
           organization_id?: string | null
           reports_to?: string | null
+          reports_to_seat_id?: string | null
           responsibilities?: string[] | null
           title: string
           updated_at?: string
@@ -2023,6 +2025,7 @@ export type Database = {
           id?: string
           organization_id?: string | null
           reports_to?: string | null
+          reports_to_seat_id?: string | null
           responsibilities?: string[] | null
           title?: string
           updated_at?: string
@@ -2039,6 +2042,13 @@ export type Database = {
           {
             foreignKeyName: "seats_reports_to_fkey"
             columns: ["reports_to"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seats_reports_to_seat_id_fkey"
+            columns: ["reports_to_seat_id"]
             isOneToOne: false
             referencedRelation: "seats"
             referencedColumns: ["id"]

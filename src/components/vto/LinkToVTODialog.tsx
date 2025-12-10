@@ -20,7 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Link as LinkIcon } from "lucide-react";
+import { Link as LinkIcon, Target, TrendingUp, Mountain, Building2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface LinkToVTODialogProps {
   open: boolean;
@@ -28,6 +29,13 @@ interface LinkToVTODialogProps {
   linkType: 'kpi' | 'rock' | 'issue' | 'doc';
   linkId: string;
   itemName: string;
+}
+
+interface GoalOption {
+  key: string;
+  label: string;
+  category: 'one_year' | 'three_year' | 'ten_year' | 'expansion' | 'rock';
+  icon: React.ReactNode;
 }
 
 export const LinkToVTODialog = ({ open, onClose, linkType, linkId, itemName }: LinkToVTODialogProps) => {
@@ -52,6 +60,7 @@ export const LinkToVTODialog = ({ open, onClose, linkType, linkId, itemName }: L
             one_year_plan,
             quarterly_rocks,
             three_year_picture,
+            ten_year_target,
             version
           )
         `)
@@ -64,13 +73,16 @@ export const LinkToVTODialog = ({ open, onClose, linkType, linkId, itemName }: L
       if (error) throw error;
 
       // Get the latest version
-      const latestVersion = vto.vto_versions[0];
+      const latestVersion = vto.vto_versions[0] as any;
+      const threeYearPicture = latestVersion.three_year_picture as any;
       return {
         vtoId: vto.id,
         versionId: latestVersion.id,
         oneYearPlan: latestVersion.one_year_plan,
         quarterlyRocks: latestVersion.quarterly_rocks,
-        threeYearPicture: latestVersion.three_year_picture,
+        threeYearPicture: threeYearPicture,
+        tenYearTarget: latestVersion.ten_year_target,
+        longRangeTargets: threeYearPicture?.long_range_targets || [],
       };
     },
     enabled: open && !!currentUser?.team_id,
@@ -116,43 +128,111 @@ export const LinkToVTODialog = ({ open, onClose, linkType, linkId, itemName }: L
     }
   };
 
-  // Build goal options from VTO data
-  const goalOptions = [];
+  // Build goal options from VTO data - enhanced with all goal types
+  const goalOptions: GoalOption[] = [];
   
+  // 10-Year Target
+  if (vtoData?.tenYearTarget) {
+    goalOptions.push({
+      key: 'ten_year_target',
+      label: vtoData.tenYearTarget,
+      category: 'ten_year',
+      icon: <TrendingUp className="h-4 w-4" />,
+    });
+  }
+  
+  // Long Range Targets
+  if (vtoData?.longRangeTargets && Array.isArray(vtoData.longRangeTargets)) {
+    vtoData.longRangeTargets.forEach((target: any, index: number) => {
+      if (target?.target_description || target?.revenue_target) {
+        goalOptions.push({
+          key: `long_range_targets[${index}]`,
+          label: target.target_description || `$${target.revenue_target?.toLocaleString()} Revenue`,
+          category: target.horizon === 'ten_year' ? 'ten_year' : 'three_year',
+          icon: <TrendingUp className="h-4 w-4" />,
+        });
+      }
+    });
+  }
+  
+  // 3-Year Picture
+  if (vtoData?.threeYearPicture && typeof vtoData.threeYearPicture === 'object') {
+    const threeYear = vtoData.threeYearPicture as any;
+    if (threeYear.revenue) {
+      goalOptions.push({
+        key: 'three_year_picture.revenue',
+        label: `$${threeYear.revenue?.toLocaleString()} Revenue`,
+        category: 'three_year',
+        icon: <TrendingUp className="h-4 w-4" />,
+      });
+    }
+    
+    // Expansion items
+    if (threeYear.expansion_items && Array.isArray(threeYear.expansion_items)) {
+      threeYear.expansion_items.forEach((item: any, index: number) => {
+        if (item?.title) {
+          goalOptions.push({
+            key: `three_year_picture.expansion_items[${index}]`,
+            label: item.title,
+            category: 'expansion',
+            icon: <Building2 className="h-4 w-4" />,
+          });
+        }
+      });
+    }
+  }
+  
+  // 1-Year Plan Goals/Initiatives
   if (vtoData?.oneYearPlan && typeof vtoData.oneYearPlan === 'object' && 'goals' in vtoData.oneYearPlan) {
     const goals = (vtoData.oneYearPlan as any).goals;
     if (Array.isArray(goals)) {
-      goals.forEach((goal: string, index: number) => {
-        if (goal?.trim()) {
+      goals.forEach((goal: any, index: number) => {
+        const title = typeof goal === 'string' ? goal : goal?.title;
+        if (title?.trim()) {
           goalOptions.push({
             key: `one_year_plan.goals[${index}]`,
-            label: `1-Year Goal: ${goal}`,
+            label: title,
+            category: 'one_year',
+            icon: <Target className="h-4 w-4" />,
           });
         }
       });
     }
   }
 
+  // Quarterly Rocks
   if (vtoData?.quarterlyRocks && Array.isArray(vtoData.quarterlyRocks)) {
     vtoData.quarterlyRocks.forEach((rock: any, index: number) => {
       if (rock?.title?.trim()) {
         goalOptions.push({
           key: `quarterly_rocks[${index}]`,
-          label: `Quarterly Rock: ${rock.title}`,
+          label: rock.title,
+          category: 'rock',
+          icon: <Mountain className="h-4 w-4" />,
         });
       }
     });
   }
 
-  if (vtoData?.threeYearPicture && typeof vtoData.threeYearPicture === 'object' && 'revenue_target' in vtoData.threeYearPicture) {
-    const threeYear = vtoData.threeYearPicture as any;
-    if (threeYear.revenue_target) {
-      goalOptions.push({
-        key: 'three_year_picture.revenue',
-        label: `3-Year Picture: $${threeYear.revenue_target} Revenue`,
-      });
+  const getCategoryLabel = (category: GoalOption['category']) => {
+    switch (category) {
+      case 'ten_year': return '10-Year';
+      case 'three_year': return '3-Year';
+      case 'expansion': return 'Expansion';
+      case 'one_year': return '1-Year Goal';
+      case 'rock': return 'Q Rock';
     }
-  }
+  };
+
+  const getCategoryColor = (category: GoalOption['category']) => {
+    switch (category) {
+      case 'ten_year': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'three_year': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'expansion': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      case 'one_year': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+      case 'rock': return 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400';
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -193,10 +273,16 @@ export const LinkToVTODialog = ({ open, onClose, linkType, linkId, itemName }: L
                 <SelectTrigger id="goal-select">
                   <SelectValue placeholder="Choose a goal..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-80">
                   {goalOptions.map((option) => (
                     <SelectItem key={option.key} value={option.key}>
-                      {option.label}
+                      <div className="flex items-center gap-2">
+                        {option.icon}
+                        <Badge variant="outline" className={`text-xs ${getCategoryColor(option.category)}`}>
+                          {getCategoryLabel(option.category)}
+                        </Badge>
+                        <span className="truncate max-w-48">{option.label}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
