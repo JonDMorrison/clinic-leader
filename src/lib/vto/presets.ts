@@ -39,60 +39,81 @@ export const VTO_PRESETS: Record<string, VTOPreset> = {
     label: "Clinic Standard",
     description: "Pre-configured template for healthcare clinics",
     vision: {
-      core_values: ["Ownership", "Empathy", "Excellence", "Growth", "Team First"],
+      core_values: [
+        "Treat Our Patients Like We'd Want Our Family to be Treated",
+        "Dedicated Can-Do Attitude",
+        "Uncompromised Quality of Care – Be the Best at Whatever You Do",
+        "Returning Customer Service to Health Care",
+        "Patient Advocates"
+      ],
       core_focus: { 
-        purpose: "Help patients recover and return to work", 
-        niche: "Multidisciplinary injury care" 
+        purpose: "Uncompromised Excellence Treating Injured Workers and Car Accident Victims", 
+        niche: "Specializing in a Unique Space on Injured Workers and Car Accidents" 
       },
-      ten_year_target: "Serve 100,000 patients with top-decile outcomes",
+      ten_year_target: "$10M revenue, 40% profit margin",
       marketing_strategy: {
-        ideal_client: "Injured workers and MVA patients who value coordinated care",
+        ideal_client: "Car Accident and work injury and brain injury with recent injury",
         differentiators: [
-          "Same-week access",
-          "Integrated providers",
-          "Claims expertise",
-          "Data-visible outcomes"
+          "Multidisciplinary approach",
+          "Access (24-48 hour scheduling)",
+          "Culture/values/people",
+          "Proven process (The NW Injury Clinic Way)"
         ],
-        proven_process: "Triage → Treatment Plan → Coordinated Care → Recovery → Follow-up",
-        guarantee: "Clear next step at every visit"
+        proven_process: "New Patient Scheduling → Triage/Full Workup → Imaging → Patient Education → Co-management/Referral → Attorney Collaboration",
+        guarantee: "We Promise to Treat You Like Family"
       },
       three_year_picture: {
-        revenue: "▲ Sustainable growth",
-        profit: "Healthy margin",
+        revenue: "$6M (40% profit)",
+        profit: "$4M out of Tri-Cities",
         measurables: [
-          "No-show ≤ 5%",
-          "Collection rate ≥ 90%",
-          "Avg visit-to-plan ≥ target"
+          "Spokane Valley office open",
+          "Inland Imaging MRIs partnership",
+          "PT in-house in Spokane",
+          "Telemed with mid-levels active"
         ],
         headcount: "Right people, right seats",
-        notes: "Known locally for care + outcomes"
+        notes: "Looking at second Spokane office and West side expansion"
       }
     },
     traction: {
       one_year_plan: {
-        revenue: "Hit annual revenue target",
-        profit: "Hit annual profit target",
+        revenue: "$100k/mo in Pain Management billables",
+        profit: "Sustainable growth trajectory",
         measurables: [
-          "New patients/week",
-          "Total visits/week",
-          "Collection rate %",
-          "AR 90+ $"
+          "#MVAs",
+          "#Total NP",
+          "#LNI",
+          "Close Rate",
+          "Outgoing Charges",
+          "Total Monthly Visits",
+          "Avg $ Per Visit",
+          "Avg $ Per Case",
+          "Gross Income"
         ],
         goals: [
-          "Launch recall excellence program",
-          "Lift collection rate 5 points",
-          "Reduce time-to-next-available to ≤ 3 days",
-          "Publish and acknowledge top 20 SOPs"
+          "Spokane Valley Office opened",
+          "Inland Imaging MRIs in Tri-Cities and Spokane",
+          "Pain Management producing $100k/mo",
+          "NCV/EMG services launched"
         ]
       },
-      quarter_key: "current",
+      quarter_key: "Q2-2025",
       quarterly_rocks: [
-        { title: "Recall system: daily zero past-due", weight: 1 },
-        { title: "Clean-claim checklist live", weight: 1 },
-        { title: "Provider templates to open access", weight: 1 },
-        { title: "Core Values rollout and People Analyzer cadence", weight: 1 }
+        { title: "Lori – Updating Employee Manual – Job Descriptions and Operations", weight: 1 },
+        { title: "Lori – Work with Billing on Aging", weight: 1 },
+        { title: "Cross-Training and Back-Ups for front desk", weight: 1 },
+        { title: "Mayra – Train Diana on Pain coordination", weight: 1 },
+        { title: "Tim – Pain Management launch", weight: 1 },
+        { title: "Tim – Marketing initiatives", weight: 1 },
+        { title: "Aaron – Preceptor Program", weight: 1 }
       ],
-      issues_company: [],
+      issues_company: [
+        { title: "Staffing – Talk w Drea, change bonus structure to tiered" },
+        { title: "Is everyone in the right seat?" },
+        { title: "Marketing – Aaron Talk w Trevor" },
+        { title: "MRIs – Best Med partnership" },
+        { title: "Insurance Agents – talk w Bryan Robison and Jeff Hamilton" }
+      ],
       issues_department: [],
       issues_personal: []
     }
