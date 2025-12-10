@@ -403,8 +403,8 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
               </Button>
             </div>
 
-            {/* ScrollArea - flexible, takes remaining space */}
-            <ScrollArea className="flex-1 min-h-0 pr-2">
+            {/* ScrollArea - fixed height for reliable scrolling */}
+            <ScrollArea className="h-[300px] pr-2">
               <div className="space-y-3 pb-2">
                 {suggestedMetrics.map((metric, index) => (
                   <div
