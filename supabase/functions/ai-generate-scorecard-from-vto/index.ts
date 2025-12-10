@@ -23,6 +23,30 @@ interface SuggestedMetric {
   rationale: string;
 }
 
+// Standard error response format
+interface ErrorResponse {
+  code: string;
+  message: string;
+}
+
+function errorResponse(status: number, code: string, message: string) {
+  console.error(`[${code}] ${message}`);
+  return new Response(
+    JSON.stringify({ 
+      data: null,
+      error: { code, message } 
+    }),
+    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+function successResponse(data: any) {
+  return new Response(
+    JSON.stringify({ data, error: null }),
+    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -32,17 +56,17 @@ serve(async (req) => {
     const { organization_id } = await req.json();
     
     if (!organization_id) {
-      throw new Error('organization_id is required');
+      return errorResponse(400, 'MISSING_ORG_ID', 'Organization ID is required.');
     }
 
-    console.log('Generating scorecard from VTO for org:', organization_id);
+    console.log('[ai-generate-scorecard-from-vto] Starting for org:', organization_id);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Fetch active VTO with latest version
+    // Fetch active VTO with versions
     const { data: vto, error: vtoError } = await supabase
       .from('vto')
       .select(`
@@ -61,15 +85,34 @@ serve(async (req) => {
       .eq('organization_id', organization_id)
       .eq('is_active', true)
       .limit(1)
-      .single();
+      .maybeSingle();
 
+    // Distinguish between query error and no data
     if (vtoError) {
-      console.error('VTO query error:', vtoError);
-      throw new Error('No active V/TO found. Please create your V/TO first.');
+      console.error('[VTO_QUERY_FAILED] Supabase query error:', vtoError);
+      return errorResponse(
+        500, 
+        'VTO_QUERY_FAILED', 
+        'We could not load your Vision Planner due to a server error.'
+      );
     }
     
-    if (!vto || !vto.vto_versions || vto.vto_versions.length === 0) {
-      throw new Error('No V/TO version found. Please create your V/TO first.');
+    if (!vto) {
+      console.log('[NO_ACTIVE_VTO] No active VTO found for org:', organization_id);
+      return errorResponse(
+        400, 
+        'NO_ACTIVE_VTO', 
+        'No active Vision Planner was found for this organization.'
+      );
+    }
+
+    if (!vto.vto_versions || vto.vto_versions.length === 0) {
+      console.log('[NO_VTO_VERSION] VTO exists but has no versions for org:', organization_id);
+      return errorResponse(
+        400, 
+        'NO_ACTIVE_VTO', 
+        'No active Vision Planner was found for this organization.'
+      );
     }
 
     // Sort versions to get the latest
@@ -80,6 +123,8 @@ serve(async (req) => {
     const quarterlyRocks = version.quarterly_rocks || [];
     const coreFocus = version.core_focus || {};
     const marketingStrategy = version.marketing_strategy || {};
+
+    console.log('[ai-generate-scorecard-from-vto] Found VTO version:', version.id);
 
     // Extract goals from VTO
     const goals: VTOGoal[] = [];
@@ -144,8 +189,15 @@ serve(async (req) => {
     }
 
     if (goals.length === 0) {
-      throw new Error('No goals found in V/TO. Please add goals to your Vision/Traction sections first.');
+      console.log('[NO_GOALS] VTO exists but has no goals for org:', organization_id);
+      return errorResponse(
+        400, 
+        'NO_ACTIVE_VTO', 
+        'Your Vision Planner has no goals defined. Please add goals to your Vision/Traction sections first.'
+      );
     }
+
+    console.log(`[ai-generate-scorecard-from-vto] Found ${goals.length} goals, calling AI...`);
 
     // Build AI prompt
     const systemPrompt = `You are a business metrics expert specializing in healthcare clinics using EOS (Entrepreneurial Operating System).
@@ -232,45 +284,49 @@ Return a JSON array with this structure:
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
+      console.error('[AI_API_ERROR] Status:', aiResponse.status, 'Body:', errorText);
       
       if (aiResponse.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again in a moment.');
+        return errorResponse(500, 'AI_OR_UNKNOWN_ERROR', 'Rate limit exceeded. Please try again in a moment.');
       }
       if (aiResponse.status === 402) {
-        throw new Error('AI credits exhausted. Please add credits to continue.');
+        return errorResponse(500, 'AI_OR_UNKNOWN_ERROR', 'AI credits exhausted. Please add credits to continue.');
       }
-      throw new Error('AI service temporarily unavailable');
+      return errorResponse(500, 'AI_OR_UNKNOWN_ERROR', 'We ran into a problem generating scorecard suggestions. Please try again.');
     }
 
     const aiData = await aiResponse.json();
-    console.log('AI response:', JSON.stringify(aiData));
+    console.log('[ai-generate-scorecard-from-vto] AI response received');
 
     // Extract tool call result
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall?.function?.arguments) {
-      throw new Error('Invalid AI response format');
+      console.error('[AI_INVALID_FORMAT] No tool call in response:', JSON.stringify(aiData));
+      return errorResponse(500, 'AI_OR_UNKNOWN_ERROR', 'We ran into a problem generating scorecard suggestions. Please try again.');
     }
 
-    const suggestedMetrics: { metrics: SuggestedMetric[] } = JSON.parse(toolCall.function.arguments);
+    let suggestedMetrics: { metrics: SuggestedMetric[] };
+    try {
+      suggestedMetrics = JSON.parse(toolCall.function.arguments);
+    } catch (parseErr) {
+      console.error('[AI_PARSE_ERROR] Failed to parse AI response:', parseErr);
+      return errorResponse(500, 'AI_OR_UNKNOWN_ERROR', 'We ran into a problem generating scorecard suggestions. Please try again.');
+    }
 
-    console.log(`AI suggested ${suggestedMetrics.metrics.length} metrics`);
+    console.log(`[ai-generate-scorecard-from-vto] Success! AI suggested ${suggestedMetrics.metrics.length} metrics`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        vtoVersionId: version.id,
-        goals,
-        suggestedMetrics: suggestedMetrics.metrics,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return successResponse({
+      vtoVersionId: version.id,
+      goals,
+      suggestedMetrics: suggestedMetrics.metrics,
+    });
 
   } catch (error: any) {
-    console.error('Error generating scorecard from VTO:', error);
-    return new Response(
-      JSON.stringify({ error: error.message || 'Unknown error' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    console.error('[AI_OR_UNKNOWN_ERROR] Unexpected error:', error);
+    return errorResponse(
+      500, 
+      'AI_OR_UNKNOWN_ERROR', 
+      'We ran into a problem generating scorecard suggestions. Please try again.'
     );
   }
 });
