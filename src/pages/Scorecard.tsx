@@ -184,6 +184,29 @@ const Scorecard = () => {
     enabled: !!currentUser?.team_id,
   });
 
+  // Check if org has an active VTO for the "Create from VTO" button
+  const { data: hasActiveVTO } = useQuery({
+    queryKey: ["has-active-vto", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return false;
+
+      const { data, error } = await supabase
+        .from("vto")
+        .select("id")
+        .eq("organization_id", currentUser.team_id)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error checking VTO:", error);
+        return false;
+      }
+      return !!data;
+    },
+    enabled: !!currentUser?.team_id,
+  });
+
   // Auto-generate alerts when data is loaded
   useQuery({
     queryKey: ["generate-alerts", currentUser?.team_id],
@@ -330,14 +353,21 @@ const Scorecard = () => {
               <Settings className="w-4 h-4 mr-2" />
               Setup Wizard
             </Button>
-            <Button 
-              onClick={() => setCreateFromVTOOpen(true)}
-              className="gradient-brand"
-              disabled={!currentUser?.team_id}
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Create from V/TO
-            </Button>
+            <div className="relative group">
+              <Button 
+                onClick={() => setCreateFromVTOOpen(true)}
+                className="gradient-brand"
+                disabled={!currentUser?.team_id || !hasActiveVTO}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Create from V/TO
+              </Button>
+              {!hasActiveVTO && (
+                <div className="absolute top-full mt-1 right-0 w-64 text-xs text-muted-foreground bg-popover border rounded-md p-2 shadow-md hidden group-hover:block z-50">
+                  You need an active Vision Planner before we can suggest KPIs.
+                </div>
+              )}
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">

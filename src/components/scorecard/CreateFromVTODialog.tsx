@@ -14,7 +14,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, Target, TrendingUp, Mountain, Building2, Loader2, Check, Link as LinkIcon } from "lucide-react";
+import { 
+  Sparkles, 
+  Target, 
+  TrendingUp, 
+  Mountain, 
+  Building2, 
+  Loader2, 
+  Check, 
+  Link as LinkIcon,
+  AlertCircle,
+  FileWarning,
+  ServerCrash,
+  WifiOff
+} from "lucide-react";
 
 interface SuggestedMetric {
   name: string;
@@ -37,52 +50,121 @@ interface CreateFromVTODialogProps {
   onClose: () => void;
 }
 
+type Step = 'intro' | 'loading' | 'review' | 'creating' | 'done' | 'error';
+
+// Error code to UI mapping
+const ERROR_UI: Record<string, { title: string; body: string; icon: React.ReactNode }> = {
+  NO_ACTIVE_VTO: {
+    title: "No Vision Planner found",
+    body: "We could not find an active Vision Planner for this clinic. Finish your Vision Planner first, then we'll help you build the Scorecard from it.",
+    icon: <FileWarning className="h-10 w-10 text-amber-500" />,
+  },
+  VTO_QUERY_FAILED: {
+    title: "Problem loading your Vision Planner",
+    body: "We had a problem loading your Vision Planner. This is on us, not you. Please try again, and if it continues, contact support.",
+    icon: <ServerCrash className="h-10 w-10 text-destructive" />,
+  },
+  AI_OR_UNKNOWN_ERROR: {
+    title: "Could not generate suggestions",
+    body: "We ran into a problem generating scorecard suggestions. Please try again.",
+    icon: <AlertCircle className="h-10 w-10 text-destructive" />,
+  },
+  NETWORK_OR_UNKNOWN: {
+    title: "Connection problem",
+    body: "We could not reach the server. Please check your connection and try again.",
+    icon: <WifiOff className="h-10 w-10 text-destructive" />,
+  },
+};
+
 export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps) => {
   const { data: currentUser } = useCurrentUser();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [step, setStep] = useState<'loading' | 'review' | 'creating' | 'done'>('loading');
+  // Explicit state machine
+  const [step, setStep] = useState<Step>('intro');
   const [suggestedMetrics, setSuggestedMetrics] = useState<SuggestedMetric[]>([]);
   const [selectedMetrics, setSelectedMetrics] = useState<Set<number>>(new Set());
   const [goals, setGoals] = useState<VTOGoal[]>([]);
   const [vtoVersionId, setVtoVersionId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [createdCount, setCreatedCount] = useState(0);
 
-  // Fetch AI suggestions when dialog opens with timeout
-  const fetchSuggestionsMutation = useMutation({
-    mutationFn: async () => {
-      // Create a timeout promise
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timed out. Please try again.')), 60000);
-      });
+  // Reset all state to initial
+  const resetState = () => {
+    setStep('intro');
+    setSuggestedMetrics([]);
+    setSelectedMetrics(new Set());
+    setGoals([]);
+    setVtoVersionId(null);
+    setApiError(null);
+    setErrorCode(null);
+    setCreatedCount(0);
+  };
 
-      const fetchPromise = supabase.functions.invoke('ai-generate-scorecard-from-vto', {
-        body: { organization_id: currentUser?.team_id }
-      });
+  // Handle dialog close - always reset
+  const handleClose = () => {
+    resetState();
+    onClose();
+  };
 
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+  // Generate suggestions from VTO
+  const handleGenerate = async () => {
+    setStep('loading');
+    setApiError(null);
+    setErrorCode(null);
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke(
+        'ai-generate-scorecard-from-vto',
+        { body: { organization_id: currentUser?.team_id } }
+      );
 
-      return data;
-    },
-    onSuccess: (data) => {
-      setSuggestedMetrics(data.suggestedMetrics || []);
-      setGoals(data.goals || []);
-      setVtoVersionId(data.vtoVersionId);
+      // Handle network/invoke errors
+      if (invokeError) {
+        console.error('Function invoke error:', invokeError);
+        setErrorCode('NETWORK_OR_UNKNOWN');
+        setApiError('We could not reach the server. Please check your connection and try again.');
+        setStep('error');
+        return;
+      }
+
+      // Handle structured error response from edge function
+      if (data?.error) {
+        const { code, message } = data.error;
+        console.error('API error:', code, message);
+        setErrorCode(code || 'AI_OR_UNKNOWN_ERROR');
+        setApiError(message || 'An unexpected error occurred.');
+        setStep('error');
+        return;
+      }
+
+      // Handle missing data
+      if (!data?.data) {
+        console.error('No data in response:', data);
+        setErrorCode('AI_OR_UNKNOWN_ERROR');
+        setApiError('We ran into a problem generating scorecard suggestions. Please try again.');
+        setStep('error');
+        return;
+      }
+
+      // Success!
+      const responseData = data.data;
+      setSuggestedMetrics(responseData.suggestedMetrics || []);
+      setGoals(responseData.goals || []);
+      setVtoVersionId(responseData.vtoVersionId);
       // Select all by default
-      setSelectedMetrics(new Set((data.suggestedMetrics || []).map((_: any, i: number) => i)));
+      setSelectedMetrics(new Set((responseData.suggestedMetrics || []).map((_: any, i: number) => i)));
       setStep('review');
-    },
-    onError: (err: any) => {
-      console.error('AI suggestion error:', err);
-      setError(err.message || 'Failed to analyze V/TO. Please try again.');
-      setStep('review');
+
+    } catch (err: any) {
+      console.error('Unexpected error:', err);
+      setErrorCode('NETWORK_OR_UNKNOWN');
+      setApiError('We could not reach the server. Please check your connection and try again.');
+      setStep('error');
     }
-  });
+  };
 
   // Create selected metrics
   const createMetricsMutation = useMutation({
@@ -139,7 +221,7 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
       queryClient.invalidateQueries({ queryKey: ['scorecard-metrics'] });
       toast({
         title: "Scorecard Created!",
-        description: `Created ${count} metrics linked to your V/TO goals`,
+        description: `Created ${count} metrics linked to your Vision Planner goals`,
       });
     },
     onError: (err: any) => {
@@ -151,22 +233,10 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
     }
   });
 
-  // Start loading when dialog opens
+  // Handle dialog open/close
   const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen && step === 'loading') {
-      fetchSuggestionsMutation.mutate();
-    }
     if (!isOpen) {
-      onClose();
-      // Reset state after close
-      setTimeout(() => {
-        setStep('loading');
-        setSuggestedMetrics([]);
-        setSelectedMetrics(new Set());
-        setGoals([]);
-        setError(null);
-        setCreatedCount(0);
-      }, 300);
+      handleClose();
     }
   };
 
@@ -207,56 +277,96 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
     return goal.title.length > 40 ? goal.title.substring(0, 40) + '...' : goal.title;
   };
 
+  // Get error UI based on error code
+  const getErrorUI = () => {
+    const errorUI = ERROR_UI[errorCode || 'AI_OR_UNKNOWN_ERROR'] || ERROR_UI.AI_OR_UNKNOWN_ERROR;
+    return errorUI;
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            Create Scorecard from V/TO
+            Create Scorecard from Vision Planner
           </DialogTitle>
           <DialogDescription>
-            AI analyzes your V/TO goals and suggests KPIs to track on your weekly scorecard
+            AI analyzes your Vision Planner goals and suggests KPIs to track on your weekly scorecard
           </DialogDescription>
         </DialogHeader>
 
+        {/* INTRO STEP */}
+        {step === 'intro' && (
+          <div className="py-8 space-y-6">
+            <div className="text-center space-y-3">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                <Sparkles className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold">Let AI build your Scorecard</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                We'll read your long-term and short-term goals from your Vision Planner and 
+                suggest relevant KPIs to track weekly progress toward those goals.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-center pt-4">
+              <Button variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button onClick={handleGenerate} className="gradient-brand">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Generate Suggestions
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* LOADING STEP */}
         {step === 'loading' && (
           <div className="py-16 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-muted-foreground">Analyzing your V/TO goals...</p>
+            <p className="text-muted-foreground">Analyzing your Vision Planner goals and drafting KPI suggestions...</p>
             <p className="text-sm text-muted-foreground mt-2">This may take up to 30 seconds</p>
             <Button 
               variant="ghost" 
               size="sm" 
               className="mt-4"
-              onClick={onClose}
+              onClick={handleClose}
             >
               Cancel
             </Button>
           </div>
         )}
 
-        {step === 'review' && error && (
-          <div className="py-12 text-center">
-            <div className="text-destructive mb-4">{error}</div>
-            <div className="flex gap-3 justify-center">
-              <Button variant="outline" onClick={onClose}>Close</Button>
-              <Button onClick={() => {
-                setError(null);
-                setStep('loading');
-                fetchSuggestionsMutation.mutate();
-              }}>
+        {/* ERROR STEP */}
+        {step === 'error' && (
+          <div className="py-12 text-center space-y-4">
+            <div className="flex justify-center">
+              {getErrorUI().icon}
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">{getErrorUI().title}</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                {getErrorUI().body}
+              </p>
+            </div>
+            <div className="flex gap-3 justify-center pt-4">
+              <Button variant="outline" onClick={handleClose}>
+                Close
+              </Button>
+              <Button onClick={handleGenerate}>
                 Try Again
               </Button>
             </div>
           </div>
         )}
 
-        {step === 'review' && !error && (
+        {/* REVIEW STEP */}
+        {step === 'review' && (
           <div className="space-y-4">
             {/* Goals Summary */}
             <div className="p-3 bg-muted/50 rounded-lg">
-              <p className="text-sm font-medium mb-2">V/TO Goals Analyzed:</p>
+              <p className="text-sm font-medium mb-2">Vision Planner Goals Analyzed:</p>
               <div className="flex flex-wrap gap-1">
                 {goals.slice(0, 5).map((goal, i) => (
                   <Badge key={i} variant="outline" className="text-xs">
@@ -269,6 +379,11 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
                 )}
               </div>
             </div>
+
+            {/* Intro text */}
+            <p className="text-sm text-muted-foreground">
+              Select which KPIs you want to add to your Scorecard. You can adjust them later.
+            </p>
 
             {/* Suggested Metrics */}
             <div>
@@ -337,7 +452,7 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
 
             {/* Actions */}
             <div className="flex gap-3 pt-2 border-t">
-              <Button variant="outline" onClick={onClose} className="flex-1">
+              <Button variant="outline" onClick={handleClose} className="flex-1">
                 Cancel
               </Button>
               <Button
@@ -355,16 +470,18 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
           </div>
         )}
 
+        {/* CREATING STEP */}
         {step === 'creating' && (
           <div className="py-16 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-muted-foreground">Creating metrics and linking to V/TO...</p>
+            <p className="text-muted-foreground">Creating metrics and linking to Vision Planner...</p>
             <p className="text-sm text-muted-foreground mt-2">
               {createdCount} of {selectedMetrics.size} created
             </p>
           </div>
         )}
 
+        {/* DONE STEP */}
         {step === 'done' && (
           <div className="py-12 text-center">
             <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
@@ -372,9 +489,9 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
             </div>
             <h3 className="text-lg font-semibold mb-2">Scorecard Created!</h3>
             <p className="text-muted-foreground mb-6">
-              {createdCount} metrics are now tracking progress toward your V/TO goals
+              {createdCount} metrics are now tracking progress toward your Vision Planner goals
             </p>
-            <Button onClick={onClose} className="gradient-brand">
+            <Button onClick={handleClose} className="gradient-brand">
               View Scorecard
             </Button>
           </div>
