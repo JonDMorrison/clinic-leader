@@ -6,10 +6,10 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const actionVariants = {
-  brand: "from-brand/20 to-brand/5 border-brand/30 hover:shadow-[0_8px_32px_rgba(139,92,246,0.2)]",
-  success: "from-success/20 to-success/5 border-success/30 hover:shadow-[0_8px_32px_rgba(34,197,94,0.2)]",
-  warning: "from-warning/20 to-warning/5 border-warning/30 hover:shadow-[0_8px_32px_rgba(251,146,60,0.2)]",
-  accent: "from-accent/20 to-accent/5 border-accent/30 hover:shadow-[0_8px_32px_rgba(14,165,233,0.2)]",
+  brand: "from-brand/20 to-brand/5 border-brand/30 hover:shadow-[0_8px_32px_hsl(210_100%_50%_/_0.2)]",
+  success: "from-success/20 to-success/5 border-success/30 hover:shadow-[0_8px_32px_hsl(142_76%_42%_/_0.2)]",
+  warning: "from-warning/20 to-warning/5 border-warning/30 hover:shadow-[0_8px_32px_hsl(38_92%_55%_/_0.2)]",
+  accent: "from-accent/20 to-accent/5 border-accent/30 hover:shadow-[0_8px_32px_hsl(172_100%_48%_/_0.2)]",
 };
 
 export const QuickActions = () => {
@@ -86,7 +86,7 @@ export const QuickActions = () => {
   const actions = userRole === "staff" ? staffActions : managerActions;
 
   return (
-    <div className="glass rounded-3xl p-6 border border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)]">
+    <div className="glass rounded-3xl p-6 border border-border/30 shadow-[0_8px_32px_hsl(210_30%_30%_/_0.08)]">
       <h3 className="text-lg font-semibold mb-4 text-foreground">Quick Actions</h3>
       <div className="grid grid-cols-2 gap-3 auto-rows-fr">
         {actions.map((action, index) => (
