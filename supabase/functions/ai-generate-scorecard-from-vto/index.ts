@@ -47,8 +47,9 @@ serve(async (req) => {
       .from('vto')
       .select(`
         id,
-        vto_versions!inner(
+        vto_versions(
           id,
+          version,
           ten_year_target,
           three_year_picture,
           one_year_plan,
@@ -59,15 +60,21 @@ serve(async (req) => {
       `)
       .eq('organization_id', organization_id)
       .eq('is_active', true)
-      .order('vto_versions(version)', { ascending: false })
       .limit(1)
       .single();
 
-    if (vtoError || !vto) {
+    if (vtoError) {
+      console.error('VTO query error:', vtoError);
       throw new Error('No active V/TO found. Please create your V/TO first.');
     }
+    
+    if (!vto || !vto.vto_versions || vto.vto_versions.length === 0) {
+      throw new Error('No V/TO version found. Please create your V/TO first.');
+    }
 
-    const version = (vto.vto_versions as any[])[0];
+    // Sort versions to get the latest
+    const versions = (vto.vto_versions as any[]).sort((a, b) => (b.version || 0) - (a.version || 0));
+    const version = versions[0];
     const threeYearPicture = version.three_year_picture || {};
     const oneYearPlan = version.one_year_plan || {};
     const quarterlyRocks = version.quarterly_rocks || [];
