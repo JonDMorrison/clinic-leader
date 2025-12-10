@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sparklines, SparklinesLine } from "react-sparklines";
 import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight } from "lucide-react";

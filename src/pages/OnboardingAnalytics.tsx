@@ -10,8 +10,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui/Table";
+import { Badge } from "@/components/ui/Badge";
 import { Users, CheckCircle, Clock, TrendingUp, RefreshCw } from "lucide-react";
 import { userTourService } from "@/lib/userTourService";
 import { toast } from "sonner";
@@ -165,7 +165,7 @@ export default function OnboardingAnalytics() {
                   <TableCell className="font-medium">{user.full_name}</TableCell>
                   <TableCell className="text-muted-foreground">{user.email}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="rounded-lg">
+                    <Badge variant="muted" className="rounded-lg">
                       {user.team_name || "No Team"}
                     </Badge>
                   </TableCell>
@@ -194,7 +194,7 @@ export default function OnboardingAnalytics() {
               ))}
               {(!userDetails || userDetails.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell className="text-center text-muted-foreground py-8">
                     No users found
                   </TableCell>
                 </TableRow>

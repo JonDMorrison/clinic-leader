@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 import { X, PartyPopper, AlertCircle, ArrowRight } from "lucide-react";
 import { getCurrentQuarter } from "@/lib/rocks/templates";
 
@@ -31,7 +31,7 @@ export function QuarterTransitionBanner({
             <div className="flex items-center gap-2">
               <PartyPopper className="h-5 w-5 text-primary" />
               <h3 className="font-semibold text-lg">Quarter Complete!</h3>
-              <Badge variant="outline" className="ml-2">
+              <Badge variant="muted" className="ml-2">
                 {currentQuarter}
               </Badge>
             </div>

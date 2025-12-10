@@ -65,7 +65,7 @@ export function MetricMappingTable({ mappings, availableMetrics, onMappingChange
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Badge variant={isHighConfidence ? "default" : "secondary"}>
+                  <Badge variant={isHighConfidence ? "success" : "muted"}>
                     {mapping.confidence}%
                   </Badge>
                 </TableCell>
