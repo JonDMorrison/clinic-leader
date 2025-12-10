@@ -1,5 +1,11 @@
 project_id = "uyfsfmxwrbukfhkskizu"
 
+[functions.vto-create-snapshot]
+verify_jwt = false
+
+[functions.vto-restore-version]
+verify_jwt = false
+
 [functions.ai-review-scorecard-against-vto]
 verify_jwt = false
 
