@@ -14,6 +14,7 @@ import { LoadDefaultRocksDialog } from "@/components/rocks/LoadDefaultRocksDialo
 import { QuarterTransitionBanner } from "@/components/rocks/QuarterTransitionBanner";
 import { ArchiveRocksDialog } from "@/components/rocks/ArchiveRocksDialog";
 import { getCurrentQuarter } from "@/lib/rocks/templates";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
   DndContext,
   DragEndEvent,
@@ -40,48 +41,45 @@ const Rocks = () => {
   const [activeRock, setActiveRock] = useState<any>(null);
   const currentQuarter = getCurrentQuarter();
 
-  const { data: rocks, isLoading, refetch } = useQuery({
-    queryKey: ["rocks"],
+  // Use centralized current user hook for org context
+  const { data: currentUser, isLoading: userLoading } = useCurrentUser();
+  const organizationId = currentUser?.team_id;
+
+  const { data: rocks, isLoading: rocksLoading, refetch } = useQuery({
+    queryKey: ["rocks", organizationId],
     queryFn: async () => {
+      if (!organizationId) return [];
+      
       const { data, error } = await supabase
         .from("rocks")
         .select("*, users(full_name)")
+        .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
       
       if (error) throw error;
       return data;
     },
+    enabled: !!organizationId,
   });
 
   const { data: users } = useQuery({
-    queryKey: ["users"],
+    queryKey: ["users", organizationId],
     queryFn: async () => {
+      if (!organizationId) return [];
+      
       const { data, error } = await supabase
         .from("users")
         .select("id, full_name")
+        .eq("team_id", organizationId)
         .order("full_name");
       
       if (error) throw error;
       return data;
     },
+    enabled: !!organizationId,
   });
 
-  const { data: currentUser } = useQuery({
-    queryKey: ["current-user"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      const { data, error } = await supabase
-        .from("users")
-        .select("team_id")
-        .eq("email", user.email)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-  });
+  const isLoading = userLoading || rocksLoading;
 
   const quarters = useMemo(() => {
     if (!rocks) return [];
@@ -258,8 +256,9 @@ const Rocks = () => {
       <NewRockModal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        users={users}
+        users={users || []}
         onSuccess={refetch}
+        organizationId={organizationId || ''}
       />
 
       <LoadDefaultRocksDialog
@@ -346,7 +345,7 @@ const Rocks = () => {
         </DndContext>
       )}
 
-      <NewRockModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={refetch} />
+      <NewRockModal open={isModalOpen} onClose={() => setIsModalOpen(false)} users={users || []} onSuccess={refetch} organizationId={organizationId || ''} />
       
       <LoadDefaultRocksDialog 
         open={loadDefaultsOpen}

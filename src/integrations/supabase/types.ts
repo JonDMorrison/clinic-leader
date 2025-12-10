@@ -1995,6 +1995,7 @@ export type Database = {
           id: string
           level: Database["public"]["Enums"]["rock_level"]
           note: string | null
+          organization_id: string | null
           owner_id: string | null
           quarter: string
           status: Database["public"]["Enums"]["rock_status"]
@@ -2011,6 +2012,7 @@ export type Database = {
           id?: string
           level: Database["public"]["Enums"]["rock_level"]
           note?: string | null
+          organization_id?: string | null
           owner_id?: string | null
           quarter: string
           status?: Database["public"]["Enums"]["rock_status"]
@@ -2027,6 +2029,7 @@ export type Database = {
           id?: string
           level?: Database["public"]["Enums"]["rock_level"]
           note?: string | null
+          organization_id?: string | null
           owner_id?: string | null
           quarter?: string
           status?: Database["public"]["Enums"]["rock_status"]
@@ -2039,6 +2042,13 @@ export type Database = {
             columns: ["default_batch_id"]
             isOneToOne: false
             referencedRelation: "rock_default_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rocks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
