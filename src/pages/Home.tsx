@@ -260,6 +260,7 @@ const Home = () => {
           icon={<AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-warning" />}
           variant="warning"
           tooltip="Issues requiring attention"
+          href="/issues"
         />
         <Stat
           label="Active KPIs"
@@ -267,6 +268,7 @@ const Home = () => {
           icon={<TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-accent" />}
           variant="accent"
           tooltip="Key metrics being tracked"
+          href="/scorecard"
         />
       </motion.div>
 

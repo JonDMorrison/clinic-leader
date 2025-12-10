@@ -4,6 +4,7 @@ import { ReactNode, useState } from "react";
 import { AnimatedCounter } from "./AnimatedCounter";
 import { motion } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Link } from "react-router-dom";
 
 interface StatProps {
   label: string;
@@ -12,9 +13,10 @@ interface StatProps {
   variant?: "default" | "brand" | "success" | "warning" | "accent";
   className?: string;
   tooltip?: string;
+  href?: string;
 }
 
-export const Stat = ({ label, value, icon, variant = "default", className, tooltip }: StatProps) => {
+export const Stat = ({ label, value, icon, variant = "default", className, tooltip, href }: StatProps) => {
   const [isPressed, setIsPressed] = useState(false);
 
   const getGradientClass = () => {
@@ -135,12 +137,18 @@ export const Stat = ({ label, value, icon, variant = "default", className, toolt
     </motion.div>
   );
 
+  const wrappedContent = href ? (
+    <Link to={href} className="block">
+      {content}
+    </Link>
+  ) : content;
+
   if (tooltip) {
     return (
       <TooltipProvider delayDuration={300}>
         <Tooltip>
           <TooltipTrigger asChild>
-            {content}
+            {wrappedContent}
           </TooltipTrigger>
           <TooltipContent>
             <p className="text-sm">{tooltip}</p>
@@ -150,5 +158,5 @@ export const Stat = ({ label, value, icon, variant = "default", className, toolt
     );
   }
 
-  return content;
+  return wrappedContent;
 };
