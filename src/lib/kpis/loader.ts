@@ -37,7 +37,7 @@ export async function loadDefaultKPIs(options: LoadDefaultsOptions): Promise<Loa
       return { success: false, createdCount: 0, skippedNames: [], error: "Template not found" };
     }
 
-    // Create batch record
+    // Create batch record (keep for tracking purposes)
     const { data: batch, error: batchError } = await supabase
       .from("kpi_default_batches")
       .insert({
@@ -62,15 +62,15 @@ export async function loadDefaultKPIs(options: LoadDefaultsOptions): Promise<Loa
       }
     });
 
-    // Get existing KPIs for this org
-    const { data: existingKPIs } = await supabase
-      .from("kpis")
-      .select("name, owner_id")
-      .eq("active", true);
+    // Get existing metrics for this org (use metrics table, not kpis)
+    const { data: existingMetrics } = await supabase
+      .from("metrics")
+      .select("name")
+      .eq("organization_id", organizationId);
 
-    const existingNames = new Set((existingKPIs || []).map(k => k.name));
+    const existingNames = new Set((existingMetrics || []).map(k => k.name));
     const skippedNames: string[] = [];
-    const kpisToCreate: any[] = [];
+    const metricsToCreate: any[] = [];
 
     // Get users for auto-owner assignment
     let usersByRole: Record<string, string> = {};
@@ -90,7 +90,7 @@ export async function loadDefaultKPIs(options: LoadDefaultsOptions): Promise<Loa
       }
     }
 
-    // Process each KPI
+    // Process each metric
     allItems.forEach((item, index) => {
       if (existingNames.has(item.name)) {
         skippedNames.push(item.name);
@@ -101,27 +101,25 @@ export async function loadDefaultKPIs(options: LoadDefaultsOptions): Promise<Loa
         ? suggestOwnerByGroup(item.group, usersByRole, createdBy || "")
         : (ownerUserId || createdBy);
 
-      kpisToCreate.push({
+      // Insert into metrics table (what Scorecard.tsx actually queries)
+      metricsToCreate.push({
         name: item.name,
         unit: item.unit,
         direction: item.direction,
         category: item.group,
-        display_group: item.group,
-        display_order: index,
-        owner_id: ownerId,
+        organization_id: organizationId,
+        owner: ownerId || null,
         target: includeTargets ? item.sample_target : null,
-        default_batch_id: batch.id,
-        is_computed: item.is_computed || false,
-        expression: item.expression || null,
-        active: true
+        sync_source: "manual",
+        display_priority: index
       });
     });
 
-    // Batch insert
-    if (kpisToCreate.length > 0) {
+    // Batch insert into metrics table
+    if (metricsToCreate.length > 0) {
       const { error: insertError } = await supabase
-        .from("kpis")
-        .insert(kpisToCreate);
+        .from("metrics")
+        .insert(metricsToCreate);
 
       if (insertError) {
         return { 
@@ -136,7 +134,7 @@ export async function loadDefaultKPIs(options: LoadDefaultsOptions): Promise<Loa
 
     return {
       success: true,
-      createdCount: kpisToCreate.length,
+      createdCount: metricsToCreate.length,
       skippedNames,
       batchId: batch.id
     };
@@ -191,13 +189,13 @@ export async function previewDefaultKPIs(options: LoadDefaultsOptions) {
     }
   });
 
-  // Get existing KPIs
-  const { data: existingKPIs } = await supabase
-    .from("kpis")
+  // Get existing metrics (use metrics table, not kpis)
+  const { data: existingMetrics } = await supabase
+    .from("metrics")
     .select("name")
-    .eq("active", true);
+    .eq("organization_id", organizationId);
 
-  const existingNames = new Set((existingKPIs || []).map(k => k.name));
+  const existingNames = new Set((existingMetrics || []).map(k => k.name));
 
   // Get users for owner suggestions
   let usersByRole: Record<string, any> = {};
