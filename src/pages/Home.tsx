@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stat } from "@/components/ui/Stat";
 import { KpiSparkline } from "@/components/ui/KpiSparkline";
 import { TrendingUp, Users, Target, AlertCircle } from "lucide-react";
