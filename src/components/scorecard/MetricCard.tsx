@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
+import { LinkedRocksBadges } from "./LinkedRocksBadges";
 
 interface MetricData {
   id: string;
@@ -263,6 +264,14 @@ export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Linked Priorities Section */}
+          <div className="pt-2 border-t border-border/50">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-1">
+              <span>Linked Priorities</span>
+            </div>
+            <LinkedRocksBadges metric={{ id: metric.id, name: metric.name }} />
           </div>
 
           {/* Actions */}

@@ -1928,6 +1928,62 @@ export type Database = {
         }
         Relationships: []
       }
+      rock_metric_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          metric_id: string
+          organization_id: string
+          rock_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metric_id: string
+          organization_id: string
+          rock_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metric_id?: string
+          organization_id?: string
+          rock_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rock_metric_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rock_metric_links_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rock_metric_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rock_metric_links_rock_id_fkey"
+            columns: ["rock_id"]
+            isOneToOne: false
+            referencedRelation: "rocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rocks: {
         Row: {
           confidence: number | null
