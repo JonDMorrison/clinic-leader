@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone, Plug, Sparkles, Compass, LucideIcon, ChevronDown, Settings, Palette, CreditCard, TestTube, UserCog, Cpu, FileSpreadsheet, History } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone, Plug, Sparkles, Compass, LucideIcon, ChevronDown, Settings, Palette, CreditCard, TestTube, UserCog, Cpu, FileSpreadsheet, History, FileUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HelpMenu } from "@/components/layout/HelpMenu";
 import { useQuery } from "@tanstack/react-query";
@@ -66,6 +66,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Imports", path: "/imports", icon: Upload, roles: ["manager", "director", "owner"] },
       { title: "Monthly Report", path: "/imports/monthly-report", icon: FileSpreadsheet, roles: ["manager", "director", "owner"] },
+      { title: "PDF Report", path: "/imports/pdf-report", icon: FileUp, roles: ["manager", "director", "owner"] },
       { title: "Reports", path: "/reports", icon: FileBarChart, roles: ["manager", "director", "owner"] },
     ],
     alwaysOpen: true,

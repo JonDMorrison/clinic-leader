@@ -1,5 +1,8 @@
 project_id = "uyfsfmxwrbukfhkskizu"
 
+[functions.parse-pdf-report]
+verify_jwt = false
+
 [functions.vto-create-snapshot]
 verify_jwt = false
 
@@ -180,3 +183,8 @@ verify_jwt = false
 [functions.vto-diff-impact]
 verify_jwt = false
 
+[functions.ai-query-single-doc]
+verify_jwt = false
+
+[functions.migrate-clarity-to-vto]
+verify_jwt = false

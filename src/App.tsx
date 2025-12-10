@@ -67,6 +67,7 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminIngestion from "./pages/AdminIngestion";
 import SetPassword from "./pages/SetPassword";
 import AdminPasswordDiagnostic from "./pages/AdminPasswordDiagnostic";
+import ImportPdfReport from "./pages/ImportPdfReport";
 
 const queryClient = new QueryClient();
 
@@ -188,6 +189,7 @@ const App = () => {
             <Route path="/imports/kpis" element={<AppLayout><ImportKpis /></AppLayout>} />
             <Route path="/imports/sops" element={<AppLayout><ImportSops /></AppLayout>} />
             <Route path="/imports/monthly-report" element={<AppLayout><ImportMonthlyReport /></AppLayout>} />
+            <Route path="/imports/pdf-report" element={<AppLayout><ImportPdfReport /></AppLayout>} />
             <Route path="/imports/mapping" element={<AppLayout><ImportMapping /></AppLayout>} />
             <Route path="/settings/organization" element={<AppLayout><OrganizationSettings /></AppLayout>} />
             <Route path="/settings/team" element={<AppLayout><TeamManagement /></AppLayout>} />
