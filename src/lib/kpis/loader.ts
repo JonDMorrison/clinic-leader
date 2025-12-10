@@ -31,6 +31,11 @@ export async function loadDefaultKPIs(options: LoadDefaultsOptions): Promise<Loa
   } = options;
 
   try {
+    // Validate organizationId
+    if (!organizationId || organizationId.trim() === "") {
+      return { success: false, createdCount: 0, skippedNames: [], error: "No organization ID provided" };
+    }
+
     // Get template
     const template = KPI_TEMPLATES[templateKey];
     if (!template) {

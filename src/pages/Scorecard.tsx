@@ -334,7 +334,10 @@ const Scorecard = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setLoadDefaultsOpen(true)}>
+                <DropdownMenuItem 
+                  onClick={() => setLoadDefaultsOpen(true)}
+                  disabled={!currentUser?.team_id}
+                >
                   Load Defaults
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>

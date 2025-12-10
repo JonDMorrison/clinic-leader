@@ -254,7 +254,10 @@ export function LoadDefaultsDialog({ open, onOpenChange, organizationId }: LoadD
               <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button onClick={handleNext} disabled={loadMutation.isPending}>
+              <Button 
+                onClick={handleNext} 
+                disabled={loadMutation.isPending || !organizationId}
+              >
                 {step === 1 && "Preview"}
                 {step === 2 && ownerMode === "custom" && "Assign Owners"}
                 {(step === 2 && ownerMode !== "custom") || step === 3 ? "Load KPIs" : ""}
