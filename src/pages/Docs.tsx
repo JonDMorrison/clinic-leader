@@ -16,7 +16,7 @@ import { AckPanel } from "@/components/docs/AckPanel";
 import { ManagerDashboard } from "@/components/docs/ManagerDashboard";
 import { DocChat } from "@/components/docs/DocChat";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Card, CardContent } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/card";
 import { HandbookViewer } from "@/components/docs/HandbookViewer";
 import { DocsAIChat } from "@/components/docs/DocsAIChat";
 import { BulkUploadModal } from "@/components/docs/BulkUploadModal";

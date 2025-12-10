@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Lightbulb, ExternalLink } from "lucide-react";
 import { suggestMappings, formatSuggestions } from "@/lib/kpis/suggest";

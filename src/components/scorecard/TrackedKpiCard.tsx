@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Link } from "lucide-react";
 
 interface TrackedKpiCardProps {
