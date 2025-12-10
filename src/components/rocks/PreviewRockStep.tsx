@@ -1,4 +1,4 @@
-import { Badge as CustomBadge } from "@/components/ui/Badge";
+import { Badge as CustomBadge } from "@/components/ui/badge";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
 interface PreviewRockStepProps {

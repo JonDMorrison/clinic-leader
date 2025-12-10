@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import { Target, ExternalLink } from "lucide-react";
 import { useVTOLinks, getGoalDescription } from "@/hooks/useVTOLinks";
 import { useNavigate } from "react-router-dom";

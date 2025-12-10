@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import { X, PartyPopper, AlertCircle, ArrowRight } from "lucide-react";
 import { getCurrentQuarter } from "@/lib/rocks/templates";
 

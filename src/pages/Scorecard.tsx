@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AddKpiModal } from "@/components/scorecard/AddKpiModal";
 import { LoadDefaultsDialog } from "@/components/scorecard/LoadDefaultsDialog";
 import { ScorecardOnboardingWizard } from "@/components/scorecard/ScorecardOnboardingWizard";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,

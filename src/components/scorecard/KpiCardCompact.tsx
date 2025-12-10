@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { MoreVertical, Edit2, Trash2, Pause, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { KpiSparkline } from "@/components/ui/KpiSparkline";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";

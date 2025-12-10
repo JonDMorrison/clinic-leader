@@ -1,5 +1,5 @@
 import { FileDropZone } from "@/components/imports/FileDropZone";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ImportSops() {

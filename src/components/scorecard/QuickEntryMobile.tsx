@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Check, X } from "lucide-react";
 import { startOfWeek, format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 
 interface QuickEntryMobileProps {
   organizationId: string;
