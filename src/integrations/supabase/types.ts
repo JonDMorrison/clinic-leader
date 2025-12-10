@@ -2225,6 +2225,7 @@ export type Database = {
           timezone: string | null
           unit_system: string | null
           updated_at: string
+          vto_last_impact_result: Json | null
         }
         Insert: {
           brand_color?: string | null
@@ -2250,6 +2251,7 @@ export type Database = {
           timezone?: string | null
           unit_system?: string | null
           updated_at?: string
+          vto_last_impact_result?: Json | null
         }
         Update: {
           brand_color?: string | null
@@ -2275,6 +2277,7 @@ export type Database = {
           timezone?: string | null
           unit_system?: string | null
           updated_at?: string
+          vto_last_impact_result?: Json | null
         }
         Relationships: []
       }

@@ -171,3 +171,6 @@ verify_jwt = false
 [functions.ai-generate-rocks-from-scorecard]
 verify_jwt = false
 
+[functions.vto-diff-impact]
+verify_jwt = false
+
