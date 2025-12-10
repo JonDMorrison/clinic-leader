@@ -50,28 +50,36 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
   const [error, setError] = useState<string | null>(null);
   const [createdCount, setCreatedCount] = useState(0);
 
-  // Fetch AI suggestions when dialog opens
+  // Fetch AI suggestions when dialog opens with timeout
   const fetchSuggestionsMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('ai-generate-scorecard-from-vto', {
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timed out. Please try again.')), 60000);
+      });
+
+      const fetchPromise = supabase.functions.invoke('ai-generate-scorecard-from-vto', {
         body: { organization_id: currentUser?.team_id }
       });
 
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+
       if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (data?.error) throw new Error(data.error);
 
       return data;
     },
     onSuccess: (data) => {
-      setSuggestedMetrics(data.suggestedMetrics);
-      setGoals(data.goals);
+      setSuggestedMetrics(data.suggestedMetrics || []);
+      setGoals(data.goals || []);
       setVtoVersionId(data.vtoVersionId);
       // Select all by default
-      setSelectedMetrics(new Set(data.suggestedMetrics.map((_: any, i: number) => i)));
+      setSelectedMetrics(new Set((data.suggestedMetrics || []).map((_: any, i: number) => i)));
       setStep('review');
     },
     onError: (err: any) => {
-      setError(err.message);
+      console.error('AI suggestion error:', err);
+      setError(err.message || 'Failed to analyze V/TO. Please try again.');
       setStep('review');
     }
   });
@@ -216,14 +224,31 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
           <div className="py-16 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
             <p className="text-muted-foreground">Analyzing your V/TO goals...</p>
-            <p className="text-sm text-muted-foreground mt-2">This may take a few seconds</p>
+            <p className="text-sm text-muted-foreground mt-2">This may take up to 30 seconds</p>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="mt-4"
+              onClick={onClose}
+            >
+              Cancel
+            </Button>
           </div>
         )}
 
         {step === 'review' && error && (
           <div className="py-12 text-center">
-            <p className="text-destructive mb-4">{error}</p>
-            <Button onClick={onClose}>Close</Button>
+            <div className="text-destructive mb-4">{error}</div>
+            <div className="flex gap-3 justify-center">
+              <Button variant="outline" onClick={onClose}>Close</Button>
+              <Button onClick={() => {
+                setError(null);
+                setStep('loading');
+                fetchSuggestionsMutation.mutate();
+              }}>
+                Try Again
+              </Button>
+            </div>
           </div>
         )}
 
