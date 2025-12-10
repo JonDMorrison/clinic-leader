@@ -2826,6 +2826,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           id: string
+          issues: Json | null
           issues_company: Json | null
           issues_department: Json | null
           issues_personal: Json | null
@@ -2848,6 +2849,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          issues?: Json | null
           issues_company?: Json | null
           issues_department?: Json | null
           issues_personal?: Json | null
@@ -2870,6 +2872,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          issues?: Json | null
           issues_company?: Json | null
           issues_department?: Json | null
           issues_personal?: Json | null
