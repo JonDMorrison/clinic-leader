@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { LoadDefaultRocksDialog } from "@/components/rocks/LoadDefaultRocksDialog";
 import { QuarterTransitionBanner } from "@/components/rocks/QuarterTransitionBanner";
 import { ArchiveRocksDialog } from "@/components/rocks/ArchiveRocksDialog";
+import { VTOAlignmentBanner } from "@/components/vto/VTOAlignmentBanner";
 import { getCurrentQuarter } from "@/lib/rocks/templates";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
@@ -220,6 +221,9 @@ const Rocks = () => {
 
   return (
     <div className="space-y-6">
+      {/* VTO Alignment Banner */}
+      <VTOAlignmentBanner />
+
       {/* Quarterly Transition Banner */}
       {showTransitionBanner && (
         <QuarterTransitionBanner

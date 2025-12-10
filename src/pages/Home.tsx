@@ -16,6 +16,7 @@ import { HelpHint } from "@/components/help/HelpHint";
 import { ValuesList } from "@/components/people/ValuesList";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
+import { VTOAlignmentBanner } from "@/components/vto/VTOAlignmentBanner";
 
 const Home = () => {
   const ref = useRef(null);
@@ -230,6 +231,9 @@ const Home = () => {
           Welcome back! Here's your clinic overview.
         </p>
       </motion.div>
+
+      {/* VTO Alignment Banner */}
+      <VTOAlignmentBanner />
 
       {/* Getting Started Widget */}
       <GettingStartedWidget />
