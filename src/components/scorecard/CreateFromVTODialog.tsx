@@ -285,7 +285,7 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh]">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
@@ -363,9 +363,9 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
 
         {/* REVIEW STEP */}
         {step === 'review' && (
-          <div className="space-y-4">
-            {/* Goals Summary */}
-            <div className="p-3 bg-muted/50 rounded-lg">
+          <div className="flex flex-col overflow-hidden flex-1 min-h-0">
+            {/* Goals Summary - fixed */}
+            <div className="flex-shrink-0 p-3 bg-muted/50 rounded-lg">
               <p className="text-sm font-medium mb-2">Vision Planner Goals Analyzed:</p>
               <div className="flex flex-wrap gap-1">
                 {goals.slice(0, 5).map((goal, i) => (
@@ -380,78 +380,77 @@ export const CreateFromVTODialog = ({ open, onClose }: CreateFromVTODialogProps)
               </div>
             </div>
 
-            {/* Intro text */}
-            <p className="text-sm text-muted-foreground">
+            {/* Intro text - fixed */}
+            <p className="flex-shrink-0 text-sm text-muted-foreground py-3">
               Select which KPIs you want to add to your Scorecard. You can adjust them later.
             </p>
 
-            {/* Suggested Metrics */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium">Suggested Metrics ({suggestedMetrics.length})</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (selectedMetrics.size === suggestedMetrics.length) {
-                      setSelectedMetrics(new Set());
-                    } else {
-                      setSelectedMetrics(new Set(suggestedMetrics.map((_, i) => i)));
-                    }
-                  }}
-                >
-                  {selectedMetrics.size === suggestedMetrics.length ? 'Deselect All' : 'Select All'}
-                </Button>
-              </div>
+            {/* Metrics header - fixed */}
+            <div className="flex-shrink-0 flex items-center justify-between mb-2">
+              <p className="text-sm font-medium">Suggested Metrics ({suggestedMetrics.length})</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (selectedMetrics.size === suggestedMetrics.length) {
+                    setSelectedMetrics(new Set());
+                  } else {
+                    setSelectedMetrics(new Set(suggestedMetrics.map((_, i) => i)));
+                  }
+                }}
+              >
+                {selectedMetrics.size === suggestedMetrics.length ? 'Deselect All' : 'Select All'}
+              </Button>
+            </div>
 
-              <ScrollArea className="h-[350px] pr-4">
-                <div className="space-y-3">
-                  {suggestedMetrics.map((metric, index) => (
-                    <div
-                      key={index}
-                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedMetrics.has(index)
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-muted-foreground'
-                      }`}
-                      onClick={() => toggleMetric(index)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={selectedMetrics.has(index)}
-                          onCheckedChange={() => toggleMetric(index)}
-                          className="mt-1"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium">{metric.name}</span>
-                            <Badge variant="outline" className={`text-xs ${getCategoryColor(metric.category)}`}>
-                              {metric.category}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-                            <span>
-                              Target: {metric.target !== null ? `${metric.unit === '$' ? '$' : ''}${metric.target}${metric.unit === '%' ? '%' : ''} ${metric.unit === '#' ? '' : ''}` : 'TBD'}
-                            </span>
-                            <span>
-                              {metric.direction === 'up' ? '↑ Higher is better' : '↓ Lower is better'}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mb-2">{metric.rationale}</p>
-                          <div className="flex items-center gap-1 text-xs">
-                            <LinkIcon className="h-3 w-3 text-primary" />
-                            <span className="text-primary">Links to: {getGoalLabel(metric.linkedGoalKey)}</span>
-                          </div>
+            {/* ScrollArea - flexible, takes remaining space */}
+            <ScrollArea className="flex-1 min-h-0 pr-2">
+              <div className="space-y-3 pb-2">
+                {suggestedMetrics.map((metric, index) => (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg border cursor-pointer transition-colors overflow-hidden ${
+                      selectedMetrics.has(index)
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-muted-foreground'
+                    }`}
+                    onClick={() => toggleMetric(index)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={selectedMetrics.has(index)}
+                        onCheckedChange={() => toggleMetric(index)}
+                        className="mt-1 flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-medium truncate max-w-[280px]">{metric.name}</span>
+                          <Badge variant="outline" className={`text-xs flex-shrink-0 ${getCategoryColor(metric.category)}`}>
+                            {metric.category}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2 flex-wrap">
+                          <span>
+                            Target: {metric.target !== null ? `${metric.unit === '$' ? '$' : ''}${metric.target}${metric.unit === '%' ? '%' : ''} ${metric.unit === '#' ? '' : ''}` : 'TBD'}
+                          </span>
+                          <span>
+                            {metric.direction === 'up' ? '↑ Higher is better' : '↓ Lower is better'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">{metric.rationale}</p>
+                        <div className="flex items-center gap-1 text-xs overflow-hidden">
+                          <LinkIcon className="h-3 w-3 text-primary flex-shrink-0" />
+                          <span className="text-primary truncate">Links to: {getGoalLabel(metric.linkedGoalKey)}</span>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-2 border-t">
+            {/* Actions - fixed at bottom */}
+            <div className="flex-shrink-0 flex gap-3 pt-4 border-t mt-2">
               <Button variant="outline" onClick={handleClose} className="flex-1">
                 Cancel
               </Button>
