@@ -159,4 +159,6 @@ verify_jwt = false
 [functions.parse-monthly-report]
 verify_jwt = false
 
+[functions.ai-generate-scorecard-from-vto]
+verify_jwt = false
 
