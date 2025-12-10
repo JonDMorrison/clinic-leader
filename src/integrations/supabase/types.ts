@@ -1997,8 +1997,10 @@ export type Database = {
       seats: {
         Row: {
           created_at: string
+          department_id: string | null
           id: string
           organization_id: string | null
+          reports_to: string | null
           responsibilities: string[] | null
           title: string
           updated_at: string
@@ -2006,8 +2008,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          department_id?: string | null
           id?: string
           organization_id?: string | null
+          reports_to?: string | null
           responsibilities?: string[] | null
           title: string
           updated_at?: string
@@ -2015,14 +2019,30 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          department_id?: string | null
           id?: string
           organization_id?: string | null
+          reports_to?: string | null
           responsibilities?: string[] | null
           title?: string
           updated_at?: string
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "seats_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seats_reports_to_fkey"
+            columns: ["reports_to"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "seats_user_id_fkey"
             columns: ["user_id"]

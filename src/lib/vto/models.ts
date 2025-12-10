@@ -15,11 +15,37 @@ export interface CoreFocus {
   niche: string;
 }
 
+// Enhanced Proven Process with hierarchical steps
+export interface ProvenProcessStep {
+  id: string;
+  title: string;
+  description?: string;
+  sub_steps?: Array<{ id: string; title: string }>;
+  order: number;
+}
+
+// Support both legacy string and new hierarchical format
+export type ProvenProcess = string | ProvenProcessStep[];
+
 export interface MarketingStrategy {
   ideal_client: string;
   differentiators: string[];
-  proven_process: string;
+  proven_process: ProvenProcess;
   guarantee: string;
+}
+
+// New: 3-Year Expansion Items
+export type ExpansionItemType = 'location' | 'partnership' | 'acquisition' | 'service_line' | 'staffing';
+export type ExpansionItemStatus = 'planned' | 'in_progress' | 'complete';
+
+export interface ExpansionItem {
+  id: string;
+  type: ExpansionItemType;
+  title: string;
+  description: string;
+  expected_revenue_impact?: number;
+  owner_id?: string;
+  status: ExpansionItemStatus;
 }
 
 export interface ThreeYearPicture {
@@ -31,6 +57,19 @@ export interface ThreeYearPicture {
   }>;
   headcount?: number;
   notes?: string;
+  expansion_items?: ExpansionItem[];
+}
+
+// Enhanced 1-Year Goal/Initiative
+export interface OneYearGoal {
+  id?: string;
+  title: string;
+  description?: string;
+  owner_id?: string;
+  target_date?: string;
+  status?: 'on_track' | 'at_risk' | 'off_track' | 'complete';
+  linked_kpi_ids?: string[];
+  linked_rock_ids?: string[];
 }
 
 export interface OneYearPlan {
@@ -40,12 +79,7 @@ export interface OneYearPlan {
     name: string;
     target: string | number;
   }>;
-  goals: Array<{
-    title: string;
-    owner_id?: string;
-    target_date?: string;
-    status?: 'on_track' | 'at_risk' | 'off_track';
-  }>;
+  goals: OneYearGoal[];
 }
 
 export interface QuarterlyRock {
@@ -129,27 +163,25 @@ export interface VTOAudit {
   created_at: string;
 }
 
+// Expansion item type labels
+export const EXPANSION_TYPE_LABELS: Record<ExpansionItemType, string> = {
+  location: 'New Location',
+  partnership: 'Partnership',
+  acquisition: 'Acquisition',
+  service_line: 'Service Line',
+  staffing: 'Staffing Expansion',
+};
+
+export const EXPANSION_STATUS_COLORS: Record<ExpansionItemStatus, string> = {
+  planned: 'bg-muted text-muted-foreground',
+  in_progress: 'bg-primary/10 text-primary',
+  complete: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+};
+
 export const VTO_TEMPLATES = {
-  'classic-eos': {
-    name: 'Classic EOS',
-    description: 'Standard EOS Vision/Traction Organizer format',
-    data: {
-      core_values: ['Integrity', 'Excellence', 'Growth', 'Teamwork', 'Innovation'],
-      core_focus: {
-        purpose: 'Help businesses achieve their vision',
-        niche: 'Healthcare practice management'
-      },
-      marketing_strategy: {
-        ideal_client: 'Growing healthcare practices with 10-50 employees',
-        differentiators: ['Proven EOS implementation', 'Healthcare expertise', 'Measurable results'],
-        proven_process: '90-day implementation cycle with weekly accountability',
-        guarantee: '100% satisfaction or money back'
-      }
-    }
-  },
-  'clinic-growth': {
-    name: 'Clinic Growth',
-    description: 'Pre-configured for clinic growth and operations',
+  'clinic_standard': {
+    name: 'Clinic Standard',
+    description: 'Optimized template for healthcare clinics',
     data: {
       core_values: ['Patient Care', 'Clinical Excellence', 'Team Development', 'Community Impact', 'Continuous Improvement'],
       core_focus: {
@@ -157,6 +189,18 @@ export const VTO_TEMPLATES = {
         niche: 'Comprehensive multi-specialty care'
       },
       ten_year_target: '5 locations serving 50,000 patients annually',
+      marketing_strategy: {
+        ideal_client: 'Growing healthcare practices with 10-50 employees',
+        differentiators: ['Proven EOS implementation', 'Healthcare expertise', 'Measurable results'],
+        proven_process: [
+          { id: '1', title: 'Initial Assessment', description: 'Comprehensive evaluation', order: 1, sub_steps: [] },
+          { id: '2', title: 'Treatment Plan', description: 'Personalized care plan', order: 2, sub_steps: [] },
+          { id: '3', title: 'Active Care', description: 'Hands-on treatment', order: 3, sub_steps: [] },
+          { id: '4', title: 'Progress Review', description: 'Track outcomes', order: 4, sub_steps: [] },
+          { id: '5', title: 'Maintenance', description: 'Ongoing wellness', order: 5, sub_steps: [] },
+        ],
+        guarantee: '100% satisfaction or money back'
+      },
       three_year_picture: {
         revenue: 5000000,
         profit: 1000000,
@@ -165,7 +209,8 @@ export const VTO_TEMPLATES = {
           { name: 'Patient Satisfaction', target: '95%' },
           { name: 'Team Members', target: 75 }
         ],
-        headcount: 75
+        headcount: 75,
+        expansion_items: []
       },
       one_year_plan: {
         revenue: 2500000,
@@ -175,25 +220,6 @@ export const VTO_TEMPLATES = {
           { name: 'Collection Rate', target: '95%' }
         ],
         goals: []
-      }
-    }
-  },
-  'lean-vto': {
-    name: 'Lean VTO',
-    description: 'Simplified starter template to expand later',
-    data: {
-      core_values: ['Quality', 'Accountability', 'Growth'],
-      core_focus: {
-        purpose: 'Build a thriving organization',
-        niche: 'Your specific market'
-      },
-      one_year_plan: {
-        goals: [
-          { title: 'Define core metrics', status: 'on_track' as const },
-          { title: 'Build team culture', status: 'on_track' as const },
-          { title: 'Streamline operations', status: 'on_track' as const }
-        ],
-        measurables: []
       }
     }
   }
