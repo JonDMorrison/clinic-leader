@@ -311,16 +311,6 @@ const Scorecard = () => {
             Scorecard
             <HelpHint term="Scorecard" context="scorecard_header" />
           </h1>
-          {totalMetrics > 0 && (
-            <div className="flex items-center gap-3 text-sm">
-              <Badge variant="muted">
-                {totalMetrics} metrics tracked
-              </Badge>
-              <Badge variant="success">
-                {onTrackCount} on target this week
-              </Badge>
-            </div>
-          )}
         </div>
         
         {totalMetrics > 0 && (
