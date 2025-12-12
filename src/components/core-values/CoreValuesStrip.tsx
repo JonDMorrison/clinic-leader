@@ -68,7 +68,7 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
 
   return (
     <>
-      <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "py-3 px-4 bg-muted/20 rounded-lg border border-border/30"}`}>
+      <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "glass py-3 px-4 rounded-xl border border-border/20"}`}>
         {!compact && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-3">
             <Heart className="h-3.5 w-3.5 text-primary/70" />
@@ -77,12 +77,13 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
         )}
         
         <TooltipProvider delayDuration={200}>
-          {activeValues.map((value) => (
+          {activeValues.map((value, index) => (
             <Tooltip key={value.id}>
               <TooltipTrigger asChild>
                 <Badge
                   variant="outline"
-                  className="cursor-pointer border-border/50 bg-background/50 hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 py-1.5 px-3 text-xs font-medium"
+                  className="cursor-pointer border-border/50 bg-background/50 hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 py-1.5 px-3 text-xs font-medium animate-fade-in"
+                  style={{ animationDelay: `${index * 75}ms`, animationFillMode: 'backwards' }}
                   onClick={() => setSelectedValue(value)}
                 >
                   {shortenTitle(value.title)}
