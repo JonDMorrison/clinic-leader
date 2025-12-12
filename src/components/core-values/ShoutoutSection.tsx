@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useCoreValueShoutouts } from "@/hooks/useCoreValues";
+import { useCoreValueShoutouts } from "@/hooks/useCoreValueShoutouts";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

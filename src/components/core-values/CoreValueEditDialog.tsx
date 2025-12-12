@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useCoreValues, CoreValue } from "@/hooks/useCoreValues";
+import { useCoreValues } from "@/hooks/useCoreValues";
+import type { CoreValue } from "@/lib/core-values/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
