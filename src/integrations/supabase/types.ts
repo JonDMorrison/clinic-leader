@@ -398,6 +398,120 @@ export type Database = {
         }
         Relationships: []
       }
+      core_value_shoutouts: {
+        Row: {
+          core_value_id: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          meeting_id: string | null
+          note: string | null
+          organization_id: string
+          recognized_user_id: string | null
+        }
+        Insert: {
+          core_value_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          meeting_id?: string | null
+          note?: string | null
+          organization_id: string
+          recognized_user_id?: string | null
+        }
+        Update: {
+          core_value_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          meeting_id?: string | null
+          note?: string | null
+          organization_id?: string
+          recognized_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "core_value_shoutouts_core_value_id_fkey"
+            columns: ["core_value_id"]
+            isOneToOne: false
+            referencedRelation: "org_core_values"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "core_value_shoutouts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "core_value_shoutouts_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "core_value_shoutouts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "core_value_shoutouts_recognized_user_id_fkey"
+            columns: ["recognized_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      core_value_spotlight: {
+        Row: {
+          created_at: string | null
+          current_core_value_id: string | null
+          id: string
+          last_rotated_at: string | null
+          organization_id: string
+          rotates_on_weekday: number | null
+          rotation_mode: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_core_value_id?: string | null
+          id?: string
+          last_rotated_at?: string | null
+          organization_id: string
+          rotates_on_weekday?: number | null
+          rotation_mode?: string
+        }
+        Update: {
+          created_at?: string | null
+          current_core_value_id?: string | null
+          id?: string
+          last_rotated_at?: string | null
+          organization_id?: string
+          rotates_on_weekday?: number | null
+          rotation_mode?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "core_value_spotlight_current_core_value_id_fkey"
+            columns: ["current_core_value_id"]
+            isOneToOne: false
+            referencedRelation: "org_core_values"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "core_value_spotlight_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       core_values: {
         Row: {
           created_at: string
@@ -418,6 +532,45 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      core_values_ack: {
+        Row: {
+          acknowledged_at: string | null
+          id: string
+          organization_id: string
+          user_id: string
+          version_hash: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          id?: string
+          organization_id: string
+          user_id: string
+          version_hash?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          id?: string
+          organization_id?: string
+          user_id?: string
+          version_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "core_values_ack_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "core_values_ack_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       demo_provision: {
         Row: {
@@ -1638,23 +1791,32 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_active: boolean | null
           organization_id: string
-          position: number | null
-          value: string
+          short_behavior: string | null
+          sort_order: number | null
+          title: string
+          updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
+          is_active?: boolean | null
           organization_id: string
-          position?: number | null
-          value: string
+          short_behavior?: string | null
+          sort_order?: number | null
+          title: string
+          updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          is_active?: boolean | null
           organization_id?: string
-          position?: number | null
-          value?: string
+          short_behavior?: string | null
+          sort_order?: number | null
+          title?: string
+          updated_at?: string | null
         }
         Relationships: [
           {

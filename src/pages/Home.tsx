@@ -13,10 +13,10 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useRef, useMemo, useEffect, useState } from "react";
 import { HelpHint } from "@/components/help/HelpHint";
-import { ValuesList } from "@/components/people/ValuesList";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
 import { VTOAlignmentBanner } from "@/components/vto/VTOAlignmentBanner";
+import { CoreValuesStrip, CoreValueOfWeekCard } from "@/components/core-values";
 
 const Home = () => {
   const ref = useRef(null);
@@ -235,6 +235,9 @@ const Home = () => {
       {/* VTO Alignment Banner */}
       <VTOAlignmentBanner />
 
+      {/* Core Values Strip */}
+      <CoreValuesStrip />
+
       {/* Getting Started Widget */}
       <GettingStartedWidget />
 
@@ -391,9 +394,7 @@ const Home = () => {
         
         <VtoCard />
 
-        {coreValues && coreValues.length > 0 && (
-          <ValuesList values={coreValues} />
-        )}
+        <CoreValueOfWeekCard />
       </motion.div>
 
       <motion.div
