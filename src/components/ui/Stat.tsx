@@ -22,13 +22,13 @@ export const Stat = ({ label, value, icon, variant = "default", className, toolt
   const getGradientClass = () => {
     switch (variant) {
       case "brand":
-        return "glass bg-gradient-to-br from-brand/10 via-brand/5 to-transparent border-brand/30";
+        return "glass bg-gradient-to-br from-brand/5 via-brand/2 to-transparent border-brand/15";
       case "success":
-        return "glass bg-gradient-to-br from-success/10 via-success/5 to-transparent border-success/30";
+        return "glass bg-gradient-to-br from-success/5 via-success/2 to-transparent border-success/15";
       case "warning":
-        return "glass bg-gradient-to-br from-warning/10 via-warning/5 to-transparent border-warning/30";
+        return "glass bg-gradient-to-br from-warning/5 via-warning/2 to-transparent border-warning/15";
       case "accent":
-        return "glass bg-gradient-to-br from-accent/10 via-accent/5 to-transparent border-accent/30";
+        return "glass bg-gradient-to-br from-accent/5 via-accent/2 to-transparent border-accent/15";
       default:
         return "glass";
     }
@@ -37,15 +37,15 @@ export const Stat = ({ label, value, icon, variant = "default", className, toolt
   const getGlowColor = () => {
     switch (variant) {
       case "brand":
-        return "hsl(210 100% 50% / 0.2)"; // --brand
+        return "hsl(210 100% 50% / 0.1)";
       case "success":
-        return "hsl(142 76% 42% / 0.2)"; // --success
+        return "hsl(142 76% 42% / 0.1)";
       case "warning":
-        return "hsl(38 92% 55% / 0.2)"; // --warning
+        return "hsl(38 92% 55% / 0.1)";
       case "accent":
-        return "hsl(172 100% 48% / 0.2)"; // --accent
+        return "hsl(172 100% 48% / 0.1)";
       default:
-        return "hsl(210 20% 50% / 0.1)";
+        return "hsl(210 20% 50% / 0.05)";
     }
   };
 
