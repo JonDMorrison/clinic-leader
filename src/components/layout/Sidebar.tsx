@@ -11,12 +11,19 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
+type NavChild = {
+  title: string;
+  path: string;
+  icon: LucideIcon;
+};
+
 type NavItem = {
   title: string;
   path: string;
   icon: LucideIcon;
   roles: string[];
   eosOnly?: boolean;
+  children?: NavChild[];
 };
 
 type NavGroup = {
@@ -61,16 +68,6 @@ const navGroups: NavGroup[] = [
     alwaysOpen: true,
   },
   {
-    label: "Data",
-    items: [
-      { title: "Imports", path: "/imports", icon: Upload, roles: ["manager", "director", "owner"] },
-      { title: "Monthly Report", path: "/imports/monthly-report", icon: FileSpreadsheet, roles: ["manager", "director", "owner"] },
-      { title: "PDF Report", path: "/imports/pdf-report", icon: FileUp, roles: ["manager", "director", "owner"] },
-      { title: "Reports", path: "/reports", icon: FileBarChart, roles: ["manager", "director", "owner"] },
-    ],
-    alwaysOpen: true,
-  },
-  {
     label: "Admin",
     items: [
       { title: "Admin Dashboard", path: "/admin", icon: UserCog, roles: ["owner", "director"] },
@@ -78,6 +75,17 @@ const navGroups: NavGroup[] = [
       { title: "Organization", path: "/organization-settings", icon: UserCog, roles: ["owner", "director"] },
       { title: "Branding", path: "/branding", icon: Palette, roles: ["owner", "director"] },
       { title: "Integrations", path: "/integrations", icon: Plug, roles: ["owner", "director"] },
+      { 
+        title: "Imports", 
+        path: "/imports", 
+        icon: Upload, 
+        roles: ["manager", "director", "owner"],
+        children: [
+          { title: "Monthly Report", path: "/imports/monthly-report", icon: FileSpreadsheet },
+          { title: "PDF Report", path: "/imports/pdf-report", icon: FileUp },
+          { title: "Reports", path: "/reports", icon: FileBarChart },
+        ]
+      },
       { title: "Licensing", path: "/licensing", icon: CreditCard, roles: ["owner"] },
       { title: "AI Settings", path: "/ai-settings", icon: Cpu, roles: ["owner", "director"] },
       { title: "System Health", path: "/system/health", icon: TestTube, roles: ["owner"] },
@@ -192,6 +200,55 @@ export const Sidebar = () => {
                     const isActive = item.path === "/" 
                       ? location.pathname === "/" 
                       : location.pathname.startsWith(item.path);
+                    const isChildActive = item.children?.some(child => location.pathname.startsWith(child.path));
+                    
+                    // If item has children, render as collapsible submenu
+                    if (item.children) {
+                      return (
+                        <li key={item.path}>
+                          <Collapsible defaultOpen={isActive || isChildActive}>
+                            <CollapsibleTrigger className={cn(
+                              "flex items-center justify-between w-full px-4 py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
+                              isActive || isChildActive
+                                ? "bg-gradient-to-r from-brand to-accent text-white font-medium shadow-lg shadow-brand/30"
+                                : "text-muted-foreground hover:bg-white/50 hover:text-foreground hover:shadow-md backdrop-blur-sm"
+                            )}>
+                              <div className="flex items-center gap-3">
+                                <item.icon className={cn(
+                                  "w-5 h-5 transition-transform duration-300 group-hover:scale-110 relative z-10",
+                                  (isActive || isChildActive) && "drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]"
+                                )} />
+                                <span className="relative z-10">{item.title}</span>
+                              </div>
+                              <ChevronDown className="w-4 h-4 transition-transform group-data-[state=open]:rotate-180" />
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <ul className="ml-4 mt-1 space-y-1 border-l border-white/20 pl-3">
+                                {item.children.map((child) => {
+                                  const isChildItemActive = location.pathname.startsWith(child.path);
+                                  return (
+                                    <li key={child.path}>
+                                      <NavLink
+                                        to={child.path}
+                                        className={cn(
+                                          "flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-300 text-sm",
+                                          isChildItemActive
+                                            ? "bg-white/20 text-foreground font-medium"
+                                            : "text-muted-foreground hover:bg-white/30 hover:text-foreground"
+                                        )}
+                                      >
+                                        <child.icon className="w-4 h-4" />
+                                        <span>{child.title}</span>
+                                      </NavLink>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        </li>
+                      );
+                    }
                     
                     return (
                       <li key={item.path}>
