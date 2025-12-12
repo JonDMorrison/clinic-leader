@@ -3,7 +3,7 @@ import { useCoreValues, CoreValue } from "@/hooks/useCoreValues";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Settings, Heart, Sparkles } from "lucide-react";
 import { CoreValueEditDialog } from "./CoreValueEditDialog";
@@ -33,9 +33,9 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
 
   if (isLoading) {
     return (
-      <div className="flex gap-2 animate-pulse">
+      <div className="flex gap-2">
         {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-8 w-24 bg-muted rounded-full" />
+          <div key={i} className="h-8 w-24 bg-muted/50 rounded-full animate-pulse" />
         ))}
       </div>
     );
@@ -51,9 +51,6 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
 
   // Shorten title for display
   const shortenTitle = (title: string) => {
-    const words = title.split(" ");
-    if (words.length <= 3) return title;
-    // Find key words
     const keyPhrases: Record<string, string> = {
       "Treat Our Patients Like": "Family First",
       "Dedicated Can-Do": "Can-Do Attitude",
@@ -64,26 +61,27 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
     for (const [phrase, short] of Object.entries(keyPhrases)) {
       if (title.includes(phrase)) return short;
     }
-    return words.slice(0, 3).join(" ");
+    const words = title.split(" ");
+    return words.length <= 3 ? title : words.slice(0, 3).join(" ");
   };
 
   return (
     <>
-      <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "p-3 bg-muted/30 rounded-lg border border-border/50"}`}>
+      <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "py-3 px-4 bg-muted/20 rounded-lg border border-border/30"}`}>
         {!compact && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-2">
-            <Heart className="h-3.5 w-3.5 text-primary" />
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-3">
+            <Heart className="h-3.5 w-3.5 text-primary/70" />
             <span className="font-medium">Our Values</span>
           </div>
         )}
         
-        <TooltipProvider>
+        <TooltipProvider delayDuration={200}>
           {activeValues.map((value) => (
             <Tooltip key={value.id}>
               <TooltipTrigger asChild>
                 <Badge
                   variant="outline"
-                  className="cursor-pointer hover:bg-primary/10 hover:border-primary/50 transition-colors py-1.5 px-3"
+                  className="cursor-pointer border-border/50 bg-background/50 hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 py-1.5 px-3 text-xs font-medium"
                   onClick={() => setSelectedValue(value)}
                 >
                   {shortenTitle(value.title)}
@@ -103,7 +101,7 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
           <Button
             variant="ghost"
             size="sm"
-            className="ml-auto h-7 w-7 p-0"
+            className="ml-auto h-7 w-7 p-0 opacity-50 hover:opacity-100 transition-opacity"
             onClick={() => setShowEdit(true)}
           >
             <Settings className="h-3.5 w-3.5" />
@@ -124,20 +122,20 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
           {selectedValue && (
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold text-lg">{selectedValue.title}</h3>
+                <h3 className="font-semibold text-lg leading-tight">{selectedValue.title}</h3>
                 {selectedValue.short_behavior && (
-                  <p className="text-muted-foreground mt-2">{selectedValue.short_behavior}</p>
+                  <p className="text-muted-foreground mt-2 text-sm leading-relaxed">{selectedValue.short_behavior}</p>
                 )}
               </div>
 
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-sm font-medium text-muted-foreground">What it looks like this week</p>
+              <div className="p-3 bg-muted/30 rounded-lg border border-border/30">
+                <p className="text-xs font-medium text-muted-foreground">What it looks like this week</p>
                 <p className="text-sm mt-1">
-                  Look for opportunities to demonstrate this value in your daily interactions with patients and teammates.
+                  Look for opportunities to demonstrate this value in your daily interactions.
                 </p>
               </div>
 
-              <Button onClick={() => handleShoutout(selectedValue)} className="w-full">
+              <Button onClick={() => handleShoutout(selectedValue)} className="w-full" size="sm">
                 <Heart className="h-4 w-4 mr-2" />
                 Give a Shout-Out
               </Button>
@@ -146,10 +144,7 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
       <CoreValueEditDialog open={showEdit} onOpenChange={setShowEdit} />
-
-      {/* Shoutout Dialog */}
       <ShoutoutDialog
         open={showShoutout}
         onOpenChange={setShowShoutout}
