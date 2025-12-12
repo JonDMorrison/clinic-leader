@@ -1,5 +1,8 @@
 project_id = "uyfsfmxwrbukfhkskizu"
 
+[functions.admin-bulk-add-users]
+verify_jwt = false
+
 [functions.parse-pdf-report]
 verify_jwt = false
 
