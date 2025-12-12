@@ -7,7 +7,7 @@ interface Seat {
   title: string;
   responsibilities: string[];
   user_id: string | null;
-  reports_to: string | null;
+  reports_to_seat_id: string | null;
   department_id: string | null;
   user?: {
     id: string;
@@ -44,8 +44,8 @@ function buildTree(seats: Seat[]): TreeNode[] {
   // Build tree structure
   seats.forEach((seat) => {
     const node = seatMap.get(seat.id)!;
-    if (seat.reports_to && seatMap.has(seat.reports_to)) {
-      seatMap.get(seat.reports_to)!.children.push(node);
+    if (seat.reports_to_seat_id && seatMap.has(seat.reports_to_seat_id)) {
+      seatMap.get(seat.reports_to_seat_id)!.children.push(node);
     } else {
       rootNodes.push(node);
     }
@@ -127,11 +127,11 @@ function TreeLevel({ nodes, onSeatClick, level = 0 }: { nodes: TreeNode[]; onSea
 export function OrgChartViewer({ seats, departments, onSeatClick }: OrgChartViewerProps) {
   const tree = useMemo(() => buildTree(seats), [seats]);
 
-  // Group seats by department for seats without reports_to
+  // Group seats by department for seats without reports_to_seat_id
   const departmentGroups = useMemo(() => {
     const groups: Record<string, Seat[]> = {};
     seats.forEach((seat) => {
-      if (!seat.reports_to && seat.department_id) {
+      if (!seat.reports_to_seat_id && seat.department_id) {
         if (!groups[seat.department_id]) {
           groups[seat.department_id] = [];
         }
@@ -152,7 +152,7 @@ export function OrgChartViewer({ seats, departments, onSeatClick }: OrgChartView
   }
 
   // If there's a clear hierarchy, show tree view
-  const hasHierarchy = seats.some((s) => s.reports_to);
+  const hasHierarchy = seats.some((s) => s.reports_to_seat_id);
 
   if (hasHierarchy) {
     return (

@@ -15,29 +15,33 @@ interface SeatDetailModalProps {
     title: string;
     responsibilities: string[];
     user_id: string | null;
+    reports_to_seat_id: string | null;
     users?: {
       full_name: string;
     } | null;
   } | null;
   users: Array<{ id: string; full_name: string }>;
+  allSeats: Array<{ id: string; title: string }>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
   isManager: boolean;
 }
 
-export const SeatDetailModal = ({ seat, users, open, onOpenChange, onUpdate, isManager }: SeatDetailModalProps) => {
+export const SeatDetailModal = ({ seat, users, allSeats, open, onOpenChange, onUpdate, isManager }: SeatDetailModalProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [title, setTitle] = useState("");
   const [responsibilities, setResponsibilities] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [reportsToSeatId, setReportsToSeatId] = useState<string | null>(null);
 
   const handleEdit = () => {
     if (seat) {
       setTitle(seat.title);
       setResponsibilities([...seat.responsibilities]);
       setUserId(seat.user_id);
+      setReportsToSeatId(seat.reports_to_seat_id);
       setIsEditing(true);
     }
   };
@@ -47,6 +51,7 @@ export const SeatDetailModal = ({ seat, users, open, onOpenChange, onUpdate, isM
     setTitle("");
     setResponsibilities([]);
     setUserId(null);
+    setReportsToSeatId(null);
   };
 
   const handleSave = async () => {
@@ -58,6 +63,7 @@ export const SeatDetailModal = ({ seat, users, open, onOpenChange, onUpdate, isM
         title,
         responsibilities,
         user_id: userId === "unassigned" ? null : userId,
+        reports_to_seat_id: reportsToSeatId === "none" ? null : reportsToSeatId,
       })
       .eq("id", seat.id);
 
@@ -179,6 +185,28 @@ export const SeatDetailModal = ({ seat, users, open, onOpenChange, onUpdate, isM
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="reportsTo">Reports To</Label>
+                  <Select 
+                    value={reportsToSeatId || "none"} 
+                    onValueChange={(v) => setReportsToSeatId(v === "none" ? null : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a seat" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None (Top Level)</SelectItem>
+                      {allSeats
+                        .filter((s) => s.id !== seat?.id)
+                        .map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.title}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </>
             ) : (
               <>
@@ -206,6 +234,18 @@ export const SeatDetailModal = ({ seat, users, open, onOpenChange, onUpdate, isM
                     {seat.users?.full_name || (
                       <span className="text-muted-foreground">Unassigned</span>
                     )}
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-3 border-t border-border">
+                  <h4 className="text-sm font-medium text-muted-foreground uppercase">
+                    Reports To
+                  </h4>
+                  <p className="text-sm">
+                    {seat.reports_to_seat_id 
+                      ? allSeats.find((s) => s.id === seat.reports_to_seat_id)?.title || "Unknown"
+                      : <span className="text-muted-foreground">Top Level</span>
+                    }
                   </p>
                 </div>
               </>
