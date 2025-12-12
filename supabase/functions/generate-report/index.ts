@@ -190,7 +190,10 @@ Be concise, data-driven, and professional. Each item under 100 characters.`;
     }
 
     const aiData = await aiResponse.json();
-    const aiSummary = JSON.parse(aiData.choices[0].message.content);
+    // Strip markdown code fences if present
+    let aiContent = aiData.choices[0].message.content;
+    aiContent = aiContent.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const aiSummary = JSON.parse(aiContent);
 
     // Track usage
     const tokensUsed = aiData.usage?.total_tokens || 0;
