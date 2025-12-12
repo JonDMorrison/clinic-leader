@@ -133,7 +133,7 @@ export const AlertsPanel = ({ organizationId, currentUserId }: AlertsPanelProps)
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 text-warning" />
           <h3 className="font-semibold">Alerts & Coaching Tips</h3>
-          <Badge variant="danger">{alerts.length}</Badge>
+          <Badge variant="outline" className="text-muted-foreground">{alerts.length}</Badge>
         </div>
         <Button
           variant="ghost"
@@ -153,7 +153,7 @@ export const AlertsPanel = ({ organizationId, currentUserId }: AlertsPanelProps)
           return (
             <div
               key={alert.id}
-              className="flex items-start gap-3 p-3 rounded-lg bg-accent/50 border border-border"
+              className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/50"
             >
               <Icon className="w-5 h-5 mt-0.5 flex-shrink-0 text-muted-foreground" />
               <div className="flex-1 space-y-1">
