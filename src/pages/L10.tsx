@@ -16,6 +16,7 @@ import { exportMeetingMinutes } from "@/utils/exportMinutes";
 import { AgendaSuggestions } from "@/components/l10/AgendaSuggestions";
 import { useVTORealtimeSync } from "@/hooks/useVTORealtimeSync";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { CoreValuesStrip, CoreValueOfWeekCard, ShoutoutSection } from "@/components/core-values";
 
 const L10 = () => {
   const [headlines, setHeadlines] = useState<string[]>([]);
@@ -258,10 +259,16 @@ const L10 = () => {
 
       <AgendaSuggestions teamId={organizationId || null} />
 
+      {/* Core Values Strip */}
+      <CoreValuesStrip compact />
+
       <VtoL10Panel />
 
       <div className="space-y-4">
         <AgendaTimer sectionName="Segue (Good News)" defaultMinutes={5} />
+        
+        {/* Core Values Shout-Out Section */}
+        <ShoutoutSection />
         
         <div className="space-y-4">
           <AgendaTimer sectionName="Scorecard" defaultMinutes={5} />
