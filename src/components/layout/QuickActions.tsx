@@ -6,10 +6,10 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const actionVariants = {
-  brand: "from-brand/20 to-brand/5 border-brand/30 hover:shadow-[0_8px_32px_hsl(210_100%_50%_/_0.2)]",
-  success: "from-success/20 to-success/5 border-success/30 hover:shadow-[0_8px_32px_hsl(142_76%_42%_/_0.2)]",
-  warning: "from-warning/20 to-warning/5 border-warning/30 hover:shadow-[0_8px_32px_hsl(38_92%_55%_/_0.2)]",
-  accent: "from-accent/20 to-accent/5 border-accent/30 hover:shadow-[0_8px_32px_hsl(172_100%_48%_/_0.2)]",
+  brand: "from-brand/8 to-brand/2 border-brand/15 hover:shadow-[0_8px_32px_hsl(210_100%_50%_/_0.1)]",
+  success: "from-success/8 to-success/2 border-success/15 hover:shadow-[0_8px_32px_hsl(142_76%_42%_/_0.1)]",
+  warning: "from-warning/8 to-warning/2 border-warning/15 hover:shadow-[0_8px_32px_hsl(38_92%_55%_/_0.1)]",
+  accent: "from-accent/8 to-accent/2 border-accent/15 hover:shadow-[0_8px_32px_hsl(172_100%_48%_/_0.1)]",
 };
 
 export const QuickActions = () => {
