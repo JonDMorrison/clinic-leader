@@ -89,7 +89,7 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
                   {shortenTitle(value.title)}
                 </Badge>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-xs">
+              <TooltipContent side="bottom" align="center" sideOffset={8} className="max-w-xs z-50 bg-popover">
                 <p className="font-medium text-sm">{value.title}</p>
                 {value.short_behavior && (
                   <p className="text-xs text-muted-foreground mt-1">{value.short_behavior}</p>
