@@ -5,7 +5,6 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Settings, Heart, Sparkles } from "lucide-react";
 import { CoreValueEditDialog } from "./CoreValueEditDialog";
 import { ShoutoutDialog } from "./ShoutoutDialog";
@@ -76,28 +75,17 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
           </div>
         )}
         
-        <TooltipProvider delayDuration={200}>
-          {activeValues.map((value, index) => (
-            <Tooltip key={value.id}>
-              <TooltipTrigger asChild>
-                <Badge
-                  variant="outline"
-                  className="cursor-pointer border-border/50 bg-background/50 hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 py-1.5 px-3 text-xs font-medium animate-fade-in"
-                  style={{ animationDelay: `${index * 75}ms`, animationFillMode: 'backwards' }}
-                  onClick={() => setSelectedValue(value)}
-                >
-                  {shortenTitle(value.title)}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="center" sideOffset={8} className="max-w-xs z-50 bg-popover">
-                <p className="font-medium text-sm">{value.title}</p>
-                {value.short_behavior && (
-                  <p className="text-xs text-muted-foreground mt-1">{value.short_behavior}</p>
-                )}
-              </TooltipContent>
-            </Tooltip>
-          ))}
-        </TooltipProvider>
+        {activeValues.map((value, index) => (
+          <Badge
+            key={value.id}
+            variant="outline"
+            className="cursor-pointer border-border/50 bg-background/50 hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 py-1.5 px-3 text-xs font-medium animate-fade-in"
+            style={{ animationDelay: `${index * 75}ms`, animationFillMode: 'backwards' }}
+            onClick={() => setSelectedValue(value)}
+          >
+            {shortenTitle(value.title)}
+          </Badge>
+        ))}
 
         {showEditButton && isAdmin && (
           <Button
