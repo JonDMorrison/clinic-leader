@@ -98,7 +98,7 @@ serve(async (req) => {
     const { data: issues, error: issuesError } = await supabase
       .from("issues")
       .select("*")
-      .eq("team_id", team_id)
+      .eq("organization_id", team_id)
       .gte("created_at", startDate.toISOString());
 
     if (issuesError) throw issuesError;
@@ -222,7 +222,7 @@ Be concise, data-driven, and professional. Each item under 100 characters.`;
     const { data: report, error: reportError } = await supabase
       .from("reports")
       .insert({
-        team_id,
+        organization_id: team_id,
         period,
         week_start: weekStart.toISOString().split("T")[0],
         summary: reportSummary,
