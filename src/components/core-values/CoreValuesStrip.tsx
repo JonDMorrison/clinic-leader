@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useCoreValues, CoreValue } from "@/hooks/useCoreValues";
+import { useCoreValues } from "@/hooks/useCoreValues";
+import type { CoreValue } from "@/lib/core-values/types";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

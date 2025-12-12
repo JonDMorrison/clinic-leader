@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useCoreValues, CoreValue, useCoreValueShoutouts } from "@/hooks/useCoreValues";
+import { useCoreValues } from "@/hooks/useCoreValues";
+import { useCoreValueShoutouts } from "@/hooks/useCoreValueShoutouts";
+import type { CoreValue } from "@/lib/core-values/types";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";

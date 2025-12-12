@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useCoreValues, useCoreValuesAck, generateCoreValuesHash } from "@/hooks/useCoreValues";
+import { useCoreValues } from "@/hooks/useCoreValues";
+import { useCoreValuesAck } from "@/hooks/useCoreValuesAck";
+import { generateCoreValuesHash } from "@/lib/core-values/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
