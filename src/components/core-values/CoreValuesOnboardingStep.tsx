@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useCoreValues } from "@/hooks/useCoreValues";
 import { useCoreValuesAck } from "@/hooks/useCoreValuesAck";
 import { generateCoreValuesHash } from "@/lib/core-values/utils";
@@ -16,11 +16,15 @@ export function CoreValuesOnboardingStep({ onComplete }: CoreValuesOnboardingSte
   const { acknowledge, isLoading: ackLoading } = useCoreValuesAck();
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const seededRef = useRef(false);
 
-  // Seed defaults if needed
-  if (!valuesLoading && activeValues.length === 0) {
-    seedDefaults.mutate();
-  }
+  // Seed defaults if needed - only once
+  useEffect(() => {
+    if (!valuesLoading && activeValues.length === 0 && !seededRef.current && !seedDefaults.isPending) {
+      seededRef.current = true;
+      seedDefaults.mutate();
+    }
+  }, [valuesLoading, activeValues.length, seedDefaults]);
 
   const handleContinue = async () => {
     if (!agreed) return;
