@@ -74,14 +74,42 @@ serve(async (req) => {
       });
     });
 
+    // Fetch core values for context
+    const { data: coreValues } = await supabase
+      .from("org_core_values")
+      .select("title, short_behavior")
+      .eq("organization_id", tenantContext.teamId)
+      .eq("is_active", true)
+      .order("sort_order");
+
+    // Fetch current value of the week
+    const { data: spotlight } = await supabase
+      .from("core_value_spotlight")
+      .select("current_core_value_id, org_core_values!core_value_spotlight_current_core_value_id_fkey(title)")
+      .eq("organization_id", tenantContext.teamId)
+      .maybeSingle();
+
+    const valueOfWeek = (spotlight as any)?.org_core_values?.title || null;
+
     // Prepare prompt for AI
+    let coreValuesContext = "";
+    if (coreValues && coreValues.length > 0) {
+      coreValuesContext = `\n\nOur Core Values:\n${coreValues.map((cv: any, i: number) => 
+        `${i + 1}. ${cv.title}${cv.short_behavior ? ` – ${cv.short_behavior}` : ""}`
+      ).join("\n")}`;
+      if (valueOfWeek) {
+        coreValuesContext += `\n\nThis Week's Focus Value: ${valueOfWeek}`;
+      }
+      coreValuesContext += `\n\nWhen providing insights, reference our core values where relevant.`;
+    }
+
     const prompt = `Analyze this clinic's KPI data from the last 2 weeks and provide insights in JSON format.
 
 KPI Data:
 ${Object.entries(kpiData).map(([name, data]: [string, any]) => 
   `${name}: Target ${data.target}, Direction: ${data.direction}, Unit: ${data.unit}
   Recent values: ${data.values.map((v: any) => `${v.week}: ${v.value}`).join(", ")}`
-).join("\n")}
+).join("\n")}${coreValuesContext}
 
 Provide a JSON response with exactly this structure:
 {
@@ -90,7 +118,7 @@ Provide a JSON response with exactly this structure:
   "opportunities": ["3 actionable improvement opportunities based on the data"]
 }
 
-Keep each item concise (under 100 characters). Focus on numeric insights and actionable patterns.`;
+Keep each item concise (under 100 characters). Focus on numeric insights and actionable patterns. When relevant, connect insights to our core values.`;
 
     // Call Lovable AI
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

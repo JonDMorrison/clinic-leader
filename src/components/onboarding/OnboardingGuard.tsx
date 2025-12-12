@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { CoreValuesOnboardingStep } from "@/components/core-values/CoreValuesOnboardingStep";
 
 interface OnboardingGuardProps {
   children: React.ReactNode;
@@ -10,6 +12,7 @@ interface OnboardingGuardProps {
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const [loading, setLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [showCoreValuesStep, setShowCoreValuesStep] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -64,6 +67,28 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
           return;
         }
 
+        // Check if user has acknowledged core values
+        const { data: ack } = await supabase
+          .from("core_values_ack")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("organization_id", userData.team_id)
+          .maybeSingle();
+
+        if (!ack) {
+          // Check if org has core values set up
+          const { data: coreValues } = await supabase
+            .from("org_core_values")
+            .select("id")
+            .eq("organization_id", userData.team_id)
+            .eq("is_active", true)
+            .limit(1);
+
+          if (coreValues && coreValues.length > 0) {
+            setShowCoreValuesStep(true);
+          }
+        }
+
         console.log("Onboarding complete, status:", teamData?.onboarding_status);
         setLoading(false);
       } catch (error) {
@@ -89,5 +114,16 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      
+      {/* Core Values Commitment Modal */}
+      <Dialog open={showCoreValuesStep} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" hideCloseButton>
+          <CoreValuesOnboardingStep onComplete={() => setShowCoreValuesStep(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 };

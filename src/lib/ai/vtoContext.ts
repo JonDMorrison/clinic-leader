@@ -1,5 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export interface CoreValueSummary {
+  title: string;
+  short_behavior?: string;
+}
+
 export interface VTOContextSummary {
   ten_year_target?: string;
   three_year_highlights?: string[];
@@ -18,6 +23,8 @@ export interface VTOContextSummary {
   vision_score?: number;
   traction_score?: number;
   at_risk_goals?: string[];
+  core_values?: CoreValueSummary[];
+  core_value_of_week?: CoreValueSummary;
 }
 
 /**
@@ -26,6 +33,34 @@ export interface VTOContextSummary {
  */
 export async function getVTOContext(teamId: string): Promise<VTOContextSummary | null> {
   try {
+    // Fetch core values first (always available even without VTO)
+    const { data: coreValues } = await supabase
+      .from("org_core_values")
+      .select("title, short_behavior")
+      .eq("organization_id", teamId)
+      .eq("is_active", true)
+      .order("sort_order");
+
+    // Fetch current core value of the week
+    const { data: spotlight } = await supabase
+      .from("core_value_spotlight")
+      .select("current_core_value_id")
+      .eq("organization_id", teamId)
+      .maybeSingle();
+
+    let coreValueOfWeek: CoreValueSummary | undefined;
+    if (spotlight?.current_core_value_id && coreValues) {
+      const matchingValue = coreValues.find(
+        (cv: any) => cv.id === spotlight.current_core_value_id
+      );
+      if (matchingValue) {
+        coreValueOfWeek = {
+          title: matchingValue.title,
+          short_behavior: matchingValue.short_behavior || undefined,
+        };
+      }
+    }
+
     // Get active VTO
     const { data: vto } = await supabase
       .from("vto")
@@ -34,7 +69,18 @@ export async function getVTOContext(teamId: string): Promise<VTOContextSummary |
       .eq("is_active", true)
       .single();
 
-    if (!vto) return null;
+    // Return partial context with core values even if no VTO
+    if (!vto) {
+      return coreValues && coreValues.length > 0
+        ? {
+            core_values: coreValues.map((cv: any) => ({
+              title: cv.title,
+              short_behavior: cv.short_behavior || undefined,
+            })),
+            core_value_of_week: coreValueOfWeek,
+          }
+        : null;
+    }
 
     // Get latest published version (or draft if no published)
     const { data: version } = await supabase
@@ -147,7 +193,12 @@ export async function getVTOContext(teamId: string): Promise<VTOContextSummary |
       linked_kpis: linkedKpis,
       vision_score: progress?.vision_score || undefined,
       traction_score: progress?.traction_score || undefined,
-      at_risk_goals: atRiskGoals
+      at_risk_goals: atRiskGoals,
+      core_values: coreValues?.map((cv: any) => ({
+        title: cv.title,
+        short_behavior: cv.short_behavior || undefined,
+      })),
+      core_value_of_week: coreValueOfWeek,
     };
   } catch (error) {
     console.error("Error fetching VTO context:", error);
@@ -162,6 +213,20 @@ export function formatVTOContextForAI(context: VTOContextSummary | null, userRol
   if (!context) return "";
 
   let prompt = "\n\n## Strategic Context (V/TO)\n";
+
+  // Core Values - always inject
+  if (context.core_values && context.core_values.length > 0) {
+    prompt += `\n**Our Core Values**:\n`;
+    context.core_values.forEach((cv, i) => {
+      prompt += `${i + 1}. ${cv.title}`;
+      if (cv.short_behavior) prompt += ` – ${cv.short_behavior}`;
+      prompt += `\n`;
+    });
+  }
+
+  if (context.core_value_of_week) {
+    prompt += `\n**This Week's Focus Value**: ${context.core_value_of_week.title}\n`;
+  }
   
   if (context.ten_year_target) {
     prompt += `**10-Year Target**: ${context.ten_year_target}\n`;
@@ -201,6 +266,11 @@ export function formatVTOContextForAI(context: VTOContextSummary | null, userRol
     prompt += "\nFocus on team execution of rocks and KPIs that support strategic goals.\n";
   } else {
     prompt += "\nFocus on your assigned rocks and how they contribute to company goals.\n";
+  }
+
+  // Core values guidance for AI
+  if (context.core_values && context.core_values.length > 0) {
+    prompt += "\n**Important**: When providing recommendations, ensure they align with our core values. If a recommendation clearly supports a specific core value, mention it explicitly in one sentence.\n";
   }
 
   return prompt;
