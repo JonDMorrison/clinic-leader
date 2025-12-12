@@ -8,7 +8,7 @@ import { WeeklyHighlights } from "@/components/dashboard/WeeklyHighlights";
 import { QuickActions } from "@/components/layout/QuickActions";
 import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
 import { PerformanceScore } from "@/components/dashboard/PerformanceScore";
-import { VtoCard } from "@/components/dashboard/VtoCard";
+
 import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useRef, useMemo, useEffect, useState } from "react";
@@ -392,7 +392,7 @@ const Home = () => {
         
         <CopilotWidget />
         
-        <VtoCard />
+        
 
         <CoreValueOfWeekCard />
       </motion.div>
