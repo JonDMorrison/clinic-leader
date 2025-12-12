@@ -39,10 +39,10 @@ const calculatePerformanceScore = (metrics: PerformanceScoreCardProps["metrics"]
 };
 
 const getScoreColor = (score: number): { bg: string; text: string; border: string } => {
-  if (score >= 90) return { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" };
-  if (score >= 75) return { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" };
-  if (score >= 60) return { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" };
-  return { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" };
+  if (score >= 90) return { bg: "bg-muted/30", text: "text-green-600", border: "border-border/50" };
+  if (score >= 75) return { bg: "bg-muted/30", text: "text-blue-600", border: "border-border/50" };
+  if (score >= 60) return { bg: "bg-muted/30", text: "text-amber-600", border: "border-border/50" };
+  return { bg: "bg-muted/30", text: "text-red-500", border: "border-border/50" };
 };
 
 const getScoreLabel = (score: number): string => {
