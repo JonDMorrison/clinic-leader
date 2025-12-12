@@ -15,7 +15,6 @@ import { useRef, useMemo, useEffect, useState } from "react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
-import { VTOAlignmentBanner } from "@/components/vto/VTOAlignmentBanner";
 import { CoreValuesStrip, CoreValueOfWeekCard } from "@/components/core-values";
 
 const Home = () => {
@@ -231,9 +230,6 @@ const Home = () => {
           Welcome back! Here's your clinic overview.
         </p>
       </motion.div>
-
-      {/* VTO Alignment Banner */}
-      <VTOAlignmentBanner />
 
       {/* Core Values Strip */}
       <CoreValuesStrip />
