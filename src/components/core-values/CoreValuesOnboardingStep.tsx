@@ -51,24 +51,24 @@ export function CoreValuesOnboardingStep({ onComplete }: CoreValuesOnboardingSte
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
           <Sparkles className="h-6 w-6 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold">How We Show Up Here</h2>
-        <p className="text-muted-foreground mt-2">
+        <h2 className="text-xl font-bold">How We Show Up Here</h2>
+        <p className="text-muted-foreground mt-2 text-sm">
           These are the values that guide everything we do.
         </p>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {activeValues.map((value, index) => (
-          <Card key={value.id} className="overflow-hidden">
-            <CardContent className="p-4">
+          <Card key={value.id} className="overflow-hidden border-border/50 transition-colors hover:border-border">
+            <CardContent className="p-3">
               <div className="flex items-start gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold text-sm shrink-0">
+                <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary font-semibold text-xs shrink-0">
                   {index + 1}
                 </div>
-                <div>
-                  <h3 className="font-semibold">{value.title}</h3>
+                <div className="min-w-0">
+                  <h3 className="font-medium text-sm leading-tight">{value.title}</h3>
                   {value.short_behavior && (
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                       {value.short_behavior}
                     </p>
                   )}
