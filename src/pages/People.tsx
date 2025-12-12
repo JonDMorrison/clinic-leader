@@ -472,6 +472,7 @@ const People = () => {
       <SeatDetailModal
         seat={selectedSeat}
         users={users || []}
+        allSeats={(seats || []).map(s => ({ id: s.id, title: s.title }))}
         open={seatDetailOpen}
         onOpenChange={setSeatDetailOpen}
         onUpdate={refetchSeats}

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -16,6 +17,7 @@ interface Seat {
   responsibilities: string[] | null;
   user_id: string | null;
   organization_id: string | null;
+  reports_to_seat_id: string | null;
 }
 
 interface SeatManagementDialogProps {
@@ -38,11 +40,13 @@ export const SeatManagementDialog = ({
   const [isCreating, setIsCreating] = useState(false);
   const [title, setTitle] = useState("");
   const [responsibilitiesText, setResponsibilitiesText] = useState("");
+  const [reportsToSeatId, setReportsToSeatId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const resetForm = () => {
     setTitle("");
     setResponsibilitiesText("");
+    setReportsToSeatId(null);
     setEditingSeatId(null);
     setIsCreating(false);
   };
@@ -62,7 +66,7 @@ export const SeatManagementDialog = ({
       if (editingSeatId) {
         const { error } = await supabase
           .from("seats")
-          .update({ title, responsibilities })
+          .update({ title, responsibilities, reports_to_seat_id: reportsToSeatId })
           .eq("id", editingSeatId);
 
         if (error) throw error;
@@ -70,7 +74,7 @@ export const SeatManagementDialog = ({
       } else {
         const { error } = await supabase
           .from("seats")
-          .insert({ title, responsibilities, organization_id: organizationId });
+          .insert({ title, responsibilities, organization_id: organizationId, reports_to_seat_id: reportsToSeatId });
 
         if (error) throw error;
         toast({ title: "Seat created successfully" });
@@ -86,6 +90,7 @@ export const SeatManagementDialog = ({
   const handleEdit = (seat: Seat) => {
     setTitle(seat.title);
     setResponsibilitiesText((seat.responsibilities || []).join("\n"));
+    setReportsToSeatId(seat.reports_to_seat_id);
     setEditingSeatId(seat.id);
     setIsCreating(false);
   };
@@ -149,6 +154,27 @@ export const SeatManagementDialog = ({
                       onChange={(e) => setResponsibilitiesText(e.target.value)}
                       rows={5}
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="reportsTo">Reports To</Label>
+                    <Select 
+                      value={reportsToSeatId || "none"} 
+                      onValueChange={(v) => setReportsToSeatId(v === "none" ? null : v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a seat" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None (Top Level)</SelectItem>
+                        {seats
+                          .filter((s) => s.id !== editingSeatId)
+                          .map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.title}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={handleSave}>Save Seat</Button>
