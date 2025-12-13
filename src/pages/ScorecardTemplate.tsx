@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { GoogleSheetSyncSection } from "@/components/scorecard/GoogleSheetSyncSection";
 
 interface TemplateMetric {
   name: string;
@@ -635,6 +636,16 @@ const ScorecardTemplate = () => {
             {duplicateImportKeys.length > 0 && ` ${duplicateImportKeys.length} duplicate import keys found.`}
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Google Sheet Sync Section - only for locked mode */}
+      {isLockedMode && currentUser?.team_id && (
+        <GoogleSheetSyncSection
+          orgId={currentUser.team_id}
+          templateReady={templateReady}
+          missingImportKeysCount={missingImportKeys.length}
+          duplicateImportKeysCount={duplicateImportKeys.length}
+        />
       )}
 
       {/* Generate Template CSV */}

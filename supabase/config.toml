@@ -194,3 +194,6 @@ verify_jwt = false
 
 [functions.rotate-core-value-spotlight]
 verify_jwt = false
+
+[functions.sync-scorecard-google-sheet]
+verify_jwt = true
