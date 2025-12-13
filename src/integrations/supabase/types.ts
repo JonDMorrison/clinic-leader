@@ -1708,6 +1708,7 @@ export type Database = {
           direction: string
           display_priority: number | null
           id: string
+          is_active: boolean
           is_favorite: boolean | null
           is_locked: boolean
           name: string
@@ -1725,6 +1726,7 @@ export type Database = {
           direction: string
           display_priority?: number | null
           id?: string
+          is_active?: boolean
           is_favorite?: boolean | null
           is_locked?: boolean
           name: string
@@ -1742,6 +1744,7 @@ export type Database = {
           direction?: string
           display_priority?: number | null
           id?: string
+          is_active?: boolean
           is_favorite?: boolean | null
           is_locked?: boolean
           name?: string
