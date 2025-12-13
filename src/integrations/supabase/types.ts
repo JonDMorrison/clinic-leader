@@ -1614,6 +1614,7 @@ export type Database = {
           period_start: string
           period_type: string
           previous_value: number | null
+          raw_row: Json | null
           source: string | null
           updated_at: string
           value: number | null
@@ -1629,6 +1630,7 @@ export type Database = {
           period_start: string
           period_type: string
           previous_value?: number | null
+          raw_row?: Json | null
           source?: string | null
           updated_at?: string
           value?: number | null
@@ -1644,6 +1646,7 @@ export type Database = {
           period_start?: string
           period_type?: string
           previous_value?: number | null
+          raw_row?: Json | null
           source?: string | null
           updated_at?: string
           value?: number | null
