@@ -52,7 +52,7 @@ export const NewIssueModal = ({ open, onClose, teams, users, onSuccess }: NewIss
         title: validated.title,
         context: validated.context || null,
         priority: validated.priority,
-        team_id: teamId,
+        organization_id: teamId,
         owner_id: ownerId || null,
         status: "open",
       });

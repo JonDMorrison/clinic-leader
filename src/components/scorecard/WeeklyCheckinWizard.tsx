@@ -131,6 +131,9 @@ export function WeeklyCheckinWizard({ open, onOpenChange, onComplete }: WeeklyCh
         .map(([metricId, value]) => ({
           metric_id: metricId,
           week_start: weekStart,
+          period_start: weekStart,
+          period_type: "weekly" as const,
+          period_key: weekStart,
           value: parseFloat(value),
           source: "checkin",
         }));
@@ -138,7 +141,7 @@ export function WeeklyCheckinWizard({ open, onOpenChange, onComplete }: WeeklyCh
       for (const update of updates) {
         const { error } = await supabase
           .from("metric_results")
-          .upsert(update, { onConflict: "metric_id,week_start" });
+          .upsert(update, { onConflict: "metric_id,period_type,period_start" });
         
         if (error) throw error;
       }

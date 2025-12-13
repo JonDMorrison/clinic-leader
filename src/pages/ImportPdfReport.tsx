@@ -136,14 +136,18 @@ export default function ImportPdfReport() {
       let skipped = 0;
 
       for (const metric of mappedMetrics) {
+        const periodKey = weekStart; // YYYY-MM-DD for weekly
         const { error } = await supabase
           .from("metric_results")
           .upsert({
             metric_id: metric.matchedMetricId,
             week_start: weekStart,
+            period_start: weekStart,
+            period_type: "weekly",
+            period_key: periodKey,
             value: metric.value,
             source: "pdf_import",
-          }, { onConflict: "metric_id,week_start" });
+          }, { onConflict: "metric_id,period_type,period_start" });
 
         if (error) {
           console.error("Error importing metric:", error);

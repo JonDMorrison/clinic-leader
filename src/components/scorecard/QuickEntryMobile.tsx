@@ -57,15 +57,19 @@ export function QuickEntryMobile({ organizationId, onClose }: QuickEntryMobilePr
 
   const saveMutation = useMutation({
     mutationFn: async (data: { metricId: string; value: number }) => {
+      const periodKey = weekStart; // YYYY-MM-DD for weekly
       const { error } = await supabase
         .from("metric_results")
         .upsert({
           metric_id: data.metricId,
           week_start: weekStart,
+          period_start: weekStart,
+          period_type: "weekly",
+          period_key: periodKey,
           value: data.value,
           source: "manual",
         }, {
-          onConflict: "metric_id,week_start",
+          onConflict: "metric_id,period_type,period_start",
         });
 
       if (error) throw error;

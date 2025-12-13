@@ -66,6 +66,20 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Check if organization is in locked mode
+    const { data: orgSettings, error: orgError } = await supabase
+      .from('teams')
+      .select('scorecard_mode')
+      .eq('id', organization_id)
+      .single();
+
+    if (orgError) {
+      console.warn('[ORG_SETTINGS_WARN] Could not fetch org settings:', orgError);
+    }
+
+    const isLockedMode = orgSettings?.scorecard_mode === 'locked_to_template';
+    console.log('[ai-generate-scorecard-from-vto] Locked mode:', isLockedMode);
+
     // Fetch active VTO with versions
     const { data: vto, error: vtoError } = await supabase
       .from('vto')
@@ -313,9 +327,30 @@ Return a JSON array with this structure:
       return errorResponse(500, 'AI_OR_UNKNOWN_ERROR', 'We ran into a problem generating scorecard suggestions. Please try again.');
     }
 
+    // If locked mode, fetch existing metrics and return for mapping instead of creation
+    if (isLockedMode) {
+      const { data: existingMetrics } = await supabase
+        .from('metrics')
+        .select('id, name, category, unit, target, direction, cadence')
+        .eq('organization_id', organization_id)
+        .order('name');
+
+      console.log(`[ai-generate-scorecard-from-vto] Locked mode - returning ${existingMetrics?.length || 0} existing metrics for mapping`);
+
+      return successResponse({
+        mode: 'locked_to_template',
+        message: 'This organization uses a fixed metric template. AI will suggest mappings to existing metrics only.',
+        vtoVersionId: version.id,
+        goals,
+        existingMetrics: existingMetrics || [],
+        suggestedMetrics: [], // No AI-generated metrics in locked mode
+      });
+    }
+
     console.log(`[ai-generate-scorecard-from-vto] Success! AI suggested ${suggestedMetrics.metrics.length} metrics`);
 
     return successResponse({
+      mode: 'flex',
       vtoVersionId: version.id,
       goals,
       suggestedMetrics: suggestedMetrics.metrics,
