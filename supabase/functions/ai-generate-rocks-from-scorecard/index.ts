@@ -16,7 +16,7 @@ interface MetricWithHistory {
   owner: string | null;
   owner_id: string | null;
   owner_name: string | null;
-  values: { week_start: string; value: number | null }[];
+  values: { period_start: string; value: number | null }[];
   status: 'on_track' | 'at_risk' | 'off_track';
   trend: 'improving' | 'stable' | 'declining';
   current_value: number | null;
@@ -90,7 +90,7 @@ function calculateTrend(values: { value: number | null }[], direction: string): 
   
   if (validValues.length < 3) return 'stable';
   
-  // Compare last 4 weeks average to previous 4 weeks
+  // Compare last 4 periods average to previous 4 periods
   const recent = validValues.slice(0, 4);
   const previous = validValues.slice(4, 8);
   
@@ -131,10 +131,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Fetch metrics for this organization
+    // Fetch metrics for this organization (including cadence for period awareness)
     const { data: metrics, error: metricsError } = await supabase
       .from('metrics')
-      .select('id, name, category, unit, target, direction, owner')
+      .select('id, name, category, unit, target, direction, owner, cadence')
       .eq('organization_id', organization_id);
 
     if (metricsError) {
@@ -144,6 +144,35 @@ serve(async (req) => {
 
     if (!metrics || metrics.length === 0) {
       return errorResponse(400, 'NO_METRICS', 'No scorecard metrics found. Please set up your scorecard first.');
+    }
+
+    // Fetch metric results - use period_start for both weekly and monthly cadence
+    const oneYearAgo = new Date();
+    oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+    const startDate = oneYearAgo.toISOString().split('T')[0];
+
+    const { data: metricResults, error: resultsError } = await supabase
+      .from('metric_results')
+      .select('metric_id, period_start, period_type, value')
+      .in('metric_id', metrics.map(m => m.id))
+      .gte('period_start', startDate)
+      .order('period_start', { ascending: false });
+
+    if (resultsError) {
+      console.error('[RESULTS_QUERY_FAILED]', resultsError);
+    }
+
+    // Check if any metrics have data
+    const metricsWithData = metrics.filter(m => 
+      (metricResults || []).some(r => r.metric_id === m.id && r.value !== null)
+    );
+
+    if (metricsWithData.length === 0) {
+      return errorResponse(
+        400, 
+        'NO_DATA', 
+        'No metrics have data imported yet. Please import your monthly report first.'
+      );
     }
 
     // Fetch users in this organization (for owner assignment and validation)
@@ -156,33 +185,7 @@ serve(async (req) => {
       console.error('[USERS_QUERY_FAILED]', usersError);
     }
 
-    const userMap = new Map((orgUsers || []).map(u => [u.id, u.full_name]));
     const userList = orgUsers || [];
-
-    // Fetch 12 weeks of metric values
-    const twelveWeeksAgo = new Date();
-    twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
-    const startDate = twelveWeeksAgo.toISOString().split('T')[0];
-
-    const { data: metricResults, error: resultsError } = await supabase
-      .from('metric_results')
-      .select('metric_id, week_start, value')
-      .in('metric_id', metrics.map(m => m.id))
-      .gte('week_start', startDate)
-      .order('week_start', { ascending: false });
-
-    if (resultsError) {
-      console.error('[RESULTS_QUERY_FAILED]', resultsError);
-    }
-
-    // Group results by metric
-    const resultsByMetric = new Map<string, { week_start: string; value: number | null }[]>();
-    (metricResults || []).forEach(r => {
-      if (!resultsByMetric.has(r.metric_id)) {
-        resultsByMetric.set(r.metric_id, []);
-      }
-      resultsByMetric.get(r.metric_id)!.push({ week_start: r.week_start, value: r.value });
-    });
 
     // Fetch organization name and VTO values if available
     const { data: orgData } = await supabase
@@ -211,12 +214,22 @@ serve(async (req) => {
       coreFocus = version.core_focus?.niche || '';
     }
 
+    // Group results by metric
+    const resultsByMetric = new Map<string, { period_start: string; value: number | null }[]>();
+    (metricResults || []).forEach(r => {
+      if (!resultsByMetric.has(r.metric_id)) {
+        resultsByMetric.set(r.metric_id, []);
+      }
+      resultsByMetric.get(r.metric_id)!.push({ period_start: r.period_start, value: r.value });
+    });
+
     // Build enriched metrics with status and trend
     const enrichedMetrics: MetricWithHistory[] = metrics.map(m => {
       const values = resultsByMetric.get(m.id) || [];
       const currentValue = values.length > 0 ? values[0].value : null;
       const status = calculateMetricStatus(currentValue, m.target, m.direction);
-      const trend = calculateTrend(values, m.direction);
+      const trendValues = values.map(v => ({ value: v.value }));
+      const trend = calculateTrend(trendValues, m.direction);
       
       return {
         id: m.id,
@@ -226,7 +239,7 @@ serve(async (req) => {
         target: m.target,
         direction: m.direction,
         owner: m.owner,
-        owner_id: null, // Owner is stored as name, not ID
+        owner_id: null,
         owner_name: m.owner,
         values: values.slice(0, 12),
         status,
@@ -241,11 +254,9 @@ serve(async (req) => {
       const statusDiff = statusOrder[a.status] - statusOrder[b.status];
       if (statusDiff !== 0) return statusDiff;
       
-      // Then by declining trend
       if (a.trend === 'declining' && b.trend !== 'declining') return -1;
       if (b.trend === 'declining' && a.trend !== 'declining') return 1;
       
-      // Then by strategic category
       const categoryOrder: Record<string, number> = { Revenue: 0, Patients: 1, Clinical: 2, Marketing: 3, Operations: 4 };
       return (categoryOrder[a.category] ?? 5) - (categoryOrder[b.category] ?? 5);
     });
@@ -406,14 +417,12 @@ Return a JSON array with this structure:
     // Validate and clean owner_ids - ensure they belong to this org
     const validUserIds = new Set(userList.map(u => u.id));
     const cleanedRocks = suggestedRocks.rocks.map(rock => {
-      // Validate owner_id is from this organization
       if (rock.owner_id && !validUserIds.has(rock.owner_id)) {
         console.warn(`[OWNER_VALIDATION] Invalid owner_id ${rock.owner_id}, setting to null`);
         rock.owner_id = null;
         rock.owner_name = null;
       }
       
-      // Validate linked_metric_ids are from this organization's metrics
       const validMetricIds = new Set(metrics.map(m => m.id));
       rock.linked_metric_ids = (rock.linked_metric_ids || []).filter(id => validMetricIds.has(id));
       

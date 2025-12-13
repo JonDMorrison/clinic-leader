@@ -150,17 +150,21 @@ export const importMetricResultsFromCSV = async (
         }
 
         // Upsert the row
+        const periodKey = weekStart; // YYYY-MM-DD for weekly
         const { error: upsertError } = await supabase
           .from("metric_results")
           .upsert(
             {
               metric_id: metric.id,
               week_start: weekStart,
+              period_start: weekStart,
+              period_type: "weekly",
+              period_key: periodKey,
               value: numericValue,
               source: source as "manual" | "jane",
             },
             {
-              onConflict: "metric_id,week_start",
+              onConflict: "metric_id,period_type,period_start",
             }
           );
 

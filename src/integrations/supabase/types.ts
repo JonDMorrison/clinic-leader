@@ -979,7 +979,7 @@ export type Database = {
           context: string | null
           created_at: string
           id: string
-          organization_id: string | null
+          organization_id: string
           owner_id: string | null
           priority: number
           solved_at: string | null
@@ -991,7 +991,7 @@ export type Database = {
           context?: string | null
           created_at?: string
           id?: string
-          organization_id?: string | null
+          organization_id: string
           owner_id?: string | null
           priority?: number
           solved_at?: string | null
@@ -1003,7 +1003,7 @@ export type Database = {
           context?: string | null
           created_at?: string
           id?: string
-          organization_id?: string | null
+          organization_id?: string
           owner_id?: string | null
           priority?: number
           solved_at?: string | null
@@ -1349,7 +1349,7 @@ export type Database = {
           created_at: string
           duration_minutes: number
           id: string
-          organization_id: string | null
+          organization_id: string
           scheduled_for: string
           type: Database["public"]["Enums"]["meeting_type"]
         }
@@ -1357,7 +1357,7 @@ export type Database = {
           created_at?: string
           duration_minutes?: number
           id?: string
-          organization_id?: string | null
+          organization_id: string
           scheduled_for: string
           type: Database["public"]["Enums"]["meeting_type"]
         }
@@ -1365,7 +1365,7 @@ export type Database = {
           created_at?: string
           duration_minutes?: number
           id?: string
-          organization_id?: string | null
+          organization_id?: string
           scheduled_for?: string
           type?: Database["public"]["Enums"]["meeting_type"]
         }
@@ -1610,6 +1610,9 @@ export type Database = {
           metric_id: string
           note: string | null
           overridden_at: string | null
+          period_key: string
+          period_start: string
+          period_type: string
           previous_value: number | null
           source: string | null
           updated_at: string
@@ -1622,6 +1625,9 @@ export type Database = {
           metric_id: string
           note?: string | null
           overridden_at?: string | null
+          period_key: string
+          period_start: string
+          period_type: string
           previous_value?: number | null
           source?: string | null
           updated_at?: string
@@ -1634,6 +1640,9 @@ export type Database = {
           metric_id?: string
           note?: string | null
           overridden_at?: string | null
+          period_key?: string
+          period_start?: string
+          period_type?: string
           previous_value?: number | null
           source?: string | null
           updated_at?: string
@@ -1693,12 +1702,14 @@ export type Database = {
       }
       metrics: {
         Row: {
+          cadence: string
           category: string
           created_at: string
           direction: string
           display_priority: number | null
           id: string
           is_favorite: boolean | null
+          is_locked: boolean
           name: string
           organization_id: string
           owner: string | null
@@ -1708,12 +1719,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cadence?: string
           category: string
           created_at?: string
           direction: string
           display_priority?: number | null
           id?: string
           is_favorite?: boolean | null
+          is_locked?: boolean
           name: string
           organization_id: string
           owner?: string | null
@@ -1723,12 +1736,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cadence?: string
           category?: string
           created_at?: string
           direction?: string
           display_priority?: number | null
           id?: string
           is_favorite?: boolean | null
+          is_locked?: boolean
           name?: string
           organization_id?: string
           owner?: string | null
@@ -2157,7 +2172,7 @@ export type Database = {
           id: string
           level: Database["public"]["Enums"]["rock_level"]
           note: string | null
-          organization_id: string | null
+          organization_id: string
           owner_id: string | null
           quarter: string
           status: Database["public"]["Enums"]["rock_status"]
@@ -2174,7 +2189,7 @@ export type Database = {
           id?: string
           level: Database["public"]["Enums"]["rock_level"]
           note?: string | null
-          organization_id?: string | null
+          organization_id: string
           owner_id?: string | null
           quarter: string
           status?: Database["public"]["Enums"]["rock_status"]
@@ -2191,7 +2206,7 @@ export type Database = {
           id?: string
           level?: Database["public"]["Enums"]["rock_level"]
           note?: string | null
-          organization_id?: string | null
+          organization_id?: string
           owner_id?: string | null
           quarter?: string
           status?: Database["public"]["Enums"]["rock_status"]
@@ -2227,7 +2242,7 @@ export type Database = {
           created_at: string
           department_id: string | null
           id: string
-          organization_id: string | null
+          organization_id: string
           reports_to: string | null
           reports_to_seat_id: string | null
           responsibilities: string[] | null
@@ -2239,7 +2254,7 @@ export type Database = {
           created_at?: string
           department_id?: string | null
           id?: string
-          organization_id?: string | null
+          organization_id: string
           reports_to?: string | null
           reports_to_seat_id?: string | null
           responsibilities?: string[] | null
@@ -2251,7 +2266,7 @@ export type Database = {
           created_at?: string
           department_id?: string | null
           id?: string
-          organization_id?: string | null
+          organization_id?: string
           reports_to?: string | null
           reports_to_seat_id?: string | null
           responsibilities?: string[] | null
@@ -2383,6 +2398,7 @@ export type Database = {
           needs_scorecard_review: boolean | null
           onboarding_status: string | null
           review_cadence: string | null
+          scorecard_mode: string
           team_size: number | null
           timezone: string | null
           unit_system: string | null
@@ -2409,6 +2425,7 @@ export type Database = {
           needs_scorecard_review?: boolean | null
           onboarding_status?: string | null
           review_cadence?: string | null
+          scorecard_mode?: string
           team_size?: number | null
           timezone?: string | null
           unit_system?: string | null
@@ -2435,6 +2452,7 @@ export type Database = {
           needs_scorecard_review?: boolean | null
           onboarding_status?: string | null
           review_cadence?: string | null
+          scorecard_mode?: string
           team_size?: number | null
           timezone?: string | null
           unit_system?: string | null

@@ -134,12 +134,15 @@ const L10 = () => {
         confidence: rock.confidence,
       })) || [];
 
-      // Create meeting record
+      // Create meeting record (organization_id is now required)
+      if (!organizationId) {
+        throw new Error("No organization context available");
+      }
       const { data: meeting, error: meetingError } = await supabase
         .from("meetings")
         .insert({
           type: "L10",
-          team_id: organizationId || null,
+          organization_id: organizationId,
           scheduled_for: new Date().toISOString(),
           duration_minutes: 90,
         })

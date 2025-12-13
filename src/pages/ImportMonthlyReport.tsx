@@ -99,6 +99,13 @@ const ImportMonthlyReport = () => {
     });
   };
 
+  // Normalize date to first of month for monthly imports
+  const normalizeToMonthStart = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return new Date(date.getFullYear(), date.getMonth(), 1)
+      .toISOString().split('T')[0];
+  };
+
   const handleImport = async () => {
     if (!period || !currentUser?.team_id) {
       toast.error('Please select a period');
@@ -107,18 +114,24 @@ const ImportMonthlyReport = () => {
 
     setIsProcessing(true);
     try {
-      // Insert metric results
+      const normalizedPeriod = normalizeToMonthStart(period);
+      const periodKey = normalizedPeriod.slice(0, 7); // 'YYYY-MM'
+      
+      // Insert metric results with monthly period fields
       const results = mappings
         .filter(m => m.mappedMetricId)
         .map(m => ({
           metric_id: m.mappedMetricId,
-          week_start: period,
+          week_start: normalizedPeriod, // Keep for legacy compat
+          period_start: normalizedPeriod,
+          period_type: 'monthly' as const,
+          period_key: periodKey,
           value: parseFloat(String(m.value).replace(/[^0-9.-]/g, '')),
-          source: 'manual_upload',
+          source: 'monthly_upload',
         }));
 
       const { error } = await supabase.from('metric_results').upsert(results, {
-        onConflict: 'metric_id,week_start',
+        onConflict: 'metric_id,period_type,period_start',
       });
 
       if (error) throw error;
@@ -238,15 +251,20 @@ const ImportMonthlyReport = () => {
 
       {showPreview && mappings.length > 0 && (
         <Card className="p-6 space-y-4">
-          <div>
-            <Label htmlFor="period">Period</Label>
+          <div className="space-y-2">
+            <Label htmlFor="period">Select Month</Label>
             <Input
               id="period"
-              type="date"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
+              type="month"
+              value={period ? period.slice(0, 7) : ''}
+              onChange={(e) => setPeriod(e.target.value + '-01')}
               className="max-w-sm"
             />
+            {period && (
+              <p className="text-sm text-green-600 font-medium flex items-center gap-1">
+                ✓ Importing as {new Date(period).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} (monthly)
+              </p>
+            )}
           </div>
 
           <div>

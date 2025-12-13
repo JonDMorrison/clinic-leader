@@ -274,6 +274,9 @@ const ScorecardUpdate = () => {
             ...(result?.id && { id: result.id }),
             metric_id: selectedMetricId,
             week_start: weekStart,
+            period_start: weekStart,
+            period_type: "weekly" as const,
+            period_key: weekStart,
             value,
             source: "manual" as const,
             ...(reason && { note: reason }),
@@ -284,7 +287,7 @@ const ScorecardUpdate = () => {
       const { error } = await supabase
         .from("metric_results")
         .upsert(upserts, {
-          onConflict: "metric_id,week_start",
+          onConflict: "metric_id,period_type,period_start",
         });
 
       if (error) throw error;

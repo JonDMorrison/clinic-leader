@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Plus, X, Link as LinkIcon } from "lucide-react";
 
 interface VtoLinkerProps {
@@ -18,6 +19,8 @@ interface VtoLinkerProps {
 export const VtoLinker = ({ vtoVersionId, goalKey, goalTitle }: VtoLinkerProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: currentUser } = useCurrentUser();
+  const organizationId = currentUser?.team_id;
   const [linkType, setLinkType] = useState<'kpi' | 'rock' | 'issue' | 'doc'>('kpi');
   const [linkId, setLinkId] = useState("");
   const [weight, setWeight] = useState(1.0);
@@ -37,15 +40,18 @@ export const VtoLinker = ({ vtoVersionId, goalKey, goalTitle }: VtoLinkerProps) 
     },
   });
 
-  // Fetch available items to link
+  // Fetch available items to link - now filtered by organization_id
   const { data: availableItems } = useQuery({
-    queryKey: ["vto-linkable-items", linkType],
+    queryKey: ["vto-linkable-items", linkType, organizationId],
     queryFn: async () => {
+      if (!organizationId) return [];
+      
       if (linkType === 'kpi') {
+        // Using metrics table (not kpis) with org filter
         const { data, error } = await supabase
-          .from("kpis")
+          .from("metrics")
           .select("id, name")
-          .eq("active", true)
+          .eq("organization_id", organizationId)
           .order("name");
         if (error) throw error;
         return data;
@@ -53,6 +59,7 @@ export const VtoLinker = ({ vtoVersionId, goalKey, goalTitle }: VtoLinkerProps) 
         const { data, error } = await supabase
           .from("rocks")
           .select("id, title")
+          .eq("organization_id", organizationId)
           .order("title");
         if (error) throw error;
         return data.map(r => ({ id: r.id, name: r.title }));
@@ -60,6 +67,7 @@ export const VtoLinker = ({ vtoVersionId, goalKey, goalTitle }: VtoLinkerProps) 
         const { data, error } = await supabase
           .from("issues")
           .select("id, title")
+          .eq("organization_id", organizationId)
           .eq("status", "open")
           .order("title");
         if (error) throw error;
@@ -68,12 +76,14 @@ export const VtoLinker = ({ vtoVersionId, goalKey, goalTitle }: VtoLinkerProps) 
         const { data, error } = await supabase
           .from("docs")
           .select("id, title")
+          .eq("organization_id", organizationId)
           .order("title");
         if (error) throw error;
         return data.map(d => ({ id: d.id, name: d.title }));
       }
       return [];
     },
+    enabled: !!organizationId,
   });
 
   const addLinkMutation = useMutation({
