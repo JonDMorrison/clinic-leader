@@ -12,11 +12,13 @@ import {
   SheetDescription,
   SheetTrigger 
 } from "@/components/ui/sheet";
-import { AlertTriangle, TrendingUp, TrendingDown, Minus, Plus, ExternalLink, Loader2 } from "lucide-react";
-import { format, subMonths, startOfMonth } from "date-fns";
+import { AlertTriangle, TrendingUp, TrendingDown, Minus, Plus, ExternalLink, Loader2, Database } from "lucide-react";
+import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { calculateMetricStatus, formatMetricValue, type MetricStatus } from "@/lib/scorecard/metricStatus";
+import { getAvailablePeriods, periodKeyToStart } from "@/lib/scorecard/periodHelper";
+import { CreateIssueFromMetricModal } from "@/components/scorecard/CreateIssueFromMetricModal";
 
 interface RealityGapBadgeProps {
   rockId: string;
@@ -42,75 +44,70 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
   const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser();
   const [open, setOpen] = useState(false);
-  const [isCreatingIssue, setIsCreatingIssue] = useState(false);
+  const [issueMetric, setIssueMetric] = useState<LinkedMetricData | null>(null);
+
+  // Use latest available period
+  const availablePeriods = getAvailablePeriods();
+  const selectedPeriodKey = availablePeriods[0]?.key || format(new Date(), 'yyyy-MM');
 
   const { data: gapData, isLoading } = useQuery({
-    queryKey: ['reality-gap', rockId],
+    queryKey: ['reality-gap', rockId, selectedPeriodKey, currentUser?.team_id],
     queryFn: async () => {
-      // Get linked metrics for this rock
+      if (!currentUser?.team_id) return { offTrackCount: 0, needsDataCount: 0, metrics: [], latestPeriod: null };
+
+      const orgId = currentUser.team_id;
+      const periodStart = periodKeyToStart(selectedPeriodKey);
+
+      // Get linked metrics for this rock - org scoped
       const { data: links } = await supabase
         .from('rock_metric_links')
         .select('metric_id')
-        .eq('rock_id', rockId);
+        .eq('rock_id', rockId)
+        .eq('organization_id', orgId);
 
-      if (!links?.length) return { offTrackCount: 0, metrics: [], latestPeriod: null };
+      if (!links?.length) return { offTrackCount: 0, needsDataCount: 0, metrics: [], latestPeriod: null };
 
       const metricIds = links.map(l => l.metric_id);
 
-      // Get metrics
+      // Get metrics - org scoped
       const { data: metrics } = await supabase
         .from('metrics')
         .select('*')
         .in('id', metricIds)
+        .eq('organization_id', orgId)
         .eq('is_active', true);
 
-      // Get last 3 months of results
-      const periods = Array.from({ length: 3 }, (_, i) => 
-        format(startOfMonth(subMonths(new Date(), i)), 'yyyy-MM-dd')
-      );
-
+      // Get results for selected period
       const { data: results } = await supabase
         .from('metric_results')
         .select('*')
         .in('metric_id', metricIds)
         .eq('period_type', 'monthly')
-        .in('period_start', periods)
-        .order('period_start', { ascending: false });
+        .eq('period_start', periodStart);
 
       const resultsByMetric = results?.reduce((acc, r) => {
-        if (!acc[r.metric_id]) acc[r.metric_id] = [];
-        acc[r.metric_id].push(r);
+        acc[r.metric_id] = r;
         return acc;
-      }, {} as Record<string, any[]>) || {};
+      }, {} as Record<string, any>) || {};
 
       let offTrackCount = 0;
-      let latestPeriod: string | null = null;
+      let needsDataCount = 0;
       const linkedMetrics: LinkedMetricData[] = [];
 
       for (const metric of metrics || []) {
-        const metricResults = resultsByMetric[metric.id] || [];
-        const current = metricResults[0];
-        const previous = metricResults[1];
-
-        if (current?.period_start && (!latestPeriod || current.period_start > latestPeriod)) {
-          latestPeriod = current.period_start;
-        }
+        const result = resultsByMetric[metric.id];
 
         // Use shared helper for status calculation
         const statusResult = calculateMetricStatus(
-          current?.value ?? null,
+          result?.value ?? null,
           metric.target,
           metric.direction,
-          current?.period_start ?? null
+          result?.period_start ?? periodStart,
+          metric.owner
         );
 
         if (statusResult.status === 'off_track') offTrackCount++;
-
-        let trend: 'up' | 'down' | 'stable' = 'stable';
-        if (current && previous) {
-          if (current.value > previous.value) trend = 'up';
-          else if (current.value < previous.value) trend = 'down';
-        }
+        if (statusResult.status === 'needs_data') needsDataCount++;
 
         linkedMetrics.push({
           id: metric.id,
@@ -118,17 +115,23 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
           target: metric.target,
           direction: metric.direction,
           unit: metric.unit,
-          currentValue: current?.value ?? null,
-          currentPeriod: current?.period_start ?? null,
+          currentValue: result?.value ?? null,
+          currentPeriod: result?.period_start ?? periodStart,
           status: statusResult.status,
           delta: statusResult.delta,
-          trend,
+          trend: 'stable', // Simplified - no trend calculation for now
         });
       }
 
-      return { offTrackCount, metrics: linkedMetrics, latestPeriod };
+      return { 
+        offTrackCount, 
+        needsDataCount, 
+        metrics: linkedMetrics, 
+        latestPeriod: periodStart,
+        periodLabel: availablePeriods[0]?.label,
+      };
     },
-    enabled: !!rockId,
+    enabled: !!rockId && !!currentUser?.team_id,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -173,13 +176,8 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
   });
 
   const handleCreateIssue = async () => {
-    setIsCreatingIssue(true);
-    try {
-      await createIssueMutation.mutateAsync();
-      onCreateIssue?.();
-    } finally {
-      setIsCreatingIssue(false);
-    }
+    await createIssueMutation.mutateAsync();
+    onCreateIssue?.();
   };
 
   if (isLoading || !gapData || gapData.metrics.length === 0) return null;
@@ -269,9 +267,9 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
                 className="w-full" 
                 variant="default"
                 onClick={handleCreateIssue}
-                disabled={isCreatingIssue}
+                disabled={createIssueMutation.isPending}
               >
-                {isCreatingIssue ? (
+                {createIssueMutation.isPending ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <Plus className="w-4 h-4 mr-2" />
