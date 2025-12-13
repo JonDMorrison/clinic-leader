@@ -1702,12 +1702,14 @@ export type Database = {
       }
       metrics: {
         Row: {
+          aliases: string[] | null
           cadence: string
           category: string
           created_at: string
           direction: string
           display_priority: number | null
           id: string
+          import_key: string | null
           is_active: boolean
           is_favorite: boolean | null
           is_locked: boolean
@@ -1720,12 +1722,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aliases?: string[] | null
           cadence?: string
           category: string
           created_at?: string
           direction: string
           display_priority?: number | null
           id?: string
+          import_key?: string | null
           is_active?: boolean
           is_favorite?: boolean | null
           is_locked?: boolean
@@ -1738,12 +1742,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aliases?: string[] | null
           cadence?: string
           category?: string
           created_at?: string
           direction?: string
           display_priority?: number | null
           id?: string
+          import_key?: string | null
           is_active?: boolean
           is_favorite?: boolean | null
           is_locked?: boolean
@@ -1756,6 +1762,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      monthly_import_profiles: {
+        Row: {
+          created_at: string | null
+          file_fingerprint: string | null
+          header_row_index: number
+          id: string
+          layout_type: string
+          mappings: Json
+          metric_name_column: string | null
+          month_column: string | null
+          name: string
+          organization_id: string
+          sheet_name: string
+          updated_at: string | null
+          value_column: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_fingerprint?: string | null
+          header_row_index?: number
+          id?: string
+          layout_type: string
+          mappings?: Json
+          metric_name_column?: string | null
+          month_column?: string | null
+          name?: string
+          organization_id: string
+          sheet_name: string
+          updated_at?: string | null
+          value_column?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          file_fingerprint?: string | null
+          header_row_index?: number
+          id?: string
+          layout_type?: string
+          mappings?: Json
+          metric_name_column?: string | null
+          month_column?: string | null
+          name?: string
+          organization_id?: string
+          sheet_name?: string
+          updated_at?: string | null
+          value_column?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_import_profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       onboarding_sessions: {
         Row: {
