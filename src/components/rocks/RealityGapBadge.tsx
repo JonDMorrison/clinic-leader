@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -11,9 +12,11 @@ import {
   SheetDescription,
   SheetTrigger 
 } from "@/components/ui/sheet";
-import { AlertTriangle, TrendingUp, TrendingDown, Minus, Plus, ExternalLink } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, Minus, Plus, ExternalLink, Loader2 } from "lucide-react";
 import { format, subMonths, startOfMonth } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { calculateMetricStatus, formatMetricValue, type MetricStatus } from "@/lib/scorecard/metricStatus";
 
 interface RealityGapBadgeProps {
   rockId: string;
@@ -21,22 +24,25 @@ interface RealityGapBadgeProps {
   onCreateIssue?: () => void;
 }
 
-interface LinkedMetricStatus {
+interface LinkedMetricData {
   id: string;
   name: string;
   target: number | null;
   direction: string;
   unit: string;
   currentValue: number | null;
-  previousValue: number | null;
   currentPeriod: string | null;
-  isOffTrack: boolean;
+  status: MetricStatus;
+  delta: number | null;
   trend: 'up' | 'down' | 'stable';
 }
 
 export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGapBadgeProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: currentUser } = useCurrentUser();
   const [open, setOpen] = useState(false);
+  const [isCreatingIssue, setIsCreatingIssue] = useState(false);
 
   const { data: gapData, isLoading } = useQuery({
     queryKey: ['reality-gap', rockId],
@@ -55,7 +61,8 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
       const { data: metrics } = await supabase
         .from('metrics')
         .select('*')
-        .in('id', metricIds);
+        .in('id', metricIds)
+        .eq('is_active', true);
 
       // Get last 3 months of results
       const periods = Array.from({ length: 3 }, (_, i) => 
@@ -78,7 +85,7 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
 
       let offTrackCount = 0;
       let latestPeriod: string | null = null;
-      const linkedMetrics: LinkedMetricStatus[] = [];
+      const linkedMetrics: LinkedMetricData[] = [];
 
       for (const metric of metrics || []) {
         const metricResults = resultsByMetric[metric.id] || [];
@@ -89,13 +96,15 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
           latestPeriod = current.period_start;
         }
 
-        let isOffTrack = false;
-        if (metric.target && current) {
-          isOffTrack = metric.direction === 'up' 
-            ? current.value < metric.target
-            : current.value > metric.target;
-          if (isOffTrack) offTrackCount++;
-        }
+        // Use shared helper for status calculation
+        const statusResult = calculateMetricStatus(
+          current?.value ?? null,
+          metric.target,
+          metric.direction,
+          current?.period_start ?? null
+        );
+
+        if (statusResult.status === 'off_track') offTrackCount++;
 
         let trend: 'up' | 'down' | 'stable' = 'stable';
         if (current && previous) {
@@ -110,9 +119,9 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
           direction: metric.direction,
           unit: metric.unit,
           currentValue: current?.value ?? null,
-          previousValue: previous?.value ?? null,
           currentPeriod: current?.period_start ?? null,
-          isOffTrack,
+          status: statusResult.status,
+          delta: statusResult.delta,
           trend,
         });
       }
@@ -123,14 +132,57 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
     staleTime: 5 * 60 * 1000,
   });
 
-  if (isLoading || !gapData || gapData.metrics.length === 0) return null;
+  const createIssueMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentUser?.team_id || !gapData) throw new Error('Missing data');
 
-  const formatValue = (value: number | null, unit: string) => {
-    if (value === null) return '-';
-    if (unit === '$') return `$${value.toLocaleString()}`;
-    if (unit === '%') return `${value}%`;
-    return value.toLocaleString();
+      const offTrackMetrics = gapData.metrics.filter(m => m.status === 'off_track');
+      if (offTrackMetrics.length === 0) throw new Error('No off-track metrics');
+
+      const metricDetails = offTrackMetrics.map(m => 
+        `• ${m.name}: ${formatMetricValue(m.currentValue, m.unit)} (Target: ${formatMetricValue(m.target, m.unit)})`
+      ).join('\n');
+
+      const periodLabel = gapData.latestPeriod 
+        ? format(new Date(gapData.latestPeriod), 'MMMM yyyy')
+        : 'Latest month';
+
+      const { data, error } = await supabase
+        .from('issues')
+        .insert({
+          organization_id: currentUser.team_id,
+          title: `Reality gap for Rock: ${rockTitle}`,
+          context: `Based on ${periodLabel} data:\n\n${metricDetails}`,
+          priority: offTrackMetrics.length >= 3 ? 1 : 2,
+          status: 'open',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['issues'] });
+      toast.success('Issue created from reality gap');
+      setOpen(false);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to create issue');
+    },
+  });
+
+  const handleCreateIssue = async () => {
+    setIsCreatingIssue(true);
+    try {
+      await createIssueMutation.mutateAsync();
+      onCreateIssue?.();
+    } finally {
+      setIsCreatingIssue(false);
+    }
   };
+
+  if (isLoading || !gapData || gapData.metrics.length === 0) return null;
 
   const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
     switch (trend) {
@@ -140,15 +192,24 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
     }
   };
 
+  const getStatusBadge = (status: MetricStatus) => {
+    switch (status) {
+      case 'off_track': return <Badge variant="destructive" className="text-xs">Off Track</Badge>;
+      case 'needs_target': return <Badge variant="outline" className="text-xs text-warning border-warning">Needs Target</Badge>;
+      case 'needs_data': return <Badge variant="muted" className="text-xs">Needs Data</Badge>;
+      default: return <Badge variant="outline" className="text-xs text-success border-success">On Track</Badge>;
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Badge 
           variant={gapData.offTrackCount > 0 ? "destructive" : "outline"}
-          className="cursor-pointer gap-1 hover:opacity-80 transition-opacity"
+          className="cursor-pointer gap-1 hover:opacity-80 transition-opacity text-xs"
         >
           {gapData.offTrackCount > 0 && <AlertTriangle className="w-3 h-3" />}
-          Reality Gap: {gapData.offTrackCount}
+          Gap: {gapData.offTrackCount}
         </Badge>
       </SheetTrigger>
       <SheetContent className="w-[400px] sm:w-[540px]">
@@ -176,24 +237,27 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
             {gapData.metrics.map(metric => (
               <div 
                 key={metric.id} 
-                className={`p-3 rounded-lg border ${metric.isOffTrack ? 'border-destructive/30 bg-destructive/5' : 'border-border'}`}
+                className={`p-3 rounded-lg border ${metric.status === 'off_track' ? 'border-destructive/30 bg-destructive/5' : 'border-border'}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{metric.name}</p>
                     <div className="flex items-center gap-3 mt-1 text-xs">
-                      <span className={metric.isOffTrack ? 'text-destructive font-medium' : 'text-foreground'}>
-                        Current: {formatValue(metric.currentValue, metric.unit)}
+                      <span className={metric.status === 'off_track' ? 'text-destructive font-medium' : 'text-foreground'}>
+                        Current: {formatMetricValue(metric.currentValue, metric.unit)}
                       </span>
                       <span className="text-muted-foreground">
-                        Target: {formatValue(metric.target, metric.unit)}
+                        Target: {formatMetricValue(metric.target, metric.unit)}
                       </span>
                       {getTrendIcon(metric.trend)}
                     </div>
+                    {metric.delta !== null && metric.status === 'off_track' && (
+                      <p className="text-xs text-destructive mt-1">
+                        {metric.direction === 'up' ? 'Under' : 'Over'} by {formatMetricValue(Math.abs(metric.delta), metric.unit)}
+                      </p>
+                    )}
                   </div>
-                  {metric.isOffTrack && (
-                    <Badge variant="destructive" className="text-xs shrink-0">Off Track</Badge>
-                  )}
+                  {getStatusBadge(metric.status)}
                 </div>
               </div>
             ))}
@@ -203,13 +267,15 @@ export function RealityGapBadge({ rockId, rockTitle, onCreateIssue }: RealityGap
             <div className="pt-4 border-t space-y-2">
               <Button 
                 className="w-full" 
-                variant="outline"
-                onClick={() => {
-                  setOpen(false);
-                  onCreateIssue?.();
-                }}
+                variant="default"
+                onClick={handleCreateIssue}
+                disabled={isCreatingIssue}
               >
-                <Plus className="w-4 h-4 mr-2" />
+                {isCreatingIssue ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
                 Create Issue from Gap
               </Button>
               <Button 

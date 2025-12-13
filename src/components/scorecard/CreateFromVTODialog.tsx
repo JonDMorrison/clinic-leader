@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Sparkles, 
   Target, 
@@ -26,7 +27,8 @@ import {
   AlertCircle,
   FileWarning,
   ServerCrash,
-  WifiOff
+  WifiOff,
+  Lock
 } from "lucide-react";
 
 interface SuggestedMetric {
@@ -45,13 +47,28 @@ interface VTOGoal {
   category: 'ten_year' | 'three_year' | 'one_year' | 'rock';
 }
 
+interface ExistingMetric {
+  id: string;
+  name: string;
+  category: string;
+  target: number | null;
+}
+
+interface VTOMappingItem {
+  goalKey: string;
+  goalTitle: string;
+  goalCategory: string;
+  suggestedMetricId: string | null;
+  confidence: 'high' | 'medium' | 'low' | 'none';
+}
+
 interface CreateFromVTODialogProps {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }
 
-type Step = 'intro' | 'loading' | 'review' | 'creating' | 'done' | 'error';
+type Step = 'intro' | 'loading' | 'review' | 'mapping' | 'creating' | 'done' | 'error';
 
 // Error code to UI mapping
 const ERROR_UI: Record<string, { title: string; body: string; icon: React.ReactNode }> = {
@@ -91,6 +108,44 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
   const [apiError, setApiError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [createdCount, setCreatedCount] = useState(0);
+  
+  // For locked mode mapping
+  const [mappingItems, setMappingItems] = useState<VTOMappingItem[]>([]);
+
+  // Fetch org settings to check if locked mode
+  const { data: orgSettings } = useQuery({
+    queryKey: ['org-settings', currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return null;
+      const { data, error } = await supabase
+        .from('teams')
+        .select('scorecard_mode')
+        .eq('id', currentUser.team_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentUser?.team_id && open,
+  });
+
+  // Fetch existing metrics for locked mode
+  const { data: existingMetrics } = useQuery({
+    queryKey: ['existing-metrics-for-vto', currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return [];
+      const { data, error } = await supabase
+        .from('metrics')
+        .select('id, name, category, target')
+        .eq('organization_id', currentUser.team_id)
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data as ExistingMetric[];
+    },
+    enabled: !!currentUser?.team_id && open && orgSettings?.scorecard_mode === 'locked_to_template',
+  });
+
+  const isLockedMode = orgSettings?.scorecard_mode === 'locked_to_template';
 
   // Reset all state to initial
   const resetState = () => {
@@ -102,6 +157,7 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
     setApiError(null);
     setErrorCode(null);
     setCreatedCount(0);
+    setMappingItems([]);
   };
 
   // Handle dialog close - always reset
@@ -110,8 +166,76 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
     onClose();
   };
 
-  // Generate suggestions from VTO
+  // For locked mode: fetch VTO goals and suggest metric mappings
+  const handleMapToExisting = async () => {
+    setStep('loading');
+    setApiError(null);
+
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke(
+        'ai-generate-scorecard-from-vto',
+        { body: { organization_id: currentUser?.team_id } }
+      );
+
+      if (invokeError || data?.error) {
+        setErrorCode(data?.error?.code || 'NETWORK_OR_UNKNOWN');
+        setApiError(data?.error?.message || 'Failed to load VTO goals');
+        setStep('error');
+        return;
+      }
+
+      if (!data?.data?.goals?.length) {
+        setErrorCode('NO_ACTIVE_VTO');
+        setApiError('No goals found in your Vision Planner');
+        setStep('error');
+        return;
+      }
+
+      const vtoGoals = data.data.goals as VTOGoal[];
+      setGoals(vtoGoals);
+      setVtoVersionId(data.data.vtoVersionId);
+
+      // Auto-suggest mappings based on name similarity
+      const mappings: VTOMappingItem[] = vtoGoals.map(goal => {
+        // Try to find a matching metric by fuzzy name matching
+        const goalNorm = goal.title.toLowerCase();
+        let bestMatch: ExistingMetric | null = null;
+        let confidence: 'high' | 'medium' | 'low' | 'none' = 'none';
+
+        for (const metric of existingMetrics || []) {
+          const metricNorm = metric.name.toLowerCase();
+          if (goalNorm.includes(metricNorm) || metricNorm.includes(goalNorm)) {
+            bestMatch = metric;
+            confidence = goalNorm === metricNorm ? 'high' : 'medium';
+            break;
+          }
+        }
+
+        return {
+          goalKey: goal.key,
+          goalTitle: goal.title,
+          goalCategory: goal.category,
+          suggestedMetricId: bestMatch?.id || null,
+          confidence,
+        };
+      });
+
+      setMappingItems(mappings);
+      setStep('mapping');
+    } catch (err) {
+      setErrorCode('NETWORK_OR_UNKNOWN');
+      setApiError('Connection failed');
+      setStep('error');
+    }
+  };
+
+  // Generate suggestions from VTO (standard mode)
   const handleGenerate = async () => {
+    if (isLockedMode) {
+      await handleMapToExisting();
+      return;
+    }
+
     setStep('loading');
     setApiError(null);
     setErrorCode(null);
