@@ -13,45 +13,51 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { 
   Upload, Download, Loader2, CheckCircle, AlertTriangle, ArrowLeft, 
-  ExternalLink, FileWarning, Table2, LayoutList, Columns, FileSpreadsheet,
-  Info, AlertCircle, RotateCcw, ChevronRight
+  FileWarning, FileSpreadsheet, AlertCircle, RotateCcw, Copy, ExternalLink
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { 
-  getWorkbookSheets, 
-  parseSheet, 
-  detectLayout, 
-  findMetricMatch, 
-  normalizeLabel,
-  SheetInfo,
-  ParsedSheet,
-  LayoutDetection,
-  indexToColumnLetter
-} from "@/lib/importers/excelProfileParser";
+import { getWorkbookSheets, parseSheet, normalizeLabel } from "@/lib/importers/excelProfileParser";
 import { parseCSV } from "@/lib/importers/csvParser";
 import * as XLSX from 'xlsx';
 
-// KPI-like keywords for sheet scoring
-const KPI_KEYWORDS = [
-  'revenue', 'visits', 'patients', 'profit', 'charges', 'close', 'rate',
-  'collections', 'new', 'active', 'referrals', 'appointments', 'scheduled',
-  'pvs', 'total', 'avg', 'average', 'gross', 'net', 'cancellations', 'no-shows',
-  'monthly', 'kpi', 'metrics', 'scorecard', 'performance'
-];
+// Required columns for canonical import
+const REQUIRED_COLUMNS = ['metric_key', 'value', 'month'];
+const OPTIONAL_COLUMNS = ['metric_name'];
 
-interface ExtractedValue {
-  sourceLabel: string;
-  value: any;
-  numericValue: number | null;
-  matchedMetricId: string | null;
-  matchedMetricName: string | null;
-  matchConfidence: number;
-  matchType: string;
-  status: 'matched' | 'unmatched' | 'invalid';
+type Step = 'upload' | 'sheet-select' | 'preview' | 'import' | 'done';
+
+interface ParseDiagnostics {
+  fileName: string;
+  fileType: string;
+  sheetName: string | null;
+  detectedHeaderRow: number;
+  detectedHeaders: string[];
+  rowCount: number;
+  sampleFirstRow: Record<string, any>;
+  hasRequiredColumns: boolean;
+  missingColumns: string[];
 }
 
-type Step = 'upload' | 'sheet-select' | 'preview' | 'mapping' | 'done';
+interface ParsedRow {
+  rowNumber: number;
+  metric_key: string;
+  metric_name?: string;
+  value: any;
+  month: string;
+  numericValue: number | null;
+  normalizedMonth: string | null;
+  matchedMetricId: string | null;
+  matchedMetricName: string | null;
+  status: 'ready' | 'unmatched' | 'invalid_value' | 'invalid_month';
+  reason?: string;
+}
+
+interface ImportSummary {
+  processed: number;
+  imported: number;
+  skipped: ParsedRow[];
+}
 
 const ImportMonthlyReport = () => {
   const navigate = useNavigate();
@@ -65,36 +71,31 @@ const ImportMonthlyReport = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Sheet selection state
-  const [sheets, setSheets] = useState<SheetInfo[]>([]);
+  const [sheets, setSheets] = useState<{ name: string; rowCount: number }[]>([]);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [selectedSheet, setSelectedSheet] = useState<string>('');
   
+  // Diagnostics
+  const [diagnostics, setDiagnostics] = useState<ParseDiagnostics | null>(null);
+  
   // Preview state
-  const [parsedSheet, setParsedSheet] = useState<ParsedSheet | null>(null);
-  const [layoutDetection, setLayoutDetection] = useState<LayoutDetection | null>(null);
+  const [previewRows, setPreviewRows] = useState<any[][]>([]);
   const [headerRowIndex, setHeaderRowIndex] = useState(0);
-  const [layoutType, setLayoutType] = useState<'row_metrics' | 'column_metrics'>('column_metrics');
-  const [metricNameColIndex, setMetricNameColIndex] = useState(0);
-  const [valueColIndex, setValueColIndex] = useState(1);
   
-  // Mapping state
-  const [extractedValues, setExtractedValues] = useState<ExtractedValue[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
+  // Parsed data
+  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   
-  // Results state
-  const [importResults, setImportResults] = useState<{ imported: number; skipped: string[] } | null>(null);
+  // Results
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
 
-  // Fetch metrics with import_key and aliases
+  // Fetch metrics with import_key
   const { data: metrics } = useQuery({
     queryKey: ['metrics-for-import', currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return [];
       const { data, error } = await supabase
         .from('metrics')
-        .select('id, name, unit, is_active, import_key, aliases')
+        .select('id, name, import_key, is_active')
         .eq('organization_id', currentUser.team_id)
         .eq('is_active', true)
         .order('name');
@@ -121,49 +122,25 @@ const ImportMonthlyReport = () => {
 
   const isLockedMode = orgSettings?.scorecard_mode === 'locked_to_template';
 
-  // Calculate sheet score based on KPI-like content
-  const scoreSheet = (sheet: SheetInfo, workbook: XLSX.WorkBook): number => {
-    const worksheet = workbook.Sheets[sheet.name];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-    
-    let score = 0;
-    let numericCount = 0;
-    let kpiKeywordCount = 0;
-    
-    // Scan first 25 rows
-    for (let r = 0; r < Math.min(jsonData.length, 25); r++) {
-      const row = jsonData[r] || [];
-      for (let c = 0; c < Math.min(row.length, 15); c++) {
-        const cell = row[c];
-        if (cell === undefined || cell === null || cell === '') continue;
-        
-        // Count numeric cells
-        if (typeof cell === 'number' || !isNaN(parseFloat(String(cell).replace(/[$,%]/g, '')))) {
-          numericCount++;
-        }
-        
-        // Check for KPI keywords
-        if (typeof cell === 'string') {
-          const lower = cell.toLowerCase();
-          for (const keyword of KPI_KEYWORDS) {
-            if (lower.includes(keyword)) {
-              kpiKeywordCount++;
-              break;
-            }
-          }
-        }
-      }
-    }
-    
-    // Score based on: data rows, numeric cells, KPI keywords
-    score += sheet.rowCount >= 8 ? 20 : sheet.rowCount * 2;
-    score += Math.min(numericCount, 50);
-    score += kpiKeywordCount * 5;
-    
-    return score;
-  };
+  // Check if template is ready (all metrics have import_key)
+  const missingImportKeys = useMemo(() => 
+    metrics?.filter(m => !m.import_key || m.import_key.trim() === '') || [],
+    [metrics]
+  );
+  const templateReady = missingImportKeys.length === 0;
 
-  // Handle file selection and parse workbook
+  // Build import_key -> metric lookup
+  const importKeyMap = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+    metrics?.forEach(m => {
+      if (m.import_key && m.import_key.trim()) {
+        map.set(normalizeLabel(m.import_key), { id: m.id, name: m.name });
+      }
+    });
+    return map;
+  }, [metrics]);
+
+  // Handle file selection
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -173,10 +150,10 @@ const ImportMonthlyReport = () => {
     setSheets([]);
     setWorkbook(null);
     setSelectedSheet('');
-    setParsedSheet(null);
-    setLayoutDetection(null);
-    setExtractedValues([]);
-    setImportResults(null);
+    setDiagnostics(null);
+    setPreviewRows([]);
+    setParsedRows([]);
+    setImportSummary(null);
     setIsProcessing(true);
 
     try {
@@ -185,40 +162,29 @@ const ImportMonthlyReport = () => {
         const content = await selectedFile.text();
         const parsed = parseCSV(content);
         const headers = parsed.headers;
-        const rows = [headers, ...parsed.rows.map(r => headers.map(h => r[h]))];
+        const rows = [headers, ...parsed.rows.slice(0, 20).map(r => headers.map(h => r[h]))];
         
-        const fakeParsedSheet: ParsedSheet = {
-          headers,
-          rows,
-          sheetName: 'CSV'
-        };
+        setPreviewRows(rows);
+        setHeaderRowIndex(0);
         
-        setParsedSheet(fakeParsedSheet);
-        const layout = detectLayout(fakeParsedSheet);
-        setLayoutDetection(layout);
-        setLayoutType(layout.type);
-        setHeaderRowIndex(layout.headerRowIndex);
+        const diag = buildDiagnostics(selectedFile.name, 'csv', null, 0, rows);
+        setDiagnostics(diag);
+        
         setStep('preview');
       } else {
         // For Excel, get all sheets
         const result = await getWorkbookSheets(selectedFile);
-        setSheets(result.sheets);
+        const sheetInfos = result.sheets.map(s => ({ name: s.name, rowCount: s.rowCount }));
+        setSheets(sheetInfos);
         setWorkbook(result.workbook);
         
-        // Auto-select best sheet
-        if (result.sheets.length === 1) {
-          setSelectedSheet(result.sheets[0].name);
-          loadSheet(result.workbook, result.sheets[0].name);
+        if (sheetInfos.length === 1) {
+          setSelectedSheet(sheetInfos[0].name);
+          loadSheet(result.workbook, sheetInfos[0].name, selectedFile.name);
         } else {
-          // Score sheets and pick the best
-          const scored = result.sheets.map(s => ({
-            sheet: s,
-            score: scoreSheet(s, result.workbook)
-          })).sort((a, b) => b.score - a.score);
-          
-          // Auto-select the highest scoring sheet
-          const bestSheet = scored[0].sheet.name;
-          setSelectedSheet(bestSheet);
+          // Find best sheet
+          const best = findBestSheet(result.workbook, sheetInfos);
+          setSelectedSheet(best);
           setStep('sheet-select');
         }
       }
@@ -229,241 +195,231 @@ const ImportMonthlyReport = () => {
     }
   };
 
-  // Load and parse a specific sheet
-  const loadSheet = (wb: XLSX.WorkBook, sheetName: string) => {
-    const parsed = parseSheet(wb, sheetName, 50);
-    setParsedSheet(parsed);
+  // Find the sheet most likely to contain scorecard data
+  const findBestSheet = (wb: XLSX.WorkBook, sheetInfos: { name: string }[]): string => {
+    let bestSheet = sheetInfos[0].name;
+    let bestScore = 0;
     
-    // Auto-detect layout
-    const layout = detectLayoutEnhanced(parsed);
-    setLayoutDetection(layout);
-    setLayoutType(layout.type);
-    setHeaderRowIndex(layout.headerRowIndex);
-    setMetricNameColIndex(0);
-    setValueColIndex(1);
+    for (const s of sheetInfos) {
+      const worksheet = wb.Sheets[s.name];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      
+      // Score based on having required columns
+      let score = 0;
+      for (const row of jsonData.slice(0, 10)) {
+        const rowStr = JSON.stringify(row).toLowerCase();
+        if (rowStr.includes('metric_key')) score += 50;
+        if (rowStr.includes('value')) score += 30;
+        if (rowStr.includes('month')) score += 30;
+        if (rowStr.includes('metric')) score += 10;
+      }
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestSheet = s.name;
+      }
+    }
+    
+    return bestSheet;
+  };
+
+  // Load and preview a specific sheet
+  const loadSheet = (wb: XLSX.WorkBook, sheetName: string, fileName: string) => {
+    const worksheet = wb.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+    
+    // Find header row (row containing required columns)
+    let headerIdx = 0;
+    for (let r = 0; r < Math.min(jsonData.length, 20); r++) {
+      const row = jsonData[r] || [];
+      const rowStr = row.map(c => String(c || '').toLowerCase().trim());
+      const hasKey = rowStr.some(c => c === 'metric_key');
+      const hasValue = rowStr.some(c => c === 'value');
+      const hasMonth = rowStr.some(c => c === 'month');
+      if (hasKey && hasValue && hasMonth) {
+        headerIdx = r;
+        break;
+      }
+    }
+    
+    setHeaderRowIndex(headerIdx);
+    setPreviewRows(jsonData.slice(0, 25));
+    
+    const diag = buildDiagnostics(fileName, 'xlsx', sheetName, headerIdx, jsonData);
+    setDiagnostics(diag);
     
     setStep('preview');
   };
 
-  // Enhanced layout detection with better header row detection
-  const detectLayoutEnhanced = (parsed: ParsedSheet): LayoutDetection => {
-    const { rows } = parsed;
-    if (rows.length < 2) {
-      return { type: 'column_metrics', confidence: 0.3, headerRowIndex: 0, detectedLabels: [] };
-    }
+  // Build diagnostics object
+  const buildDiagnostics = (
+    fileName: string,
+    fileType: string,
+    sheetName: string | null,
+    headerIdx: number,
+    rows: any[][]
+  ): ParseDiagnostics => {
+    const headerRow = rows[headerIdx] || [];
+    const headers = headerRow.map(h => String(h || '').trim());
+    const normalizedHeaders = headers.map(h => h.toLowerCase());
     
-    // Find the best header row by scanning first 25 rows
-    let bestHeaderRow = 0;
-    let bestHeaderScore = 0;
+    const hasRequired = REQUIRED_COLUMNS.every(col => 
+      normalizedHeaders.includes(col)
+    );
+    const missing = REQUIRED_COLUMNS.filter(col => !normalizedHeaders.includes(col));
     
-    for (let r = 0; r < Math.min(rows.length, 25); r++) {
-      const row = rows[r] || [];
-      let textCount = 0;
-      let uniqueTexts = new Set<string>();
-      let numericCount = 0;
-      
-      for (let c = 0; c < row.length; c++) {
-        const cell = row[c];
-        if (typeof cell === 'string' && cell.length > 2 && cell.length < 100) {
-          textCount++;
-          uniqueTexts.add(cell.toLowerCase());
-        }
-        if (typeof cell === 'number' || !isNaN(parseFloat(String(cell)))) {
-          numericCount++;
-        }
-      }
-      
-      // Header row should have many unique text labels and low numeric density
-      const score = (uniqueTexts.size * 2) + textCount - (numericCount * 0.5);
-      if (score > bestHeaderScore && row.length >= 3) {
-        bestHeaderScore = score;
-        bestHeaderRow = r;
-      }
-    }
-    
-    // Now detect layout using that header row
-    const headerRow = rows[bestHeaderRow] || [];
-    const dataRow = rows[bestHeaderRow + 1] || [];
-    
-    // Check column-based: headers are text, data is numeric
-    let headerTextCount = 0;
-    let dataNumericCount = 0;
-    for (let i = 0; i < Math.max(headerRow.length, dataRow.length); i++) {
-      if (typeof headerRow[i] === 'string' && String(headerRow[i]).length > 2) headerTextCount++;
-      const val = dataRow[i];
-      if (typeof val === 'number' || !isNaN(parseFloat(String(val).replace(/[$,%]/g, '')))) dataNumericCount++;
-    }
-    const colScore = headerRow.length > 0 ? 
-      (headerTextCount / headerRow.length) * (dataRow.length > 0 ? dataNumericCount / dataRow.length : 0) : 0;
-    
-    // Check row-based: first column is text labels
-    let firstColTextCount = 0;
-    let secondColNumericCount = 0;
-    for (let r = bestHeaderRow; r < Math.min(rows.length, bestHeaderRow + 20); r++) {
-      const row = rows[r] || [];
-      if (typeof row[0] === 'string' && String(row[0]).length > 2) firstColTextCount++;
-      const val = row[1];
-      if (typeof val === 'number' || !isNaN(parseFloat(String(val).replace(/[$,%]/g, '')))) secondColNumericCount++;
-    }
-    const rowsToCheck = Math.min(rows.length - bestHeaderRow, 20);
-    const rowScore = rowsToCheck > 0 ? (firstColTextCount / rowsToCheck) * (secondColNumericCount / rowsToCheck) : 0;
-    
-    const isRowBased = rowScore > colScore;
-    
-    // Extract detected labels
-    let detectedLabels: string[] = [];
-    if (isRowBased) {
-      detectedLabels = rows
-        .slice(bestHeaderRow)
-        .map(row => row[0])
-        .filter(v => typeof v === 'string' && v.length > 2)
-        .slice(0, 50);
-    } else {
-      detectedLabels = headerRow
-        .filter(v => typeof v === 'string' && v.length > 2)
-        .slice(0, 50);
-    }
+    const dataRow = rows[headerIdx + 1] || [];
+    const sampleRow: Record<string, any> = {};
+    headers.forEach((h, i) => {
+      if (h) sampleRow[h] = dataRow[i];
+    });
     
     return {
-      type: isRowBased ? 'row_metrics' : 'column_metrics',
-      confidence: Math.max(rowScore, colScore, 0.3),
-      headerRowIndex: bestHeaderRow,
-      metricNameColumn: isRowBased ? 'A' : undefined,
-      valueColumn: isRowBased ? 'B' : undefined,
-      detectedLabels
+      fileName,
+      fileType,
+      sheetName,
+      detectedHeaderRow: headerIdx + 1, // 1-indexed for display
+      detectedHeaders: headers.filter(h => h),
+      rowCount: rows.length - headerIdx - 1,
+      sampleFirstRow: sampleRow,
+      hasRequiredColumns: hasRequired,
+      missingColumns: missing,
     };
   };
 
-  // Handle sheet selection change
+  // Handle sheet change
   const handleSheetChange = (sheetName: string) => {
     setSelectedSheet(sheetName);
-    if (workbook) {
-      loadSheet(workbook, sheetName);
+    if (workbook && file) {
+      loadSheet(workbook, sheetName, file.name);
     }
   };
 
-  // Proceed from preview to mapping
-  const proceedToMapping = () => {
-    if (!parsedSheet || !metrics) return;
-    
-    const { rows } = parsedSheet;
-    const extracted: ExtractedValue[] = [];
-    
-    if (layoutType === 'column_metrics') {
-      // Headers contain metric names
-      const headers = rows[headerRowIndex] || [];
-      const dataRow = rows[headerRowIndex + 1] || [];
-      
-      for (let c = 0; c < headers.length; c++) {
-        const sourceLabel = String(headers[c] || '').trim();
-        if (!sourceLabel || sourceLabel.length < 2) continue;
-        
-        // Skip date/week columns
-        if (/^(date|week|month|period|year|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$/i.test(sourceLabel)) continue;
-        
-        const rawValue = dataRow[c];
-        const numericValue = parseNumericValue(rawValue);
-        const match = findMetricMatch(sourceLabel, metrics);
-        
-        extracted.push({
-          sourceLabel,
-          value: rawValue,
-          numericValue,
-          matchedMetricId: match.metricId,
-          matchedMetricName: match.metricId ? metrics.find(m => m.id === match.metricId)?.name || null : null,
-          matchConfidence: match.confidence,
-          matchType: match.matchType,
-          status: match.metricId ? 'matched' : (numericValue !== null ? 'unmatched' : 'invalid'),
-        });
-      }
-    } else {
-      // Row-based: first column has names, value column has values
-      for (let r = headerRowIndex; r < rows.length; r++) {
-        const row = rows[r] || [];
-        const sourceLabel = String(row[metricNameColIndex] || '').trim();
-        if (!sourceLabel || sourceLabel.length < 2) continue;
-        
-        // Skip header-like rows
-        if (/^(metric|name|kpi|measure|description)$/i.test(sourceLabel)) continue;
-        
-        const rawValue = row[valueColIndex];
-        const numericValue = parseNumericValue(rawValue);
-        const match = findMetricMatch(sourceLabel, metrics);
-        
-        extracted.push({
-          sourceLabel,
-          value: rawValue,
-          numericValue,
-          matchedMetricId: match.metricId,
-          matchedMetricName: match.metricId ? metrics.find(m => m.id === match.metricId)?.name || null : null,
-          matchConfidence: match.confidence,
-          matchType: match.matchType,
-          status: match.metricId ? 'matched' : (numericValue !== null ? 'unmatched' : 'invalid'),
-        });
-      }
+  // Handle header row change
+  const handleHeaderRowChange = (rowIdx: number) => {
+    setHeaderRowIndex(rowIdx);
+    if (previewRows.length > 0 && file) {
+      const diag = buildDiagnostics(
+        file.name,
+        file.name.endsWith('.csv') ? 'csv' : 'xlsx',
+        selectedSheet || null,
+        rowIdx,
+        previewRows
+      );
+      setDiagnostics(diag);
     }
-    
-    setExtractedValues(extracted);
-    setStep('mapping');
   };
 
-  const parseNumericValue = (value: any): number | null => {
-    if (value === null || value === undefined || value === '') return null;
-    if (typeof value === 'number') return value;
-    
-    const strVal = String(value).replace(/[$,%]/g, '').replace(/,/g, '').trim();
-    const num = parseFloat(strVal);
-    return isNaN(num) ? null : num;
-  };
-
-  const handleMappingChange = (index: number, metricId: string | null) => {
-    setExtractedValues(prev => {
-      const updated = [...prev];
-      if (metricId) {
-        const metric = metrics?.find(m => m.id === metricId);
-        updated[index].matchedMetricId = metricId;
-        updated[index].matchedMetricName = metric?.name || null;
-        updated[index].status = 'matched';
-      } else {
-        updated[index].matchedMetricId = null;
-        updated[index].matchedMetricName = null;
-        updated[index].status = updated[index].numericValue !== null ? 'unmatched' : 'invalid';
-      }
-      return updated;
-    });
-  };
-
-  const handleImport = async () => {
-    if (!currentUser?.team_id || !selectedMonth) {
-      toast.error('Please select a month');
+  // Proceed to import step - parse all data
+  const proceedToImport = () => {
+    if (!diagnostics?.hasRequiredColumns) {
+      toast.error('Missing required columns: metric_key, value, month');
       return;
     }
-
-    setIsProcessing(true);
-    try {
-      const [year, month] = selectedMonth.split('-').map(Number);
-      const periodStart = `${year}-${String(month).padStart(2, '0')}-01`;
-      const periodKey = `${year}-${String(month).padStart(2, '0')}`;
+    
+    const headerRow = previewRows[headerRowIndex] || [];
+    const headers = headerRow.map(h => String(h || '').trim().toLowerCase());
+    
+    const keyIdx = headers.indexOf('metric_key');
+    const nameIdx = headers.indexOf('metric_name');
+    const valueIdx = headers.indexOf('value');
+    const monthIdx = headers.indexOf('month');
+    
+    const parsed: ParsedRow[] = [];
+    
+    for (let r = headerRowIndex + 1; r < previewRows.length; r++) {
+      const row = previewRows[r] || [];
+      const metricKey = String(row[keyIdx] || '').trim();
+      const metricName = nameIdx >= 0 ? String(row[nameIdx] || '').trim() : undefined;
+      const rawValue = row[valueIdx];
+      const rawMonth = String(row[monthIdx] || '').trim();
       
-      const toImport = extractedValues.filter(e => e.matchedMetricId && e.numericValue !== null);
-      const skipped: string[] = [];
-
-      for (const ev of extractedValues) {
-        if (!ev.matchedMetricId && ev.numericValue !== null) {
-          skipped.push(`${ev.sourceLabel}: No matching metric`);
-        } else if (ev.numericValue === null && ev.matchedMetricId) {
-          skipped.push(`${ev.sourceLabel}: Invalid value`);
+      if (!metricKey) continue; // Skip empty rows
+      
+      // Parse value
+      let numericValue: number | null = null;
+      if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
+        const strVal = String(rawValue).replace(/[$,%]/g, '').replace(/,/g, '').trim();
+        numericValue = parseFloat(strVal);
+        if (isNaN(numericValue)) numericValue = null;
+      }
+      
+      // Parse month
+      let normalizedMonth: string | null = null;
+      if (rawMonth) {
+        // Try YYYY-MM format
+        const match = rawMonth.match(/^(\d{4})-(\d{1,2})$/);
+        if (match) {
+          normalizedMonth = `${match[1]}-${match[2].padStart(2, '0')}`;
+        } else {
+          // Try MM/YYYY or other formats
+          const match2 = rawMonth.match(/(\d{1,2})\/(\d{4})/);
+          if (match2) {
+            normalizedMonth = `${match2[2]}-${match2[1].padStart(2, '0')}`;
+          }
         }
       }
+      
+      // Match metric by import_key
+      const normalizedKey = normalizeLabel(metricKey);
+      const matchedMetric = importKeyMap.get(normalizedKey);
+      
+      // Determine status
+      let status: ParsedRow['status'] = 'ready';
+      let reason: string | undefined;
+      
+      if (!matchedMetric) {
+        status = 'unmatched';
+        reason = `metric_key "${metricKey}" not found in scorecard template`;
+      } else if (numericValue === null) {
+        status = 'invalid_value';
+        reason = `Invalid numeric value: "${rawValue}"`;
+      } else if (!normalizedMonth) {
+        status = 'invalid_month';
+        reason = `Invalid month format: "${rawMonth}" (expected YYYY-MM)`;
+      }
+      
+      parsed.push({
+        rowNumber: r + 1,
+        metric_key: metricKey,
+        metric_name: metricName,
+        value: rawValue,
+        month: rawMonth,
+        numericValue,
+        normalizedMonth,
+        matchedMetricId: matchedMetric?.id || null,
+        matchedMetricName: matchedMetric?.name || null,
+        status,
+        reason,
+      });
+    }
+    
+    setParsedRows(parsed);
+    setStep('import');
+  };
 
-      const results = toImport.map(ev => ({
-        metric_id: ev.matchedMetricId!,
-        week_start: periodStart,
-        period_start: periodStart,
+  // Execute import
+  const executeImport = async () => {
+    if (!currentUser?.team_id) return;
+    
+    setIsProcessing(true);
+    try {
+      const toImport = parsedRows.filter(r => r.status === 'ready');
+      const skipped = parsedRows.filter(r => r.status !== 'ready');
+      
+      const results = toImport.map(r => ({
+        metric_id: r.matchedMetricId!,
+        week_start: `${r.normalizedMonth}-01`,
+        period_start: `${r.normalizedMonth}-01`,
         period_type: 'monthly' as const,
-        period_key: periodKey,
-        value: ev.numericValue!,
+        period_key: r.normalizedMonth!,
+        value: r.numericValue!,
         source: 'monthly_upload',
+        raw_row: {
+          metric_key: r.metric_key,
+          value: r.value,
+          month: r.month,
+        },
       }));
 
       if (results.length > 0) {
@@ -474,9 +430,13 @@ const ImportMonthlyReport = () => {
         if (error) throw error;
       }
 
-      setImportResults({ imported: results.length, skipped });
+      setImportSummary({
+        processed: parsedRows.length,
+        imported: results.length,
+        skipped,
+      });
       setStep('done');
-      toast.success(`Successfully imported ${results.length} metrics for ${format(new Date(periodStart), 'MMMM yyyy')}`);
+      toast.success(`Imported ${results.length} values`);
     } catch (error: any) {
       toast.error(error.message || 'Import failed');
     } finally {
@@ -484,62 +444,31 @@ const ImportMonthlyReport = () => {
     }
   };
 
-  const downloadTemplate = () => {
-    if (!metrics) return;
-    const headers = metrics.map(m => m.name);
-    const example = metrics.map(() => '');
-    const csv = [headers.join(','), example.join(',')].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'monthly-kpi-template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  // Copy unmatched keys
+  const copyUnmatchedKeys = () => {
+    const unmatched = parsedRows.filter(r => r.status === 'unmatched');
+    const text = unmatched.map(r => `Row ${r.rowNumber}: ${r.metric_key}`).join('\n');
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
   };
 
+  // Reset
   const resetUpload = () => {
     setFile(null);
     setStep('upload');
     setSheets([]);
     setWorkbook(null);
     setSelectedSheet('');
-    setParsedSheet(null);
-    setLayoutDetection(null);
-    setExtractedValues([]);
-    setImportResults(null);
+    setDiagnostics(null);
+    setPreviewRows([]);
+    setParsedRows([]);
+    setImportSummary(null);
   };
 
-  // Preview stats
-  const previewStats = useMemo(() => {
-    if (!parsedSheet) return null;
-    
-    const { rows } = parsedSheet;
-    let numericCells = 0;
-    let totalCells = 0;
-    
-    for (let r = 0; r < Math.min(rows.length, 20); r++) {
-      const row = rows[r] || [];
-      for (let c = 0; c < row.length; c++) {
-        const cell = row[c];
-        if (cell !== undefined && cell !== null && cell !== '') {
-          totalCells++;
-          if (typeof cell === 'number' || !isNaN(parseFloat(String(cell).replace(/[$,%]/g, '')))) {
-            numericCells++;
-          }
-        }
-      }
-    }
-    
-    return {
-      rowCount: rows.length,
-      colCount: Math.max(...rows.map(r => (r || []).length)),
-      numericPercent: totalCells > 0 ? Math.round((numericCells / totalCells) * 100) : 0
-    };
-  }, [parsedSheet]);
-
-  const matchedCount = extractedValues.filter(e => e.status === 'matched').length;
-  const unmatchedCount = extractedValues.filter(e => e.status === 'unmatched').length;
+  // Stats for import step
+  const readyCount = parsedRows.filter(r => r.status === 'ready').length;
+  const unmatchedCount = parsedRows.filter(r => r.status === 'unmatched').length;
+  const invalidCount = parsedRows.filter(r => r.status === 'invalid_value' || r.status === 'invalid_month').length;
 
   if (userLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>;
@@ -555,70 +484,61 @@ const ImportMonthlyReport = () => {
       </div>
 
       <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Monthly KPI Sync</h1>
-        <p className="text-muted-foreground">Upload your monthly clinic report to populate scorecard metrics</p>
+        <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-3">
+          <Upload className="w-8 h-8 text-brand" />
+          Import Monthly Data
+        </h1>
+        <p className="text-muted-foreground">
+          Upload your monthly scorecard data using the canonical template format
+        </p>
         {isLockedMode && (
           <Badge variant="outline" className="mt-2 border-brand text-brand">
-            Locked to Template - Only existing metrics will be imported
+            Locked to Template Mode
           </Badge>
         )}
       </div>
 
-      {/* Step Indicator */}
-      <div className="flex items-center gap-2 text-sm">
-        <Badge variant={step === 'upload' ? 'default' : 'outline'}>1. Upload</Badge>
-        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        {sheets.length > 1 && (
-          <>
-            <Badge variant={step === 'sheet-select' ? 'default' : 'outline'}>2. Select Sheet</Badge>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          </>
-        )}
-        <Badge variant={step === 'preview' ? 'default' : 'outline'}>{sheets.length > 1 ? '3' : '2'}. Preview</Badge>
-        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        <Badge variant={step === 'mapping' ? 'default' : 'outline'}>{sheets.length > 1 ? '4' : '3'}. Map & Import</Badge>
-      </div>
-
-      {/* Done Results */}
-      {step === 'done' && importResults && (
-        <Alert className="border-success bg-success/10">
-          <CheckCircle className="h-4 w-4 text-success" />
-          <AlertDescription>
-            <div className="space-y-2">
-              <p className="font-medium">Import Complete!</p>
-              <p>{importResults.imported} metrics imported for {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}</p>
-              {importResults.skipped.length > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  <p className="font-medium">Skipped ({importResults.skipped.length}):</p>
-                  <ul className="list-disc list-inside">
-                    {importResults.skipped.slice(0, 5).map((s, i) => <li key={i}>{s}</li>)}
-                    {importResults.skipped.length > 5 && <li>...and {importResults.skipped.length - 5} more</li>}
-                  </ul>
-                </div>
-              )}
-              <div className="flex gap-2 pt-2">
-                <Button size="sm" onClick={() => navigate('/scorecard')}>View Scorecard</Button>
-                <Button size="sm" variant="outline" onClick={() => navigate('/scorecard/off-track')}>Review Off Track</Button>
-                <Button size="sm" variant="outline" onClick={resetUpload}>
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Import Another
-                </Button>
-              </div>
-            </div>
+      {/* Template not ready alert */}
+      {isLockedMode && !templateReady && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>
+              <strong>Import Blocked:</strong> {missingImportKeys.length} metrics are missing import keys. 
+              Set them up before importing data.
+            </span>
+            <Button size="sm" variant="outline" asChild>
+              <a href="/scorecard/template">
+                Fix Template <ExternalLink className="w-3 h-3 ml-1" />
+              </a>
+            </Button>
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Step 1: Upload */}
+      {/* Step: Upload */}
       {step === 'upload' && (
-        <Card className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label>Upload Report</Label>
-              <Button variant="outline" size="sm" onClick={downloadTemplate} disabled={!metrics?.length}>
-                <Download className="w-4 h-4 mr-2" />
-                Download Template
-              </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-brand" />
+              Upload Scorecard Data
+            </CardTitle>
+            <CardDescription>
+              Upload a CSV or Excel file with columns: <code>metric_key</code>, <code>value</code>, <code>month</code>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
+              <p className="font-medium">Required columns:</p>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                <li><strong>metric_key</strong> - Must match the import key in your scorecard template exactly</li>
+                <li><strong>value</strong> - Numeric value for the metric</li>
+                <li><strong>month</strong> - Month in YYYY-MM format (e.g., 2024-01)</li>
+              </ul>
+              <p className="mt-2 text-muted-foreground">
+                Optional: <strong>metric_name</strong> (for reference only, not used for matching)
+              </p>
             </div>
 
             <div className="border-2 border-dashed rounded-lg p-8 text-center">
@@ -628,387 +548,374 @@ const ImportMonthlyReport = () => {
                 accept=".csv,.xlsx,.xls"
                 onChange={handleFileSelect}
                 className="max-w-sm mx-auto"
+                disabled={isLockedMode && !templateReady}
               />
               <p className="text-sm text-muted-foreground mt-2">
                 Supports: Excel (.xlsx, .xls), CSV
               </p>
-              {file && (
-                <p className="text-sm text-foreground mt-2 font-medium">
-                  Selected: {file.name}
-                </p>
-              )}
             </div>
+          </CardContent>
+        </Card>
+      )}
 
-            {isProcessing && (
-              <div className="flex items-center justify-center gap-2 py-4">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Reading file...</span>
+      {/* Step: Sheet Select */}
+      {step === 'sheet-select' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Worksheet</CardTitle>
+            <CardDescription>
+              Choose the sheet containing your scorecard data
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3">
+              {sheets.map(s => (
+                <button
+                  key={s.name}
+                  className={`flex items-center justify-between p-4 rounded-lg border text-left transition-colors ${
+                    selectedSheet === s.name 
+                      ? 'border-brand bg-brand/5' 
+                      : 'border-border hover:border-brand/50'
+                  }`}
+                  onClick={() => handleSheetChange(s.name)}
+                >
+                  <span className="font-medium">{s.name}</span>
+                  <Badge variant="muted">{s.rowCount} rows</Badge>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={resetUpload}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => workbook && file && loadSheet(workbook, selectedSheet, file.name)}
+                disabled={!selectedSheet}
+              >
+                Continue
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step: Preview */}
+      {step === 'preview' && diagnostics && (
+        <>
+          {/* Diagnostics Panel */}
+          <Card className={diagnostics.hasRequiredColumns ? '' : 'border-destructive'}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {diagnostics.hasRequiredColumns ? (
+                  <CheckCircle className="w-5 h-5 text-success" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-destructive" />
+                )}
+                File Diagnostics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">File</p>
+                  <p className="font-medium truncate">{diagnostics.fileName}</p>
+                </div>
+                {diagnostics.sheetName && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Sheet</p>
+                    <p className="font-medium">{diagnostics.sheetName}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm text-muted-foreground">Header Row</p>
+                  <Select 
+                    value={String(headerRowIndex)} 
+                    onValueChange={(v) => handleHeaderRowChange(parseInt(v))}
+                  >
+                    <SelectTrigger className="w-24 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: Math.min(previewRows.length, 25) }, (_, i) => (
+                        <SelectItem key={i} value={String(i)}>Row {i + 1}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Data Rows</p>
+                  <p className="font-medium">{diagnostics.rowCount}</p>
+                </div>
               </div>
-            )}
-          </div>
-        </Card>
-      )}
 
-      {/* Step 2: Sheet Selection (for XLSX with multiple sheets) */}
-      {step === 'sheet-select' && sheets.length > 1 && (
-        <Card className="p-6 space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5" />
-              Select Worksheet
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Your file has {sheets.length} sheets. Select the one containing your KPI data.
-            </p>
-          </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Detected Headers:</p>
+                <div className="flex flex-wrap gap-2">
+                  {diagnostics.detectedHeaders.map((h, i) => {
+                    const isRequired = REQUIRED_COLUMNS.includes(h.toLowerCase());
+                    const isOptional = OPTIONAL_COLUMNS.includes(h.toLowerCase());
+                    return (
+                      <Badge 
+                        key={i} 
+                        variant={isRequired ? 'default' : isOptional ? 'secondary' : 'muted'}
+                        className={isRequired ? 'bg-success' : ''}
+                      >
+                        {h}
+                        {isRequired && <CheckCircle className="w-3 h-3 ml-1" />}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label>Worksheet</Label>
-            <Select value={selectedSheet} onValueChange={handleSheetChange}>
-              <SelectTrigger className="w-80">
-                <SelectValue placeholder="Select a sheet" />
-              </SelectTrigger>
-              <SelectContent>
-                {sheets.map((s, idx) => (
-                  <SelectItem key={s.name} value={s.name}>
-                    <span className="flex items-center gap-2">
-                      {s.name}
-                      <span className="text-xs text-muted-foreground">
-                        ({s.rowCount} rows × {s.colCount} cols)
-                      </span>
-                      {idx === 0 && workbook && scoreSheet(s, workbook) > 50 && (
-                        <Badge variant="secondary" className="text-xs">Recommended</Badge>
-                      )}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              {!diagnostics.hasRequiredColumns && (
+                <Alert variant="destructive" className="mt-4">
+                  <FileWarning className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Missing required columns:</strong> {diagnostics.missingColumns.join(', ')}
+                    <div className="mt-2 text-sm">
+                      <p>• You may be viewing a cover sheet or instructions tab</p>
+                      <p>• Try selecting a different worksheet</p>
+                      <p>• Try adjusting the header row</p>
+                      <p>• Download the template from the Scorecard Template page</p>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
 
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Tip:</strong> Look for the sheet with your monthly KPI data (revenue, visits, etc.), not instructions or cover pages.
-            </AlertDescription>
-          </Alert>
-        </Card>
-      )}
+          {/* Data Preview */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Data Preview (first 15 rows)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">#</TableHead>
+                      {(previewRows[headerRowIndex] || []).slice(0, 10).map((h, i) => (
+                        <TableHead key={i}>{String(h || `Col ${i + 1}`)}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {previewRows.slice(headerRowIndex + 1, headerRowIndex + 16).map((row, ri) => (
+                      <TableRow key={ri}>
+                        <TableCell className="text-muted-foreground">{headerRowIndex + ri + 2}</TableCell>
+                        {(row || []).slice(0, 10).map((cell, ci) => (
+                          <TableCell key={ci}>{String(cell ?? '')}</TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Step 3: Preview */}
-      {step === 'preview' && parsedSheet && (
-        <Card className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Table2 className="w-5 h-5" />
-                Preview: {parsedSheet.sheetName}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Verify this looks like your KPI data before proceeding.
-              </p>
-            </div>
+          {/* Actions */}
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={resetUpload}>
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Start Over
+            </Button>
             {sheets.length > 1 && (
-              <Button variant="outline" size="sm" onClick={() => setStep('sheet-select')}>
+              <Button variant="outline" onClick={() => setStep('sheet-select')}>
                 Change Sheet
               </Button>
             )}
-          </div>
-
-          {/* Diagnostic Panel */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-3 rounded-lg border bg-card">
-              <p className="text-xs text-muted-foreground">Rows</p>
-              <p className="text-xl font-bold">{previewStats?.rowCount}</p>
-            </div>
-            <div className="p-3 rounded-lg border bg-card">
-              <p className="text-xs text-muted-foreground">Columns</p>
-              <p className="text-xl font-bold">{previewStats?.colCount}</p>
-            </div>
-            <div className="p-3 rounded-lg border bg-card">
-              <p className="text-xs text-muted-foreground">Header Row</p>
-              <p className="text-xl font-bold">Row {headerRowIndex + 1}</p>
-            </div>
-            <div className="p-3 rounded-lg border bg-card">
-              <p className="text-xs text-muted-foreground">Numeric %</p>
-              <p className="text-xl font-bold">{previewStats?.numericPercent}%</p>
-            </div>
-          </div>
-
-          {/* Warning if too few columns */}
-          {previewStats && previewStats.colCount <= 2 && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Low column count detected ({previewStats.colCount}).</strong> This might be an instructions or cover sheet.
-                <ul className="list-disc list-inside mt-2 text-sm">
-                  <li>Try selecting a different worksheet</li>
-                  <li>Export the data tab as CSV and upload that</li>
-                  <li>Ensure your data has multiple KPI columns</li>
-                </ul>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Layout Detection */}
-          <div className="space-y-3">
-            <Label>Detected Layout</Label>
-            <div className="flex gap-4">
-              <Button
-                variant={layoutType === 'column_metrics' ? 'default' : 'outline'}
-                onClick={() => setLayoutType('column_metrics')}
-                className="flex items-center gap-2"
-              >
-                <Columns className="w-4 h-4" />
-                Column-Based
-                {layoutDetection?.type === 'column_metrics' && (
-                  <Badge variant="secondary" className="text-xs">Detected</Badge>
-                )}
-              </Button>
-              <Button
-                variant={layoutType === 'row_metrics' ? 'default' : 'outline'}
-                onClick={() => setLayoutType('row_metrics')}
-                className="flex items-center gap-2"
-              >
-                <LayoutList className="w-4 h-4" />
-                Row-Based
-                {layoutDetection?.type === 'row_metrics' && (
-                  <Badge variant="secondary" className="text-xs">Detected</Badge>
-                )}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {layoutType === 'column_metrics' 
-                ? 'Metric names are in the header row, values in rows below'
-                : 'Metric names are in the first column, values in adjacent columns'}
-            </p>
-          </div>
-
-          {/* Header Row Selector */}
-          <div className="space-y-2">
-            <Label>Header Row</Label>
-            <Select value={String(headerRowIndex)} onValueChange={(v) => setHeaderRowIndex(Number(v))}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: Math.min(25, parsedSheet.rows.length) }, (_, i) => (
-                  <SelectItem key={i} value={String(i)}>Row {i + 1}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* For row-based: select metric name and value columns */}
-          {layoutType === 'row_metrics' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Metric Name Column</Label>
-                <Select value={String(metricNameColIndex)} onValueChange={(v) => setMetricNameColIndex(Number(v))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: previewStats?.colCount || 10 }, (_, i) => (
-                      <SelectItem key={i} value={String(i)}>
-                        Column {indexToColumnLetter(i)} (#{i + 1})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Value Column</Label>
-                <Select value={String(valueColIndex)} onValueChange={(v) => setValueColIndex(Number(v))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: previewStats?.colCount || 10 }, (_, i) => (
-                      <SelectItem key={i} value={String(i)}>
-                        Column {indexToColumnLetter(i)} (#{i + 1})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          {/* Preview Table */}
-          <div className="border rounded-lg overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="text-xs font-medium">#</TableHead>
-                  {Array.from({ length: Math.min(previewStats?.colCount || 10, 10) }, (_, i) => (
-                    <TableHead key={i} className="text-xs font-medium">
-                      {indexToColumnLetter(i)}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {parsedSheet.rows.slice(0, 15).map((row, rowIdx) => (
-                  <TableRow key={rowIdx} className={rowIdx === headerRowIndex ? 'bg-primary/10' : ''}>
-                    <TableCell className="text-xs text-muted-foreground font-mono">{rowIdx + 1}</TableCell>
-                    {Array.from({ length: Math.min(previewStats?.colCount || 10, 10) }, (_, colIdx) => (
-                      <TableCell key={colIdx} className="text-xs max-w-32 truncate">
-                        {row[colIdx] !== undefined && row[colIdx] !== null ? String(row[colIdx]) : ''}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={resetUpload}>Cancel</Button>
-            <Button onClick={proceedToMapping} className="gradient-brand">
-              Confirm & Proceed to Mapping
-              <ChevronRight className="w-4 h-4 ml-2" />
+            <Button 
+              onClick={proceedToImport}
+              disabled={!diagnostics.hasRequiredColumns}
+            >
+              Continue to Import
             </Button>
           </div>
-        </Card>
+        </>
       )}
 
-      {/* Step 4: Mapping */}
-      {step === 'mapping' && extractedValues.length > 0 && (
-        <Card className="p-6 space-y-6">
-          {/* Month Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="month">Select Month</Label>
-            <Input
-              id="month"
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="max-w-sm"
-            />
-            <p className="text-sm text-success font-medium flex items-center gap-1">
-              <CheckCircle className="w-4 h-4" />
-              Importing as {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')} (monthly)
-            </p>
-          </div>
-
+      {/* Step: Import */}
+      {step === 'import' && (
+        <>
           {/* Summary */}
-          <div className="flex gap-4">
-            <div className="p-3 rounded-lg bg-success/10 border border-success/30">
-              <p className="text-sm text-muted-foreground">Matched</p>
-              <p className="text-2xl font-bold text-success">{matchedCount}</p>
-            </div>
-            <div className={`p-3 rounded-lg border ${unmatchedCount > 0 ? 'bg-warning/10 border-warning/30' : 'bg-muted/50'}`}>
-              <p className="text-sm text-muted-foreground">Unmatched</p>
-              <p className={`text-2xl font-bold ${unmatchedCount > 0 ? 'text-warning' : ''}`}>{unmatchedCount}</p>
-            </div>
-            <div className="p-3 rounded-lg border bg-muted/50">
-              <p className="text-sm text-muted-foreground">Total</p>
-              <p className="text-2xl font-bold">{extractedValues.length}</p>
-            </div>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Import Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                <div className={`p-4 rounded-lg border ${readyCount > 0 ? 'bg-success/10 border-success/30' : 'bg-muted/50'}`}>
+                  <p className="text-sm text-muted-foreground">Ready to Import</p>
+                  <p className="text-3xl font-bold text-success">{readyCount}</p>
+                </div>
+                <div className={`p-4 rounded-lg border ${unmatchedCount > 0 ? 'bg-destructive/10 border-destructive/30' : 'bg-muted/50'}`}>
+                  <p className="text-sm text-muted-foreground">Unmatched Keys</p>
+                  <p className={`text-3xl font-bold ${unmatchedCount > 0 ? 'text-destructive' : ''}`}>{unmatchedCount}</p>
+                </div>
+                <div className={`p-4 rounded-lg border ${invalidCount > 0 ? 'bg-warning/10 border-warning/30' : 'bg-muted/50'}`}>
+                  <p className="text-sm text-muted-foreground">Invalid Data</p>
+                  <p className={`text-3xl font-bold ${invalidCount > 0 ? 'text-warning' : ''}`}>{invalidCount}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Unmatched Warning for Locked Mode */}
-          {isLockedMode && unmatchedCount > 0 && (
-            <Alert className="border-warning bg-warning/10">
-              <FileWarning className="h-4 w-4 text-warning" />
-              <AlertDescription>
-                <p className="font-medium">Unmatched items will be skipped</p>
-                <p className="text-sm">Your scorecard is locked to template. To add new metrics, go to the template page.</p>
-                <Button size="sm" variant="link" className="p-0 h-auto text-warning" onClick={() => navigate('/scorecard/template')}>
-                  <ExternalLink className="w-3 h-3 mr-1" />
-                  Manage Template
-                </Button>
-              </AlertDescription>
-            </Alert>
+          {/* Ready rows */}
+          {readyCount > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-success" />
+                  Ready to Import ({readyCount})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Metric Key</TableHead>
+                      <TableHead>Matched Metric</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>Month</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {parsedRows.filter(r => r.status === 'ready').slice(0, 20).map((r, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-mono text-sm">{r.metric_key}</TableCell>
+                        <TableCell>{r.matchedMetricName}</TableCell>
+                        <TableCell>{r.numericValue?.toLocaleString()}</TableCell>
+                        <TableCell>{r.normalizedMonth}</TableCell>
+                      </TableRow>
+                    ))}
+                    {readyCount > 20 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          ... and {readyCount - 20} more
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Mapping Table */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Column Mapping</h3>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Source Label</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Mapped Metric</TableHead>
-                  <TableHead>Confidence</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {extractedValues.map((ev, index) => (
-                  <TableRow key={index} className={ev.status === 'invalid' ? 'opacity-50' : ''}>
-                    <TableCell className="font-medium">{ev.sourceLabel}</TableCell>
-                    <TableCell className="font-mono text-sm">{String(ev.value ?? '-')}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={ev.matchedMetricId || 'none'}
-                        onValueChange={(val) => handleMappingChange(index, val === 'none' ? null : val)}
-                        disabled={ev.numericValue === null}
-                      >
-                        <SelectTrigger className="w-56">
-                          <SelectValue placeholder="Select metric" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">-- Skip --</SelectItem>
-                          {metrics?.map(m => (
-                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      {ev.matchConfidence > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          {Math.round(ev.matchConfidence * 100)}% ({ev.matchType})
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {ev.status === 'matched' && (
-                        <Badge variant="outline" className="border-success text-success">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Matched
-                        </Badge>
-                      )}
-                      {ev.status === 'unmatched' && (
-                        <Badge variant="outline" className="border-warning text-warning">
-                          <AlertTriangle className="w-3 h-3 mr-1" />
-                          Unmatched
-                        </Badge>
-                      )}
-                      {ev.status === 'invalid' && (
-                        <Badge variant="secondary">Invalid Value</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          {/* Unmatched rows */}
+          {unmatchedCount > 0 && (
+            <Card className="border-destructive/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="w-5 h-5" />
+                    Unmatched Metric Keys ({unmatchedCount})
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={copyUnmatchedKeys}>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy List
+                  </Button>
+                </div>
+                <CardDescription>
+                  These metric_keys were not found in your scorecard template. 
+                  {isLockedMode && ' In locked mode, unmatched keys are skipped.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Row</TableHead>
+                      <TableHead>Metric Key</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {parsedRows.filter(r => r.status === 'unmatched').map((r, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{r.rowNumber}</TableCell>
+                        <TableCell className="font-mono text-sm">{r.metric_key}</TableCell>
+                        <TableCell>{r.value}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{r.reason}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Actions */}
-          <div className="flex justify-between pt-4 border-t">
+          <div className="flex gap-3 justify-end">
             <Button variant="outline" onClick={() => setStep('preview')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Preview
             </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={resetUpload}>Cancel</Button>
-              <Button onClick={handleImport} disabled={isProcessing || matchedCount === 0} className="gradient-brand">
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Importing...
-                  </>
-                ) : (
-                  `Import ${matchedCount} Metrics`
-                )}
+            <Button 
+              onClick={executeImport}
+              disabled={readyCount === 0 || isProcessing}
+              className="gradient-brand"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                `Import ${readyCount} Values`
+              )}
+            </Button>
+          </div>
+        </>
+      )}
+
+      {/* Step: Done */}
+      {step === 'done' && importSummary && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-success">
+              <CheckCircle className="w-6 h-6" />
+              Import Complete
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-lg bg-success/10 border border-success/30">
+                <p className="text-sm text-muted-foreground">Values Imported</p>
+                <p className="text-3xl font-bold text-success">{importSummary.imported}</p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/50 border">
+                <p className="text-sm text-muted-foreground">Rows Skipped</p>
+                <p className="text-3xl font-bold">{importSummary.skipped.length}</p>
+              </div>
+            </div>
+
+            {importSummary.skipped.length > 0 && (
+              <div className="space-y-2">
+                <p className="font-medium">Skipped Rows:</p>
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {importSummary.skipped.map((r, i) => (
+                    <div key={i} className="text-sm text-muted-foreground flex gap-2">
+                      <span>Row {r.rowNumber}:</span>
+                      <span className="font-mono">{r.metric_key}</span>
+                      <span>- {r.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={resetUpload}>
+                Import Another File
+              </Button>
+              <Button onClick={() => navigate('/scorecard')}>
+                View Scorecard
               </Button>
             </div>
-          </div>
+          </CardContent>
         </Card>
       )}
     </div>
