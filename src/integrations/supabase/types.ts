@@ -2305,6 +2305,56 @@ export type Database = {
           },
         ]
       }
+      scorecard_import_configs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          last_synced_at: string | null
+          last_synced_month: string | null
+          organization_id: string
+          sheet_id: string | null
+          source: string
+          status: string | null
+          tab_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_synced_at?: string | null
+          last_synced_month?: string | null
+          organization_id: string
+          sheet_id?: string | null
+          source?: string
+          status?: string | null
+          tab_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_synced_at?: string | null
+          last_synced_month?: string | null
+          organization_id?: string
+          sheet_id?: string | null
+          source?: string
+          status?: string | null
+          tab_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scorecard_import_configs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seats: {
         Row: {
           created_at: string
