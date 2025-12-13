@@ -416,16 +416,93 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
     return errorUI;
   };
 
+  // Save VTO mappings (locked mode)
+  const saveMappingsMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentUser?.team_id || !vtoVersionId) {
+        throw new Error('Missing required data');
+      }
+
+      let saved = 0;
+      for (const mapping of mappingItems) {
+        if (!mapping.suggestedMetricId) continue;
+
+        // Verify metric belongs to this org
+        const { data: metric } = await supabase
+          .from('metrics')
+          .select('id')
+          .eq('id', mapping.suggestedMetricId)
+          .eq('organization_id', currentUser.team_id)
+          .single();
+
+        if (!metric) continue;
+
+        // Upsert vto_link
+        await supabase
+          .from('vto_links')
+          .upsert({
+            vto_version_id: vtoVersionId,
+            link_type: 'kpi',
+            link_id: mapping.suggestedMetricId,
+            goal_key: mapping.goalKey,
+            weight: 1.0,
+          }, { onConflict: 'vto_version_id,link_type,link_id' });
+
+        saved++;
+      }
+
+      return saved;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['vto-links'] });
+      toast({
+        title: "Mappings Saved!",
+        description: `Linked ${count} metrics to your Vision Planner goals`,
+      });
+      setTimeout(() => {
+        onSuccess?.();
+        handleClose();
+      }, 500);
+    },
+    onError: (err: any) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message,
+      });
+    }
+  });
+
+  const updateMapping = (goalKey: string, metricId: string | null) => {
+    setMappingItems(prev => prev.map(m => 
+      m.goalKey === goalKey ? { ...m, suggestedMetricId: metricId, confidence: metricId ? 'high' : 'none' } : m
+    ));
+  };
+
+  const mappedCount = mappingItems.filter(m => m.suggestedMetricId).length;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            Create Scorecard from Vision Planner
+            {isLockedMode ? (
+              <>
+                <Lock className="w-5 h-5 text-primary" />
+                Map V/TO to Scorecard
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5 text-primary" />
+                Create Scorecard from Vision Planner
+              </>
+            )}
           </DialogTitle>
           <DialogDescription>
-            AI analyzes your Vision Planner goals and suggests KPIs to track on your weekly scorecard
+            {isLockedMode 
+              ? "Link your Vision Planner goals to existing scorecard metrics. No new metrics will be created."
+              : "AI analyzes your Vision Planner goals and suggests KPIs to track on your weekly scorecard"
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -434,12 +511,16 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
           <div className="py-8 space-y-6">
             <div className="text-center space-y-3">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                <Sparkles className="h-8 w-8 text-primary" />
+                {isLockedMode ? <Lock className="h-8 w-8 text-primary" /> : <Sparkles className="h-8 w-8 text-primary" />}
               </div>
-              <h3 className="text-lg font-semibold">Let AI build your Scorecard</h3>
+              <h3 className="text-lg font-semibold">
+                {isLockedMode ? "Map V/TO to Existing Metrics" : "Let AI build your Scorecard"}
+              </h3>
               <p className="text-muted-foreground max-w-md mx-auto">
-                We'll read your long-term and short-term goals from your Vision Planner and 
-                suggest relevant KPIs to track weekly progress toward those goals.
+                {isLockedMode 
+                  ? "We'll read your Vision Planner goals and help you link them to your locked scorecard metrics."
+                  : "We'll read your long-term and short-term goals from your Vision Planner and suggest relevant KPIs to track weekly progress toward those goals."
+                }
               </p>
             </div>
             <div className="flex gap-3 justify-center pt-4">
@@ -447,8 +528,17 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
                 Cancel
               </Button>
               <Button onClick={handleGenerate} className="gradient-brand">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Generate Suggestions
+                {isLockedMode ? (
+                  <>
+                    <LinkIcon className="w-4 h-4 mr-2" />
+                    Load Goals & Map
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Suggestions
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -602,6 +692,92 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
           </div>
         )}
 
+        {/* MAPPING STEP (Locked Mode) */}
+        {step === 'mapping' && (
+          <div className="flex flex-col overflow-hidden flex-1 min-h-0">
+            <div className="flex-shrink-0 p-3 bg-muted/50 rounded-lg mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Lock className="w-4 h-4 text-brand" />
+                <p className="text-sm font-medium">Locked Template Mode</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Map your Vision Planner goals to existing scorecard metrics. No new metrics will be created.
+              </p>
+            </div>
+
+            <p className="flex-shrink-0 text-sm text-muted-foreground pb-3">
+              Select which metric best tracks each goal ({mappedCount} of {mappingItems.length} mapped)
+            </p>
+
+            <ScrollArea className="h-[320px] pr-2">
+              <div className="space-y-3 pb-2">
+                {mappingItems.map((item) => (
+                  <div key={item.goalKey} className="p-3 rounded-lg border border-border">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          {getCategoryIcon(item.goalCategory)}
+                          <span className="font-medium text-sm truncate">{item.goalTitle}</span>
+                        </div>
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {item.goalCategory.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                      {item.confidence !== 'none' && (
+                        <Badge 
+                          variant={item.confidence === 'high' ? 'default' : 'outline'}
+                          className="text-xs flex-shrink-0"
+                        >
+                          {item.confidence === 'high' ? 'Strong match' : 'Partial match'}
+                        </Badge>
+                      )}
+                    </div>
+                    <Select
+                      value={item.suggestedMetricId || 'none'}
+                      onValueChange={(val) => updateMapping(item.goalKey, val === 'none' ? null : val)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a metric to link..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          <span className="text-muted-foreground">No metric linked</span>
+                        </SelectItem>
+                        {existingMetrics?.map(metric => (
+                          <SelectItem key={metric.id} value={metric.id}>
+                            <div className="flex items-center gap-2">
+                              <span>{metric.name}</span>
+                              <Badge variant="muted" className="text-xs">{metric.category}</Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+
+            <div className="flex-shrink-0 flex gap-3 pt-4 border-t mt-2">
+              <Button variant="outline" onClick={handleClose} className="flex-1">
+                Cancel
+              </Button>
+              <Button
+                onClick={() => saveMappingsMutation.mutate()}
+                disabled={mappedCount === 0 || saveMappingsMutation.isPending}
+                className="flex-1 gradient-brand"
+              >
+                {saveMappingsMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <LinkIcon className="w-4 h-4 mr-2" />
+                )}
+                Save {mappedCount} Mappings
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* CREATING STEP */}
         {step === 'creating' && (
           <div className="py-16 text-center">
@@ -619,9 +795,14 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
             <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
               <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Scorecard Created!</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              {isLockedMode ? "Mappings Saved!" : "Scorecard Created!"}
+            </h3>
             <p className="text-muted-foreground mb-6">
-              {createdCount} metrics are now tracking progress toward your Vision Planner goals
+              {isLockedMode 
+                ? `${mappedCount} metrics are now linked to your Vision Planner goals`
+                : `${createdCount} metrics are now tracking progress toward your Vision Planner goals`
+              }
             </p>
             <Button onClick={handleClose} className="gradient-brand">
               View Scorecard
