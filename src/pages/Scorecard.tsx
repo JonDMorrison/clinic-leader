@@ -33,6 +33,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { VTOAlignmentBanner } from "@/components/vto/VTOAlignmentBanner";
+import { TemplateSetupBanner } from "@/components/scorecard/TemplateSetupBanner";
 
 const Scorecard = () => {
   const navigate = useNavigate();
@@ -301,6 +302,9 @@ const Scorecard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Template Setup Banner for locked orgs */}
+      <TemplateSetupBanner />
+
       {/* VTO Alignment Banner */}
       <VTOAlignmentBanner />
 

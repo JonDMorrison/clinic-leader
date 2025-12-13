@@ -7,6 +7,7 @@ import { Calendar, Target, Link as LinkIcon, GripVertical } from "lucide-react";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 import { LinkedMetricsBadges } from "./LinkedMetricsBadges";
+import { RealityGapBadge } from "./RealityGapBadge";
 import { useDraggable } from "@dnd-kit/core";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -268,8 +269,9 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
 
             {/* Linked KPIs Section */}
             <div className="pt-2 border-t border-border/50">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-1">
-                <span>Linked KPIs</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-muted-foreground">Linked KPIs</span>
+                <RealityGapBadge rockId={rock.id} rockTitle={rock.title} />
               </div>
               <LinkedMetricsBadges 
                 rock={{ id: rock.id, title: rock.title, quarter: rock.quarter }} 

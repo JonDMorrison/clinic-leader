@@ -68,6 +68,8 @@ import AdminIngestion from "./pages/AdminIngestion";
 import SetPassword from "./pages/SetPassword";
 import AdminPasswordDiagnostic from "./pages/AdminPasswordDiagnostic";
 import ImportPdfReport from "./pages/ImportPdfReport";
+import ScorecardTemplate from "./pages/ScorecardTemplate";
+import ScorecardOffTrack from "./pages/ScorecardOffTrack";
 
 const queryClient = new QueryClient();
 
@@ -158,6 +160,8 @@ const App = () => {
             <Route path="/dashboard" element={<AppLayout><Home /></AppLayout>} />
             <Route path="/setup/scorecard" element={<AppLayout><ScorecardSetup /></AppLayout>} />
             <Route path="/scorecard/update" element={<AppLayout><ScorecardUpdate /></AppLayout>} />
+            <Route path="/scorecard/template" element={<AppLayout><ScorecardTemplate /></AppLayout>} />
+            <Route path="/scorecard/off-track" element={<AppLayout><ScorecardOffTrack /></AppLayout>} />
             <Route path="/scorecard" element={<AppLayout><Scorecard /></AppLayout>} />
             <Route path="/rocks" element={<AppLayout><Rocks /></AppLayout>} />
             <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
