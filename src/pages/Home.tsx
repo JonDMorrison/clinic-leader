@@ -16,6 +16,7 @@ import { HelpHint } from "@/components/help/HelpHint";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
 import { CoreValuesStrip, CoreValueOfWeekCard } from "@/components/core-values";
+import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 
 const Home = () => {
   const ref = useRef(null);
@@ -388,7 +389,7 @@ const Home = () => {
         
         <CopilotWidget />
         
-        
+        <MonthlyPulseWidget />
 
         <CoreValueOfWeekCard />
       </motion.div>
