@@ -1,41 +1,53 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Upload, Download, Loader2 } from "lucide-react";
+import { Upload, Download, Loader2, CheckCircle, AlertTriangle, ArrowLeft, ExternalLink, FileWarning } from "lucide-react";
 import { parseExcel } from "@/lib/importers/excelParser";
 import { parseCSV } from "@/lib/importers/csvParser";
-import { MetricMappingTable } from "@/components/imports/MetricMappingTable";
 import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
 
-interface Mapping {
-  extractedField: string;
+interface ExtractedValue {
+  columnName: string;
   value: any;
-  suggestedMetric: string;
-  confidence: number;
-  mappedMetricId?: string;
+  numericValue: number | null;
+  matchedMetricId: string | null;
+  matchedMetricName: string | null;
+  status: 'matched' | 'unmatched' | 'invalid';
 }
 
 const ImportMonthlyReport = () => {
+  const navigate = useNavigate();
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [mappings, setMappings] = useState<Mapping[]>([]);
-  const [period, setPeriod] = useState<string>("");
+  const [extractedValues, setExtractedValues] = useState<ExtractedValue[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [showPreview, setShowPreview] = useState(false);
+  const [importResults, setImportResults] = useState<{ imported: number; skipped: string[] } | null>(null);
 
   const { data: metrics } = useQuery({
-    queryKey: ['metrics', currentUser?.team_id],
+    queryKey: ['metrics-for-import', currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return [];
       const { data, error } = await supabase
         .from('metrics')
-        .select('id, name')
+        .select('id, name, unit, is_active')
         .eq('organization_id', currentUser.team_id)
+        .eq('is_active', true)
         .order('name');
       if (error) throw error;
       return data;
@@ -43,124 +55,202 @@ const ImportMonthlyReport = () => {
     enabled: !!currentUser?.team_id,
   });
 
+  const { data: orgSettings } = useQuery({
+    queryKey: ['org-settings', currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return null;
+      const { data, error } = await supabase
+        .from('teams')
+        .select('scorecard_mode')
+        .eq('id', currentUser.team_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentUser?.team_id,
+  });
+
+  const isLockedMode = orgSettings?.scorecard_mode === 'locked_to_template';
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
-
     setFile(selectedFile);
     setShowPreview(false);
-    setMappings([]);
+    setExtractedValues([]);
+    setImportResults(null);
+  };
+
+  const findMatchingMetric = (columnName: string): { id: string; name: string } | null => {
+    if (!metrics) return null;
+    
+    const normalized = columnName.toLowerCase().trim()
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ');
+    
+    // Exact match first
+    const exact = metrics.find(m => 
+      m.name.toLowerCase().trim() === normalized ||
+      m.name.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim() === normalized
+    );
+    if (exact) return { id: exact.id, name: exact.name };
+    
+    // Fuzzy match - contains or is contained
+    const fuzzy = metrics.find(m => {
+      const metricNorm = m.name.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+      return metricNorm.includes(normalized) || normalized.includes(metricNorm);
+    });
+    if (fuzzy) return { id: fuzzy.id, name: fuzzy.name };
+    
+    return null;
+  };
+
+  const parseNumericValue = (value: any): number | null => {
+    if (value === null || value === undefined || value === '') return null;
+    
+    const strVal = String(value)
+      .replace(/[$,%]/g, '')
+      .replace(/,/g, '')
+      .trim();
+    
+    const num = parseFloat(strVal);
+    return isNaN(num) ? null : num;
   };
 
   const handleParse = async () => {
-    if (!file || !currentUser?.team_id) return;
-
+    if (!file) return;
     setIsProcessing(true);
-    try {
-      let extractedData: any;
 
-      // Parse based on file type
+    try {
+      let parsedData: any;
+
       if (file.name.endsWith('.csv')) {
         const content = await file.text();
-        extractedData = parseCSV(content);
+        parsedData = parseCSV(content);
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        extractedData = await parseExcel(file);
+        parsedData = await parseExcel(file);
       } else {
         throw new Error('Unsupported file format. Please use CSV or Excel.');
       }
 
-      // Send to AI for mapping
-      const { data, error } = await supabase.functions.invoke('parse-monthly-report', {
-        body: {
-          extractedData,
-          organizationId: currentUser.team_id,
-        },
-      });
+      // Take the first data row (or sum if multiple rows)
+      const dataRow = parsedData.rows[0] || {};
+      const extracted: ExtractedValue[] = [];
 
-      if (error) throw error;
+      for (const [columnName, rawValue] of Object.entries(dataRow)) {
+        // Skip date/week columns
+        if (/^(date|week|month|period|year)$/i.test(columnName.trim())) continue;
+        
+        const numericValue = parseNumericValue(rawValue);
+        const match = findMatchingMetric(columnName);
 
-      setMappings(data.mappings || []);
-      setPeriod(data.period || '');
+        extracted.push({
+          columnName,
+          value: rawValue,
+          numericValue,
+          matchedMetricId: match?.id || null,
+          matchedMetricName: match?.name || null,
+          status: match ? 'matched' : (numericValue !== null ? 'unmatched' : 'invalid'),
+        });
+      }
+
+      setExtractedValues(extracted);
       setShowPreview(true);
-      toast.success('Report parsed successfully');
+      
+      const matchedCount = extracted.filter(e => e.status === 'matched').length;
+      toast.success(`Parsed ${extracted.length} columns, ${matchedCount} matched to metrics`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to parse report');
-      console.error('Parse error:', error);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleMappingChange = (index: number, metricId: string) => {
-    setMappings(prev => {
+  const handleMappingChange = (index: number, metricId: string | null) => {
+    setExtractedValues(prev => {
       const updated = [...prev];
-      updated[index].mappedMetricId = metricId;
+      if (metricId) {
+        const metric = metrics?.find(m => m.id === metricId);
+        updated[index].matchedMetricId = metricId;
+        updated[index].matchedMetricName = metric?.name || null;
+        updated[index].status = 'matched';
+      } else {
+        updated[index].matchedMetricId = null;
+        updated[index].matchedMetricName = null;
+        updated[index].status = updated[index].numericValue !== null ? 'unmatched' : 'invalid';
+      }
       return updated;
     });
   };
 
-  // Normalize date to first of month for monthly imports
-  const normalizeToMonthStart = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return new Date(date.getFullYear(), date.getMonth(), 1)
-      .toISOString().split('T')[0];
-  };
-
   const handleImport = async () => {
-    if (!period || !currentUser?.team_id) {
-      toast.error('Please select a period');
+    if (!currentUser?.team_id || !selectedMonth) {
+      toast.error('Please select a month');
       return;
     }
 
     setIsProcessing(true);
     try {
-      const normalizedPeriod = normalizeToMonthStart(period);
-      const periodKey = normalizedPeriod.slice(0, 7); // 'YYYY-MM'
+      // Parse selected month to first day
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const periodStart = `${year}-${String(month).padStart(2, '0')}-01`;
+      const periodKey = `${year}-${String(month).padStart(2, '0')}`;
       
+      const toImport = extractedValues.filter(e => e.matchedMetricId && e.numericValue !== null);
+      const skipped: string[] = [];
+
+      for (const ev of extractedValues) {
+        if (!ev.matchedMetricId && ev.numericValue !== null) {
+          skipped.push(`${ev.columnName}: No matching metric`);
+        } else if (ev.numericValue === null && ev.matchedMetricId) {
+          skipped.push(`${ev.columnName}: Invalid value`);
+        }
+      }
+
       // Insert metric results with monthly period fields
-      const results = mappings
-        .filter(m => m.mappedMetricId)
-        .map(m => ({
-          metric_id: m.mappedMetricId,
-          week_start: normalizedPeriod, // Keep for legacy compat
-          period_start: normalizedPeriod,
-          period_type: 'monthly' as const,
-          period_key: periodKey,
-          value: parseFloat(String(m.value).replace(/[^0-9.-]/g, '')),
-          source: 'monthly_upload',
-        }));
+      const results = toImport.map(ev => ({
+        metric_id: ev.matchedMetricId!,
+        week_start: periodStart, // Legacy compatibility
+        period_start: periodStart,
+        period_type: 'monthly' as const,
+        period_key: periodKey,
+        value: ev.numericValue!,
+        source: 'monthly_upload',
+      }));
 
-      const { error } = await supabase.from('metric_results').upsert(results, {
-        onConflict: 'metric_id,period_type,period_start',
-      });
+      if (results.length > 0) {
+        const { error } = await supabase.from('metric_results').upsert(results, {
+          onConflict: 'metric_id,period_type,period_start',
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
-      toast.success(`Successfully imported ${results.length} metrics`);
-      setFile(null);
-      setShowPreview(false);
-      setMappings([]);
-      setPeriod('');
+      setImportResults({ imported: results.length, skipped });
+      toast.success(`Successfully imported ${results.length} metrics for ${format(new Date(periodStart), 'MMMM yyyy')}`);
     } catch (error: any) {
       toast.error(error.message || 'Import failed');
-      console.error('Import error:', error);
     } finally {
       setIsProcessing(false);
     }
   };
 
   const downloadTemplate = () => {
-    const headers = ['Week Of', 'MVAs', 'New Patients', 'LNI Cases', 'Close Rate', 'Total Visits', 'Outgoing Charges', 'Avg Per Visit', 'Avg Per Case', 'Gross Income'];
-    const example = ['2025-06-16', '23', '58', '12', '85', '412', '125000', '175', '3200', '215000'];
+    if (!metrics) return;
+    const headers = metrics.map(m => m.name);
+    const example = metrics.map(() => '');
     const csv = [headers.join(','), example.join(',')].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'monthly-report-template.csv';
+    a.download = 'monthly-kpi-template.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const matchedCount = extractedValues.filter(e => e.status === 'matched').length;
+  const unmatchedCount = extractedValues.filter(e => e.status === 'unmatched').length;
 
   if (userLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>;
@@ -168,11 +258,54 @@ const ImportMonthlyReport = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Monthly Report Import</h1>
-        <p className="text-muted-foreground">Upload your monthly clinic report to automatically populate scorecard metrics</p>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/scorecard')}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Scorecard
+        </Button>
       </div>
 
+      <div>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Monthly KPI Sync</h1>
+        <p className="text-muted-foreground">Upload your monthly clinic report to populate scorecard metrics</p>
+        {isLockedMode && (
+          <Badge variant="outline" className="mt-2 border-brand text-brand">
+            Locked to Template - Only existing metrics will be imported
+          </Badge>
+        )}
+      </div>
+
+      {/* Import Results */}
+      {importResults && (
+        <Alert className="border-success bg-success/10">
+          <CheckCircle className="h-4 w-4 text-success" />
+          <AlertDescription>
+            <div className="space-y-2">
+              <p className="font-medium">Import Complete!</p>
+              <p>{importResults.imported} metrics imported for {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}</p>
+              {importResults.skipped.length > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  <p className="font-medium">Skipped ({importResults.skipped.length}):</p>
+                  <ul className="list-disc list-inside">
+                    {importResults.skipped.slice(0, 5).map((s, i) => <li key={i}>{s}</li>)}
+                    {importResults.skipped.length > 5 && <li>...and {importResults.skipped.length - 5} more</li>}
+                  </ul>
+                </div>
+              )}
+              <div className="flex gap-2 pt-2">
+                <Button size="sm" onClick={() => navigate('/scorecard')}>
+                  View Scorecard
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => navigate('/scorecard/off-track')}>
+                  Review Off Track
+                </Button>
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* How It Works */}
       <Card className="p-6">
         <div className="space-y-4">
           <div>
@@ -188,29 +321,23 @@ const ImportMonthlyReport = () => {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-0.5">3.</span>
-                <span><strong>AI automatically maps</strong> your column headers to scorecard metrics (e.g., "# MVAs" → "MVAs")</span>
+                <span><strong>Column headers are matched</strong> to your scorecard metrics (fuzzy matching)</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-0.5">4.</span>
-                <span><strong>Review and confirm</strong> the mapping, select the reporting period, then import</span>
+                <span><strong>Review and confirm</strong> the mapping, select the reporting month, then import</span>
               </li>
             </ul>
-          </div>
-          <div className="bg-muted/50 rounded-lg p-4 border border-border">
-            <p className="text-sm text-muted-foreground">
-              <strong className="text-foreground">💡 Tips:</strong> Include metrics like MVAs, New Patients, LNI Cases, Close Rate, Total Visits, 
-              Outgoing Charges, Avg $ Per Visit, Avg $ Per Case, and Gross Income. The AI handles common formats like percentages, 
-              dollar signs, and commas automatically.
-            </p>
           </div>
         </div>
       </Card>
 
+      {/* Upload Area */}
       <Card className="p-6">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Label>Upload Report</Label>
-            <Button variant="outline" size="sm" onClick={downloadTemplate}>
+            <Button variant="outline" size="sm" onClick={downloadTemplate} disabled={!metrics?.length}>
               <Download className="w-4 h-4 mr-2" />
               Download Template
             </Button>
@@ -249,45 +376,126 @@ const ImportMonthlyReport = () => {
         </div>
       </Card>
 
-      {showPreview && mappings.length > 0 && (
-        <Card className="p-6 space-y-4">
+      {/* Preview & Mapping */}
+      {showPreview && extractedValues.length > 0 && !importResults && (
+        <Card className="p-6 space-y-6">
+          {/* Month Selection */}
           <div className="space-y-2">
-            <Label htmlFor="period">Select Month</Label>
+            <Label htmlFor="month">Select Month</Label>
             <Input
-              id="period"
+              id="month"
               type="month"
-              value={period ? period.slice(0, 7) : ''}
-              onChange={(e) => setPeriod(e.target.value + '-01')}
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
               className="max-w-sm"
             />
-            {period && (
-              <p className="text-sm text-green-600 font-medium flex items-center gap-1">
-                ✓ Importing as {new Date(period).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} (monthly)
-              </p>
-            )}
+            <p className="text-sm text-success font-medium flex items-center gap-1">
+              <CheckCircle className="w-4 h-4" />
+              Importing as {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')} (monthly)
+            </p>
           </div>
 
+          {/* Summary */}
+          <div className="flex gap-4">
+            <div className="p-3 rounded-lg bg-success/10 border border-success/30">
+              <p className="text-sm text-muted-foreground">Matched</p>
+              <p className="text-2xl font-bold text-success">{matchedCount}</p>
+            </div>
+            <div className={`p-3 rounded-lg border ${unmatchedCount > 0 ? 'bg-warning/10 border-warning/30' : 'bg-muted/50'}`}>
+              <p className="text-sm text-muted-foreground">Unmatched</p>
+              <p className={`text-2xl font-bold ${unmatchedCount > 0 ? 'text-warning' : ''}`}>{unmatchedCount}</p>
+            </div>
+          </div>
+
+          {/* Unmatched Warning for Locked Mode */}
+          {isLockedMode && unmatchedCount > 0 && (
+            <Alert className="border-warning bg-warning/10">
+              <FileWarning className="h-4 w-4 text-warning" />
+              <AlertDescription>
+                <p className="font-medium">Unmatched columns will be skipped</p>
+                <p className="text-sm">Your scorecard is locked to template. To add new metrics, go to the template page.</p>
+                <Button size="sm" variant="link" className="p-0 h-auto text-warning" onClick={() => navigate('/scorecard/template')}>
+                  <ExternalLink className="w-3 h-3 mr-1" />
+                  Manage Template
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Mapping Table */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Preview & Mapping</h3>
-            <MetricMappingTable
-              mappings={mappings}
-              availableMetrics={metrics || []}
-              onMappingChange={handleMappingChange}
-            />
+            <h3 className="text-lg font-semibold mb-4">Column Mapping</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Column Name</TableHead>
+                  <TableHead>Value</TableHead>
+                  <TableHead>Mapped Metric</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {extractedValues.map((ev, index) => (
+                  <TableRow key={index} className={ev.status === 'invalid' ? 'opacity-50' : ''}>
+                    <TableCell className="font-medium">{ev.columnName}</TableCell>
+                    <TableCell className="font-mono text-sm">{String(ev.value ?? '-')}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={ev.matchedMetricId || 'none'}
+                        onValueChange={(val) => handleMappingChange(index, val === 'none' ? null : val)}
+                        disabled={ev.numericValue === null}
+                      >
+                        <SelectTrigger className="w-56">
+                          <SelectValue placeholder="Select metric" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">-- Skip --</SelectItem>
+                          {metrics?.map(m => (
+                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      {ev.status === 'matched' && (
+                        <Badge variant="outline" className="border-success text-success">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Matched
+                        </Badge>
+                      )}
+                      {ev.status === 'unmatched' && (
+                        <Badge variant="outline" className="border-warning text-warning">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          Unmatched
+                        </Badge>
+                      )}
+                      {ev.status === 'invalid' && (
+                        <Badge variant="muted">Invalid Value</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
 
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowPreview(false)}>
+          {/* Actions */}
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => {
+              setShowPreview(false);
+              setExtractedValues([]);
+              setFile(null);
+            }}>
               Cancel
             </Button>
-            <Button onClick={handleImport} disabled={isProcessing}>
+            <Button onClick={handleImport} disabled={isProcessing || matchedCount === 0} className="gradient-brand">
               {isProcessing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Importing...
                 </>
               ) : (
-                `Import ${mappings.filter(m => m.mappedMetricId).length} Metrics`
+                `Import ${matchedCount} Metrics`
               )}
             </Button>
           </div>
