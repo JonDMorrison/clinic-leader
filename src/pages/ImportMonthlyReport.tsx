@@ -529,16 +529,44 @@ const ImportMonthlyReport = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-medium">Required columns:</p>
-              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li><strong>metric_key</strong> - Must match the import key in your scorecard template exactly</li>
-                <li><strong>value</strong> - Numeric value for the metric</li>
-                <li><strong>month</strong> - Month in YYYY-MM format (e.g., 2024-01)</li>
-              </ul>
-              <p className="mt-2 text-muted-foreground">
-                Optional: <strong>metric_name</strong> (for reference only, not used for matching)
-              </p>
+            <div className="flex items-start justify-between gap-4">
+              <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2 flex-1">
+                <p className="font-medium">Required columns:</p>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                  <li><strong>metric_key</strong> - Must match the import key in your scorecard template exactly</li>
+                  <li><strong>value</strong> - Numeric value for the metric</li>
+                  <li><strong>month</strong> - Month in YYYY-MM format (e.g., 2024-01)</li>
+                </ul>
+                <p className="mt-2 text-muted-foreground">
+                  Optional: <strong>metric_name</strong> (for reference only, not used for matching)
+                </p>
+              </div>
+              
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (!metrics?.length) {
+                    toast.error('No metrics found to generate template');
+                    return;
+                  }
+                  const csvContent = [
+                    'metric_key,metric_name,value,month',
+                    ...metrics
+                      .filter(m => m.import_key)
+                      .map(m => `${m.import_key},"${m.name}",,`)
+                  ].join('\n');
+                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                  const link = document.createElement('a');
+                  link.href = URL.createObjectURL(blob);
+                  link.download = `Scorecard_Template_${format(new Date(), 'yyyy-MM')}.csv`;
+                  link.click();
+                  toast.success('Template downloaded');
+                }}
+                disabled={!metrics?.length}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download Template
+              </Button>
             </div>
 
             <div className="border-2 border-dashed rounded-lg p-8 text-center">
