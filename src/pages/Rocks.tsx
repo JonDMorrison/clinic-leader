@@ -225,7 +225,7 @@ const Rocks = () => {
           completedCount={lastQuarterRocks.completed.length}
           incompleteCount={lastQuarterRocks.incomplete.length}
           onPlanQuarter={() => {
-            window.location.href = '/vto/traction';
+            setIsModalOpen(true);
           }}
           onHandleIncomplete={() => setArchiveDialogOpen(true)}
           onDismiss={handleDismissBanner}

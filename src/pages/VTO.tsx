@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, History, Link as LinkIcon, Download, ArrowLeft } from "lucide-react";
+import { Plus, FileText, History, Link as LinkIcon, Download, ArrowLeft, Target } from "lucide-react";
 import { VtoLoadPresetsButton } from "@/components/vto/VtoLoadPresetsButton";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -244,19 +244,23 @@ const VTO = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Traction Summary</CardTitle>
+                <CardTitle>Traction</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Execution is tracked across dedicated pages
+                </p>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground mb-1">Current Quarter</div>
-                  <p className="text-sm font-semibold">{latestVersion?.quarter_key || "Not set"}</p>
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground mb-1">Active Rocks</div>
-                  <p className="text-sm">{Array.isArray(latestVersion?.quarterly_rocks) ? latestVersion.quarterly_rocks.length : 0} rocks tracked</p>
-                </div>
-                <Button variant="outline" onClick={() => navigate('/vto/traction')} className="w-full">
-                  View Full Traction →
+              <CardContent className="space-y-3">
+                <Button variant="outline" onClick={() => navigate('/rocks')} className="w-full justify-start">
+                  <Target className="w-4 h-4 mr-2" />
+                  Quarterly Rocks
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/issues')} className="w-full justify-start">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Issues List
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/meeting')} className="w-full justify-start">
+                  <LinkIcon className="w-4 h-4 mr-2" />
+                  L10 Meeting
                 </Button>
               </CardContent>
             </Card>
