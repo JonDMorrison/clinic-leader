@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings, PenSquare, Search, Filter, Star, Smartphone, GripVertical, Sparkles, Target, ClipboardList } from "lucide-react";
+import { Plus, PenSquare, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -27,8 +27,6 @@ import { startOfWeek, subWeeks, format } from "date-fns";
 import { AlertsPanel } from "@/components/scorecard/AlertsPanel";
 import { PerformanceScoreCard } from "@/components/scorecard/PerformanceScoreCard";
 import { MilestoneCelebration } from "@/components/scorecard/MilestoneCelebration";
-import { QuickEntryMobile } from "@/components/scorecard/QuickEntryMobile";
-import { WeeklyCheckinWizard } from "@/components/scorecard/WeeklyCheckinWizard";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -48,8 +46,6 @@ const Scorecard = () => {
   const [vtoGoalFilter, setVtoGoalFilter] = useState("all");
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [celebratingMilestone, setCelebratingMilestone] = useState<any>(null);
-  const [showQuickEntry, setShowQuickEntry] = useState(false);
-  const [showCheckinWizard, setShowCheckinWizard] = useState(false);
   const [customOrder, setCustomOrder] = useState<string[]>([]);
 
   const sensors = useSensors(
@@ -315,31 +311,10 @@ const Scorecard = () => {
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
-              onClick={() => setShowCheckinWizard(true)}
-            >
-              <ClipboardList className="w-4 h-4 mr-2" />
-              Weekly Check-in
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowQuickEntry(true)}
-            >
-              <Smartphone className="w-4 h-4 mr-2" />
-              Quick Entry
-            </Button>
-            <Button
-              variant="outline"
               onClick={() => navigate("/scorecard/update")}
             >
               <PenSquare className="w-4 h-4 mr-2" />
-              Weekly Update
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate("/setup/scorecard")}
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Setup Wizard
+              Update Data
             </Button>
             <div className="relative group">
               <Button 
@@ -360,18 +335,28 @@ const Scorecard = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
                   <Plus className="w-4 h-4 mr-2" />
-                  More Options
+                  Options
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Custom Metric
+                </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => setLoadDefaultsOpen(true)}
                   disabled={!currentUser?.team_id}
                 >
+                  <FileDown className="w-4 h-4 mr-2" />
                   Load Template Defaults
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>
-                  Custom Metric
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/imports/monthly-report")}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import Data
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/scorecard/template")}>
+                  Template Settings
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -559,22 +544,6 @@ const Scorecard = () => {
         />
       )}
 
-      {/* Quick Entry Mobile */}
-      {showQuickEntry && (
-        <QuickEntryMobile
-          organizationId={currentUser?.team_id || ""}
-          onClose={() => setShowQuickEntry(false)}
-        />
-      )}
-
-      {/* Weekly Check-in Wizard */}
-      <WeeklyCheckinWizard
-        open={showCheckinWizard}
-        onOpenChange={setShowCheckinWizard}
-        onComplete={refetch}
-      />
-
-      {/* Create from VTO Dialog */}
         <CreateFromVTODialog
           open={createFromVTOOpen}
           onClose={() => setCreateFromVTOOpen(false)}
