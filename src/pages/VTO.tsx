@@ -1,17 +1,15 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, History, Link as LinkIcon, Download, ArrowLeft, Target } from "lucide-react";
+import { Plus, Pencil, History, Download, ArrowLeft, Target, FileText, AlertCircle, BarChart3 } from "lucide-react";
 import { VtoLoadPresetsButton } from "@/components/vto/VtoLoadPresetsButton";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useVTORealtimeSync } from "@/hooks/useVTORealtimeSync";
 import { HelpHint } from "@/components/help/HelpHint";
-
+import { formatDistanceToNow } from "date-fns";
 
 const VTO = () => {
   const { toast } = useToast();
@@ -170,7 +168,12 @@ const VTO = () => {
     );
   }
 
-  const { latestVersion, progress } = vtoData;
+  const { latestVersion, progress, versions } = vtoData;
+  const recentVersions = versions?.slice(0, 3) || [];
+
+  // Parse core focus from latestVersion
+  const coreFocus = latestVersion?.core_focus as { purpose?: string; niche?: string } | null;
+  const threeYearPicture = latestVersion?.three_year_picture as { revenue?: string; profit?: string } | null;
 
   return (
     <div className="space-y-6">
@@ -179,6 +182,7 @@ const VTO = () => {
         Back to Dashboard
       </Button>
       
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
@@ -190,122 +194,149 @@ const VTO = () => {
               Version {latestVersion?.version} • {latestVersion?.status}
             </Badge>
             {progress && (
-              <>
-                <div className="text-sm text-muted-foreground">
-                  Vision: <span className="font-semibold text-foreground">{progress.vision_score}%</span>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Traction: <span className="font-semibold text-foreground">{progress.traction_score}%</span>
-                </div>
-              </>
+              <div className="text-sm text-muted-foreground">
+                Vision Score: <span className="font-semibold text-foreground">{progress.vision_score}%</span>
+              </div>
             )}
           </div>
         </div>
         <div className="flex gap-2">
           {!latestVersion && <VtoLoadPresetsButton vtoId={vtoData.vto.id} />}
-          <Button variant="outline" onClick={() => navigate('/vto/export')}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
+          <Button variant="outline" onClick={() => navigate('/vto/history')}>
+            <History className="w-4 h-4 mr-2" />
+            History
+          </Button>
+          <Button onClick={() => navigate('/vto/vision')}>
+            <Pencil className="w-4 h-4 mr-2" />
+            Edit Vision
           </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="overview">
-        <TabsList className="glass">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="links">Links</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Vision Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground mb-1">Core Values</div>
-                  <div className="flex flex-wrap gap-2">
-                    {(latestVersion?.core_values as string[] || []).map((value, i) => (
-                      <Badge key={i} variant="secondary">{value}</Badge>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-muted-foreground mb-1">10-Year Target</div>
-                  <p className="text-sm">{latestVersion?.ten_year_target || "Not set"}</p>
-                </div>
-                <Button variant="outline" onClick={() => navigate('/vto/vision')} className="w-full">
-                  View Full Vision →
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Traction</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Execution is tracked across dedicated pages
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" onClick={() => navigate('/rocks')} className="w-full justify-start">
-                  <Target className="w-4 h-4 mr-2" />
-                  Quarterly Rocks
-                </Button>
-                <Button variant="outline" onClick={() => navigate('/issues')} className="w-full justify-start">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Issues List
-                </Button>
-                <Button variant="outline" onClick={() => navigate('/meeting')} className="w-full justify-start">
-                  <LinkIcon className="w-4 h-4 mr-2" />
-                  L10 Meeting
-                </Button>
-              </CardContent>
-            </Card>
+      {/* Vision Summary - Expanded */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Vision Summary
+            <Button variant="ghost" size="sm" onClick={() => navigate('/vto/vision')}>
+              Edit →
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Core Values */}
+          <div>
+            <div className="text-sm font-medium text-muted-foreground mb-2">Core Values</div>
+            <div className="flex flex-wrap gap-2">
+              {(latestVersion?.core_values as string[] || []).length > 0 ? (
+                (latestVersion?.core_values as string[]).map((value, i) => (
+                  <Badge key={i} variant="secondary">{value}</Badge>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground italic">Not defined</span>
+              )}
+            </div>
           </div>
-        </TabsContent>
 
-        <TabsContent value="links">
-          <Card>
-            <CardHeader>
-              <CardTitle>Goal Links</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Connect your VTO goals to live KPIs, Rocks, Issues, and Docs
-              </p>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Links management coming soon...</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          {/* Core Focus */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <div className="text-sm font-medium text-muted-foreground mb-1">Purpose / Cause / Passion</div>
+              <p className="text-sm">{coreFocus?.purpose || <span className="text-muted-foreground italic">Not set</span>}</p>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-muted-foreground mb-1">Niche</div>
+              <p className="text-sm">{coreFocus?.niche || <span className="text-muted-foreground italic">Not set</span>}</p>
+            </div>
+          </div>
 
-        <TabsContent value="history">
-          <Card>
-            <CardHeader>
-              <CardTitle>Version History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {vtoData?.versions?.map((version: any) => (
-                  <div key={version.id} className="flex items-center justify-between p-3 glass rounded-lg">
+          {/* Targets */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <div className="text-sm font-medium text-muted-foreground mb-1">10-Year Target</div>
+              <p className="text-sm font-semibold">{latestVersion?.ten_year_target || <span className="text-muted-foreground italic font-normal">Not set</span>}</p>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-muted-foreground mb-1">3-Year Picture</div>
+              {threeYearPicture?.revenue || threeYearPicture?.profit ? (
+                <p className="text-sm">
+                  {threeYearPicture.revenue && <span className="font-semibold">{threeYearPicture.revenue}</span>}
+                  {threeYearPicture.revenue && threeYearPicture.profit && " at "}
+                  {threeYearPicture.profit && <span className="font-semibold">{threeYearPicture.profit}</span>}
+                </p>
+              ) : (
+                <span className="text-sm text-muted-foreground italic">Not set</span>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Execution Links */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Execution</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Your strategy comes to life through these tools
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <Button variant="outline" onClick={() => navigate('/rocks')} className="h-auto py-4 flex-col gap-2">
+              <Target className="w-5 h-5" />
+              <span>Quarterly Rocks</span>
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/scorecard')} className="h-auto py-4 flex-col gap-2">
+              <BarChart3 className="w-5 h-5" />
+              <span>Scorecard</span>
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/issues')} className="h-auto py-4 flex-col gap-2">
+              <AlertCircle className="w-5 h-5" />
+              <span>Issues List</span>
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/meeting')} className="h-auto py-4 flex-col gap-2">
+              <FileText className="w-5 h-5" />
+              <span>L10 Meeting</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent History */}
+      {recentVersions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Recent History
+              <Button variant="ghost" size="sm" onClick={() => navigate('/vto/history')}>
+                View All →
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {recentVersions.map((version: any) => (
+                <div key={version.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium">
+                      v{version.version}
+                    </div>
                     <div>
-                      <div className="font-medium">Version {version.version}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(version.created_at).toLocaleDateString()}
+                      <div className="text-sm font-medium">Version {version.version}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(version.created_at), { addSuffix: true })}
                       </div>
                     </div>
-                    <Badge variant={version.status === 'published' ? 'default' : 'secondary'}>
-                      {version.status}
-                    </Badge>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  <Badge variant={version.status === 'published' ? 'default' : 'secondary'}>
+                    {version.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
