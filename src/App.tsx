@@ -47,11 +47,9 @@ import SystemHealth from "./pages/SystemHealth";
 import AdminDemo from "./pages/AdminDemo";
 import VTO from "./pages/VTO";
 import VTOVision from "./pages/VTOVision";
-import VTOTraction from "./pages/VTOTraction";
 import VTOHistory from "./pages/VTOHistory";
 import ClarityPulseDashboard from "./pages/clarity/index";
 import VisionStudio from "./pages/clarity/vision";
-import TractionEngine from "./pages/clarity/traction";
 import QuarterlyReview from "./pages/clarity/review";
 import Onboarding from "./pages/Onboarding";
 import LibraryDetail from "./pages/LibraryDetail";
@@ -172,13 +170,11 @@ const App = () => {
             <Route path="/people" element={<AppLayout><People /></AppLayout>} />
               <Route path="/vto" element={<AppLayout><VTO /></AppLayout>} />
               <Route path="/vto/vision" element={<AppLayout><VTOVision /></AppLayout>} />
-              <Route path="/vto/traction" element={<AppLayout><VTOTraction /></AppLayout>} />
               <Route path="/vto/history" element={<AppLayout><VTOHistory /></AppLayout>} />
               
               {/* Clinic Clarity Builder Routes */}
               <Route path="/clarity" element={<ClarityPulseDashboard />} />
               <Route path="/clarity/vision" element={<VisionStudio />} />
-              <Route path="/clarity/traction" element={<TractionEngine />} />
               <Route path="/clarity/review" element={<QuarterlyReview />} />
             <Route path="/imports" element={<AppLayout><Imports /></AppLayout>} />
             <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
