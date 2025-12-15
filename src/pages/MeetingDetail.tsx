@@ -15,6 +15,9 @@ import { AddItemModal } from "@/components/meetings/AddItemModal";
 import { MeetingPrepChecklist } from "@/components/meetings/MeetingPrepChecklist";
 import { MeetingReviewSummary } from "@/components/meetings/MeetingReviewSummary";
 import { MeetingPrintView } from "@/components/meetings/MeetingPrintView";
+import { SectionNavigator } from "@/components/l10/SectionNavigator";
+import { SectionTimer } from "@/components/l10/SectionTimer";
+import { LiveTodoPanel } from "@/components/l10/LiveTodoPanel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +46,17 @@ const SECTION_LABELS: Record<string, string> = {
   custom: "Custom Items",
 };
 
+// Default timer durations per section (in minutes)
+const SECTION_TIMERS: Record<string, number> = {
+  scorecard: 5,
+  rocks: 5,
+  issues: 60,
+  todo: 5,
+  segue: 5,
+  conclusion: 10,
+  custom: 5,
+};
+
 const statusColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   scheduled: "bg-blue-500/10 text-blue-600",
@@ -66,7 +80,9 @@ export default function MeetingDetail() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [periodKey, setPeriodKey] = useState<string>("");
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const generationAttempted = useRef(false);
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Handle prep checklist add item
   const handlePrepAddItem = (section: string) => {
@@ -76,6 +92,17 @@ export default function MeetingDetail() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  // Scroll to section by index
+  const handleNavigateSection = (index: number) => {
+    if (index < 0 || index >= SECTION_ORDER.length) return;
+    setCurrentSectionIndex(index);
+    const sectionId = SECTION_ORDER[index];
+    const el = sectionRefs.current[sectionId];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   // Auto-open start dialog if ?start=1
@@ -361,6 +388,24 @@ export default function MeetingDetail() {
     enabled: !!meetingId && !!organizationId,
   });
 
+  // Fetch todos for this meeting (for recap)
+  const { data: meetingTodos } = useQuery({
+    queryKey: ["meeting-todos", meetingId],
+    queryFn: async () => {
+      if (!meetingId || !organizationId) return [];
+      const { data, error } = await supabase
+        .from("todos")
+        .select("id, title, done_at, owner_id")
+        .eq("meeting_id", meetingId)
+        .eq("organization_id", organizationId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!meetingId && !!organizationId,
+  });
+
+  const openTodosCount = (meetingTodos || []).filter(t => !t.done_at).length;
+
   // Auto-generate agenda when conditions are met
   useEffect(() => {
     async function tryGenerateAgenda() {
@@ -549,17 +594,25 @@ export default function MeetingDetail() {
         </Alert>
       )}
       {isLiveMode && (
-        <Alert className="border-green-500/50 bg-green-500/10 print:hidden">
-          <Info className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-700 flex items-center justify-between flex-wrap gap-2">
-            <span>
-              <strong>Live Meeting</strong> — Click ○ to mark items discussed. Click ⚠ to create an Issue.
-            </span>
-            <span className="text-sm">
-              {discussedCount}/{totalItems} discussed
-            </span>
-          </AlertDescription>
-        </Alert>
+        <div className="space-y-3 print:hidden">
+          <Alert className="border-green-500/50 bg-green-500/10">
+            <Info className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-700 flex items-center justify-between flex-wrap gap-2">
+              <span>
+                <strong>Live Meeting</strong> — Click ○ to mark items discussed. Click ⚠ to create an Issue.
+              </span>
+              <span className="text-sm">
+                {discussedCount}/{totalItems} discussed
+              </span>
+            </AlertDescription>
+          </Alert>
+          <SectionNavigator
+            sections={SECTION_ORDER}
+            sectionLabels={SECTION_LABELS}
+            currentSectionIndex={currentSectionIndex}
+            onNavigate={handleNavigateSection}
+          />
+        </div>
       )}
       {isCompleted && (
         <Alert className="border-gray-500/50 bg-gray-500/10 print:hidden">
@@ -609,18 +662,27 @@ export default function MeetingDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 print:block">
         {/* Agenda Sections - Main content */}
         <div className="lg:col-span-3 space-y-4 print:space-y-6">
-          {SECTION_ORDER.map((section) => {
+          {SECTION_ORDER.map((section, sectionIdx) => {
             const sectionItems = groupedItems[section] || [];
             if (sectionItems.length === 0 && isCompleted) return null;
 
             return (
-              <Card key={section}>
+              <Card 
+                key={section} 
+                ref={(el) => { sectionRefs.current[section] = el; }}
+                id={`section-${section}`}
+              >
                 <CardHeader className="py-3">
-                  <CardTitle className="text-base font-medium">
-                    {SECTION_LABELS[section]}
-                    <Badge variant="secondary" className="ml-2">
-                      {sectionItems.filter((i) => !i.is_deleted).length}
-                    </Badge>
+                  <CardTitle className="text-base font-medium flex items-center justify-between">
+                    <span>
+                      {SECTION_LABELS[section]}
+                      <Badge variant="secondary" className="ml-2">
+                        {sectionItems.filter((i) => !i.is_deleted).length}
+                      </Badge>
+                    </span>
+                    {isLiveMode && SECTION_TIMERS[section] && (
+                      <SectionTimer defaultMinutes={SECTION_TIMERS[section]} />
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="py-2">
@@ -674,14 +736,24 @@ export default function MeetingDetail() {
           })}
         </div>
 
-        {/* Sidebar - Created in this meeting */}
+        {/* Sidebar - To-Dos + Issues */}
         {(isLiveMode || isCompleted) && (
-          <div className="lg:col-span-1 print:hidden">
+          <div className="lg:col-span-1 space-y-4 print:hidden">
+            {/* To-Do Panel in Live mode */}
+            {isLiveMode && organizationId && meetingId && (
+              <LiveTodoPanel
+                organizationId={organizationId}
+                meetingId={meetingId}
+                disabled={isCompleted}
+              />
+            )}
+            
+            {/* Issues created in this meeting */}
             <Card>
               <CardHeader className="py-3">
                 <CardTitle className="text-base font-medium flex items-center gap-2">
                   <ListChecks className="w-4 h-4" />
-                  Created in this meeting
+                  Issues created
                 </CardTitle>
               </CardHeader>
               <CardContent className="py-2">
@@ -754,22 +826,49 @@ export default function MeetingDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* End Meeting Dialog */}
+      {/* End Meeting Dialog with Recap */}
       <AlertDialog open={showEndDialog} onOpenChange={setShowEndDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>End meeting?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This completes the meeting. You can still review it later.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>This completes the meeting. You can still review it later.</p>
+                
+                {/* Recap summary */}
+                <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
+                  <p className="font-medium text-foreground">Meeting Summary</p>
+                  <div className="flex justify-between">
+                    <span>Items discussed:</span>
+                    <span className="font-medium">{discussedCount}/{totalItems}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Issues created:</span>
+                    <span className="font-medium">{(meetingIssues || []).length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>To-Dos:</span>
+                    <span className="font-medium">{(meetingTodos || []).length}</span>
+                  </div>
+                </div>
+
+                {/* Warning for open todos */}
+                {openTodosCount > 0 && (
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-amber-700">
+                    <p className="font-medium">⚠ You have {openTodosCount} open To-Do{openTodosCount > 1 ? 's' : ''}</p>
+                    <p className="text-sm mt-1">Make sure action items are assigned before ending.</p>
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Review To-Dos</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => endMutation.mutate()}
               disabled={endMutation.isPending}
             >
-              End
+              End Meeting
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
