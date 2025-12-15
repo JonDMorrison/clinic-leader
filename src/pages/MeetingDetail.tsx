@@ -137,10 +137,9 @@ export default function MeetingDetail() {
     enabled: !!meetingId && !!organizationId,
   });
 
-  // Get list of item IDs that have created issues
-  const createdIssueItemIds = (meetingIssues || [])
-    .filter((i) => i.meeting_item_id)
-    .map((i) => i.meeting_item_id);
+  // Compute metric statuses for agenda items
+  const metricStatusMap = new Map<string, string>();
+  // This would be populated from metric_results data - for now items derive from description
 
   // Auto-generate agenda when conditions are met
   useEffect(() => {
@@ -397,20 +396,32 @@ export default function MeetingDetail() {
                     </p>
                   ) : (
                     <div className="space-y-1">
-                      {sectionItems.map((item, index) => (
-                        <AgendaItemRow
-                          key={item.id}
-                          item={item}
-                          canEdit={canEdit}
-                          isLiveMode={isLiveMode}
-                          isFirst={index === 0}
-                          isLast={index === sectionItems.length - 1}
-                          organizationId={organizationId!}
-                          meetingId={meetingId!}
-                          periodKey={periodKey}
-                          createdIssueIds={createdIssueItemIds}
-                        />
-                      ))}
+                      {sectionItems.map((item, index) => {
+                        // Derive metric status from description if it's a metric item
+                        let metricStatus: string | undefined;
+                        if (item.item_type === "metric" && item.description) {
+                          if (item.description.includes("OFF_TRACK")) metricStatus = "OFF_TRACK";
+                          else if (item.description.includes("NEEDS_DATA")) metricStatus = "NEEDS_DATA";
+                          else if (item.description.includes("NEEDS_TARGET")) metricStatus = "NEEDS_TARGET";
+                          else if (item.description.includes("NEEDS_OWNER")) metricStatus = "NEEDS_OWNER";
+                          else metricStatus = "ON_TRACK";
+                        }
+                        return (
+                          <AgendaItemRow
+                            key={item.id}
+                            item={item}
+                            canEdit={canEdit}
+                            isLiveMode={isLiveMode}
+                            isCompleted={isCompleted}
+                            isFirst={index === 0}
+                            isLast={index === sectionItems.length - 1}
+                            organizationId={organizationId!}
+                            meetingId={meetingId!}
+                            periodKey={periodKey}
+                            metricStatus={metricStatus}
+                          />
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>

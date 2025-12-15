@@ -34,27 +34,30 @@ interface AgendaItemRowProps {
     section: string;
     discussed?: boolean;
     discussed_at?: string | null;
+    created_issue_id?: string | null;
   };
   canEdit: boolean;
   isLiveMode: boolean;
+  isCompleted: boolean;
   isFirst: boolean;
   isLast: boolean;
   organizationId: string;
   meetingId: string;
   periodKey: string;
-  createdIssueIds?: string[];
+  metricStatus?: string;
 }
 
 export function AgendaItemRow({
   item,
   canEdit,
   isLiveMode,
+  isCompleted,
   isFirst,
   isLast,
   organizationId,
   meetingId,
   periodKey,
-  createdIssueIds = [],
+  metricStatus,
 }: AgendaItemRowProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -64,8 +67,8 @@ export function AgendaItemRow({
   const [isEditing, setIsEditing] = useState(false);
   const [showCreateIssue, setShowCreateIssue] = useState(false);
 
-  // Check if this item already has an issue created
-  const hasCreatedIssue = createdIssueIds.some((id) => id === item.id);
+  // Check if this item already has an issue created (uses dedicated column)
+  const hasCreatedIssue = !!item.created_issue_id;
 
   // Update item mutation
   const updateMutation = useMutation({
@@ -309,8 +312,8 @@ export function AgendaItemRow({
             )
           ) : (
             <>
-              {/* Live mode actions */}
-              {isLiveMode && (
+              {/* Live mode actions (also shown in completed for viewing) */}
+              {(isLiveMode || isCompleted) && (
                 <>
                   <Button
                     variant="ghost"
@@ -320,7 +323,7 @@ export function AgendaItemRow({
                       item.discussed && "text-green-600"
                     )}
                     onClick={() => toggleDiscussedMutation.mutate()}
-                    disabled={toggleDiscussedMutation.isPending}
+                    disabled={toggleDiscussedMutation.isPending || isCompleted}
                     title={item.discussed ? "Mark as not discussed" : "Mark as discussed"}
                   >
                     {item.discussed ? (
@@ -330,7 +333,17 @@ export function AgendaItemRow({
                     )}
                   </Button>
 
-                  {isLinkedIssue ? (
+                  {hasCreatedIssue ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-1 h-7 px-2 text-green-600"
+                      onClick={() => window.open(`/issues?highlight=${item.created_issue_id}`, "_blank")}
+                      title="Open created issue"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  ) : isLinkedIssue ? (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -340,7 +353,7 @@ export function AgendaItemRow({
                     >
                       <ExternalLink className="w-4 h-4" />
                     </Button>
-                  ) : (
+                  ) : !isCompleted ? (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -350,7 +363,7 @@ export function AgendaItemRow({
                     >
                       <AlertCircle className="w-4 h-4" />
                     </Button>
-                  )}
+                  ) : null}
                 </>
               )}
 
@@ -399,8 +412,18 @@ export function AgendaItemRow({
         meetingId={meetingId}
         item={item}
         periodKey={periodKey}
-        onIssueCreated={() => {
-          queryClient.invalidateQueries({ queryKey: ["meeting-issues", meetingId] });
+        metricStatus={metricStatus}
+        onIssueCreated={(issueId, itemId) => {
+          // Update the meeting_item with created_issue_id
+          supabase
+            .from("meeting_items")
+            .update({ created_issue_id: issueId })
+            .eq("id", itemId)
+            .eq("organization_id", organizationId)
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ["meeting-items", meetingId] });
+              queryClient.invalidateQueries({ queryKey: ["meeting-issues", meetingId] });
+            });
         }}
       />
     </>

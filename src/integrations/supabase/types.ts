@@ -1349,6 +1349,7 @@ export type Database = {
       meeting_items: {
         Row: {
           created_at: string
+          created_issue_id: string | null
           description: string | null
           discussed: boolean
           discussed_at: string | null
@@ -1366,6 +1367,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_issue_id?: string | null
           description?: string | null
           discussed?: boolean
           discussed_at?: string | null
@@ -1383,6 +1385,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_issue_id?: string | null
           description?: string | null
           discussed?: boolean
           discussed_at?: string | null
@@ -1399,6 +1402,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "meeting_items_created_issue_id_fkey"
+            columns: ["created_issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "meeting_items_meeting_id_fkey"
             columns: ["meeting_id"]
