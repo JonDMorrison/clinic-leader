@@ -22,6 +22,19 @@ interface MeetingItemInsert {
   sort_order: number;
 }
 
+// Section base numbers for stable ordering
+const SECTION_BASES = {
+  scorecard: 1000,
+  rocks: 2000,
+  issues: 3000,
+  todo: 4000,
+  segue: 5000,
+  conclusion: 6000,
+  custom: 7000,
+} as const;
+
+const SORT_INCREMENT = 10;
+
 /**
  * Generate L10 agenda items for a meeting draft
  * Only runs if agenda_generated=false AND no visible meeting_items exist
@@ -30,13 +43,30 @@ export async function generateL10Agenda(
   organizationId: string,
   meetingId: string
 ): Promise<AgendaGenerationResult> {
-  // Get period selection for this org
+  // Get period selection for this org - same helper used by /scorecard/off-track and L10
   const periodSelection = await getMonthlyPeriodSelection(organizationId);
   const periodKey = periodSelection.selectedPeriodKey;
   const periodLabel = periodSelection.periodLabel;
 
   const itemsToInsert: MeetingItemInsert[] = [];
-  let sortOrder = 0;
+
+  // Track sort order per section
+  const sectionCounters: Record<string, number> = {
+    scorecard: 0,
+    rocks: 0,
+    issues: 0,
+    todo: 0,
+    segue: 0,
+    conclusion: 0,
+    custom: 0,
+  };
+
+  const getSortOrder = (section: keyof typeof SECTION_BASES): number => {
+    const base = SECTION_BASES[section];
+    const increment = sectionCounters[section] * SORT_INCREMENT;
+    sectionCounters[section]++;
+    return base + increment;
+  };
 
   // ===== SECTION: SCORECARD =====
   
@@ -50,7 +80,7 @@ export async function generateL10Agenda(
     description: `• Confirm the month: ${periodLabel}\n• Review Off-track metrics\n• Review metrics missing data\n• Decide: which metrics require an Issue today?`,
     source_ref_type: null,
     source_ref_id: null,
-    sort_order: sortOrder++,
+    sort_order: getSortOrder("scorecard"),
   });
 
   // Fetch metrics and their results for off-track detection
@@ -97,7 +127,7 @@ export async function generateL10Agenda(
         description: `Value: ${value} | Target: ${target} | Status: OFF_TRACK`,
         source_ref_type: "metric",
         source_ref_id: metric.id,
-        sort_order: sortOrder++,
+        sort_order: getSortOrder("scorecard"),
       });
     }
   } else {
@@ -110,12 +140,11 @@ export async function generateL10Agenda(
       description: "Still confirm missing data and missing targets/owners.",
       source_ref_type: null,
       source_ref_id: null,
-      sort_order: sortOrder++,
+      sort_order: getSortOrder("scorecard"),
     });
   }
 
   // ===== SECTION: ROCKS =====
-  sortOrder = 0;
   
   itemsToInsert.push({
     organization_id: organizationId,
@@ -126,7 +155,7 @@ export async function generateL10Agenda(
     description: `• Each owner gives a 30-second update\n• If blocked, convert to an Issue\n• Reassign or add help if needed`,
     source_ref_type: null,
     source_ref_id: null,
-    sort_order: sortOrder++,
+    sort_order: getSortOrder("rocks"),
   });
 
   // Fetch active rocks (not Done) - cast to avoid deep type instantiation
@@ -201,7 +230,7 @@ export async function generateL10Agenda(
         description: `Owner: ${ownerName}\nConfidence: ${confidence}%\nReality Gap: ${offTrackCount} off-track, ${needsDataCount} needs data (${periodKey})`,
         source_ref_type: "rock",
         source_ref_id: rock.id,
-        sort_order: sortOrder++,
+        sort_order: getSortOrder("rocks"),
       });
     }
   } else {
@@ -210,16 +239,15 @@ export async function generateL10Agenda(
       meeting_id: meetingId,
       section: "rocks",
       item_type: "text",
-      title: "No active Rocks",
-      description: "Create Rocks after reviewing the Scorecard.",
+      title: "No active Rocks. Create Rocks after reviewing the Scorecard.",
+      description: null,
       source_ref_type: null,
       source_ref_id: null,
-      sort_order: sortOrder++,
+      sort_order: getSortOrder("rocks"),
     });
   }
 
   // ===== SECTION: ISSUES =====
-  sortOrder = 0;
   
   itemsToInsert.push({
     organization_id: organizationId,
@@ -230,7 +258,7 @@ export async function generateL10Agenda(
     description: `• Pick the top 1–3 issues\n• Discuss root cause\n• Decide next actions and owners`,
     source_ref_type: null,
     source_ref_id: null,
-    sort_order: sortOrder++,
+    sort_order: getSortOrder("issues"),
   });
 
   // Fetch open issues with priority
@@ -277,7 +305,7 @@ export async function generateL10Agenda(
         description: contextTruncated,
         source_ref_type: "issue",
         source_ref_id: issue.id,
-        sort_order: sortOrder++,
+        sort_order: getSortOrder("issues"),
       });
     }
   } else {
@@ -286,11 +314,11 @@ export async function generateL10Agenda(
       meeting_id: meetingId,
       section: "issues",
       item_type: "text",
-      title: "No open Issues",
-      description: "Create Issues from Scorecard or Rocks during this meeting.",
+      title: "No open Issues. Create Issues from Scorecard or Rocks during this meeting.",
+      description: null,
       source_ref_type: null,
       source_ref_id: null,
-      sort_order: sortOrder++,
+      sort_order: getSortOrder("issues"),
     });
   }
 
@@ -304,7 +332,7 @@ export async function generateL10Agenda(
     description: "Add any decisions and who owns them.",
     source_ref_type: null,
     source_ref_id: null,
-    sort_order: 0,
+    sort_order: getSortOrder("todo"),
   });
 
   // ===== SECTION: SEGUE =====
@@ -317,7 +345,7 @@ export async function generateL10Agenda(
     description: "Quick wins and good news.",
     source_ref_type: null,
     source_ref_id: null,
-    sort_order: 0,
+    sort_order: getSortOrder("segue"),
   });
 
   // ===== SECTION: CONCLUSION =====
@@ -330,7 +358,7 @@ export async function generateL10Agenda(
     description: `• Recap decisions\n• Confirm To-Dos and owners\n• Confirm next meeting date`,
     source_ref_type: null,
     source_ref_id: null,
-    sort_order: 0,
+    sort_order: getSortOrder("conclusion"),
   });
 
   // ===== INSERT ALL ITEMS =====
