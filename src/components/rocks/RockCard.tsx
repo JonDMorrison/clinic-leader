@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Calendar, Target, Link as LinkIcon, GripVertical } from "lucide-react";
+import { Calendar, Target, Link as LinkIcon, GripVertical, CheckCircle2, CircleDot, XCircle } from "lucide-react";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 import { LinkedMetricsBadges } from "./LinkedMetricsBadges";
@@ -12,6 +13,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RockCardProps {
   rock: {
@@ -37,6 +39,23 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
   const [confidence, setConfidence] = useState(rock.confidence?.toString() || "");
   const [dueDate, setDueDate] = useState(rock.due_date || "");
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+
+  // Fetch last outcome for completed rocks
+  const { data: lastOutcome } = useQuery({
+    queryKey: ["rock-outcome", rock.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("rock_outcomes")
+        .select("outcome_status, completion_percent, closed_quarter, outcome_summary")
+        .eq("rock_id", rock.id)
+        .order("closed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: rock.status === "done",
+  });
 
   const {
     attributes,
@@ -134,6 +153,24 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
     return "text-danger";
   };
 
+  const getOutcomeIcon = (status: string) => {
+    switch (status) {
+      case 'achieved': return <CheckCircle2 className="h-3 w-3 text-green-500" />;
+      case 'partial': return <CircleDot className="h-3 w-3 text-amber-500" />;
+      case 'missed': return <XCircle className="h-3 w-3 text-red-500" />;
+      default: return null;
+    }
+  };
+
+  const getOutcomeLabel = (status: string) => {
+    switch (status) {
+      case 'achieved': return 'Achieved';
+      case 'partial': return 'Partial';
+      case 'missed': return 'Missed';
+      default: return status;
+    }
+  };
+
   return (
     <div ref={setNodeRef} style={style} {...attributes} className="transition-opacity duration-200">
       <Card className="hover:shadow-md transition-shadow">
@@ -227,6 +264,35 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
                   {rock.quarter}
                 </Badge>
                 <VTOGoalBadge linkType="rock" linkId={rock.id} />
+                
+                {/* Outcome badge for completed rocks */}
+                {rock.status === "done" && lastOutcome && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs gap-1 ${
+                          lastOutcome.outcome_status === 'achieved' ? 'border-green-500/50 text-green-600' :
+                          lastOutcome.outcome_status === 'partial' ? 'border-amber-500/50 text-amber-600' :
+                          'border-red-500/50 text-red-600'
+                        }`}
+                      >
+                        {getOutcomeIcon(lastOutcome.outcome_status)}
+                        {lastOutcome.completion_percent !== null && `${lastOutcome.completion_percent}%`}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <div className="text-xs space-y-1">
+                        <div className="font-medium">
+                          {getOutcomeLabel(lastOutcome.outcome_status)} — {lastOutcome.closed_quarter}
+                        </div>
+                        {lastOutcome.outcome_summary && (
+                          <div className="text-muted-foreground">{lastOutcome.outcome_summary}</div>
+                        )}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
 
               {isEditingConfidence ? (

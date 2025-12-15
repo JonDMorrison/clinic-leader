@@ -2431,6 +2431,101 @@ export type Database = {
           },
         ]
       }
+      rock_outcomes: {
+        Row: {
+          blockers: string | null
+          closed_at: string
+          closed_by: string | null
+          closed_quarter: string
+          completion_percent: number | null
+          created_issue_id: string | null
+          disposition: string
+          id: string
+          lessons_learned: string | null
+          linked_metric_ids: Json
+          organization_id: string
+          outcome_status: string
+          outcome_summary: string | null
+          rock_confidence: number | null
+          rock_due_date: string | null
+          rock_id: string
+          rock_owner_id: string | null
+          rock_status_at_close: string
+          rock_title: string
+        }
+        Insert: {
+          blockers?: string | null
+          closed_at?: string
+          closed_by?: string | null
+          closed_quarter: string
+          completion_percent?: number | null
+          created_issue_id?: string | null
+          disposition: string
+          id?: string
+          lessons_learned?: string | null
+          linked_metric_ids?: Json
+          organization_id: string
+          outcome_status: string
+          outcome_summary?: string | null
+          rock_confidence?: number | null
+          rock_due_date?: string | null
+          rock_id: string
+          rock_owner_id?: string | null
+          rock_status_at_close: string
+          rock_title: string
+        }
+        Update: {
+          blockers?: string | null
+          closed_at?: string
+          closed_by?: string | null
+          closed_quarter?: string
+          completion_percent?: number | null
+          created_issue_id?: string | null
+          disposition?: string
+          id?: string
+          lessons_learned?: string | null
+          linked_metric_ids?: Json
+          organization_id?: string
+          outcome_status?: string
+          outcome_summary?: string | null
+          rock_confidence?: number | null
+          rock_due_date?: string | null
+          rock_id?: string
+          rock_owner_id?: string | null
+          rock_status_at_close?: string
+          rock_title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rock_outcomes_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rock_outcomes_created_issue_id_fkey"
+            columns: ["created_issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rock_outcomes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rock_outcomes_rock_id_fkey"
+            columns: ["rock_id"]
+            isOneToOne: false
+            referencedRelation: "rocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rocks: {
         Row: {
           confidence: number | null
