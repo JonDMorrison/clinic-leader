@@ -48,6 +48,8 @@ interface MeetingWithCounts {
   agenda_generated: boolean;
   started_at: string | null;
   ended_at: string | null;
+  level10_score: number | null;
+  outcome_headline: string | null;
   itemCount: number;
   issueCount: number;
 }
@@ -246,6 +248,13 @@ export default function Meetings() {
             <span className="flex items-center gap-1 text-amber-600">
               <AlertTriangle className="w-3 h-3" />
               {meeting.issueCount}
+            </span>
+          )}
+          {meeting.level10_score && (
+            <span className={`font-medium ${
+              meeting.level10_score >= 8 ? "text-green-600" : meeting.level10_score >= 5 ? "text-amber-600" : "text-red-600"
+            }`}>
+              {meeting.level10_score}/10
             </span>
           )}
         </div>
