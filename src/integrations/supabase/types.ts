@@ -979,6 +979,7 @@ export type Database = {
           context: string | null
           created_at: string
           id: string
+          meeting_id: string | null
           metric_id: string | null
           organization_id: string
           owner_id: string | null
@@ -994,6 +995,7 @@ export type Database = {
           context?: string | null
           created_at?: string
           id?: string
+          meeting_id?: string | null
           metric_id?: string | null
           organization_id: string
           owner_id?: string | null
@@ -1009,6 +1011,7 @@ export type Database = {
           context?: string | null
           created_at?: string
           id?: string
+          meeting_id?: string | null
           metric_id?: string | null
           organization_id?: string
           owner_id?: string | null
@@ -1021,6 +1024,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "issues_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "issues_metric_id_fkey"
             columns: ["metric_id"]

@@ -17,6 +17,8 @@ import { AgendaSuggestions } from "@/components/l10/AgendaSuggestions";
 import { useVTORealtimeSync } from "@/hooks/useVTORealtimeSync";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { CoreValuesStrip, CoreValueOfWeekCard, ShoutoutSection } from "@/components/core-values";
+import { getMonthlyPeriodSelection } from "@/lib/scorecard/periodHelper";
+import { metricStatus } from "@/lib/scorecard/metricStatus";
 
 const L10 = () => {
   const [headlines, setHeadlines] = useState<string[]>([]);
@@ -30,19 +32,68 @@ const L10 = () => {
   // Enable real-time VTO progress sync during L10
   useVTORealtimeSync(organizationId);
 
-  const { data: kpis, refetch: refetchKpis } = useQuery({
-    queryKey: ["kpis-l10", organizationId],
+  // Fetch metrics instead of legacy kpis table
+  const { data: metricsData, refetch: refetchMetrics } = useQuery({
+    queryKey: ["metrics-l10", organizationId],
     queryFn: async () => {
-      if (!organizationId) return [];
-      const { data, error } = await supabase
-        .from("kpis")
-        .select("*, kpi_readings(value, week_start), users(full_name)")
-        .eq("active", true)
-        .order("category")
-        .order("week_start", { foreignTable: "kpi_readings", ascending: false });
+      if (!organizationId) return { metrics: [], periodKey: null };
       
-      if (error) throw error;
-      return data;
+      // Get the latest period for this org
+      const periodSelection = await getMonthlyPeriodSelection(organizationId);
+      const periodKey = periodSelection.selectedPeriodKey;
+      
+      // Fetch active metrics
+      const { data: metrics, error: metricsError } = await supabase
+        .from("metrics")
+        .select("id, name, target, direction, unit, owner, category, is_active")
+        .eq("organization_id", organizationId)
+        .eq("is_active", true)
+        .order("category")
+        .order("name");
+      
+      if (metricsError) throw metricsError;
+      if (!metrics?.length) return { metrics: [], periodKey };
+
+      // Fetch owner names
+      const ownerIds = [...new Set(metrics.map(m => m.owner).filter(Boolean))];
+      const { data: users } = await supabase
+        .from("users")
+        .select("id, full_name")
+        .in("id", ownerIds);
+      
+      const userMap = users?.reduce((acc, u) => {
+        acc[u.id] = u.full_name;
+        return acc;
+      }, {} as Record<string, string>) || {};
+
+      // Fetch metric results for the selected period
+      const metricIds = metrics.map(m => m.id);
+      const { data: results } = await supabase
+        .from("metric_results")
+        .select("metric_id, value, period_key")
+        .in("metric_id", metricIds)
+        .eq("period_type", "monthly")
+        .eq("period_key", periodKey);
+
+      // Map results by metric_id
+      const resultsByMetric = results?.reduce((acc, r) => {
+        acc[r.metric_id] = r;
+        return acc;
+      }, {} as Record<string, any>) || {};
+
+      // Enrich metrics with current values and owner names
+      const enrichedMetrics = metrics.map(metric => ({
+        id: metric.id,
+        name: metric.name,
+        target: metric.target,
+        direction: metric.direction,
+        unit: metric.unit,
+        owner_name: metric.owner ? userMap[metric.owner] : null,
+        current_value: resultsByMetric[metric.id]?.value ?? null,
+        period_key: periodKey,
+      }));
+      
+      return { metrics: enrichedMetrics, periodKey };
     },
     enabled: !!organizationId,
   });
@@ -113,18 +164,25 @@ const L10 = () => {
 
   const handleCloseMeeting = async () => {
     try {
-      // Prepare KPI snapshot
-      const kpiSnapshot = kpis?.map(kpi => ({
-        kpi_id: kpi.id,
-        name: kpi.name,
-        target: kpi.target,
-        actual: kpi.kpi_readings?.[0]?.value || null,
-        on_track: kpi.kpi_readings?.[0] ? 
-          (kpi.direction === ">=" ? 
-            parseFloat(String(kpi.kpi_readings[0].value)) >= parseFloat(String(kpi.target)) :
-            parseFloat(String(kpi.kpi_readings[0].value)) <= parseFloat(String(kpi.target))) 
-          : false,
-      })) || [];
+      const metrics = metricsData?.metrics || [];
+      const periodKey = metricsData?.periodKey || null;
+      
+      // Prepare metric snapshot using metricStatus
+      const metricSnapshot = metrics.map(metric => {
+        const statusResult = metricStatus(
+          { target: metric.target, direction: metric.direction, owner: metric.owner_name },
+          { value: metric.current_value },
+          periodKey
+        );
+        return {
+          metric_id: metric.id,
+          name: metric.name,
+          target: metric.target,
+          actual: metric.current_value,
+          on_track: statusResult.status === 'on_track',
+          status: statusResult.status,
+        };
+      });
 
       // Prepare Rock check
       const rockCheck = rocks?.map(rock => ({
@@ -151,14 +209,14 @@ const L10 = () => {
 
       if (meetingError) throw meetingError;
 
-      // Save meeting notes
+      // Save meeting notes with metric snapshot (using kpi_snapshot field for backward compat)
       const { error: notesError } = await supabase
         .from("meeting_notes")
         .insert({
           meeting_id: meeting.id,
           headlines,
           rock_check: rockCheck,
-          kpi_snapshot: kpiSnapshot,
+          kpi_snapshot: metricSnapshot, // Now contains metric data, not kpi data
           decisions,
         });
 
@@ -182,7 +240,10 @@ const L10 = () => {
   };
 
   const handleExportMinutes = () => {
-    if (!kpis || !rocks) {
+    const metrics = metricsData?.metrics || [];
+    const periodKey = metricsData?.periodKey || null;
+    
+    if (!metrics.length && !rocks?.length) {
       toast({
         title: "Error",
         description: "Meeting data not loaded",
@@ -191,22 +252,25 @@ const L10 = () => {
       return;
     }
 
-    const kpiSnapshot = kpis.map(kpi => ({
-      name: kpi.name,
-      target: `${kpi.target} ${kpi.unit}`,
-      actual: kpi.kpi_readings?.[0]?.value ? `${kpi.kpi_readings[0].value} ${kpi.unit}` : "—",
-      on_track: kpi.kpi_readings?.[0] ? 
-        (kpi.direction === ">=" ? 
-          parseFloat(String(kpi.kpi_readings[0].value)) >= parseFloat(String(kpi.target)) :
-          parseFloat(String(kpi.kpi_readings[0].value)) <= parseFloat(String(kpi.target))) 
-        : false,
-    }));
+    const metricSnapshot = metrics.map(metric => {
+      const statusResult = metricStatus(
+        { target: metric.target, direction: metric.direction, owner: metric.owner_name },
+        { value: metric.current_value },
+        periodKey
+      );
+      return {
+        name: metric.name,
+        target: metric.target !== null ? `${metric.target} ${metric.unit}` : "—",
+        actual: metric.current_value !== null ? `${metric.current_value} ${metric.unit}` : "—",
+        on_track: statusResult.status === 'on_track',
+      };
+    });
 
-    const rockCheck = rocks.map(rock => ({
+    const rockCheck = rocks?.map(rock => ({
       title: rock.title,
       status: rock.status,
       confidence: rock.confidence || 0,
-    }));
+    })) || [];
 
     const todosList = todos?.map(todo => ({
       title: todo.title,
@@ -222,7 +286,7 @@ const L10 = () => {
     exportMeetingMinutes({
       meetingDate: new Date().toISOString(),
       teamName: currentTeam?.name || "Team",
-      kpiSnapshot,
+      kpiSnapshot: metricSnapshot, // Using kpiSnapshot field name for backward compat
       rockCheck,
       headlines,
       decisions,
@@ -235,6 +299,9 @@ const L10 = () => {
       description: "Meeting minutes exported as PDF",
     });
   };
+
+  const metrics = metricsData?.metrics || [];
+  const periodKey = metricsData?.periodKey || null;
 
   return (
     <div className="space-y-6">
@@ -275,7 +342,7 @@ const L10 = () => {
         
         <div className="space-y-4">
           <AgendaTimer sectionName="Scorecard" defaultMinutes={5} />
-          <ScorecardSnapshot kpis={kpis || []} />
+          <ScorecardSnapshot metrics={metrics} periodKey={periodKey} />
         </div>
 
         <div className="space-y-4">

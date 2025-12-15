@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, PenSquare, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { metricStatus, normalizeDirection } from "@/lib/scorecard/metricStatus";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
 import { supabase } from "@/integrations/supabase/client";
@@ -291,11 +292,19 @@ const Scorecard = () => {
   const owners = Array.from(new Set(metricsData?.map(m => m.owner_name).filter(Boolean) || []));
 
   const totalMetrics = metricsData?.length || 0;
-  const onTrackCount = metricsData?.filter(m => {
-    if (!m.current_value || !m.target) return false;
-    const isUp = m.direction === "up" || m.direction === ">=";
-    return isUp ? m.current_value >= m.target : m.current_value <= m.target;
-  }).length || 0;
+  
+  // Use metricStatus() for authoritative on-track calculation
+  const onTrackCount = useMemo(() => {
+    if (!metricsData) return 0;
+    return metricsData.filter(m => {
+      const statusResult = metricStatus(
+        { target: m.target, direction: m.direction, owner: m.owner_name },
+        { value: m.current_value },
+        null // period_key not needed for simple on_track check
+      );
+      return statusResult.status === 'on_track';
+    }).length;
+  }, [metricsData]);
 
   return (
     <div className="space-y-6">
