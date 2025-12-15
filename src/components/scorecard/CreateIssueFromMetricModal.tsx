@@ -48,27 +48,40 @@ export function CreateIssueFromMetricModal({
   
   const buildDescription = () => {
     const lines = [];
+    
+    // Always include period context
+    lines.push(`Month: ${periodLabel} (${periodKey})`);
+    
     if (metric.status === 'off_track') {
       lines.push(`Current value: ${formatMetricValue(metric.currentValue, metric.unit)}`);
       lines.push(`Target: ${formatMetricValue(metric.target, metric.unit)}`);
-      lines.push(`Direction: ${metric.direction === 'up' ? 'Higher is better' : 'Lower is better'}`);
+      
+      // Format direction for display
+      const directionLabel = metric.direction === 'up' || metric.direction === 'higher_is_better' 
+        ? 'Higher is better' 
+        : metric.direction === 'down' || metric.direction === 'lower_is_better'
+        ? 'Lower is better'
+        : metric.direction === 'exact' ? 'Exact match' : metric.direction;
+      lines.push(`Direction: ${directionLabel}`);
       
       if (metric.currentValue !== null && metric.target !== null) {
         const gap = metric.currentValue - metric.target;
-        const gapLabel = metric.direction === 'up' ? 'Under' : 'Over';
+        const gapLabel = (metric.direction === 'up' || metric.direction === 'higher_is_better') ? 'Under' : 'Over';
         lines.push(`Gap: ${gapLabel} by ${formatMetricValue(Math.abs(gap), metric.unit)}`);
       }
     } else if (metric.status === 'needs_data') {
-      lines.push(`No data recorded for ${periodLabel}`);
+      lines.push(`Current value: missing`);
+      lines.push(`Target: ${formatMetricValue(metric.target, metric.unit)}`);
     } else if (metric.status === 'needs_target') {
-      lines.push(`No target set for this metric`);
       lines.push(`Current value: ${formatMetricValue(metric.currentValue, metric.unit)}`);
+      lines.push(`Target: missing`);
     } else if (metric.status === 'needs_owner') {
-      lines.push(`No owner assigned to this metric`);
+      lines.push(`Current value: ${formatMetricValue(metric.currentValue, metric.unit)}`);
+      lines.push(`Target: ${formatMetricValue(metric.target, metric.unit)}`);
     }
     
     lines.push('');
-    lines.push('Suggested next step: Identify root cause and propose a Rock or adjustment.');
+    lines.push('Suggested question: What is the root cause, and what will we do in the next 7 days?');
     
     if (rockTitle) {
       lines.push('');
