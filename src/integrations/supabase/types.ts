@@ -979,9 +979,12 @@ export type Database = {
           context: string | null
           created_at: string
           id: string
+          metric_id: string | null
           organization_id: string
           owner_id: string | null
+          period_key: string | null
           priority: number
+          rock_id: string | null
           solved_at: string | null
           status: Database["public"]["Enums"]["issue_status"]
           title: string
@@ -991,9 +994,12 @@ export type Database = {
           context?: string | null
           created_at?: string
           id?: string
+          metric_id?: string | null
           organization_id: string
           owner_id?: string | null
+          period_key?: string | null
           priority?: number
+          rock_id?: string | null
           solved_at?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
           title: string
@@ -1003,9 +1009,12 @@ export type Database = {
           context?: string | null
           created_at?: string
           id?: string
+          metric_id?: string | null
           organization_id?: string
           owner_id?: string | null
+          period_key?: string | null
           priority?: number
+          rock_id?: string | null
           solved_at?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
           title?: string
@@ -1013,10 +1022,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "issues_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "issues_owner_id_fkey"
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issues_rock_id_fkey"
+            columns: ["rock_id"]
+            isOneToOne: false
+            referencedRelation: "rocks"
             referencedColumns: ["id"]
           },
           {
