@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { generateL10Agenda, shouldGenerateAgenda } from "@/lib/meetings/agendaGenerator";
 
 const SECTION_ORDER = ["scorecard", "rocks", "issues", "todo", "segue", "conclusion", "custom"];
 const SECTION_LABELS: Record<string, string> = {
@@ -56,6 +57,8 @@ export default function MeetingDetail() {
   const [showStartDialog, setShowStartDialog] = useState(false);
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const generationAttempted = useRef(false);
 
   // Auto-open start dialog if ?start=1
   useEffect(() => {
@@ -104,6 +107,43 @@ export default function MeetingDetail() {
     },
     enabled: !!meetingId && !!organizationId,
   });
+
+  // Auto-generate agenda when conditions are met
+  useEffect(() => {
+    async function tryGenerateAgenda() {
+      if (!meeting || !organizationId || !meetingId) return;
+      if (generationAttempted.current) return;
+      if (isGenerating) return;
+      if (itemsLoading) return;
+
+      const shouldGenerate = await shouldGenerateAgenda(meeting, organizationId);
+      if (!shouldGenerate) return;
+
+      generationAttempted.current = true;
+      setIsGenerating(true);
+
+      const result = await generateL10Agenda(organizationId, meetingId);
+
+      setIsGenerating(false);
+
+      if (result.success) {
+        toast({
+          title: "Agenda prefilled",
+          description: `${result.itemsCreated} items added for ${result.periodKey}. Edit or delete anything before you start.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ["meeting", meetingId] });
+        queryClient.invalidateQueries({ queryKey: ["meeting-items", meetingId] });
+      } else if (result.error) {
+        toast({
+          title: "Failed to generate agenda",
+          description: result.error,
+          variant: "destructive",
+        });
+      }
+    }
+
+    tryGenerateAgenda();
+  }, [meeting, organizationId, meetingId, itemsLoading, isGenerating, queryClient, toast]);
 
   // Start meeting mutation
   const startMutation = useMutation({
@@ -232,10 +272,13 @@ export default function MeetingDetail() {
             Print
           </Button>
           {canEdit && (
-            <Button variant="outline" onClick={() => setShowAddModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Item
-            </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Everything is editable</span>
+              <Button variant="outline" onClick={() => setShowAddModal(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Item
+              </Button>
+            </div>
           )}
         </div>
       </div>
