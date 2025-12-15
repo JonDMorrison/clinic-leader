@@ -39,7 +39,8 @@ interface CreateIssueFromItemDialogProps {
   meetingId: string;
   item: MeetingItem;
   periodKey: string;
-  onIssueCreated?: (issueId: string) => void;
+  metricStatus?: string;
+  onIssueCreated?: (issueId: string, itemId: string) => void;
 }
 
 export function CreateIssueFromItemDialog({
@@ -49,6 +50,7 @@ export function CreateIssueFromItemDialog({
   meetingId,
   item,
   periodKey,
+  metricStatus,
   onIssueCreated,
 }: CreateIssueFromItemDialogProps) {
   const { toast } = useToast();
@@ -59,30 +61,49 @@ export function CreateIssueFromItemDialog({
   const [priority, setPriority] = useState("2");
   const [ownerId, setOwnerId] = useState<string>("");
 
-  // Generate prefilled content based on item type
+  // Generate prefilled content based on item type and metric status
   const generatePrefill = () => {
     const baseTitle = item.title.replace(/^(Metric|Rock|Issue): /, "");
 
     switch (item.item_type) {
-      case "metric":
+      case "metric": {
+        // Title based on metric status
+        let metricTitle: string;
+        switch (metricStatus) {
+          case "OFF_TRACK":
+            metricTitle = `${baseTitle} off-track (${periodKey})`;
+            break;
+          case "NEEDS_DATA":
+            metricTitle = `${baseTitle} missing data (${periodKey})`;
+            break;
+          case "NEEDS_TARGET":
+            metricTitle = `${baseTitle} missing target (${periodKey})`;
+            break;
+          case "NEEDS_OWNER":
+            metricTitle = `${baseTitle} missing owner (${periodKey})`;
+            break;
+          default:
+            metricTitle = `Review metric: ${baseTitle} (${periodKey})`;
+        }
         return {
-          title: `${baseTitle} is off-track (${periodKey})`,
-          context: `Month: ${periodKey}\n${item.description || ""}\n\nRoot cause and next action:`,
+          title: metricTitle,
+          context: `Month: ${periodKey}\n${item.description || ""}\n\nIdentify the root cause and define the next action to resolve this issue.`,
         };
+      }
       case "rock":
         return {
           title: `Rock blocked: ${baseTitle}`,
-          context: `${item.description || ""}\n\nWhat is blocking this Rock and what will we do next?`,
+          context: `${item.description || ""}\n\nIdentify what is blocking this Rock and determine the next steps to get it back on track.`,
         };
       case "issue":
         return {
           title: `Related: ${baseTitle}`,
-          context: `Spun off from issue "${baseTitle}" during meeting.\n\n${item.description || ""}`,
+          context: `This issue was spun off from "${baseTitle}" during the meeting.\n\n${item.description || ""}`,
         };
       default:
         return {
           title: baseTitle,
-          context: `Created from meeting agenda item.\nPeriod: ${periodKey}\n\nDefine the issue clearly and decide next action.`,
+          context: `Created from meeting agenda item during the ${periodKey} review.\n\nClearly define the issue and determine the next action to resolve it.`,
         };
     }
   };
@@ -142,10 +163,11 @@ export function CreateIssueFromItemDialog({
       return data;
     },
     onSuccess: (data) => {
-      toast({ title: "Issue created" });
+      toast({ title: "Issue created", description: title.trim() });
       queryClient.invalidateQueries({ queryKey: ["meeting-issues", meetingId] });
       queryClient.invalidateQueries({ queryKey: ["issues"] });
-      onIssueCreated?.(data.id);
+      queryClient.invalidateQueries({ queryKey: ["meeting-items", meetingId] });
+      onIssueCreated?.(data.id, item.id);
       onOpenChange(false);
     },
     onError: (error: any) => {
