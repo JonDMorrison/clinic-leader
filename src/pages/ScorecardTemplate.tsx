@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,12 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { 
   Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, ArrowLeft, 
-  Settings, Archive, User, Target, ChevronDown, ChevronUp, Download, Key,
-  AlertCircle, Copy, Check
+  Settings, Archive, Download, Key, AlertCircle, Copy, Check, ShieldAlert,
+  Lock, User, Target
 } from "lucide-react";
 import { parseExcel } from "@/lib/importers/excelParser";
 import { parseCSV } from "@/lib/importers/csvParser";
@@ -29,6 +30,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { GoogleSheetSyncSection } from "@/components/scorecard/GoogleSheetSyncSection";
+import { 
+  computeTemplateHealth, 
+  generateImportKey, 
+  validateImportKeyUnique,
+  type MetricWithHealth,
+  type TemplateHealthMetrics
+} from "@/lib/scorecard/templateHealth";
+import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
 
 interface TemplateMetric {
   name: string;
@@ -41,33 +50,14 @@ interface TemplateMetric {
   matchType: 'exact' | 'fuzzy' | 'new';
 }
 
-interface ExistingMetric {
-  id: string;
-  name: string;
-  category: string;
-  unit: string;
-  target: number | null;
-  owner: string | null;
-  is_active: boolean;
-  direction: string;
-  import_key: string | null;
-  aliases: string[] | null;
-}
-
-// Generate import_key from metric name
-const generateImportKey = (name: string): string => {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s]/g, '')
-    .replace(/\s+/g, '_')
-    .slice(0, 50);
-};
-
 const ScorecardTemplate = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
+  const { data: adminStatus, isLoading: adminLoading } = useIsAdmin();
+  const { orgId, OrgMissingError } = useOrgSafetyCheck();
+  
+  const isAdmin = adminStatus?.isAdmin || adminStatus?.isManager || false;
   
   // File upload state
   const [file, setFile] = useState<File | null>(null);
@@ -77,108 +67,116 @@ const ScorecardTemplate = () => {
   const [selectedForImport, setSelectedForImport] = useState<Set<number>>(new Set());
   
   // Import key editor state
-  const [showImportKeyEditor, setShowImportKeyEditor] = useState(true);
   const [editingImportKeys, setEditingImportKeys] = useState<Record<string, string>>({});
   const [editingMetrics, setEditingMetrics] = useState<Record<string, { owner?: string; target?: number | null }>>({});
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   // Duplicate resolver state
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-  const [duplicateGroups, setDuplicateGroups] = useState<Map<string, ExistingMetric[]>>(new Map());
+  const [duplicateGroups, setDuplicateGroups] = useState<Map<string, MetricWithHealth[]>>(new Map());
   const [selectedDuplicates, setSelectedDuplicates] = useState<Record<string, string>>({});
   
   // Template download copied state
   const [copiedTemplate, setCopiedTemplate] = useState(false);
+  
+  // Leave confirmation state
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
-  const { data: existingMetrics, refetch: refetchMetrics } = useQuery({
-    queryKey: ['metrics-template', currentUser?.team_id],
+  // Fetch template health using the shared helper
+  const { data: templateData, refetch: refetchMetrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ['template-health', orgId],
     queryFn: async () => {
-      if (!currentUser?.team_id) return [];
-      const { data, error } = await supabase
-        .from('metrics')
-        .select('id, name, category, unit, target, is_active, owner, direction, import_key, aliases')
-        .eq('organization_id', currentUser.team_id)
-        .order('name');
-      if (error) throw error;
-      return data as ExistingMetric[];
+      if (!orgId) throw new Error('No organization');
+      return computeTemplateHealth(orgId);
     },
-    enabled: !!currentUser?.team_id,
+    enabled: !!orgId,
   });
 
+  const health = templateData?.health;
+  const activeMetrics = templateData?.metrics || [];
+
   const { data: orgSettings } = useQuery({
-    queryKey: ['org-settings', currentUser?.team_id],
+    queryKey: ['org-settings', orgId],
     queryFn: async () => {
-      if (!currentUser?.team_id) return null;
+      if (!orgId) return null;
       const { data, error } = await supabase
         .from('teams')
         .select('scorecard_mode')
-        .eq('id', currentUser.team_id)
+        .eq('id', orgId)
         .single();
       if (error) throw error;
       return data;
     },
-    enabled: !!currentUser?.team_id,
+    enabled: !!orgId,
   });
 
   const { data: teamMembers } = useQuery({
-    queryKey: ['team-members', currentUser?.team_id],
+    queryKey: ['team-members', orgId],
     queryFn: async () => {
-      if (!currentUser?.team_id) return [];
+      if (!orgId) return [];
       const { data, error } = await supabase
         .from('users')
         .select('id, full_name, email')
-        .eq('team_id', currentUser.team_id)
+        .eq('team_id', orgId)
         .order('full_name');
       if (error) throw error;
       return data;
     },
-    enabled: !!currentUser?.team_id,
+    enabled: !!orgId,
   });
 
   const isLockedMode = orgSettings?.scorecard_mode === 'locked_to_template';
-  const activeMetrics = useMemo(() => existingMetrics?.filter(m => m.is_active) || [], [existingMetrics]);
+  const templateReady = health?.isReady || false;
   
-  // Calculate template health metrics
-  const missingImportKeys = useMemo(() => 
-    activeMetrics.filter(m => !m.import_key || m.import_key.trim() === ''), 
-    [activeMetrics]
-  );
-  
-  const duplicateImportKeys = useMemo(() => {
-    const keyCounts = new Map<string, ExistingMetric[]>();
-    activeMetrics.forEach(m => {
-      if (m.import_key && m.import_key.trim()) {
-        const key = m.import_key.toLowerCase().trim();
-        if (!keyCounts.has(key)) keyCounts.set(key, []);
-        keyCounts.get(key)!.push(m);
-      }
-    });
-    return Array.from(keyCounts.entries())
-      .filter(([_, metrics]) => metrics.length > 1);
-  }, [activeMetrics]);
+  // Check for unsaved changes that would leave template invalid
+  const hasUnsavedChanges = Object.keys(editingImportKeys).length > 0;
+  const wouldLeaveInvalid = hasUnsavedChanges && !templateReady;
 
-  const duplicateNames = useMemo(() => {
-    const nameCounts = new Map<string, ExistingMetric[]>();
-    activeMetrics.forEach(m => {
-      const name = m.name.toLowerCase().trim();
-      if (!nameCounts.has(name)) nameCounts.set(name, []);
-      nameCounts.get(name)!.push(m);
-    });
-    return Array.from(nameCounts.entries())
-      .filter(([_, metrics]) => metrics.length > 1);
-  }, [activeMetrics]);
+  // Handle navigation with validation for locked orgs
+  const handleNavigate = (path: string) => {
+    if (isLockedMode && wouldLeaveInvalid) {
+      setPendingNavigation(path);
+      setShowLeaveConfirm(true);
+    } else {
+      navigate(path);
+    }
+  };
 
-  const missingTargets = useMemo(() => activeMetrics.filter(m => m.target === null), [activeMetrics]);
-  const missingOwners = useMemo(() => activeMetrics.filter(m => !m.owner), [activeMetrics]);
+  // Validate import key on change
+  const handleImportKeyChange = (metricId: string, value: string) => {
+    setEditingImportKeys(prev => ({ ...prev, [metricId]: value }));
+    
+    // Clear or set validation error
+    const trimmedValue = value.trim();
+    if (!trimmedValue && isLockedMode) {
+      setValidationErrors(prev => ({ ...prev, [metricId]: 'Import key is required for locked organizations' }));
+    } else if (trimmedValue && !validateImportKeyUnique(trimmedValue, metricId, activeMetrics)) {
+      setValidationErrors(prev => ({ ...prev, [metricId]: 'This import key is already used by another metric' }));
+    } else {
+      setValidationErrors(prev => {
+        const next = { ...prev };
+        delete next[metricId];
+        return next;
+      });
+    }
+  };
 
-  // Save import key mutation
+  // Save import key mutation with duplicate handling
   const saveImportKeyMutation = useMutation({
     mutationFn: async ({ metricId, importKey }: { metricId: string; importKey: string }) => {
       const { error } = await supabase
         .from('metrics')
         .update({ import_key: importKey.trim() || null })
         .eq('id', metricId)
-        .eq('organization_id', currentUser?.team_id);
-      if (error) throw error;
+        .eq('organization_id', orgId);
+      if (error) {
+        // Handle unique constraint violation
+        if (error.code === '23505') {
+          throw new Error('This import key is already used by another metric');
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       refetchMetrics();
@@ -193,22 +191,40 @@ const ScorecardTemplate = () => {
   const bulkSaveImportKeysMutation = useMutation({
     mutationFn: async () => {
       const updates = Object.entries(editingImportKeys);
+      const errors: string[] = [];
+      let saved = 0;
+      
       for (const [metricId, importKey] of updates) {
         const { error } = await supabase
           .from('metrics')
           .update({ import_key: importKey.trim() || null })
           .eq('id', metricId)
-          .eq('organization_id', currentUser?.team_id);
-        if (error) throw error;
+          .eq('organization_id', orgId);
+        if (error) {
+          if (error.code === '23505') {
+            errors.push(`Duplicate key: ${importKey}`);
+          } else {
+            errors.push(error.message);
+          }
+        } else {
+          saved++;
+        }
       }
-      return updates.length;
+      
+      if (errors.length > 0) {
+        throw new Error(`${saved} saved, ${errors.length} failed: ${errors.join(', ')}`);
+      }
+      
+      return saved;
     },
     onSuccess: (count) => {
-      queryClient.invalidateQueries({ queryKey: ['metrics-template'] });
+      queryClient.invalidateQueries({ queryKey: ['template-health'] });
       setEditingImportKeys({});
+      setValidationErrors({});
       toast.success(`Saved ${count} import keys`);
     },
     onError: (error: any) => {
+      refetchMetrics();
       toast.error(error.message || 'Failed to save import keys');
     },
   });
@@ -216,20 +232,22 @@ const ScorecardTemplate = () => {
   // Auto-generate import keys for metrics missing them
   const autoGenerateImportKeysMutation = useMutation({
     mutationFn: async () => {
+      const missingKeyMetrics = activeMetrics.filter(m => m.isMissingKey);
       let count = 0;
-      for (const metric of missingImportKeys) {
+      
+      for (const metric of missingKeyMetrics) {
         const key = generateImportKey(metric.name);
         const { error } = await supabase
           .from('metrics')
           .update({ import_key: key })
           .eq('id', metric.id)
-          .eq('organization_id', currentUser?.team_id);
+          .eq('organization_id', orgId);
         if (!error) count++;
       }
       return count;
     },
     onSuccess: (count) => {
-      queryClient.invalidateQueries({ queryKey: ['metrics-template'] });
+      queryClient.invalidateQueries({ queryKey: ['template-health'] });
       toast.success(`Auto-generated ${count} import keys`);
     },
     onError: (error: any) => {
@@ -243,7 +261,7 @@ const ScorecardTemplate = () => {
         .from('metrics')
         .update({ is_active: false })
         .eq('id', metricId)
-        .eq('organization_id', currentUser?.team_id);
+        .eq('organization_id', orgId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -258,7 +276,7 @@ const ScorecardTemplate = () => {
         .from('metrics')
         .update(updates)
         .eq('id', metricId)
-        .eq('organization_id', currentUser?.team_id);
+        .eq('organization_id', orgId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -307,18 +325,28 @@ const ScorecardTemplate = () => {
     toast.success('Template copied to clipboard');
   };
 
-  // Open duplicate resolver
+  // Open duplicate name resolver
   const openDuplicateResolver = () => {
-    const groups = new Map<string, ExistingMetric[]>();
-    duplicateNames.forEach(([name, metrics]) => {
-      groups.set(name, metrics);
+    const nameGroups = new Map<string, MetricWithHealth[]>();
+    activeMetrics.forEach(m => {
+      const name = m.name.toLowerCase().trim();
+      if (!nameGroups.has(name)) nameGroups.set(name, []);
+      nameGroups.get(name)!.push(m);
     });
-    setDuplicateGroups(groups);
+    
+    const duplicates = new Map<string, MetricWithHealth[]>();
+    nameGroups.forEach((metrics, name) => {
+      if (metrics.length > 1) {
+        duplicates.set(name, metrics);
+      }
+    });
+    
+    setDuplicateGroups(duplicates);
     setSelectedDuplicates({});
     setShowDuplicateDialog(true);
   };
 
-  // Resolve duplicates
+  // Resolve duplicates by archiving non-selected
   const resolveDuplicatesMutation = useMutation({
     mutationFn: async () => {
       let archived = 0;
@@ -332,7 +360,7 @@ const ScorecardTemplate = () => {
               .from('metrics')
               .update({ is_active: false })
               .eq('id', m.id)
-              .eq('organization_id', currentUser?.team_id);
+              .eq('organization_id', orgId);
             if (!error) archived++;
           }
         }
@@ -340,7 +368,7 @@ const ScorecardTemplate = () => {
       return archived;
     },
     onSuccess: (archived) => {
-      queryClient.invalidateQueries({ queryKey: ['metrics-template'] });
+      queryClient.invalidateQueries({ queryKey: ['template-health'] });
       setShowDuplicateDialog(false);
       toast.success(`Archived ${archived} duplicate metrics`);
     },
@@ -384,16 +412,16 @@ const ScorecardTemplate = () => {
   };
 
   const findMatch = (name: string): { id?: string; type: 'exact' | 'fuzzy' | 'new' } => {
-    if (!existingMetrics) return { type: 'new' };
+    if (!activeMetrics.length) return { type: 'new' };
     const normalizedName = name.toLowerCase().trim();
     
-    const exact = existingMetrics.find(m => 
+    const exact = activeMetrics.find(m => 
       m.name.toLowerCase().trim() === normalizedName ||
       (m.import_key && m.import_key.toLowerCase().trim() === normalizedName)
     );
     if (exact) return { id: exact.id, type: 'exact' };
     
-    const fuzzy = existingMetrics.find(m => {
+    const fuzzy = activeMetrics.find(m => {
       const existingNorm = m.name.toLowerCase().trim();
       return existingNorm.includes(normalizedName) || normalizedName.includes(existingNorm);
     });
@@ -466,7 +494,7 @@ const ScorecardTemplate = () => {
 
   const applyTemplateMutation = useMutation({
     mutationFn: async () => {
-      if (!currentUser?.team_id) throw new Error('No organization');
+      if (!orgId) throw new Error('No organization');
 
       const selectedMetrics = templateMetrics.filter((_, i) => selectedForImport.has(i));
       let created = 0, updated = 0;
@@ -489,7 +517,7 @@ const ScorecardTemplate = () => {
               ...(metric.owner && { owner: metric.owner }),
             })
             .eq('id', metric.matchedMetricId)
-            .eq('organization_id', currentUser.team_id);
+            .eq('organization_id', orgId);
           
           if (!error) updated++;
         } else if (!isLockedMode) {
@@ -497,7 +525,7 @@ const ScorecardTemplate = () => {
           const { error } = await supabase
             .from('metrics')
             .insert({
-              organization_id: currentUser.team_id,
+              organization_id: orgId,
               name: metric.name,
               category: metric.category,
               unit: metric.unit,
@@ -518,7 +546,7 @@ const ScorecardTemplate = () => {
     },
     onSuccess: ({ created, updated }) => {
       queryClient.invalidateQueries({ queryKey: ['metrics'] });
-      queryClient.invalidateQueries({ queryKey: ['metrics-template'] });
+      queryClient.invalidateQueries({ queryKey: ['template-health'] });
       toast.success(`Template applied: ${created} created, ${updated} updated`);
     },
     onError: (error: any) => {
@@ -526,20 +554,16 @@ const ScorecardTemplate = () => {
     },
   });
 
-  const metricsNotInTemplate = existingMetrics?.filter(m => 
-    m.is_active && !templateMetrics.some(tm => tm.matchedMetricId === m.id)
-  ) || [];
-
-  const templateReady = missingImportKeys.length === 0 && duplicateImportKeys.length === 0;
-
-  if (userLoading) {
+  if (userLoading || adminLoading || metricsLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   }
 
+  if (OrgMissingError) return <>{OrgMissingError}</>;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/scorecard')}>
+        <Button variant="ghost" size="sm" onClick={() => handleNavigate('/scorecard')}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Scorecard
         </Button>
@@ -547,104 +571,153 @@ const ScorecardTemplate = () => {
 
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-3">
-          <Settings className="w-8 h-8 text-brand" />
+          <Settings className="w-8 h-8 text-primary" />
           Scorecard Template
         </h1>
         <p className="text-muted-foreground">
           Manage your canonical KPI list and import keys for monthly data uploads
         </p>
-        {isLockedMode && (
-          <Badge variant="outline" className="mt-2 border-brand text-brand">
-            Locked to Template Mode
-          </Badge>
-        )}
+        <div className="flex gap-2 mt-2">
+          {isLockedMode && (
+            <Badge variant="outline" className="border-primary text-primary">
+              <Lock className="w-3 h-3 mr-1" />
+              Locked to Template Mode
+            </Badge>
+          )}
+          {!isAdmin && (
+            <Badge variant="secondary">
+              <ShieldAlert className="w-3 h-3 mr-1" />
+              Read-Only
+            </Badge>
+          )}
+        </div>
       </div>
+
+      {/* Admin-only message for non-admins */}
+      {!isAdmin && (
+        <Alert>
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Read-Only Access</AlertTitle>
+          <AlertDescription>
+            Only admins can edit the Scorecard Template. Contact your organization admin to make changes.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Template Health Panel */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <FileSpreadsheet className="w-5 h-5 text-brand" />
+            <FileSpreadsheet className="w-5 h-5 text-primary" />
             Template Health
           </CardTitle>
+          <CardDescription>
+            {templateReady 
+              ? "Your template is ready for imports" 
+              : "Fix issues below before importing data"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <div className="p-3 rounded-lg bg-muted/50 border">
               <p className="text-sm text-muted-foreground">Active Metrics</p>
-              <p className="text-2xl font-bold">{activeMetrics.length}</p>
+              <p className="text-2xl font-bold">{health?.total_active_metrics || 0}</p>
             </div>
-            <div className={`p-3 rounded-lg border ${missingImportKeys.length > 0 ? 'bg-destructive/10 border-destructive/30' : 'bg-success/10 border-success/30'}`}>
-              <p className="text-sm text-muted-foreground">Missing Import Keys</p>
-              <p className={`text-2xl font-bold ${missingImportKeys.length > 0 ? 'text-destructive' : 'text-success'}`}>
-                {missingImportKeys.length}
+            <div className={`p-3 rounded-lg border ${(health?.missing_import_keys_count || 0) > 0 ? 'bg-destructive/10 border-destructive/30' : 'bg-green-500/10 border-green-500/30'}`}>
+              <p className="text-sm text-muted-foreground">Missing Keys</p>
+              <p className={`text-2xl font-bold ${(health?.missing_import_keys_count || 0) > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                {health?.missing_import_keys_count || 0}
               </p>
             </div>
-            <div className={`p-3 rounded-lg border ${duplicateImportKeys.length > 0 ? 'bg-destructive/10 border-destructive/30' : 'bg-success/10 border-success/30'}`}>
-              <p className="text-sm text-muted-foreground">Duplicate Import Keys</p>
-              <p className={`text-2xl font-bold ${duplicateImportKeys.length > 0 ? 'text-destructive' : 'text-success'}`}>
-                {duplicateImportKeys.length}
+            <div className={`p-3 rounded-lg border ${(health?.duplicate_import_keys_count || 0) > 0 ? 'bg-destructive/10 border-destructive/30' : 'bg-green-500/10 border-green-500/30'}`}>
+              <p className="text-sm text-muted-foreground">Duplicate Keys</p>
+              <p className={`text-2xl font-bold ${(health?.duplicate_import_keys_count || 0) > 0 ? 'text-destructive' : 'text-green-600'}`}>
+                {health?.duplicate_import_keys_count || 0}
               </p>
             </div>
-            <div className={`p-3 rounded-lg border ${duplicateNames.length > 0 ? 'bg-warning/10 border-warning/30' : 'bg-muted/50'}`}>
+            <div className={`p-3 rounded-lg border ${(health?.duplicate_metric_names_count || 0) > 0 ? 'bg-amber-500/10 border-amber-500/30' : 'bg-muted/50'}`}>
               <p className="text-sm text-muted-foreground">Duplicate Names</p>
-              <p className={`text-2xl font-bold ${duplicateNames.length > 0 ? 'text-warning' : ''}`}>
-                {duplicateNames.length}
+              <p className={`text-2xl font-bold ${(health?.duplicate_metric_names_count || 0) > 0 ? 'text-amber-600' : ''}`}>
+                {health?.duplicate_metric_names_count || 0}
               </p>
             </div>
             <div className="p-3 rounded-lg border bg-muted/50">
-              <p className="text-sm text-muted-foreground">Ready for Import</p>
-              <p className={`text-2xl font-bold ${templateReady ? 'text-success' : 'text-destructive'}`}>
-                {templateReady ? <CheckCircle className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Target className="w-3 h-3" /> Missing Targets
               </p>
+              <p className="text-2xl font-bold text-muted-foreground">{health?.missing_target_count || 0}</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-muted/50">
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <User className="w-3 h-3" /> Missing Owners
+              </p>
+              <p className="text-2xl font-bold text-muted-foreground">{health?.missing_owner_count || 0}</p>
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex flex-wrap gap-3 mt-4">
-            {missingImportKeys.length > 0 && (
-              <Button 
-                variant="outline" 
-                onClick={() => autoGenerateImportKeysMutation.mutate()}
-                disabled={autoGenerateImportKeysMutation.isPending}
-              >
-                {autoGenerateImportKeysMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Key className="w-4 h-4 mr-2" />
-                )}
-                Auto-Generate Missing Keys
-              </Button>
-            )}
-            {duplicateNames.length > 0 && (
-              <Button variant="outline" onClick={openDuplicateResolver}>
-                <AlertTriangle className="w-4 h-4 mr-2" />
-                Resolve Duplicate Names
-              </Button>
+          {/* Status indicator */}
+          <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 ${templateReady ? 'bg-green-500/10 border border-green-500/30' : 'bg-destructive/10 border border-destructive/30'}`}>
+            {templateReady ? (
+              <>
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                <span className="font-medium text-green-700">Template Ready for Imports</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-5 h-5 text-destructive" />
+                <span className="font-medium text-destructive">Template Not Ready - Fix Issues Above</span>
+              </>
             )}
           </div>
+
+          {/* Action buttons (admin only) */}
+          {isAdmin && (
+            <div className="flex flex-wrap gap-3 mt-4">
+              {(health?.missing_import_keys_count || 0) > 0 && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => autoGenerateImportKeysMutation.mutate()}
+                  disabled={autoGenerateImportKeysMutation.isPending}
+                >
+                  {autoGenerateImportKeysMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Key className="w-4 h-4 mr-2" />
+                  )}
+                  Auto-Generate Missing Keys
+                </Button>
+              )}
+              {(health?.duplicate_metric_names_count || 0) > 0 && (
+                <Button variant="outline" onClick={openDuplicateResolver}>
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Resolve Duplicate Names
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Blocking alert if not ready */}
+      {/* Blocking alert for locked orgs */}
       {isLockedMode && !templateReady && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Import Blocked</AlertTitle>
           <AlertDescription>
-            <strong>Import Blocked:</strong> All active metrics must have unique import keys before you can import monthly data.
-            {missingImportKeys.length > 0 && ` ${missingImportKeys.length} metrics are missing import keys.`}
-            {duplicateImportKeys.length > 0 && ` ${duplicateImportKeys.length} duplicate import keys found.`}
+            Template not ready: assign unique Metric Keys (import_key) before syncing or importing.
+            {(health?.missing_import_keys_count || 0) > 0 && ` ${health?.missing_import_keys_count} metrics are missing import keys.`}
+            {(health?.duplicate_import_keys_count || 0) > 0 && ` ${health?.duplicate_import_keys_count} metrics have duplicate import keys.`}
           </AlertDescription>
         </Alert>
       )}
 
       {/* Google Sheet Sync Section - only for locked mode */}
-      {isLockedMode && currentUser?.team_id && (
+      {isLockedMode && orgId && (
         <GoogleSheetSyncSection
-          orgId={currentUser.team_id}
+          orgId={orgId}
           templateReady={templateReady}
-          missingImportKeysCount={missingImportKeys.length}
-          duplicateImportKeysCount={duplicateImportKeys.length}
+          missingImportKeysCount={health?.missing_import_keys_count || 0}
+          duplicateImportKeysCount={health?.duplicate_import_keys_count || 0}
         />
       )}
 
@@ -652,7 +725,7 @@ const ScorecardTemplate = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Download className="w-5 h-5 text-brand" />
+            <Download className="w-5 h-5 text-primary" />
             Generate Scorecard Input Template
           </CardTitle>
           <CardDescription>
@@ -682,59 +755,57 @@ const ScorecardTemplate = () => {
         </CardContent>
       </Card>
 
-      {/* Import Key Editor */}
-      <Collapsible open={showImportKeyEditor} onOpenChange={setShowImportKeyEditor}>
-        <Card>
-          <CardHeader>
-            <CollapsibleTrigger asChild>
-              <div className="flex items-center justify-between cursor-pointer">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Key className="w-5 h-5 text-brand" />
-                  Assign Import Keys ({activeMetrics.length} metrics)
-                </CardTitle>
-                {showImportKeyEditor ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </div>
-            </CollapsibleTrigger>
-            <CardDescription>
-              Import keys are used for exact matching during monthly data upload. Each key must be unique.
-            </CardDescription>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Metric Name</TableHead>
-                    <TableHead>Import Key</TableHead>
-                    <TableHead>Owner</TableHead>
-                    <TableHead>Target</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {activeMetrics.map(metric => {
-                    const currentKey = editingImportKeys[metric.id] ?? metric.import_key ?? '';
-                    const isMissing = !currentKey.trim();
-                    const isDuplicate = duplicateImportKeys.some(([key]) => 
-                      key === currentKey.toLowerCase().trim()
-                    );
-                    
-                    return (
-                      <TableRow key={metric.id}>
-                        <TableCell className="font-medium">{metric.name}</TableCell>
-                        <TableCell>
-                          <Input
-                            value={currentKey}
-                            placeholder={generateImportKey(metric.name)}
-                            className={`w-48 ${isMissing ? 'border-destructive' : isDuplicate ? 'border-warning' : ''}`}
-                            onChange={(e) => setEditingImportKeys(prev => ({
-                              ...prev,
-                              [metric.id]: e.target.value
-                            }))}
-                          />
-                        </TableCell>
-                        <TableCell>
+      {/* Import Key Editor - Full table for admins, read-only for others */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Key className="w-5 h-5 text-primary" />
+            Metric Keys ({activeMetrics.length} metrics)
+          </CardTitle>
+          <CardDescription>
+            Import keys are used for exact matching during monthly data upload. Each key must be unique.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead>Metric Name</TableHead>
+                  <TableHead>Import Key</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead>Target</TableHead>
+                  <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead></TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {activeMetrics.map(metric => {
+                  const currentKey = editingImportKeys[metric.id] ?? metric.import_key ?? '';
+                  const error = validationErrors[metric.id];
+                  
+                  return (
+                    <TableRow key={metric.id}>
+                      <TableCell className="font-medium">{metric.name}</TableCell>
+                      <TableCell>
+                        {isAdmin ? (
+                          <div className="space-y-1">
+                            <Input
+                              value={currentKey}
+                              placeholder={generateImportKey(metric.name)}
+                              className={`w-48 ${error ? 'border-destructive' : metric.isMissingKey ? 'border-amber-500' : metric.isDuplicateKey ? 'border-destructive' : ''}`}
+                              onChange={(e) => handleImportKeyChange(metric.id, e.target.value)}
+                            />
+                            {error && (
+                              <p className="text-xs text-destructive">{error}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">{currentKey || '—'}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isAdmin ? (
                           <Select
                             value={editingMetrics[metric.id]?.owner ?? metric.owner ?? ''}
                             onValueChange={(val) => setEditingMetrics(prev => ({
@@ -753,8 +824,12 @@ const ScorecardTemplate = () => {
                               ))}
                             </SelectContent>
                           </Select>
-                        </TableCell>
-                        <TableCell>
+                        ) : (
+                          <span className="text-muted-foreground">{metric.owner || '—'}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isAdmin ? (
                           <Input
                             type="number"
                             className="w-24"
@@ -765,16 +840,22 @@ const ScorecardTemplate = () => {
                               [metric.id]: { ...prev[metric.id], target: e.target.value ? parseFloat(e.target.value) : null }
                             }))}
                           />
-                        </TableCell>
-                        <TableCell>
-                          {isMissing ? (
-                            <Badge variant="destructive">Missing Key</Badge>
-                          ) : isDuplicate ? (
-                            <Badge variant="outline" className="border-warning text-warning">Duplicate</Badge>
-                          ) : (
-                            <Badge variant="outline" className="border-success text-success">OK</Badge>
-                          )}
-                        </TableCell>
+                        ) : (
+                          <span className="text-muted-foreground">{metric.target ?? '—'}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {metric.isMissingKey ? (
+                          <Badge variant="destructive">Missing Key</Badge>
+                        ) : metric.isDuplicateKey ? (
+                          <Badge variant="outline" className="border-destructive text-destructive">Duplicate Key</Badge>
+                        ) : metric.isDuplicateName ? (
+                          <Badge variant="outline" className="border-amber-500 text-amber-600">Duplicate Name</Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-green-500 text-green-600">OK</Badge>
+                        )}
+                      </TableCell>
+                      {isAdmin && (
                         <TableCell>
                           <Button
                             size="sm"
@@ -785,164 +866,174 @@ const ScorecardTemplate = () => {
                             <Archive className="w-4 h-4" />
                           </Button>
                         </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              
-              {Object.keys(editingImportKeys).length > 0 && (
-                <div className="flex justify-end mt-4">
-                  <Button 
-                    onClick={() => bulkSaveImportKeysMutation.mutate()}
-                    disabled={bulkSaveImportKeysMutation.isPending}
-                  >
-                    {bulkSaveImportKeysMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : null}
-                    Save All Import Keys
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
-      {/* Upload Template for Metric Definitions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="w-5 h-5 text-brand" />
-            Import Metric Definitions
-          </CardTitle>
-          <CardDescription>
-            Upload an Excel/CSV to define or update your metric list (names, targets, owners). This is for defining metrics, not importing data.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="border-2 border-dashed rounded-lg p-6 text-center">
-            <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-            <Input
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              onChange={handleFileSelect}
-              className="max-w-sm mx-auto"
-            />
-            {file && (
-              <p className="text-sm text-foreground mt-2 font-medium">
-                Selected: {file.name}
-              </p>
-            )}
+                      )}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
-
-          {file && !showPreview && (
-            <Button onClick={handleParse} disabled={isProcessing} className="w-full">
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                'Parse Template'
-              )}
-            </Button>
+          
+          {isAdmin && Object.keys(editingImportKeys).length > 0 && (
+            <div className="flex justify-between items-center mt-4">
+              <p className="text-sm text-muted-foreground">
+                {Object.keys(editingImportKeys).length} unsaved changes
+              </p>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setEditingImportKeys({});
+                    setValidationErrors({});
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => bulkSaveImportKeysMutation.mutate()}
+                  disabled={bulkSaveImportKeysMutation.isPending || Object.keys(validationErrors).length > 0}
+                >
+                  {bulkSaveImportKeysMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
+                  Save All Changes
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Template Preview */}
-      {showPreview && templateMetrics.length > 0 && (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Template Preview ({templateMetrics.length} metrics)</CardTitle>
-              <CardDescription>
-                Review matches and select which metrics to import or update
-                {isLockedMode && <span className="text-warning ml-2">(Locked mode: new metrics will be skipped)</span>}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12"></TableHead>
-                    <TableHead>Metric Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Target</TableHead>
-                    <TableHead>Match Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {templateMetrics.map((metric, index) => (
-                    <TableRow key={index} className={isLockedMode && metric.matchType === 'new' ? 'opacity-50' : ''}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedForImport.has(index)}
-                          disabled={isLockedMode && metric.matchType === 'new'}
-                          onCheckedChange={(checked) => {
-                            const newSet = new Set(selectedForImport);
-                            if (checked) newSet.add(index);
-                            else newSet.delete(index);
-                            setSelectedForImport(newSet);
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{metric.name}</TableCell>
-                      <TableCell>{metric.category}</TableCell>
-                      <TableCell>
-                        {metric.target !== null ? (
-                          metric.unit === '$' ? `$${metric.target.toLocaleString()}` :
-                          metric.unit === '%' ? `${metric.target}%` :
-                          metric.target
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell>
-                        {metric.matchType === 'exact' && (
-                          <Badge variant="outline" className="border-success text-success">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Exact Match
-                          </Badge>
-                        )}
-                        {metric.matchType === 'fuzzy' && (
-                          <Badge variant="outline" className="border-warning text-warning">
-                            <AlertTriangle className="w-3 h-3 mr-1" />
-                            Similar
-                          </Badge>
-                        )}
-                        {metric.matchType === 'new' && (
-                          <Badge variant={isLockedMode ? "destructive" : "outline"}>
-                            {isLockedMode ? 'Blocked' : 'New'}
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setShowPreview(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => applyTemplateMutation.mutate()}
-              disabled={selectedForImport.size === 0 || applyTemplateMutation.isPending}
-              className="gradient-brand"
-            >
-              {applyTemplateMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Applying...
-                </>
-              ) : (
-                `Apply Template (${selectedForImport.size} metrics)`
+      {/* Upload Template for Metric Definitions (admin only) */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-primary" />
+              Import Metric Definitions
+            </CardTitle>
+            <CardDescription>
+              Upload an Excel/CSV to define or update your metric list (names, targets, owners). This is for defining metrics, not importing data.
+              {isLockedMode && (
+                <span className="text-amber-600 ml-1">(Locked mode: new metrics will be skipped)</span>
               )}
-            </Button>
-          </div>
-        </>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="border-2 border-dashed rounded-lg p-6 text-center">
+              <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+              <Input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileSelect}
+                className="max-w-sm mx-auto"
+              />
+              {file && (
+                <p className="text-sm text-foreground mt-2 font-medium">
+                  Selected: {file.name}
+                </p>
+              )}
+            </div>
+
+            {file && !showPreview && (
+              <Button onClick={handleParse} disabled={isProcessing} className="w-full">
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Parse Template'
+                )}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Template Preview */}
+      {showPreview && templateMetrics.length > 0 && isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Template Preview ({templateMetrics.length} metrics)</CardTitle>
+            <CardDescription>
+              Review matches and select which metrics to import or update
+              {isLockedMode && <span className="text-amber-600 ml-2">(Locked mode: new metrics will be skipped)</span>}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12"></TableHead>
+                  <TableHead>Metric Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Target</TableHead>
+                  <TableHead>Match Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {templateMetrics.map((metric, index) => (
+                  <TableRow key={index} className={isLockedMode && metric.matchType === 'new' ? 'opacity-50' : ''}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedForImport.has(index)}
+                        disabled={isLockedMode && metric.matchType === 'new'}
+                        onCheckedChange={(checked) => {
+                          const newSet = new Set(selectedForImport);
+                          if (checked) newSet.add(index);
+                          else newSet.delete(index);
+                          setSelectedForImport(newSet);
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{metric.name}</TableCell>
+                    <TableCell>{metric.category}</TableCell>
+                    <TableCell>
+                      {metric.target !== null ? (
+                        metric.unit === '$' ? `$${metric.target.toLocaleString()}` :
+                        metric.unit === '%' ? `${metric.target}%` :
+                        metric.target
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {metric.matchType === 'exact' && (
+                        <Badge variant="outline" className="border-green-500 text-green-600">Exact Match</Badge>
+                      )}
+                      {metric.matchType === 'fuzzy' && (
+                        <Badge variant="outline" className="border-amber-500 text-amber-600">Fuzzy Match</Badge>
+                      )}
+                      {metric.matchType === 'new' && (
+                        <Badge variant={isLockedMode ? 'secondary' : 'outline'} className={!isLockedMode ? 'border-blue-500 text-blue-600' : ''}>
+                          {isLockedMode ? 'Skipped (New)' : 'New Metric'}
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            <div className="flex justify-end gap-3 mt-4">
+              <Button variant="outline" onClick={() => setShowPreview(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => applyTemplateMutation.mutate()}
+                disabled={applyTemplateMutation.isPending || selectedForImport.size === 0}
+              >
+                {applyTemplateMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Applying...
+                  </>
+                ) : (
+                  `Apply Selected (${selectedForImport.size})`
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Duplicate Resolver Dialog */}
@@ -951,25 +1042,26 @@ const ScorecardTemplate = () => {
           <DialogHeader>
             <DialogTitle>Resolve Duplicate Metric Names</DialogTitle>
             <DialogDescription>
-              For each group of duplicates, select the metric to keep. Others will be archived.
+              Select which metric to keep for each duplicate name. Others will be archived.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 max-h-96 overflow-y-auto">
             {Array.from(duplicateGroups.entries()).map(([name, metrics]) => (
               <div key={name} className="border rounded-lg p-4">
-                <p className="font-medium mb-2">"{name}" ({metrics.length} duplicates)</p>
+                <p className="font-medium mb-2 capitalize">{name}</p>
                 <div className="space-y-2">
                   {metrics.map(m => (
-                    <label key={m.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted cursor-pointer">
+                    <label key={m.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
                       <input
                         type="radio"
                         name={`dup-${name}`}
                         checked={selectedDuplicates[name] === m.id}
                         onChange={() => setSelectedDuplicates(prev => ({ ...prev, [name]: m.id }))}
+                        className="w-4 h-4"
                       />
-                      <span className="flex-1">{m.name}</span>
-                      <Badge variant="muted">{m.category}</Badge>
+                      <span>{m.name}</span>
                       {m.import_key && <Badge variant="outline">{m.import_key}</Badge>}
+                      {m.owner && <span className="text-sm text-muted-foreground">({m.owner})</span>}
                     </label>
                   ))}
                 </div>
@@ -977,17 +1069,39 @@ const ScorecardTemplate = () => {
             ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDuplicateDialog(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setShowDuplicateDialog(false)}>Cancel</Button>
             <Button 
               onClick={() => resolveDuplicatesMutation.mutate()}
-              disabled={Object.keys(selectedDuplicates).length !== duplicateGroups.size || resolveDuplicatesMutation.isPending}
+              disabled={resolveDuplicatesMutation.isPending || Object.keys(selectedDuplicates).length < duplicateGroups.size}
             >
-              {resolveDuplicatesMutation.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : null}
+              {resolveDuplicatesMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Archive Duplicates
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Leave Confirmation Dialog */}
+      <Dialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unsaved Changes</DialogTitle>
+            <DialogDescription>
+              Your template still has invalid Metric Keys. Fix before leaving to ensure imports work correctly.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLeaveConfirm(false)}>
+              Stay and Fix
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => {
+                setShowLeaveConfirm(false);
+                if (pendingNavigation) navigate(pendingNavigation);
+              }}
+            >
+              Leave Anyway
             </Button>
           </DialogFooter>
         </DialogContent>
