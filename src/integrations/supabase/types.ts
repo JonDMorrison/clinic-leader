@@ -1442,6 +1442,7 @@ export type Database = {
       }
       meetings: {
         Row: {
+          agenda_generated: boolean
           created_at: string
           created_by: string | null
           duration_minutes: number
@@ -1455,6 +1456,7 @@ export type Database = {
           type: Database["public"]["Enums"]["meeting_type"]
         }
         Insert: {
+          agenda_generated?: boolean
           created_at?: string
           created_by?: string | null
           duration_minutes?: number
@@ -1468,6 +1470,7 @@ export type Database = {
           type: Database["public"]["Enums"]["meeting_type"]
         }
         Update: {
+          agenda_generated?: boolean
           created_at?: string
           created_by?: string | null
           duration_minutes?: number

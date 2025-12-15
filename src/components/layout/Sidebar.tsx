@@ -53,7 +53,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Operations",
     items: [
-      { title: "Meetings", path: "/meeting", icon: Calendar, roles: ["manager", "director", "owner"], eosOnly: true },
+      { title: "Meetings", path: "/meetings", icon: Calendar, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Issues", path: "/issues", icon: AlertCircle, roles: ["staff", "manager", "director", "owner"] },
       { title: "Recalls", path: "/recalls", icon: Phone, roles: ["staff", "manager", "director", "owner"] },
       { title: "Docs", path: "/docs", icon: FileText, roles: ["staff", "manager", "director", "owner"] },
