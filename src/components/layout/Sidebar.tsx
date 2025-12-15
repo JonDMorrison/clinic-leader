@@ -46,7 +46,16 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "V/TO", path: "/vto", icon: Compass, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Scorecard", path: "/scorecard", icon: BarChart3, roles: ["manager", "director", "owner"], eosOnly: true },
-      { title: "Rocks", path: "/rocks", icon: Target, roles: ["manager", "director", "owner"], eosOnly: true },
+      { 
+        title: "Rocks", 
+        path: "/rocks", 
+        icon: Target, 
+        roles: ["manager", "director", "owner"], 
+        eosOnly: true,
+        children: [
+          { title: "Monthly Review", path: "/rocks/monthly-review", icon: Calendar },
+        ]
+      },
     ],
     alwaysOpen: true,
   },

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { getAvailablePeriods } from "@/lib/scorecard/periodHelper";
 import { metricStatus, MetricStatus } from "@/lib/scorecard/metricStatus";
+import { format } from "date-fns";
 import { 
   Target, 
   ChevronDown, 
@@ -26,7 +27,9 @@ import {
   CircleDashed,
   CheckCircle2,
   Plus,
-  User
+  User,
+  Link2,
+  FileUp
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -64,9 +67,10 @@ export default function RocksMonthlyReview() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Period selection
+  // Period selection - start with empty, will be set after data load
   const availablePeriods = useMemo(() => getAvailablePeriods(), []);
-  const [selectedPeriod, setSelectedPeriod] = useState(availablePeriods[0]?.key || "");
+  const [selectedPeriod, setSelectedPeriod] = useState("");
+  const [periodInitialized, setPeriodInitialized] = useState(false);
   
   // Filters
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
@@ -81,6 +85,46 @@ export default function RocksMonthlyReview() {
   const [issueTitle, setIssueTitle] = useState("");
   const [issueContext, setIssueContext] = useState("");
   const [issuePriority, setIssuePriority] = useState("2");
+
+  // Fetch periods with data to determine smart default
+  const { data: periodsWithData = [] } = useQuery({
+    queryKey: ["periods-with-data", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      
+      // Get distinct period_keys that have data for this org's monthly metrics
+      const { data: results, error } = await supabase
+        .from("metric_results")
+        .select("period_key, metrics!inner(organization_id)")
+        .eq("metrics.organization_id", organizationId)
+        .eq("period_type", "monthly");
+      
+      if (error) throw error;
+      
+      // Extract unique period keys
+      const uniqueKeys = [...new Set((results || []).map(r => r.period_key))];
+      return uniqueKeys;
+    },
+    enabled: !!organizationId,
+  });
+
+  // Set default period once we have data
+  useEffect(() => {
+    if (periodInitialized || availablePeriods.length === 0) return;
+    
+    // Find latest period that has data
+    const periodWithData = availablePeriods.find(p => periodsWithData.includes(p.key));
+    
+    if (periodWithData) {
+      setSelectedPeriod(periodWithData.key);
+    } else {
+      // Fallback to current month or first available
+      const currentMonth = format(new Date(), "yyyy-MM");
+      const currentMonthPeriod = availablePeriods.find(p => p.key === currentMonth);
+      setSelectedPeriod(currentMonthPeriod?.key || availablePeriods[0]?.key || "");
+    }
+    setPeriodInitialized(true);
+  }, [availablePeriods, periodsWithData, periodInitialized]);
 
   // Fetch users for owner filter and issue assignment
   const { data: users = [] } = useQuery({
@@ -314,7 +358,14 @@ export default function RocksMonthlyReview() {
     }
   };
 
-  if (userLoading || rocksLoading) {
+  // Check for empty state conditions
+  const hasNoRocks = rocksWithMetrics.length === 0;
+  const hasRocksButNoLinkedKPIs = rocksWithMetrics.length > 0 && rocksWithMetrics.every(r => r.linkedMetrics.length === 0);
+  const hasLinkedKPIsButNoData = rocksWithMetrics.length > 0 && 
+    rocksWithMetrics.some(r => r.linkedMetrics.length > 0) && 
+    rocksWithMetrics.every(r => r.linkedMetrics.every(m => m.value === null));
+
+  if (userLoading || rocksLoading || !periodInitialized) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
@@ -378,8 +429,58 @@ export default function RocksMonthlyReview() {
         </div>
       </div>
 
-      {/* Rocks list */}
-      {filteredRocks.length === 0 ? (
+      {/* Empty States */}
+      {hasNoRocks ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Target className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No Rocks yet</h3>
+            <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+              Rocks are quarterly priorities. Link KPIs to each Rock to measure reality monthly.
+            </p>
+            <Button asChild>
+              <Link to="/rocks">
+                <Plus className="w-4 h-4 mr-2" />
+                Create a Rock
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : hasRocksButNoLinkedKPIs ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Link2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No KPIs linked to Rocks yet</h3>
+            <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+              Open a Rock and link KPIs (Scorecard metrics) to it. Once linked, this page shows Reality Gaps by month.
+            </p>
+            <Button asChild variant="outline">
+              <Link to="/rocks">
+                <Target className="w-4 h-4 mr-2" />
+                Go to Rocks
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : hasLinkedKPIsButNoData ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <FileUp className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No scorecard data found for {selectedPeriod ? format(new Date(selectedPeriod + "-01"), "MMMM yyyy") : "this month"}</h3>
+            <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+              Import your monthly KPI data to see Reality Gaps, or try selecting a different month.
+            </p>
+            <div className="flex justify-center gap-3">
+              <Button asChild>
+                <Link to="/imports/monthly-report">
+                  <FileUp className="w-4 h-4 mr-2" />
+                  Go to Monthly Import
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : filteredRocks.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
