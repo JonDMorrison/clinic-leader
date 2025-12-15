@@ -336,12 +336,23 @@ const ImportMonthlyReport = () => {
       
       if (!metricKey) continue; // Skip empty rows
       
-      // Parse value
+      // Parse value - BLANK is allowed (stored as null = Needs Data)
       let numericValue: number | null = null;
-      if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
+      let valueStatus: 'valid' | 'blank' | 'invalid' = 'valid';
+      if (rawValue === null || rawValue === undefined || rawValue === '') {
+        numericValue = null;
+        valueStatus = 'blank'; // Blank is OK, stores as null
+      } else {
         const strVal = String(rawValue).replace(/[$,%]/g, '').replace(/,/g, '').trim();
-        numericValue = parseFloat(strVal);
-        if (isNaN(numericValue)) numericValue = null;
+        if (strVal === '') {
+          numericValue = null;
+          valueStatus = 'blank';
+        } else {
+          numericValue = parseFloat(strVal);
+          if (isNaN(numericValue)) {
+            valueStatus = 'invalid';
+          }
+        }
       }
       
       // Parse month
@@ -356,11 +367,17 @@ const ImportMonthlyReport = () => {
           const match2 = rawMonth.match(/(\d{1,2})\/(\d{4})/);
           if (match2) {
             normalizedMonth = `${match2[2]}-${match2[1].padStart(2, '0')}`;
+          } else {
+            // Try parsing as date
+            const dateMatch = rawMonth.match(/(\d{4})[-/](\d{1,2})[-/]\d{1,2}/);
+            if (dateMatch) {
+              normalizedMonth = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}`;
+            }
           }
         }
       }
       
-      // Match metric by import_key
+      // Match metric by EXACT import_key only (no fuzzy matching in locked mode)
       const normalizedKey = normalizeLabel(metricKey);
       const matchedMetric = importKeyMap.get(normalizedKey);
       
@@ -370,14 +387,15 @@ const ImportMonthlyReport = () => {
       
       if (!matchedMetric) {
         status = 'unmatched';
-        reason = `metric_key "${metricKey}" not found in scorecard template`;
-      } else if (numericValue === null) {
+        reason = `metric_key "${metricKey}" not found in scorecard template (locked mode prevents metric creation)`;
+      } else if (valueStatus === 'invalid') {
         status = 'invalid_value';
         reason = `Invalid numeric value: "${rawValue}"`;
       } else if (!normalizedMonth) {
         status = 'invalid_month';
         reason = `Invalid month format: "${rawMonth}" (expected YYYY-MM)`;
       }
+      // Note: blank values (valueStatus === 'blank') are valid and will be stored as null
       
       parsed.push({
         rowNumber: r + 1,
@@ -452,6 +470,23 @@ const ImportMonthlyReport = () => {
     toast.success('Copied to clipboard');
   };
 
+  // Download unmatched keys as CSV
+  const downloadUnmatchedCsv = () => {
+    const unmatched = parsedRows.filter(r => r.status === 'unmatched');
+    const csv = [
+      'row_number,metric_key,reason',
+      ...unmatched.map(r => `${r.rowNumber},"${r.metric_key}","${r.reason || ''}"`)
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `unmatched_metric_keys_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Downloaded unmatched keys CSV');
+  };
+
   // Reset
   const resetUpload = () => {
     setFile(null);
@@ -497,6 +532,20 @@ const ImportMonthlyReport = () => {
           </Badge>
         )}
       </div>
+
+      {/* Locked mode banner */}
+      {isLockedMode && (
+        <Alert className="border-primary bg-primary/5">
+          <FileSpreadsheet className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Locked Monthly Scorecard:</strong> Upload must use Scorecard_Input format 
+            (<code className="mx-1 px-1 bg-muted rounded">metric_key</code>, 
+            <code className="mx-1 px-1 bg-muted rounded">value</code>, 
+            <code className="mx-1 px-1 bg-muted rounded">month</code>). 
+            Exact match using metric_key only — no fuzzy matching.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Template not ready alert */}
       {isLockedMode && !templateReady && (
@@ -700,7 +749,7 @@ const ImportMonthlyReport = () => {
                 <Alert variant="destructive" className="mt-4">
                   <FileWarning className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>Missing required columns:</strong> {diagnostics.missingColumns.join(', ')}
+                    <strong>Missing required columns for Locked Scorecard:</strong> {diagnostics.missingColumns.join(', ')}
                     <div className="mt-2 text-sm">
                       <p>• You may be viewing a cover sheet or instructions tab</p>
                       <p>• Try selecting a different worksheet</p>
@@ -710,6 +759,23 @@ const ImportMonthlyReport = () => {
                   </AlertDescription>
                 </Alert>
               )}
+
+              {/* Parse Log Panel */}
+              <details className="mt-4">
+                <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+                  Parse Log (debugging)
+                </summary>
+                <div className="mt-2 p-3 bg-muted/50 rounded-lg font-mono text-xs space-y-1">
+                  <p><span className="text-muted-foreground">selected_sheet_name:</span> {diagnostics.sheetName || 'N/A (CSV)'}</p>
+                  <p><span className="text-muted-foreground">header_row_index:</span> {diagnostics.detectedHeaderRow}</p>
+                  <p><span className="text-muted-foreground">total_rows_parsed:</span> {diagnostics.rowCount}</p>
+                  <p><span className="text-muted-foreground">total_columns_detected:</span> {diagnostics.detectedHeaders.length}</p>
+                  <p><span className="text-muted-foreground">sample_first_row:</span></p>
+                  <pre className="text-xs overflow-x-auto p-2 bg-background rounded">
+                    {JSON.stringify(diagnostics.sampleFirstRow, null, 2)}
+                  </pre>
+                </div>
+              </details>
             </CardContent>
           </Card>
 
@@ -841,14 +907,20 @@ const ImportMonthlyReport = () => {
                     <AlertTriangle className="w-5 h-5" />
                     Unmatched Metric Keys ({unmatchedCount})
                   </CardTitle>
-                  <Button variant="outline" size="sm" onClick={copyUnmatchedKeys}>
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy List
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={copyUnmatchedKeys}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy List
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={downloadUnmatchedCsv}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download CSV
+                    </Button>
+                  </div>
                 </div>
                 <CardDescription>
                   These metric_keys were not found in your scorecard template. 
-                  {isLockedMode && ' In locked mode, unmatched keys are skipped.'}
+                  {isLockedMode && ' In locked mode, unmatched keys are skipped — no metrics are created.'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -867,6 +939,43 @@ const ImportMonthlyReport = () => {
                         <TableCell>{r.rowNumber}</TableCell>
                         <TableCell className="font-mono text-sm">{r.metric_key}</TableCell>
                         <TableCell>{r.value}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{r.reason}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Invalid rows */}
+          {invalidCount > 0 && (
+            <Card className="border-warning/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-warning">
+                  <AlertTriangle className="w-5 h-5" />
+                  Invalid Rows ({invalidCount})
+                </CardTitle>
+                <CardDescription>
+                  These rows have invalid values or month formats and will be skipped.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Row</TableHead>
+                      <TableHead>Metric Key</TableHead>
+                      <TableHead>Original Value</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {parsedRows.filter(r => r.status === 'invalid_value' || r.status === 'invalid_month').map((r, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{r.rowNumber}</TableCell>
+                        <TableCell className="font-mono text-sm">{r.metric_key}</TableCell>
+                        <TableCell className="text-destructive">{r.status === 'invalid_value' ? r.value : r.month}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">{r.reason}</TableCell>
                       </TableRow>
                     ))}
