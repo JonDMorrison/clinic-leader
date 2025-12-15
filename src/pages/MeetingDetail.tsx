@@ -874,7 +874,7 @@ export default function MeetingDetail() {
                           onClick={() => setLevel10Score(level10Score === score ? null : score)}
                           className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
                             level10Score === score
-                              ? score >= 8 ? "bg-green-500 text-white" : score >= 5 ? "bg-amber-500 text-white" : "bg-red-500 text-white"
+                              ? "bg-primary text-primary-foreground"
                               : "bg-muted hover:bg-muted/80 text-muted-foreground"
                           }`}
                         >
@@ -882,6 +882,7 @@ export default function MeetingDetail() {
                         </button>
                       ))}
                     </div>
+                    <p className="text-xs text-muted-foreground mt-1">This is for improving meetings, not judging people.</p>
                   </div>
                   <div>
                     <Label htmlFor="headline" className="text-sm text-muted-foreground">Headline (optional)</Label>

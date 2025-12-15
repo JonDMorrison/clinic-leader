@@ -77,9 +77,7 @@ export function MeetingReviewSummary({
           {meeting.level10_score && (
             <div>
               <p className="text-muted-foreground">Score</p>
-              <p className={`font-medium ${
-                meeting.level10_score >= 8 ? "text-green-600" : meeting.level10_score >= 5 ? "text-amber-600" : "text-red-600"
-              }`}>
+              <p className="font-medium">
                 {meeting.level10_score}/10
               </p>
             </div>
