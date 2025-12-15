@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { CreateIssueFromItemDialog } from "./CreateIssueFromItemDialog";
+import { MetricStatusResult, getStatusDisplay } from "@/lib/scorecard/metricStatus";
 
 interface AgendaItemRowProps {
   item: {
@@ -44,7 +45,7 @@ interface AgendaItemRowProps {
   organizationId: string;
   meetingId: string;
   periodKey: string;
-  metricStatus?: string;
+  metricStatusObj?: (MetricStatusResult & { metricName?: string; metricUnit?: string }) | null;
 }
 
 export function AgendaItemRow({
@@ -57,7 +58,7 @@ export function AgendaItemRow({
   organizationId,
   meetingId,
   periodKey,
-  metricStatus,
+  metricStatusObj,
 }: AgendaItemRowProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -202,6 +203,9 @@ export function AgendaItemRow({
   const hasLinked = item.source_ref_type && item.source_ref_id;
   const isLinkedIssue = item.item_type === "issue" && item.source_ref_id;
 
+  // Get status badge for metrics
+  const statusDisplay = metricStatusObj ? getStatusDisplay(metricStatusObj.status) : null;
+
   return (
     <>
       <div
@@ -275,6 +279,16 @@ export function AgendaItemRow({
 
         {/* Badges and actions */}
         <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+          {/* Metric status badge (from real data) */}
+          {item.item_type === "metric" && statusDisplay && (
+            <Badge
+              variant={statusDisplay.variant === "muted" ? "secondary" : statusDisplay.variant}
+              className={cn("text-xs", statusDisplay.colorClass)}
+            >
+              {statusDisplay.label}
+            </Badge>
+          )}
+
           {/* Discussed badge */}
           {item.discussed && (
             <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-700">
@@ -412,7 +426,7 @@ export function AgendaItemRow({
         meetingId={meetingId}
         item={item}
         periodKey={periodKey}
-        metricStatus={metricStatus}
+        metricStatusObj={metricStatusObj}
         onIssueCreated={(issueId, itemId) => {
           // Update the meeting_item with created_issue_id
           supabase

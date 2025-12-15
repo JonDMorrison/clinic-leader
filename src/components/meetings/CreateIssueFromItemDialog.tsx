@@ -17,11 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { assertOrgId } from "@/hooks/useOrgSafetyCheck";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
+import { MetricStatusResult, STATUS_LABELS, formatMetricValue } from "@/lib/scorecard/metricStatus";
 
 interface MeetingItem {
   id: string;
@@ -39,7 +41,7 @@ interface CreateIssueFromItemDialogProps {
   meetingId: string;
   item: MeetingItem;
   periodKey: string;
-  metricStatus?: string;
+  metricStatusObj?: (MetricStatusResult & { metricName?: string; metricUnit?: string }) | null;
   onIssueCreated?: (issueId: string, itemId: string) => void;
 }
 
@@ -50,7 +52,7 @@ export function CreateIssueFromItemDialog({
   meetingId,
   item,
   periodKey,
-  metricStatus,
+  metricStatusObj,
   onIssueCreated,
 }: CreateIssueFromItemDialogProps) {
   const { toast } = useToast();
@@ -61,33 +63,66 @@ export function CreateIssueFromItemDialog({
   const [priority, setPriority] = useState("2");
   const [ownerId, setOwnerId] = useState<string>("");
 
-  // Generate prefilled content based on item type and metric status
+  // Generate prefilled content based on item type and real metric status
   const generatePrefill = () => {
     const baseTitle = item.title.replace(/^(Metric|Rock|Issue): /, "");
 
     switch (item.item_type) {
       case "metric": {
-        // Title based on metric status
+        // Use real metric status data
+        if (!metricStatusObj) {
+          return {
+            title: `Review metric: ${baseTitle} (${periodKey})`,
+            context: `Metric data unavailable. Try refreshing the page.\n\nMonth: ${periodKey}`,
+          };
+        }
+
+        const metricName = metricStatusObj.metricName || baseTitle;
+        const unit = metricStatusObj.metricUnit || "";
+        const value = metricStatusObj.value;
+        const target = metricStatusObj.target;
+        const status = metricStatusObj.status;
+        const direction = metricStatusObj.direction;
+
+        // Title based on real metric status
         let metricTitle: string;
-        switch (metricStatus) {
-          case "OFF_TRACK":
-            metricTitle = `${baseTitle} off-track (${periodKey})`;
+        switch (status) {
+          case "off_track":
+            metricTitle = `${metricName} off-track (${periodKey})`;
             break;
-          case "NEEDS_DATA":
-            metricTitle = `${baseTitle} missing data (${periodKey})`;
+          case "needs_data":
+            metricTitle = `${metricName} missing data (${periodKey})`;
             break;
-          case "NEEDS_TARGET":
-            metricTitle = `${baseTitle} missing target (${periodKey})`;
+          case "needs_target":
+            metricTitle = `${metricName} missing target (${periodKey})`;
             break;
-          case "NEEDS_OWNER":
-            metricTitle = `${baseTitle} missing owner (${periodKey})`;
+          case "needs_owner":
+            metricTitle = `${metricName} missing owner (${periodKey})`;
             break;
           default:
-            metricTitle = `Review metric: ${baseTitle} (${periodKey})`;
+            metricTitle = `Review metric: ${metricName} (${periodKey})`;
         }
+
+        // Build context with real values
+        const valueDisplay = value !== null ? formatMetricValue(value, unit) : "No data";
+        const targetDisplay = target !== null ? formatMetricValue(target, unit) : "Not set";
+        const directionDisplay = direction 
+          ? direction.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
+          : "Not set";
+
+        const contextLines = [
+          `Month: ${periodKey}`,
+          `Value: ${valueDisplay}`,
+          `Target: ${targetDisplay}`,
+          `Direction: ${directionDisplay}`,
+          `Status: ${STATUS_LABELS[status]}`,
+          "",
+          "Identify the root cause and define the next action to resolve this issue.",
+        ];
+
         return {
           title: metricTitle,
-          context: `Month: ${periodKey}\n${item.description || ""}\n\nIdentify the root cause and define the next action to resolve this issue.`,
+          context: contextLines.join("\n"),
         };
       }
       case "rock":
@@ -117,7 +152,7 @@ export function CreateIssueFromItemDialog({
       setPriority("2");
       setOwnerId("");
     }
-  }, [open, item?.id]);
+  }, [open, item?.id, metricStatusObj]);
 
   // Fetch org users for owner selection
   const { data: users } = useQuery({
@@ -179,6 +214,9 @@ export function CreateIssueFromItemDialog({
     },
   });
 
+  // Show warning if metric item but no status data
+  const showDataWarning = item.item_type === "metric" && !metricStatusObj;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
@@ -188,6 +226,16 @@ export function CreateIssueFromItemDialog({
             Create an issue from this meeting item. It will be linked to this meeting for traceability.
           </DialogDescription>
         </DialogHeader>
+
+        {showDataWarning && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Metric data unavailable. Try refreshing the page to load current values.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
