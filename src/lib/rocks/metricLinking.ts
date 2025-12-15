@@ -57,16 +57,25 @@ export async function linkMetricToRock(
 
 /**
  * Unlink a metric from a rock
+ * Note: organization_id filter added via RLS, but we add explicit filter for safety
  */
 export async function unlinkMetricFromRock(
   rockId: string,
-  metricId: string
+  metricId: string,
+  organizationId?: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
+  let query = supabase
     .from("rock_metric_links")
     .delete()
     .eq("rock_id", rockId)
     .eq("metric_id", metricId);
+  
+  // MULTI-TENANCY: Add org filter if provided
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { error } = await query;
 
   if (error) {
     console.error("Error unlinking metric from rock:", error);
@@ -85,11 +94,12 @@ export async function setRockMetricLinks(
   organizationId: string,
   userId?: string
 ): Promise<{ success: boolean; error?: string }> {
-  // Get existing links
+  // MULTI-TENANCY: Get existing links scoped to org
   const { data: existingLinks, error: fetchError } = await supabase
     .from("rock_metric_links")
     .select("metric_id")
-    .eq("rock_id", rockId);
+    .eq("rock_id", rockId)
+    .eq("organization_id", organizationId);
 
   if (fetchError) {
     console.error("Error fetching existing links:", fetchError);
@@ -104,12 +114,13 @@ export async function setRockMetricLinks(
   // Find links to add
   const toAdd = metricIds.filter((id) => !existingMetricIds.has(id));
 
-  // Delete removed links
+  // Delete removed links - MULTI-TENANCY: Add org filter
   if (toDelete.length > 0) {
     const { error: deleteError } = await supabase
       .from("rock_metric_links")
       .delete()
       .eq("rock_id", rockId)
+      .eq("organization_id", organizationId)
       .in("metric_id", toDelete);
 
     if (deleteError) {
@@ -147,11 +158,12 @@ export async function setMetricRockLinks(
   organizationId: string,
   userId?: string
 ): Promise<{ success: boolean; error?: string }> {
-  // Get existing links
+  // MULTI-TENANCY: Get existing links scoped to org
   const { data: existingLinks, error: fetchError } = await supabase
     .from("rock_metric_links")
     .select("rock_id")
-    .eq("metric_id", metricId);
+    .eq("metric_id", metricId)
+    .eq("organization_id", organizationId);
 
   if (fetchError) {
     console.error("Error fetching existing links:", fetchError);
@@ -166,12 +178,13 @@ export async function setMetricRockLinks(
   // Find links to add
   const toAdd = rockIds.filter((id) => !existingRockIds.has(id));
 
-  // Delete removed links
+  // Delete removed links - MULTI-TENANCY: Add org filter
   if (toDelete.length > 0) {
     const { error: deleteError } = await supabase
       .from("rock_metric_links")
       .delete()
       .eq("metric_id", metricId)
+      .eq("organization_id", organizationId)
       .in("rock_id", toDelete);
 
     if (deleteError) {

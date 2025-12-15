@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { assertOrgId } from "@/hooks/useOrgSafetyCheck";
 
 const issueSchema = z.object({
   title: z.string().trim().min(3, "Title must be at least 3 characters").max(200, "Title must be less than 200 characters"),
@@ -21,13 +22,13 @@ interface NewIssueModalProps {
   teams: any[];
   users: any[];
   onSuccess: () => void;
+  organizationId?: string; // Make it explicit
 }
 
-export const NewIssueModal = ({ open, onClose, teams, users, onSuccess }: NewIssueModalProps) => {
+export const NewIssueModal = ({ open, onClose, teams, users, onSuccess, organizationId }: NewIssueModalProps) => {
   const [title, setTitle] = useState("");
   const [context, setContext] = useState("");
   const [priority, setPriority] = useState("2");
-  const [teamId, setTeamId] = useState("");
   const [ownerId, setOwnerId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
@@ -43,16 +44,17 @@ export const NewIssueModal = ({ open, onClose, teams, users, onSuccess }: NewIss
         priority: parseInt(priority),
       });
 
-      if (!teamId) {
-        setErrors({ team: "Please select a team" });
-        return;
-      }
+      // Use passed organizationId, or fallback to first team (for backwards compat)
+      const effectiveOrgId = organizationId || teams[0]?.id;
+      
+      // MULTI-TENANCY: Assert org ID is valid before insert
+      assertOrgId(effectiveOrgId, 'issue creation');
 
       const { error } = await supabase.from("issues").insert({
         title: validated.title,
         context: validated.context || null,
         priority: validated.priority,
-        organization_id: teamId,
+        organization_id: effectiveOrgId, // MULTI-TENANCY: Always set org ID
         owner_id: ownerId || null,
         status: "open",
       });
@@ -88,7 +90,6 @@ export const NewIssueModal = ({ open, onClose, teams, users, onSuccess }: NewIss
     setTitle("");
     setContext("");
     setPriority("2");
-    setTeamId("");
     setOwnerId("");
     setErrors({});
     onClose();
@@ -126,38 +127,19 @@ export const NewIssueModal = ({ open, onClose, teams, users, onSuccess }: NewIss
             {errors.context && <p className="text-sm text-destructive">{errors.context}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="team">Team *</Label>
-              <Select value={teamId} onValueChange={setTeamId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select team" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.team && <p className="text-sm text-destructive">{errors.team}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="priority">Priority *</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1 - Critical</SelectItem>
-                  <SelectItem value="2">2 - High</SelectItem>
-                  <SelectItem value="3">3 - Medium</SelectItem>
-                  <SelectItem value="4">4 - Low</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="priority">Priority *</Label>
+            <Select value={priority} onValueChange={setPriority}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 - Critical</SelectItem>
+                <SelectItem value="2">2 - High</SelectItem>
+                <SelectItem value="3">3 - Medium</SelectItem>
+                <SelectItem value="4">4 - Low</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
