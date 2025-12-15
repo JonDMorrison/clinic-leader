@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { AgendaItemRow } from "@/components/meetings/AgendaItemRow";
 import { AddItemModal } from "@/components/meetings/AddItemModal";
 import { MeetingPrepChecklist } from "@/components/meetings/MeetingPrepChecklist";
+import { MeetingPrepInsights } from "@/components/meetings/MeetingPrepInsights";
 import { MeetingReviewSummary } from "@/components/meetings/MeetingReviewSummary";
 import { MeetingPrintView } from "@/components/meetings/MeetingPrintView";
 import { SectionNavigator } from "@/components/l10/SectionNavigator";
@@ -635,11 +636,17 @@ export default function MeetingDetail() {
 
       {/* Prep Checklist for Preview Mode */}
       {isPreviewMode && (
-        <div className="print:hidden">
+        <div className="print:hidden space-y-4">
           <MeetingPrepChecklist
             periodKey={periodKey}
             onAddItem={handlePrepAddItem}
           />
+          {organizationId && meetingId && (
+            <MeetingPrepInsights
+              meetingId={meetingId}
+              organizationId={organizationId}
+            />
+          )}
         </div>
       )}
 
