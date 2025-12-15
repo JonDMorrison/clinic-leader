@@ -279,12 +279,28 @@ const ScorecardTemplate = () => {
     },
   });
 
+  // Check if template can be generated (all keys assigned and no duplicates)
+  const canGenerateTemplate = templateReady && activeMetrics.length > 0;
+
   // Generate and download template CSV
   const downloadTemplateCsv = () => {
+    if (!canGenerateTemplate) {
+      if ((health?.missing_import_keys_count || 0) > 0) {
+        toast.error('Template not ready: assign Metric Keys for all active metrics.');
+        return;
+      }
+      if ((health?.duplicate_import_keys_count || 0) > 0) {
+        toast.error('Template not ready: resolve duplicate Metric Keys.');
+        return;
+      }
+      toast.error('Template not ready.');
+      return;
+    }
+    
     const rows = [
       ['metric_key', 'metric_name', 'value', 'month'],
       ...activeMetrics.map(m => [
-        m.import_key || generateImportKey(m.name),
+        m.import_key || '',
         m.name,
         '',
         ''
@@ -295,7 +311,7 @@ const ScorecardTemplate = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'Scorecard_Input_Template.csv';
+    a.download = 'Scorecard_Input_TEMPLATE.csv';
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Template downloaded');
@@ -303,10 +319,23 @@ const ScorecardTemplate = () => {
 
   // Copy template to clipboard
   const copyTemplateToClipboard = () => {
+    if (!canGenerateTemplate) {
+      if ((health?.missing_import_keys_count || 0) > 0) {
+        toast.error('Template not ready: assign Metric Keys for all active metrics.');
+        return;
+      }
+      if ((health?.duplicate_import_keys_count || 0) > 0) {
+        toast.error('Template not ready: resolve duplicate Metric Keys.');
+        return;
+      }
+      toast.error('Template not ready.');
+      return;
+    }
+    
     const rows = [
       ['metric_key', 'metric_name', 'value', 'month'],
       ...activeMetrics.map(m => [
-        m.import_key || generateImportKey(m.name),
+        m.import_key || '',
         m.name,
         '',
         ''
@@ -316,7 +345,13 @@ const ScorecardTemplate = () => {
     navigator.clipboard.writeText(csv);
     setCopiedTemplate(true);
     setTimeout(() => setCopiedTemplate(false), 2000);
-    toast.success('Template copied to clipboard');
+    toast.success('Template CSV copied.');
+  };
+
+  // Scroll to section
+  const scrollToSection = (sectionId: string) => {
+    const el = document.getElementById(sectionId);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   // Handler for when duplicates are resolved (refresh template health)
@@ -642,15 +677,41 @@ const ScorecardTemplate = () => {
         </CardContent>
       </Card>
 
-      {/* Blocking alert for locked orgs */}
+      {/* Blocking panel for locked orgs - with CTAs */}
       {isLockedMode && !templateReady && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Import Blocked</AlertTitle>
-          <AlertDescription>
-            Template not ready: assign unique Metric Keys (import_key) before syncing or importing.
-            {(health?.missing_import_keys_count || 0) > 0 && ` ${health?.missing_import_keys_count} metrics are missing import keys.`}
-            {(health?.duplicate_import_keys_count || 0) > 0 && ` ${health?.duplicate_import_keys_count} metrics have duplicate import keys.`}
+          <AlertTitle>Import & Sync Blocked</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <p>
+              Locked Scorecard requires a READY template before you can import or sync monthly data.
+              {(health?.missing_import_keys_count || 0) > 0 && ` ${health?.missing_import_keys_count} metrics are missing import keys.`}
+              {(health?.duplicate_import_keys_count || 0) > 0 && ` ${health?.duplicate_import_keys_count} metrics have duplicate import keys.`}
+            </p>
+            <div className="flex gap-2 mt-2">
+              {(health?.missing_import_keys_count || 0) > 0 && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="bg-background"
+                  onClick={() => scrollToSection('metric-keys-section')}
+                >
+                  <Key className="w-4 h-4 mr-1" />
+                  Assign Metric Keys
+                </Button>
+              )}
+              {(health?.duplicate_metric_names_count || 0) > 0 && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="bg-background"
+                  onClick={() => scrollToSection('duplicates-section')}
+                >
+                  <Archive className="w-4 h-4 mr-1" />
+                  Resolve Duplicates
+                </Button>
+              )}
+            </div>
           </AlertDescription>
         </Alert>
       )}
@@ -687,20 +748,38 @@ const ScorecardTemplate = () => {
             </ul>
           </div>
           <div className="flex gap-3">
-            <Button onClick={downloadTemplateCsv} disabled={activeMetrics.length === 0}>
+            <Button 
+              onClick={downloadTemplateCsv} 
+              disabled={!canGenerateTemplate}
+            >
               <Download className="w-4 h-4 mr-2" />
               Download CSV Template
             </Button>
-            <Button variant="outline" onClick={copyTemplateToClipboard} disabled={activeMetrics.length === 0}>
+            <Button 
+              variant="outline" 
+              onClick={copyTemplateToClipboard} 
+              disabled={!canGenerateTemplate}
+            >
               {copiedTemplate ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
               {copiedTemplate ? 'Copied!' : 'Copy to Clipboard'}
             </Button>
           </div>
+          
+          {!canGenerateTemplate && activeMetrics.length > 0 && (
+            <Alert variant="destructive" className="mt-3">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                {(health?.missing_import_keys_count || 0) > 0 
+                  ? 'Template not ready: assign Metric Keys for all active metrics.'
+                  : 'Template not ready: resolve duplicate Metric Keys.'}
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
-      {/* Import Key Editor - Full table for admins, read-only for others */}
-      <Card>
+      {/* Metric Key Editor - with anchor ID for scroll */}
+      <Card id="metric-keys-section">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Key className="w-5 h-5 text-primary" />
@@ -980,14 +1059,16 @@ const ScorecardTemplate = () => {
         </Card>
       )}
 
-      {/* Resolve Duplicates Section (replaces old dialog) */}
+      {/* Resolve Duplicates Section (replaces old dialog) - with anchor ID */}
       {isAdmin && orgId && (health?.duplicate_metric_names_count || 0) > 0 && (
-        <ResolveDuplicatesSection
-          orgId={orgId}
-          isAdmin={isAdmin}
-          duplicateCount={health?.duplicate_metric_names_count || 0}
-          onResolved={handleDuplicatesResolved}
-        />
+        <div id="duplicates-section">
+          <ResolveDuplicatesSection
+            orgId={orgId}
+            isAdmin={isAdmin}
+            duplicateCount={health?.duplicate_metric_names_count || 0}
+            onResolved={handleDuplicatesResolved}
+          />
+        </div>
       )}
 
       {/* Leave Confirmation Dialog */}
