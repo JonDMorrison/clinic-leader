@@ -288,7 +288,7 @@ export default function MeetingDetail() {
         <Alert className="border-blue-500/50 bg-blue-500/10">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-700">
-            <strong>Preview Mode</strong> — This is your meeting preview. Edit, add, or remove items before you start.
+            <strong>Preview Mode</strong> — This agenda is a starting point. Edit or delete anything before you start.
           </AlertDescription>
         </Alert>
       )}
