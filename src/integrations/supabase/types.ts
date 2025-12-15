@@ -1336,6 +1336,69 @@ export type Database = {
           },
         ]
       }
+      meeting_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_deleted: boolean
+          item_type: string
+          meeting_id: string
+          organization_id: string
+          section: string
+          sort_order: number
+          source_ref_id: string | null
+          source_ref_type: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_deleted?: boolean
+          item_type: string
+          meeting_id: string
+          organization_id: string
+          section: string
+          sort_order?: number
+          source_ref_id?: string | null
+          source_ref_type?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_deleted?: boolean
+          item_type?: string
+          meeting_id?: string
+          organization_id?: string
+          section?: string
+          sort_order?: number
+          source_ref_id?: string | null
+          source_ref_type?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_notes: {
         Row: {
           created_at: string
@@ -1380,29 +1443,51 @@ export type Database = {
       meetings: {
         Row: {
           created_at: string
+          created_by: string | null
           duration_minutes: number
+          ended_at: string | null
           id: string
           organization_id: string
           scheduled_for: string
+          started_at: string | null
+          status: string
+          title: string | null
           type: Database["public"]["Enums"]["meeting_type"]
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           duration_minutes?: number
+          ended_at?: string | null
           id?: string
           organization_id: string
           scheduled_for: string
+          started_at?: string | null
+          status?: string
+          title?: string | null
           type: Database["public"]["Enums"]["meeting_type"]
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           duration_minutes?: number
+          ended_at?: string | null
           id?: string
           organization_id?: string
           scheduled_for?: string
+          started_at?: string | null
+          status?: string
+          title?: string | null
           type?: Database["public"]["Enums"]["meeting_type"]
         }
         Relationships: [
+          {
+            foreignKeyName: "meetings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "meetings_team_id_fkey"
             columns: ["organization_id"]
