@@ -24,6 +24,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { assertOrgId } from "@/hooks/useOrgSafetyCheck";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { MetricStatusResult, STATUS_LABELS, formatMetricValue } from "@/lib/scorecard/metricStatus";
+import { RockGapData } from "./RockGapPanel";
 
 interface MeetingItem {
   id: string;
@@ -42,6 +43,7 @@ interface CreateIssueFromItemDialogProps {
   item: MeetingItem;
   periodKey: string;
   metricStatusObj?: (MetricStatusResult & { metricName?: string; metricUnit?: string }) | null;
+  rockGapData?: RockGapData | null;
   onIssueCreated?: (issueId: string, itemId: string) => void;
 }
 
@@ -53,6 +55,7 @@ export function CreateIssueFromItemDialog({
   item,
   periodKey,
   metricStatusObj,
+  rockGapData,
   onIssueCreated,
 }: CreateIssueFromItemDialogProps) {
   const { toast } = useToast();
@@ -63,13 +66,12 @@ export function CreateIssueFromItemDialog({
   const [priority, setPriority] = useState("2");
   const [ownerId, setOwnerId] = useState<string>("");
 
-  // Generate prefilled content based on item type and real metric status
+  // Generate prefilled content based on item type and real data
   const generatePrefill = () => {
     const baseTitle = item.title.replace(/^(Metric|Rock|Issue): /, "");
 
     switch (item.item_type) {
       case "metric": {
-        // Use real metric status data
         if (!metricStatusObj) {
           return {
             title: `Review metric: ${baseTitle} (${periodKey})`,
@@ -84,52 +86,64 @@ export function CreateIssueFromItemDialog({
         const status = metricStatusObj.status;
         const direction = metricStatusObj.direction;
 
-        // Title based on real metric status
         let metricTitle: string;
         switch (status) {
-          case "off_track":
-            metricTitle = `${metricName} off-track (${periodKey})`;
-            break;
-          case "needs_data":
-            metricTitle = `${metricName} missing data (${periodKey})`;
-            break;
-          case "needs_target":
-            metricTitle = `${metricName} missing target (${periodKey})`;
-            break;
-          case "needs_owner":
-            metricTitle = `${metricName} missing owner (${periodKey})`;
-            break;
-          default:
-            metricTitle = `Review metric: ${metricName} (${periodKey})`;
+          case "off_track": metricTitle = `${metricName} off-track (${periodKey})`; break;
+          case "needs_data": metricTitle = `${metricName} missing data (${periodKey})`; break;
+          case "needs_target": metricTitle = `${metricName} missing target (${periodKey})`; break;
+          case "needs_owner": metricTitle = `${metricName} missing owner (${periodKey})`; break;
+          default: metricTitle = `Review metric: ${metricName} (${periodKey})`;
         }
 
-        // Build context with real values
         const valueDisplay = value !== null ? formatMetricValue(value, unit) : "No data";
         const targetDisplay = target !== null ? formatMetricValue(target, unit) : "Not set";
-        const directionDisplay = direction 
-          ? direction.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
-          : "Not set";
-
-        const contextLines = [
-          `Month: ${periodKey}`,
-          `Value: ${valueDisplay}`,
-          `Target: ${targetDisplay}`,
-          `Direction: ${directionDisplay}`,
-          `Status: ${STATUS_LABELS[status]}`,
-          "",
-          "Identify the root cause and define the next action to resolve this issue.",
-        ];
+        const directionDisplay = direction ? direction.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "Not set";
 
         return {
           title: metricTitle,
+          context: `Month: ${periodKey}\nValue: ${valueDisplay}\nTarget: ${targetDisplay}\nDirection: ${directionDisplay}\nStatus: ${STATUS_LABELS[status]}\n\nIdentify the root cause and define the next action to resolve this issue.`,
+        };
+      }
+      case "rock": {
+        if (!rockGapData) {
+          return {
+            title: `Rock blocked: ${baseTitle} (${periodKey})`,
+            context: `Rock data unavailable.\n\nWhat is blocking progress, and what will we do next?`,
+          };
+        }
+
+        const { rock, offTrackCount, needsDataCount, needsTargetCount, needsOwnerCount, linkedMetrics } = rockGapData;
+        
+        // Build context with real gap data
+        const contextLines = [
+          `Month: ${periodKey}`,
+          `Rock: ${rock.title}`,
+          `Owner: ${rock.owner_name || "Unassigned"}`,
+          `Confidence: ${rock.confidence ? `${rock.confidence}/5` : "Not set"}`,
+          ``,
+          `Reality Gap Summary:`,
+          `- Off Track: ${offTrackCount}`,
+          `- Needs Data: ${needsDataCount}`,
+          `- Needs Target: ${needsTargetCount}`,
+          `- Needs Owner: ${needsOwnerCount}`,
+        ];
+
+        // Add top 3 problematic metrics
+        const problematicMetrics = linkedMetrics.filter(m => m.status !== 'on_track').slice(0, 3);
+        if (problematicMetrics.length > 0) {
+          contextLines.push(``, `Top Issues:`);
+          for (const m of problematicMetrics) {
+            contextLines.push(`- ${m.name}: ${STATUS_LABELS[m.status]} (Value: ${formatMetricValue(m.value, m.unit)}, Target: ${formatMetricValue(m.target, m.unit)})`);
+          }
+        }
+
+        contextLines.push(``, `What is blocking progress, and what will we do next?`);
+
+        return {
+          title: `Rock blocked: ${rock.title} (${periodKey})`,
           context: contextLines.join("\n"),
         };
       }
-      case "rock":
-        return {
-          title: `Rock blocked: ${baseTitle}`,
-          context: `${item.description || ""}\n\nIdentify what is blocking this Rock and determine the next steps to get it back on track.`,
-        };
       case "issue":
         return {
           title: `Related: ${baseTitle}`,

@@ -2290,6 +2290,52 @@ export type Database = {
           },
         ]
       }
+      rock_collaborators: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          rock_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          rock_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          rock_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rock_collaborators_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rock_collaborators_rock_id_fkey"
+            columns: ["rock_id"]
+            isOneToOne: false
+            referencedRelation: "rocks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rock_collaborators_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rock_default_batches: {
         Row: {
           archived_at: string | null
