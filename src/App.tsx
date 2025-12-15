@@ -65,6 +65,7 @@ import AdminPasswordDiagnostic from "./pages/AdminPasswordDiagnostic";
 import ImportPdfReport from "./pages/ImportPdfReport";
 import ScorecardTemplate from "./pages/ScorecardTemplate";
 import ScorecardOffTrack from "./pages/ScorecardOffTrack";
+import ScorecardCutover from "./pages/ScorecardCutover";
 
 const queryClient = new QueryClient();
 
@@ -157,6 +158,7 @@ const App = () => {
             <Route path="/scorecard/update" element={<AppLayout><ScorecardUpdate /></AppLayout>} />
             <Route path="/scorecard/template" element={<AppLayout><ScorecardTemplate /></AppLayout>} />
             <Route path="/scorecard/off-track" element={<AppLayout><ScorecardOffTrack /></AppLayout>} />
+            <Route path="/scorecard/cutover" element={<AppLayout><ScorecardCutover /></AppLayout>} />
             <Route path="/scorecard" element={<AppLayout><Scorecard /></AppLayout>} />
             <Route path="/rocks" element={<AppLayout><Rocks /></AppLayout>} />
             <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
