@@ -162,10 +162,10 @@ export const LiveTodoPanel = ({ organizationId, meetingId, disabled, onTodosChan
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="py-2 space-y-3">
-        {/* Always-visible quick add */}
+      <CardContent className="py-2 space-y-3 max-h-80 overflow-y-auto">
+        {/* Always-visible quick add - sticky on mobile */}
         {!disabled && (
-          <div className="space-y-2">
+          <div className="space-y-2 sticky top-0 bg-card z-10 pb-2 -mt-1 pt-1">
             <Input
               ref={inputRef}
               placeholder="Add a to-do... (Enter to add)"
