@@ -9,6 +9,9 @@ interface MeetingReviewSummaryProps {
     started_at: string | null;
     ended_at: string | null;
     scheduled_for: string;
+    level10_score?: number | null;
+    outcome_headline?: string | null;
+    outcome_notes?: string | null;
   };
   discussedCount: number;
   totalItems: number;
@@ -71,7 +74,29 @@ export function MeetingReviewSummary({
               {discussedCount}/{totalItems} items
             </p>
           </div>
+          {meeting.level10_score && (
+            <div>
+              <p className="text-muted-foreground">Score</p>
+              <p className={`font-medium ${
+                meeting.level10_score >= 8 ? "text-green-600" : meeting.level10_score >= 5 ? "text-amber-600" : "text-red-600"
+              }`}>
+                {meeting.level10_score}/10
+              </p>
+            </div>
+          )}
         </div>
+
+        {/* Headline & Notes */}
+        {(meeting.outcome_headline || meeting.outcome_notes) && (
+          <div className="pt-2 border-t space-y-2">
+            {meeting.outcome_headline && (
+              <p className="text-sm font-medium">{meeting.outcome_headline}</p>
+            )}
+            {meeting.outcome_notes && (
+              <p className="text-sm text-muted-foreground">{meeting.outcome_notes}</p>
+            )}
+          </div>
+        )}
 
         {/* Issues Created */}
         {issues.length > 0 && (

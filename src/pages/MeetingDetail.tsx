@@ -81,6 +81,9 @@ export default function MeetingDetail() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [periodKey, setPeriodKey] = useState<string>("");
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [level10Score, setLevel10Score] = useState<number | null>(null);
+  const [outcomeHeadline, setOutcomeHeadline] = useState("");
+  const [outcomeNotes, setOutcomeNotes] = useState("");
   const generationAttempted = useRef(false);
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -476,6 +479,9 @@ export default function MeetingDetail() {
         .update({
           status: "completed",
           ended_at: new Date().toISOString(),
+          level10_score: level10Score,
+          outcome_headline: outcomeHeadline || null,
+          outcome_notes: outcomeNotes || null,
         })
         .eq("id", meetingId)
         .eq("organization_id", organizationId);
@@ -486,6 +492,10 @@ export default function MeetingDetail() {
       queryClient.invalidateQueries({ queryKey: ["meetings"] });
       toast({ title: "Meeting ended" });
       setShowEndDialog(false);
+      // Reset score state
+      setLevel10Score(null);
+      setOutcomeHeadline("");
+      setOutcomeNotes("");
     },
     onError: () => {
       toast({ title: "Failed to end meeting", variant: "destructive" });
@@ -828,11 +838,11 @@ export default function MeetingDetail() {
 
       {/* End Meeting Dialog with Recap */}
       <AlertDialog open={showEndDialog} onOpenChange={setShowEndDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>End meeting?</AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <p>This completes the meeting. You can still review it later.</p>
                 
                 {/* Recap summary */}
@@ -849,6 +859,51 @@ export default function MeetingDetail() {
                   <div className="flex justify-between">
                     <span>To-Dos:</span>
                     <span className="font-medium">{(meetingTodos || []).length}</span>
+                  </div>
+                </div>
+
+                {/* Level 10 Score Section */}
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium text-foreground">Level 10 score (optional)</Label>
+                    <div className="flex gap-1 mt-2">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
+                        <button
+                          key={score}
+                          type="button"
+                          onClick={() => setLevel10Score(level10Score === score ? null : score)}
+                          className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                            level10Score === score
+                              ? score >= 8 ? "bg-green-500 text-white" : score >= 5 ? "bg-amber-500 text-white" : "bg-red-500 text-white"
+                              : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                          }`}
+                        >
+                          {score}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="headline" className="text-sm text-muted-foreground">Headline (optional)</Label>
+                    <input
+                      id="headline"
+                      type="text"
+                      placeholder="One sentence summary..."
+                      value={outcomeHeadline}
+                      onChange={(e) => setOutcomeHeadline(e.target.value)}
+                      className="w-full mt-1 px-3 py-2 rounded-md border bg-background text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="notes" className="text-sm text-muted-foreground">Notes (optional)</Label>
+                    <textarea
+                      id="notes"
+                      placeholder="Any notes..."
+                      value={outcomeNotes}
+                      onChange={(e) => setOutcomeNotes(e.target.value)}
+                      rows={2}
+                      className="w-full mt-1 px-3 py-2 rounded-md border bg-background text-sm resize-none"
+                    />
                   </div>
                 </div>
 

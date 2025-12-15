@@ -1474,7 +1474,10 @@ export type Database = {
           duration_minutes: number
           ended_at: string | null
           id: string
+          level10_score: number | null
           organization_id: string
+          outcome_headline: string | null
+          outcome_notes: string | null
           scheduled_for: string
           started_at: string | null
           status: string
@@ -1488,7 +1491,10 @@ export type Database = {
           duration_minutes?: number
           ended_at?: string | null
           id?: string
+          level10_score?: number | null
           organization_id: string
+          outcome_headline?: string | null
+          outcome_notes?: string | null
           scheduled_for: string
           started_at?: string | null
           status?: string
@@ -1502,7 +1508,10 @@ export type Database = {
           duration_minutes?: number
           ended_at?: string | null
           id?: string
+          level10_score?: number | null
           organization_id?: string
+          outcome_headline?: string | null
+          outcome_notes?: string | null
           scheduled_for?: string
           started_at?: string | null
           status?: string
