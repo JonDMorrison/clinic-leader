@@ -1,25 +1,41 @@
 import { supabase } from "@/integrations/supabase/client";
 import { format, subMonths, startOfMonth } from "date-fns";
 
+/**
+ * Authoritative metric status type - SINGLE SOURCE OF TRUTH
+ * Priority order: NEEDS_DATA → NEEDS_TARGET → NEEDS_OWNER → ON_TRACK/OFF_TRACK
+ */
 export type MetricStatus = 'on_track' | 'off_track' | 'needs_target' | 'needs_data' | 'needs_owner';
 
+/**
+ * Normalized direction type for consistent evaluation
+ */
+export type NormalizedDirection = 'higher_is_better' | 'lower_is_better' | 'exact' | null;
+
+/**
+ * Authoritative metric status result - the exact contract for all status displays
+ */
 export interface MetricStatusResult {
   status: MetricStatus;
   label: string;
-  currentValue: number | null;
+  value: number | null;
   target: number | null;
   delta: number | null;
-  deltaPercent: number | null;
-  direction: string | null;
-  period: string | null;
-  periodLabel: string | null;
-  periodKey: string | null;
+  direction: NormalizedDirection;
+  period_key: string | null;
+  reasons: string[];
+  // Legacy fields for backward compatibility
+  currentValue?: number | null;
+  deltaPercent?: number | null;
+  period?: string | null;
+  periodLabel?: string | null;
+  periodKey?: string | null;
 }
 
 /**
- * Status label map
+ * Status label map - human-readable labels
  */
-const STATUS_LABELS: Record<MetricStatus, string> = {
+export const STATUS_LABELS: Record<MetricStatus, string> = {
   'needs_data': 'Needs Data',
   'needs_target': 'Needs Target',
   'needs_owner': 'Needs Owner',
@@ -28,11 +44,162 @@ const STATUS_LABELS: Record<MetricStatus, string> = {
 };
 
 /**
+ * Normalize direction from various formats to canonical form
+ * Handles: 'up'/'down'/'exact' (legacy) and 'higher_is_better'/'lower_is_better'/'exact' (new)
+ */
+export function normalizeDirection(direction: string | null | undefined): NormalizedDirection {
+  if (!direction) return null;
+  
+  const normalized = direction.toLowerCase().trim();
+  
+  switch (normalized) {
+    case 'up':
+    case 'higher_is_better':
+    case 'higher':
+      return 'higher_is_better';
+    case 'down':
+    case 'lower_is_better':
+    case 'lower':
+      return 'lower_is_better';
+    case 'exact':
+    case 'equal':
+      return 'exact';
+    default:
+      // Unknown direction treated as null
+      return null;
+  }
+}
+
+/**
+ * AUTHORITATIVE metricStatus function - SINGLE SOURCE OF TRUTH
+ * 
  * Calculate metric status for monthly cadence using strict priority order:
  * 1. NEEDS_DATA - no result row or value is null
- * 2. NEEDS_TARGET - target missing
- * 3. NEEDS_OWNER - owner missing (optional, pass null to skip)
+ * 2. NEEDS_TARGET - target missing OR direction is null
+ * 3. NEEDS_OWNER - owner missing
  * 4. ON_TRACK / OFF_TRACK - based on direction comparison
+ * 
+ * @param metric - The metric definition (must include target, direction, owner)
+ * @param resultForSelectedMonth - The metric_result row for the selected month (may be null/undefined)
+ * @param periodKey - The selected period key (YYYY-MM)
+ */
+export function metricStatus(
+  metric: {
+    target?: number | null;
+    direction?: string | null;
+    owner?: string | null;
+  },
+  resultForSelectedMonth: {
+    value?: number | null;
+  } | null | undefined,
+  periodKey: string | null
+): MetricStatusResult {
+  const value = resultForSelectedMonth?.value ?? null;
+  const target = metric.target ?? null;
+  const rawDirection = metric.direction;
+  const owner = metric.owner;
+  const normalizedDirection = normalizeDirection(rawDirection);
+  
+  const reasons: string[] = [];
+  
+  // Build base result
+  const baseResult = {
+    value,
+    target,
+    direction: normalizedDirection,
+    period_key: periodKey,
+    // Legacy compatibility
+    currentValue: value,
+    period: periodKey ? `${periodKey}-01` : null,
+    periodLabel: periodKey ? format(new Date(periodKey + '-01'), 'MMMM yyyy') : null,
+    periodKey,
+  };
+  
+  // PRIORITY 1: NEEDS_DATA
+  // No result row exists OR value is null
+  if (value === null || value === undefined) {
+    reasons.push('No value for this month.');
+    return {
+      ...baseResult,
+      status: 'needs_data',
+      label: STATUS_LABELS['needs_data'],
+      delta: null,
+      deltaPercent: null,
+      reasons,
+    };
+  }
+  
+  // PRIORITY 2: NEEDS_TARGET
+  // Target is null OR direction is null (need both to evaluate)
+  if (target === null || target === undefined || normalizedDirection === null) {
+    if (target === null || target === undefined) {
+      reasons.push('Target not set.');
+    }
+    if (normalizedDirection === null) {
+      reasons.push('Direction not set.');
+    }
+    return {
+      ...baseResult,
+      status: 'needs_target',
+      label: STATUS_LABELS['needs_target'],
+      delta: null,
+      deltaPercent: null,
+      reasons,
+    };
+  }
+  
+  // PRIORITY 3: NEEDS_OWNER
+  // Owner is null or empty
+  if (owner === null || owner === undefined || owner === '') {
+    reasons.push('No owner assigned.');
+    const delta = value - target;
+    return {
+      ...baseResult,
+      status: 'needs_owner',
+      label: STATUS_LABELS['needs_owner'],
+      delta,
+      deltaPercent: target !== 0 ? ((value - target) / target) * 100 : 0,
+      reasons,
+    };
+  }
+  
+  // PRIORITY 4: Evaluate ON_TRACK vs OFF_TRACK using direction
+  let isOnTrack = false;
+  
+  switch (normalizedDirection) {
+    case 'higher_is_better':
+      isOnTrack = value >= target;
+      if (!isOnTrack) reasons.push('Value is below target.');
+      break;
+    case 'lower_is_better':
+      isOnTrack = value <= target;
+      if (!isOnTrack) reasons.push('Value is above target.');
+      break;
+    case 'exact':
+      isOnTrack = value === target;
+      if (!isOnTrack) reasons.push('Value does not match target exactly.');
+      break;
+  }
+  
+  const delta = value - target;
+  const deltaPercent = target !== 0 ? ((value - target) / target) * 100 : 0;
+  
+  if (isOnTrack) {
+    reasons.push('Metric is on track.');
+  }
+  
+  return {
+    ...baseResult,
+    status: isOnTrack ? 'on_track' : 'off_track',
+    label: isOnTrack ? STATUS_LABELS['on_track'] : STATUS_LABELS['off_track'],
+    delta,
+    deltaPercent,
+    reasons,
+  };
+}
+
+/**
+ * @deprecated Use metricStatus() instead - this is kept for backward compatibility
  */
 export function calculateMetricStatus(
   value: number | null,
@@ -41,92 +208,12 @@ export function calculateMetricStatus(
   period: string | null,
   owner?: string | null
 ): MetricStatusResult {
-  const periodLabel = period ? format(new Date(period), 'MMMM yyyy') : null;
   const periodKey = period ? format(new Date(period), 'yyyy-MM') : null;
-  
-  const baseResult = {
-    currentValue: value,
-    target,
-    direction,
-    period,
-    periodLabel,
-    periodKey,
-  };
-
-  // Priority 1: No data for selected period
-  if (value === null || value === undefined) {
-    return {
-      ...baseResult,
-      status: 'needs_data',
-      label: STATUS_LABELS['needs_data'],
-      delta: null,
-      deltaPercent: null,
-    };
-  }
-
-  // Priority 2: No target set
-  if (target === null || target === undefined) {
-    return {
-      ...baseResult,
-      status: 'needs_target',
-      label: STATUS_LABELS['needs_target'],
-      delta: null,
-      deltaPercent: null,
-    };
-  }
-
-  // Priority 3: No owner (only check if owner param explicitly provided as empty)
-  if (owner !== undefined && (owner === null || owner === '')) {
-    return {
-      ...baseResult,
-      status: 'needs_owner',
-      label: STATUS_LABELS['needs_owner'],
-      delta: value - target,
-      deltaPercent: target !== 0 ? ((value - target) / target) * 100 : 0,
-    };
-  }
-
-  // Priority 4: Direction evaluation (treat null direction as needs_target)
-  if (!direction) {
-    return {
-      ...baseResult,
-      status: 'needs_target',
-      label: STATUS_LABELS['needs_target'],
-      delta: null,
-      deltaPercent: null,
-    };
-  }
-
-  // Evaluate ON_TRACK vs OFF_TRACK
-  let isOnTrack = false;
-  
-  switch (direction) {
-    case 'up':
-    case 'higher_is_better':
-      isOnTrack = value >= target;
-      break;
-    case 'down':
-    case 'lower_is_better':
-      isOnTrack = value <= target;
-      break;
-    case 'exact':
-      isOnTrack = value === target;
-      break;
-    default:
-      // Default to higher_is_better
-      isOnTrack = value >= target;
-  }
-
-  const delta = value - target;
-  const deltaPercent = target !== 0 ? ((value - target) / target) * 100 : 0;
-
-  return {
-    ...baseResult,
-    status: isOnTrack ? 'on_track' : 'off_track',
-    label: isOnTrack ? STATUS_LABELS['on_track'] : STATUS_LABELS['off_track'],
-    delta,
-    deltaPercent,
-  };
+  return metricStatus(
+    { target, direction, owner },
+    { value },
+    periodKey
+  );
 }
 
 /**
@@ -179,15 +266,13 @@ export async function fetchMetricsWithStatus(
     return acc;
   }, {} as Record<string, any>) || {};
 
-  // Calculate status for each metric
+  // Calculate status for each metric using the authoritative metricStatus function
   for (const metric of metrics) {
     const latestResult = resultsByMetric[metric.id];
-    const status = calculateMetricStatus(
-      latestResult?.value ?? null,
-      metric.target,
-      metric.direction,
-      latestResult?.period_start ?? null,
-      metric.owner
+    const status = metricStatus(
+      metric,
+      latestResult ?? null,
+      latestResult?.period_key ?? periodKey ?? null
     );
     statusMap.set(metric.id, status);
   }

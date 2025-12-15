@@ -17,11 +17,31 @@ import {
   RefreshCw,
   FileSpreadsheet,
   Loader2,
-  Settings2
+  Settings2,
+  User
 } from "lucide-react";
-import { format, subMonths, startOfMonth, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { getMonthlyPeriodSelection } from "@/lib/scorecard/periodHelper";
+import { metricStatus, MetricStatusResult } from "@/lib/scorecard/metricStatus";
+
+interface PulseData {
+  offTrackCount: number;
+  needsTargetCount: number;
+  needsDataCount: number;
+  needsOwnerCount: number;
+  atRiskRocksCount: number;
+  lastSyncDate: Date | null;
+  lastSyncMonth: string | null;
+  isLockedMode: boolean;
+  totalMetrics: number;
+  hasGoogleSheet: boolean;
+  syncStatus: string | null;
+  selectedPeriodKey: string;
+  periodLabel: string;
+  hasAnyData: boolean;
+}
 
 export function MonthlyPulseWidget() {
   const navigate = useNavigate();
@@ -30,7 +50,7 @@ export function MonthlyPulseWidget() {
 
   const { data: pulseData, isLoading } = useQuery({
     queryKey: ['monthly-pulse', currentUser?.team_id],
-    queryFn: async () => {
+    queryFn: async (): Promise<PulseData | null> => {
       if (!currentUser?.team_id) return null;
 
       // Get organization settings
@@ -47,26 +67,84 @@ export function MonthlyPulseWidget() {
         .eq('organization_id', currentUser.team_id)
         .maybeSingle();
 
+      // Get period selection using the SINGLE SOURCE OF TRUTH helper
+      const periodSelection = await getMonthlyPeriodSelection(currentUser.team_id);
+
       // Get all active metrics
       const { data: metrics } = await supabase
         .from('metrics')
-        .select('id, name, target, direction, cadence')
+        .select('id, name, target, direction, cadence, owner')
         .eq('organization_id', currentUser.team_id)
         .eq('is_active', true);
 
-      // Get latest monthly results
-      const currentMonth = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-      const lastMonth = format(startOfMonth(subMonths(new Date(), 1)), 'yyyy-MM-dd');
+      if (!metrics?.length) {
+        return {
+          offTrackCount: 0,
+          needsTargetCount: 0,
+          needsDataCount: 0,
+          needsOwnerCount: 0,
+          atRiskRocksCount: 0,
+          lastSyncDate: importConfig?.last_synced_at ? new Date(importConfig.last_synced_at) : null,
+          lastSyncMonth: importConfig?.last_synced_month || null,
+          isLockedMode: orgData?.scorecard_mode === 'locked_to_template',
+          totalMetrics: 0,
+          hasGoogleSheet: importConfig?.source === 'google_sheet' && !!importConfig?.sheet_id,
+          syncStatus: importConfig?.status || null,
+          selectedPeriodKey: periodSelection.selectedPeriodKey,
+          periodLabel: periodSelection.periodLabel,
+          hasAnyData: periodSelection.hasAnyData,
+        };
+      }
 
+      // Get results for the selected period
+      const periodStart = `${periodSelection.selectedPeriodKey}-01`;
       const { data: results } = await supabase
         .from('metric_results')
-        .select('*')
-        .in('metric_id', metrics?.map(m => m.id) || [])
+        .select('metric_id, value, period_key')
+        .in('metric_id', metrics.map(m => m.id))
         .eq('period_type', 'monthly')
-        .in('period_start', [currentMonth, lastMonth])
-        .order('created_at', { ascending: false });
+        .eq('period_start', periodStart);
 
-      // Get rocks with linked metrics
+      // Build results map
+      const resultsByMetric = results?.reduce((acc, r) => {
+        acc[r.metric_id] = r;
+        return acc;
+      }, {} as Record<string, { value: number | null; period_key: string }>) || {};
+
+      // Calculate stats using the AUTHORITATIVE metricStatus engine
+      let offTrackCount = 0;
+      let needsTargetCount = 0;
+      let needsDataCount = 0;
+      let needsOwnerCount = 0;
+
+      const monthlyMetrics = metrics.filter(m => m.cadence === 'monthly');
+
+      for (const metric of monthlyMetrics) {
+        const result = resultsByMetric[metric.id] || null;
+        const status: MetricStatusResult = metricStatus(
+          metric,
+          result,
+          periodSelection.selectedPeriodKey
+        );
+
+        switch (status.status) {
+          case 'off_track':
+            offTrackCount++;
+            break;
+          case 'needs_target':
+            needsTargetCount++;
+            break;
+          case 'needs_data':
+            needsDataCount++;
+            break;
+          case 'needs_owner':
+            needsOwnerCount++;
+            break;
+          // on_track doesn't increment any counter
+        }
+      }
+
+      // Get rocks with linked metrics for at-risk calculation
       const { data: rocks } = await supabase
         .from('rocks')
         .select('id, status')
@@ -78,55 +156,16 @@ export function MonthlyPulseWidget() {
         .select('rock_id, metric_id')
         .in('rock_id', rocks?.map(r => r.id) || []);
 
-      // Calculate stats
-      let offTrackCount = 0;
-      let needsTargetCount = 0;
-      let needsDataCount = 0;
-      let lastSyncDate: Date | null = null;
-      let lastSyncMonth: string | null = null;
-
-      const resultsByMetric = results?.reduce((acc, r) => {
-        if (!acc[r.metric_id]) acc[r.metric_id] = [];
-        acc[r.metric_id].push(r);
-        return acc;
-      }, {} as Record<string, any[]>) || {};
-
-      for (const metric of metrics || []) {
-        if (metric.cadence !== 'monthly') continue;
-        
-        const metricResults = resultsByMetric[metric.id] || [];
-        const latestResult = metricResults[0];
-
-        if (latestResult) {
-          if (!lastSyncDate || new Date(latestResult.created_at) > lastSyncDate) {
-            lastSyncDate = new Date(latestResult.created_at);
-            lastSyncMonth = latestResult.period_start;
-          }
-        }
-
-        if (!metric.target) {
-          needsTargetCount++;
-        } else if (!latestResult) {
-          needsDataCount++;
-        } else {
-          const isOnTrack = metric.direction === 'up' 
-            ? latestResult.value >= metric.target
-            : latestResult.value <= metric.target;
-          if (!isOnTrack) offTrackCount++;
-        }
-      }
-
       // Calculate at-risk rocks
       let atRiskRocksCount = 0;
       for (const rock of rocks || []) {
         const linkedMetricIds = rockLinks?.filter(l => l.rock_id === rock.id).map(l => l.metric_id) || [];
         const hasOffTrackMetric = linkedMetricIds.some(metricId => {
-          const metric = metrics?.find(m => m.id === metricId);
-          const latestResult = resultsByMetric[metricId]?.[0];
-          if (!metric?.target || !latestResult) return false;
-          return metric.direction === 'up' 
-            ? latestResult.value < metric.target
-            : latestResult.value > metric.target;
+          const metric = metrics.find(m => m.id === metricId);
+          const result = resultsByMetric[metricId];
+          if (!metric) return false;
+          const status = metricStatus(metric, result || null, periodSelection.selectedPeriodKey);
+          return status.status === 'off_track';
         });
         if (hasOffTrackMetric || rock.status === 'off_track') {
           atRiskRocksCount++;
@@ -134,24 +173,31 @@ export function MonthlyPulseWidget() {
       }
 
       // Use import config's last sync if available
+      let lastSyncDate: Date | null = null;
+      let lastSyncMonth: string | null = null;
+      
       if (importConfig?.last_synced_at) {
         lastSyncDate = new Date(importConfig.last_synced_at);
       }
       if (importConfig?.last_synced_month) {
-        lastSyncMonth = importConfig.last_synced_month + '-01';
+        lastSyncMonth = importConfig.last_synced_month;
       }
 
       return {
         offTrackCount,
         needsTargetCount,
         needsDataCount,
+        needsOwnerCount,
         atRiskRocksCount,
         lastSyncDate,
         lastSyncMonth,
         isLockedMode: orgData?.scorecard_mode === 'locked_to_template',
-        totalMetrics: metrics?.filter(m => m.cadence === 'monthly').length || 0,
+        totalMetrics: monthlyMetrics.length,
         hasGoogleSheet: importConfig?.source === 'google_sheet' && !!importConfig?.sheet_id,
-        syncStatus: importConfig?.status,
+        syncStatus: importConfig?.status || null,
+        selectedPeriodKey: periodSelection.selectedPeriodKey,
+        periodLabel: periodSelection.periodLabel,
+        hasAnyData: periodSelection.hasAnyData,
       };
     },
     enabled: !!currentUser?.team_id,
@@ -213,6 +259,10 @@ export function MonthlyPulseWidget() {
               Monthly Pulse
             </CardTitle>
             <div className="flex items-center gap-2">
+              {/* Selected Period Badge - SINGLE SOURCE OF TRUTH */}
+              <Badge variant="secondary" className="text-xs">
+                {pulseData.periodLabel}
+              </Badge>
               {pulseData.hasGoogleSheet && (
                 <Badge variant="outline" className="text-xs border-success text-success">
                   <FileSpreadsheet className="w-3 h-3 mr-1" />
@@ -226,61 +276,87 @@ export function MonthlyPulseWidget() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Last Sync Info */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="w-4 h-4" />
-            {pulseData.lastSyncDate ? (
-              <span>
-                Last synced: {pulseData.lastSyncMonth ? format(new Date(pulseData.lastSyncMonth), 'MMMM yyyy') : 'N/A'}
-                {' '}({formatDistanceToNow(pulseData.lastSyncDate, { addSuffix: true })})
-              </span>
-            ) : (
-              <span className="text-warning">No data synced yet</span>
-            )}
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className={`p-3 rounded-lg border ${pulseData.offTrackCount > 0 ? 'border-destructive/30 bg-destructive/5' : 'border-border'}`}>
-              <div className="flex items-center gap-2 mb-1">
-                <TrendingDown className="w-4 h-4 text-destructive" />
-                <span className="text-xs text-muted-foreground">Off Track</span>
-              </div>
-              <p className={`text-2xl font-bold ${pulseData.offTrackCount > 0 ? 'text-destructive' : 'text-foreground'}`}>
-                {pulseData.offTrackCount}
-              </p>
+          {/* Empty state when no data */}
+          {!pulseData.hasAnyData && (
+            <div className="text-center py-4 text-muted-foreground">
+              <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-warning" />
+              <p>No monthly scorecard data yet.</p>
+              <p className="text-sm">Import or sync your first month's data to get started.</p>
             </div>
+          )}
 
-            <div className={`p-3 rounded-lg border ${pulseData.needsTargetCount > 0 ? 'border-warning/30 bg-warning/5' : 'border-border'}`}>
-              <div className="flex items-center gap-2 mb-1">
-                <Target className="w-4 h-4 text-warning" />
-                <span className="text-xs text-muted-foreground">Need Targets</span>
+          {pulseData.hasAnyData && (
+            <>
+              {/* Last Sync Info */}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                {pulseData.lastSyncDate ? (
+                  <span>
+                    Last synced: {pulseData.lastSyncMonth ? format(new Date(pulseData.lastSyncMonth + '-01'), 'MMMM yyyy') : 'N/A'}
+                    {' '}({formatDistanceToNow(pulseData.lastSyncDate, { addSuffix: true })})
+                  </span>
+                ) : (
+                  <span className="text-warning">No data synced yet</span>
+                )}
               </div>
-              <p className={`text-2xl font-bold ${pulseData.needsTargetCount > 0 ? 'text-warning' : 'text-foreground'}`}>
-                {pulseData.needsTargetCount}
-              </p>
-            </div>
 
-            <div className={`p-3 rounded-lg border ${pulseData.needsDataCount > 0 ? 'border-muted-foreground/30 bg-muted/50' : 'border-border'}`}>
-              <div className="flex items-center gap-2 mb-1">
-                <AlertTriangle className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Need Data</span>
-              </div>
-              <p className="text-2xl font-bold text-muted-foreground">
-                {pulseData.needsDataCount}
-              </p>
-            </div>
+              {/* Stats Grid - uses authoritative metricStatus counts */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className={`p-3 rounded-lg border ${pulseData.offTrackCount > 0 ? 'border-destructive/30 bg-destructive/5' : 'border-border'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <TrendingDown className="w-4 h-4 text-destructive" />
+                    <span className="text-xs text-muted-foreground">Off Track</span>
+                  </div>
+                  <p className={`text-2xl font-bold ${pulseData.offTrackCount > 0 ? 'text-destructive' : 'text-foreground'}`}>
+                    {pulseData.offTrackCount}
+                  </p>
+                </div>
 
-            <div className={`p-3 rounded-lg border ${pulseData.atRiskRocksCount > 0 ? 'border-warning/30 bg-warning/5' : 'border-border'}`}>
-              <div className="flex items-center gap-2 mb-1">
-                <Mountain className="w-4 h-4 text-warning" />
-                <span className="text-xs text-muted-foreground">Rocks at Risk</span>
+                <div className={`p-3 rounded-lg border ${pulseData.needsTargetCount > 0 ? 'border-warning/30 bg-warning/5' : 'border-border'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Target className="w-4 h-4 text-warning" />
+                    <span className="text-xs text-muted-foreground">Need Targets</span>
+                  </div>
+                  <p className={`text-2xl font-bold ${pulseData.needsTargetCount > 0 ? 'text-warning' : 'text-foreground'}`}>
+                    {pulseData.needsTargetCount}
+                  </p>
+                </div>
+
+                <div className={`p-3 rounded-lg border ${pulseData.needsDataCount > 0 ? 'border-muted-foreground/30 bg-muted/50' : 'border-border'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertTriangle className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Need Data</span>
+                  </div>
+                  <p className="text-2xl font-bold text-muted-foreground">
+                    {pulseData.needsDataCount}
+                  </p>
+                </div>
+
+                <div className={`p-3 rounded-lg border ${pulseData.needsOwnerCount > 0 ? 'border-warning/30 bg-warning/5' : 'border-border'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <User className="w-4 h-4 text-warning" />
+                    <span className="text-xs text-muted-foreground">Need Owners</span>
+                  </div>
+                  <p className={`text-2xl font-bold ${pulseData.needsOwnerCount > 0 ? 'text-warning' : 'text-foreground'}`}>
+                    {pulseData.needsOwnerCount}
+                  </p>
+                </div>
               </div>
-              <p className={`text-2xl font-bold ${pulseData.atRiskRocksCount > 0 ? 'text-warning' : 'text-foreground'}`}>
-                {pulseData.atRiskRocksCount}
-              </p>
-            </div>
-          </div>
+
+              {/* Rocks at Risk - separate row */}
+              {pulseData.atRiskRocksCount > 0 && (
+                <div className="p-3 rounded-lg border border-warning/30 bg-warning/5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Mountain className="w-4 h-4 text-warning" />
+                      <span className="text-sm text-muted-foreground">Rocks at Risk</span>
+                    </div>
+                    <p className="text-xl font-bold text-warning">{pulseData.atRiskRocksCount}</p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
           {/* Actions */}
           <div className="flex gap-2 pt-2">
