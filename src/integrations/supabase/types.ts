@@ -2779,6 +2779,8 @@ export type Database = {
           due_date: string | null
           id: string
           issue_id: string | null
+          meeting_id: string | null
+          organization_id: string | null
           owner_id: string | null
           title: string
         }
@@ -2788,6 +2790,8 @@ export type Database = {
           due_date?: string | null
           id?: string
           issue_id?: string | null
+          meeting_id?: string | null
+          organization_id?: string | null
           owner_id?: string | null
           title: string
         }
@@ -2797,6 +2801,8 @@ export type Database = {
           due_date?: string | null
           id?: string
           issue_id?: string | null
+          meeting_id?: string | null
+          organization_id?: string | null
           owner_id?: string | null
           title?: string
         }
@@ -2806,6 +2812,20 @@ export type Database = {
             columns: ["issue_id"]
             isOneToOne: false
             referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
