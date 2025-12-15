@@ -12,6 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { AgendaItemRow } from "@/components/meetings/AgendaItemRow";
 import { AddItemModal } from "@/components/meetings/AddItemModal";
+import { MeetingPrepChecklist } from "@/components/meetings/MeetingPrepChecklist";
+import { MeetingReviewSummary } from "@/components/meetings/MeetingReviewSummary";
+import { MeetingPrintView } from "@/components/meetings/MeetingPrintView";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,12 +60,23 @@ export default function MeetingDetail() {
   const queryClient = useQueryClient();
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addModalSection, setAddModalSection] = useState<string | undefined>(undefined);
   const [showStartDialog, setShowStartDialog] = useState(false);
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [periodKey, setPeriodKey] = useState<string>("");
   const generationAttempted = useRef(false);
+
+  // Handle prep checklist add item
+  const handlePrepAddItem = (section: string) => {
+    setAddModalSection(section);
+    setShowAddModal(true);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   // Auto-open start dialog if ?start=1
   useEffect(() => {
@@ -475,9 +489,9 @@ export default function MeetingDetail() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="p-6 space-y-6 print:p-0 print:space-y-0">
+      {/* Header - hidden on print */}
+      <div className="flex items-center justify-between flex-wrap gap-4 print:hidden">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => navigate("/meetings")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -509,7 +523,7 @@ export default function MeetingDetail() {
               End Meeting
             </Button>
           )}
-          <Button variant="outline" disabled title="Print coming next">
+          <Button variant="outline" onClick={handlePrint}>
             <Printer className="w-4 h-4 mr-2" />
             Print
           </Button>
@@ -527,7 +541,7 @@ export default function MeetingDetail() {
 
       {/* Mode Banner */}
       {isPreviewMode && (
-        <Alert className="border-blue-500/50 bg-blue-500/10">
+        <Alert className="border-blue-500/50 bg-blue-500/10 print:hidden">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-700">
             <strong>Preview Mode</strong> — This agenda is a starting point. Edit or delete anything before you start.
@@ -535,7 +549,7 @@ export default function MeetingDetail() {
         </Alert>
       )}
       {isLiveMode && (
-        <Alert className="border-green-500/50 bg-green-500/10">
+        <Alert className="border-green-500/50 bg-green-500/10 print:hidden">
           <Info className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-700 flex items-center justify-between flex-wrap gap-2">
             <span>
@@ -548,7 +562,7 @@ export default function MeetingDetail() {
         </Alert>
       )}
       {isCompleted && (
-        <Alert className="border-gray-500/50 bg-gray-500/10">
+        <Alert className="border-gray-500/50 bg-gray-500/10 print:hidden">
           <Info className="h-4 w-4 text-gray-600" />
           <AlertDescription className="text-gray-700">
             <strong>Review Mode</strong> — This meeting has ended. Items are read-only.
@@ -556,9 +570,31 @@ export default function MeetingDetail() {
         </Alert>
       )}
 
+      {/* Prep Checklist for Preview Mode */}
+      {isPreviewMode && (
+        <div className="print:hidden">
+          <MeetingPrepChecklist
+            periodKey={periodKey}
+            onAddItem={handlePrepAddItem}
+          />
+        </div>
+      )}
+
+      {/* Review Summary for Completed Mode */}
+      {isCompleted && (
+        <div className="print:hidden">
+          <MeetingReviewSummary
+            meeting={meeting}
+            discussedCount={discussedCount}
+            totalItems={totalItems}
+            issues={meetingIssues || []}
+          />
+        </div>
+      )}
+
       {/* Show Deleted Toggle (admin only) */}
       {canEdit && !isLiveMode && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 print:hidden">
           <Switch
             id="show-deleted"
             checked={showDeleted}
@@ -570,9 +606,9 @@ export default function MeetingDetail() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 print:block">
         {/* Agenda Sections - Main content */}
-        <div className="lg:col-span-3 space-y-4">
+        <div className="lg:col-span-3 space-y-4 print:space-y-6">
           {SECTION_ORDER.map((section) => {
             const sectionItems = groupedItems[section] || [];
             if (sectionItems.length === 0 && isCompleted) return null;
@@ -640,7 +676,7 @@ export default function MeetingDetail() {
 
         {/* Sidebar - Created in this meeting */}
         {(isLiveMode || isCompleted) && (
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 print:hidden">
             <Card>
               <CardHeader className="py-3">
                 <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -678,9 +714,23 @@ export default function MeetingDetail() {
       {/* Add Item Modal */}
       <AddItemModal
         open={showAddModal}
-        onOpenChange={setShowAddModal}
+        onOpenChange={(open) => {
+          setShowAddModal(open);
+          if (!open) setAddModalSection(undefined);
+        }}
         organizationId={organizationId!}
         meetingId={meetingId!}
+        initialSection={addModalSection}
+      />
+
+      {/* Print View (hidden on screen, shown when printing) */}
+      <MeetingPrintView
+        meeting={meeting}
+        items={items || []}
+        issues={meetingIssues || []}
+        metricStatusMap={metricStatusMap}
+        rockGapMap={rockGapMap}
+        periodKey={periodKey}
       />
 
       {/* Start Meeting Dialog */}
