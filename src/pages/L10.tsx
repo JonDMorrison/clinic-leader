@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, Save } from "lucide-react";
+import { Download, Save, ArrowRight } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,11 +19,14 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { CoreValuesStrip, CoreValueOfWeekCard, ShoutoutSection } from "@/components/core-values";
 import { getMonthlyPeriodSelection } from "@/lib/scorecard/periodHelper";
 import { metricStatus } from "@/lib/scorecard/metricStatus";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useNavigate } from "react-router-dom";
 
 const L10 = () => {
   const [headlines, setHeadlines] = useState<string[]>([]);
   const [decisions, setDecisions] = useState<string[]>([]);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Use centralized current user hook for org context
   const { data: currentUser } = useCurrentUser();
@@ -31,6 +34,31 @@ const L10 = () => {
 
   // Enable real-time VTO progress sync during L10
   useVTORealtimeSync(organizationId);
+
+  // Check for in-progress meeting today
+  const { data: activeMeeting } = useQuery({
+    queryKey: ["active-meeting-today", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const { data } = await supabase
+        .from("meetings")
+        .select("id, title, status")
+        .eq("organization_id", organizationId)
+        .eq("status", "in_progress")
+        .gte("scheduled_for", today.toISOString())
+        .lt("scheduled_for", tomorrow.toISOString())
+        .limit(1)
+        .single();
+
+      return data;
+    },
+    enabled: !!organizationId,
+  });
 
   // Fetch metrics instead of legacy kpis table
   const { data: metricsData, refetch: refetchMetrics } = useQuery({
@@ -305,6 +333,27 @@ const L10 = () => {
 
   return (
     <div className="space-y-6">
+      {/* Redirect Banner */}
+      <Alert className="border-blue-500/50 bg-blue-500/10">
+        <AlertDescription className="flex items-center justify-between">
+          <span className="text-blue-700">
+            <strong>Meetings have moved!</strong> Use the new Meetings page for scheduling, agenda editing, and live meeting mode.
+          </span>
+          <div className="flex gap-2">
+            {activeMeeting && (
+              <Button size="sm" onClick={() => navigate(`/meetings/${activeMeeting.id}`)}>
+                Resume Current Meeting
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => navigate("/meetings")}>
+              Go to Meetings
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">

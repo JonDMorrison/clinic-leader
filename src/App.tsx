@@ -20,6 +20,8 @@ import Scorecard from "./pages/Scorecard";
 import Rocks from "./pages/Rocks";
 import Issues from "./pages/Issues";
 import L10 from "./pages/L10";
+import Meetings from "./pages/Meetings";
+import MeetingDetail from "./pages/MeetingDetail";
 import Docs from "./pages/Docs";
 import People from "./pages/People";
 import Settings from "./pages/Settings";
@@ -163,7 +165,8 @@ const App = () => {
             <Route path="/rocks" element={<AppLayout><Rocks /></AppLayout>} />
             <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
             <Route path="/meeting" element={<AppLayout><L10 /></AppLayout>} />
-            <Route path="/docs" element={<AppLayout><Docs /></AppLayout>} />
+            <Route path="/meetings" element={<AppLayout><Meetings /></AppLayout>} />
+            <Route path="/meetings/:id" element={<AppLayout><MeetingDetail /></AppLayout>} />
             <Route path="/library/:id" element={<AppLayout><LibraryDetail /></AppLayout>} />
             <Route path="/recalls" element={<AppLayout><Recalls /></AppLayout>} />
             <Route path="/people" element={<AppLayout><People /></AppLayout>} />
