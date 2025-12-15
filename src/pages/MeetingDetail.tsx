@@ -17,7 +17,7 @@ import { MeetingReviewSummary } from "@/components/meetings/MeetingReviewSummary
 import { MeetingPrintView } from "@/components/meetings/MeetingPrintView";
 import { SectionNavigator } from "@/components/l10/SectionNavigator";
 import { SectionTimer } from "@/components/l10/SectionTimer";
-import { LiveTodoPanel } from "@/components/l10/LiveTodoPanel";
+import { LiveTodoPanel } from "@/components/meetings/LiveTodoPanel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -868,16 +868,23 @@ export default function MeetingDetail() {
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             {openTodosCount > 0 ? (
               <>
-                <AlertDialogCancel 
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEndDialog(false)}
+                  className="w-full sm:w-auto"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="secondary"
                   onClick={() => {
                     setShowEndDialog(false);
-                    // Scroll to To-Dos sidebar
                     document.getElementById("todos-sidebar")?.scrollIntoView({ behavior: "smooth" });
                   }}
                   className="w-full sm:w-auto"
                 >
                   Review To-Dos
-                </AlertDialogCancel>
+                </Button>
                 <AlertDialogAction
                   onClick={() => endMutation.mutate()}
                   disabled={endMutation.isPending}
