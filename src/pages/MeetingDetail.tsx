@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { generateL10Agenda, shouldGenerateAgenda } from "@/lib/meetings/agendaGenerator";
 import { getMonthlyPeriodSelection } from "@/lib/scorecard/periodHelper";
+import { metricStatus, MetricStatusResult } from "@/lib/scorecard/metricStatus";
 
 const SECTION_ORDER = ["scorecard", "rocks", "issues", "todo", "segue", "conclusion", "custom"];
 const SECTION_LABELS: Record<string, string> = {
@@ -120,6 +121,61 @@ export default function MeetingDetail() {
     enabled: !!meetingId && !!organizationId,
   });
 
+  // Collect metric IDs from meeting items
+  const metricIds = (items || [])
+    .filter((item) => item.item_type === "metric" && item.source_ref_id)
+    .map((item) => item.source_ref_id as string);
+
+  // Batch fetch metrics and results for metric items
+  const { data: metricStatusMap } = useQuery({
+    queryKey: ["meeting-metric-status", metricIds, periodKey],
+    queryFn: async (): Promise<Map<string, MetricStatusResult>> => {
+      if (!metricIds.length || !periodKey || !organizationId) {
+        return new Map();
+      }
+
+      // Fetch metrics
+      const { data: metrics } = await supabase
+        .from("metrics")
+        .select("id, name, target, direction, owner, unit")
+        .eq("organization_id", organizationId)
+        .eq("is_active", true)
+        .in("id", metricIds);
+
+      if (!metrics?.length) return new Map();
+
+      // Fetch metric results for the selected period
+      const { data: results } = await supabase
+        .from("metric_results")
+        .select("metric_id, value, period_key")
+        .in("metric_id", metricIds)
+        .eq("period_type", "monthly")
+        .eq("period_key", periodKey);
+
+      // Build result lookup
+      const resultsByMetric = (results || []).reduce((acc, r) => {
+        acc[r.metric_id] = r;
+        return acc;
+      }, {} as Record<string, { value: number | null }>);
+
+      // Compute status for each metric
+      const statusMap = new Map<string, MetricStatusResult>();
+      for (const metric of metrics) {
+        const result = resultsByMetric[metric.id] ?? null;
+        const status = metricStatus(metric, result, periodKey);
+        // Add metric name and unit for display
+        statusMap.set(metric.id, {
+          ...status,
+          metricName: metric.name,
+          metricUnit: metric.unit,
+        } as MetricStatusResult & { metricName: string; metricUnit: string });
+      }
+
+      return statusMap;
+    },
+    enabled: metricIds.length > 0 && !!periodKey && !!organizationId,
+  });
+
   // Fetch issues created in this meeting
   const { data: meetingIssues } = useQuery({
     queryKey: ["meeting-issues", meetingId],
@@ -136,10 +192,6 @@ export default function MeetingDetail() {
     },
     enabled: !!meetingId && !!organizationId,
   });
-
-  // Compute metric statuses for agenda items
-  const metricStatusMap = new Map<string, string>();
-  // This would be populated from metric_results data - for now items derive from description
 
   // Auto-generate agenda when conditions are met
   useEffect(() => {
@@ -397,15 +449,11 @@ export default function MeetingDetail() {
                   ) : (
                     <div className="space-y-1">
                       {sectionItems.map((item, index) => {
-                        // Derive metric status from description if it's a metric item
-                        let metricStatus: string | undefined;
-                        if (item.item_type === "metric" && item.description) {
-                          if (item.description.includes("OFF_TRACK")) metricStatus = "OFF_TRACK";
-                          else if (item.description.includes("NEEDS_DATA")) metricStatus = "NEEDS_DATA";
-                          else if (item.description.includes("NEEDS_TARGET")) metricStatus = "NEEDS_TARGET";
-                          else if (item.description.includes("NEEDS_OWNER")) metricStatus = "NEEDS_OWNER";
-                          else metricStatus = "ON_TRACK";
-                        }
+                        // Get real metric status from prefetched data
+                        const metricStatusObj = item.item_type === "metric" && item.source_ref_id
+                          ? metricStatusMap?.get(item.source_ref_id) ?? null
+                          : null;
+
                         return (
                           <AgendaItemRow
                             key={item.id}
@@ -418,7 +466,7 @@ export default function MeetingDetail() {
                             organizationId={organizationId!}
                             meetingId={meetingId!}
                             periodKey={periodKey}
-                            metricStatus={metricStatus}
+                            metricStatusObj={metricStatusObj}
                           />
                         );
                       })}
@@ -510,7 +558,6 @@ export default function MeetingDetail() {
             <AlertDialogAction
               onClick={() => endMutation.mutate()}
               disabled={endMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               End
             </AlertDialogAction>
