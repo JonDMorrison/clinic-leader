@@ -980,6 +980,7 @@ export type Database = {
           created_at: string
           id: string
           meeting_id: string | null
+          meeting_item_id: string | null
           metric_id: string | null
           organization_id: string
           owner_id: string | null
@@ -996,6 +997,7 @@ export type Database = {
           created_at?: string
           id?: string
           meeting_id?: string | null
+          meeting_item_id?: string | null
           metric_id?: string | null
           organization_id: string
           owner_id?: string | null
@@ -1012,6 +1014,7 @@ export type Database = {
           created_at?: string
           id?: string
           meeting_id?: string | null
+          meeting_item_id?: string | null
           metric_id?: string | null
           organization_id?: string
           owner_id?: string | null
@@ -1029,6 +1032,13 @@ export type Database = {
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issues_meeting_item_id_fkey"
+            columns: ["meeting_item_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_items"
             referencedColumns: ["id"]
           },
           {
@@ -1340,6 +1350,8 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          discussed: boolean
+          discussed_at: string | null
           id: string
           is_deleted: boolean
           item_type: string
@@ -1355,6 +1367,8 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          discussed?: boolean
+          discussed_at?: string | null
           id?: string
           is_deleted?: boolean
           item_type: string
@@ -1370,6 +1384,8 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          discussed?: boolean
+          discussed_at?: string | null
           id?: string
           is_deleted?: boolean
           item_type?: string

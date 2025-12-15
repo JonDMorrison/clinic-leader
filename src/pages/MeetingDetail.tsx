@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Play, Square, Printer, ArrowLeft, Info, AlertCircle } from "lucide-react";
+import { Plus, Play, Square, Printer, ArrowLeft, Info, AlertCircle, ListChecks } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -25,6 +25,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { generateL10Agenda, shouldGenerateAgenda } from "@/lib/meetings/agendaGenerator";
+import { getMonthlyPeriodSelection } from "@/lib/scorecard/periodHelper";
 
 const SECTION_ORDER = ["scorecard", "rocks", "issues", "todo", "segue", "conclusion", "custom"];
 const SECTION_LABELS: Record<string, string> = {
@@ -58,6 +59,7 @@ export default function MeetingDetail() {
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [periodKey, setPeriodKey] = useState<string>("");
   const generationAttempted = useRef(false);
 
   // Auto-open start dialog if ?start=1
@@ -66,6 +68,16 @@ export default function MeetingDetail() {
       setShowStartDialog(true);
     }
   }, [searchParams]);
+
+  // Get period key for the org
+  useEffect(() => {
+    async function fetchPeriod() {
+      if (!organizationId) return;
+      const period = await getMonthlyPeriodSelection(organizationId);
+      setPeriodKey(period.selectedPeriodKey);
+    }
+    fetchPeriod();
+  }, [organizationId]);
 
   // Fetch meeting
   const { data: meeting, isLoading: meetingLoading } = useQuery({
@@ -107,6 +119,28 @@ export default function MeetingDetail() {
     },
     enabled: !!meetingId && !!organizationId,
   });
+
+  // Fetch issues created in this meeting
+  const { data: meetingIssues } = useQuery({
+    queryKey: ["meeting-issues", meetingId],
+    queryFn: async () => {
+      if (!meetingId || !organizationId) return [];
+      const { data, error } = await supabase
+        .from("issues")
+        .select("id, title, status, meeting_item_id")
+        .eq("meeting_id", meetingId)
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!meetingId && !!organizationId,
+  });
+
+  // Get list of item IDs that have created issues
+  const createdIssueItemIds = (meetingIssues || [])
+    .filter((i) => i.meeting_item_id)
+    .map((i) => i.meeting_item_id);
 
   // Auto-generate agenda when conditions are met
   useEffect(() => {
@@ -163,7 +197,6 @@ export default function MeetingDetail() {
       queryClient.invalidateQueries({ queryKey: ["meetings"] });
       toast({ title: "Meeting started" });
       setShowStartDialog(false);
-      // Clear URL param
       navigate(`/meetings/${meetingId}`, { replace: true });
     },
     onError: () => {
@@ -206,6 +239,10 @@ export default function MeetingDetail() {
   const isCompleted = meeting?.status === "completed";
   const canEdit = !isCompleted;
 
+  // Count discussed items for live mode
+  const discussedCount = (items || []).filter((i) => i.discussed && !i.is_deleted).length;
+  const totalItems = (items || []).filter((i) => !i.is_deleted).length;
+
   if (meetingLoading || itemsLoading) {
     return (
       <div className="p-6">
@@ -235,7 +272,7 @@ export default function MeetingDetail() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => navigate("/meetings")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -254,7 +291,7 @@ export default function MeetingDetail() {
             {meeting.status === "completed" && "Completed"}
           </Badge>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {isPreviewMode && (
             <Button onClick={() => setShowStartDialog(true)}>
               <Play className="w-4 h-4 mr-2" />
@@ -295,8 +332,13 @@ export default function MeetingDetail() {
       {isLiveMode && (
         <Alert className="border-green-500/50 bg-green-500/10">
           <Info className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-700">
-            <strong>Live Mode</strong> — Meeting in progress. Changes are tracked.
+          <AlertDescription className="text-green-700 flex items-center justify-between flex-wrap gap-2">
+            <span>
+              <strong>Live Meeting</strong> — Click ○ to mark items discussed. Click ⚠ to create an Issue.
+            </span>
+            <span className="text-sm">
+              {discussedCount}/{totalItems} discussed
+            </span>
           </AlertDescription>
         </Alert>
       )}
@@ -310,7 +352,7 @@ export default function MeetingDetail() {
       )}
 
       {/* Show Deleted Toggle (admin only) */}
-      {canEdit && (
+      {canEdit && !isLiveMode && (
         <div className="flex items-center gap-2">
           <Switch
             id="show-deleted"
@@ -323,54 +365,95 @@ export default function MeetingDetail() {
         </div>
       )}
 
-      {/* Agenda Sections */}
-      <div className="space-y-4">
-        {SECTION_ORDER.map((section) => {
-          const sectionItems = groupedItems[section] || [];
-          if (sectionItems.length === 0 && isCompleted) return null;
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Agenda Sections - Main content */}
+        <div className="lg:col-span-3 space-y-4">
+          {SECTION_ORDER.map((section) => {
+            const sectionItems = groupedItems[section] || [];
+            if (sectionItems.length === 0 && isCompleted) return null;
 
-          return (
-            <Card key={section}>
+            return (
+              <Card key={section}>
+                <CardHeader className="py-3">
+                  <CardTitle className="text-base font-medium">
+                    {SECTION_LABELS[section]}
+                    <Badge variant="secondary" className="ml-2">
+                      {sectionItems.filter((i) => !i.is_deleted).length}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-2">
+                  {sectionItems.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">
+                      No items in this section.{" "}
+                      {canEdit && (
+                        <button
+                          className="text-primary hover:underline"
+                          onClick={() => setShowAddModal(true)}
+                        >
+                          Add one
+                        </button>
+                      )}
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      {sectionItems.map((item, index) => (
+                        <AgendaItemRow
+                          key={item.id}
+                          item={item}
+                          canEdit={canEdit}
+                          isLiveMode={isLiveMode}
+                          isFirst={index === 0}
+                          isLast={index === sectionItems.length - 1}
+                          organizationId={organizationId!}
+                          meetingId={meetingId!}
+                          periodKey={periodKey}
+                          createdIssueIds={createdIssueItemIds}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Sidebar - Created in this meeting */}
+        {(isLiveMode || isCompleted) && (
+          <div className="lg:col-span-1">
+            <Card>
               <CardHeader className="py-3">
-                <CardTitle className="text-base font-medium">
-                  {SECTION_LABELS[section]}
-                  <Badge variant="secondary" className="ml-2">
-                    {sectionItems.filter((i) => !i.is_deleted).length}
-                  </Badge>
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <ListChecks className="w-4 h-4" />
+                  Created in this meeting
                 </CardTitle>
               </CardHeader>
               <CardContent className="py-2">
-                {sectionItems.length === 0 ? (
+                {(meetingIssues || []).length === 0 ? (
                   <p className="text-sm text-muted-foreground py-2">
-                    No items in this section.{" "}
-                    {canEdit && (
-                      <button
-                        className="text-primary hover:underline"
-                        onClick={() => setShowAddModal(true)}
-                      >
-                        Add one
-                      </button>
-                    )}
+                    No issues created yet.
                   </p>
                 ) : (
-                  <div className="space-y-1">
-                    {sectionItems.map((item, index) => (
-                      <AgendaItemRow
-                        key={item.id}
-                        item={item}
-                        canEdit={canEdit}
-                        isFirst={index === 0}
-                        isLast={index === sectionItems.length - 1}
-                        organizationId={organizationId!}
-                        meetingId={meetingId!}
-                      />
+                  <div className="space-y-2">
+                    {(meetingIssues || []).map((issue) => (
+                      <div
+                        key={issue.id}
+                        className="p-2 rounded border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/issues?highlight=${issue.id}`)}
+                      >
+                        <p className="text-sm font-medium truncate">{issue.title}</p>
+                        <Badge variant="outline" className="text-xs mt-1">
+                          {issue.status}
+                        </Badge>
+                      </div>
                     ))}
                   </div>
                 )}
               </CardContent>
             </Card>
-          );
-        })}
+          </div>
+        )}
       </div>
 
       {/* Add Item Modal */}
@@ -385,9 +468,9 @@ export default function MeetingDetail() {
       <AlertDialog open={showStartDialog} onOpenChange={setShowStartDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Start Meeting Now?</AlertDialogTitle>
+            <AlertDialogTitle>Start meeting now?</AlertDialogTitle>
             <AlertDialogDescription>
-              This switches to Live mode. You can still add and edit items during the meeting.
+              This switches to Live mode. You can still create Issues and mark items discussed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -396,7 +479,7 @@ export default function MeetingDetail() {
               onClick={() => startMutation.mutate()}
               disabled={startMutation.isPending}
             >
-              Start Meeting
+              Start
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -406,9 +489,9 @@ export default function MeetingDetail() {
       <AlertDialog open={showEndDialog} onOpenChange={setShowEndDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>End Meeting?</AlertDialogTitle>
+            <AlertDialogTitle>End meeting?</AlertDialogTitle>
             <AlertDialogDescription>
-              You can still review it later, but editing will be disabled.
+              This completes the meeting. You can still review it later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -418,7 +501,7 @@ export default function MeetingDetail() {
               disabled={endMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              End Meeting
+              End
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
