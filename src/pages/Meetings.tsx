@@ -2,13 +2,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, Play, Eye, Copy, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Calendar, Play, Eye, Copy, Trash2, PlayCircle, FileText, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { format, addDays, setHours, setMinutes, nextMonday } from "date-fns";
+import { format, addDays } from "date-fns";
 import { CreateMeetingModal } from "@/components/meetings/CreateMeetingModal";
 import {
   AlertDialog,
@@ -35,6 +36,22 @@ const statusLabels: Record<string, string> = {
   completed: "Completed",
 };
 
+interface MeetingWithCounts {
+  id: string;
+  title: string | null;
+  scheduled_for: string;
+  status: string;
+  type: string;
+  duration_minutes: number;
+  created_by: string | null;
+  organization_id: string;
+  agenda_generated: boolean;
+  started_at: string | null;
+  ended_at: string | null;
+  itemCount: number;
+  issueCount: number;
+}
+
 export default function Meetings() {
   const { data: currentUser } = useCurrentUser();
   const organizationId = currentUser?.team_id;
@@ -44,31 +61,73 @@ export default function Meetings() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("upcoming");
 
-  // Fetch all meetings for org
+  // Fetch all meetings with item and issue counts
   const { data: meetings, isLoading } = useQuery({
-    queryKey: ["meetings", organizationId],
+    queryKey: ["meetings-with-counts", organizationId],
     queryFn: async () => {
-      if (!organizationId) return { upcoming: [], past: [] };
+      if (!organizationId) return { upcoming: [], past: [], inProgress: null };
 
       const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
 
-      const { data, error } = await supabase
+      // Fetch meetings
+      const { data: meetingsData, error: meetingsError } = await supabase
         .from("meetings")
         .select("*")
         .eq("organization_id", organizationId)
         .order("scheduled_for", { ascending: true });
 
-      if (error) throw error;
+      if (meetingsError) throw meetingsError;
 
-      const upcoming = (data || []).filter(
+      const meetingIds = (meetingsData || []).map((m) => m.id);
+
+      // Fetch item counts
+      const { data: itemCounts } = await supabase
+        .from("meeting_items")
+        .select("meeting_id")
+        .eq("organization_id", organizationId)
+        .eq("is_deleted", false)
+        .in("meeting_id", meetingIds);
+
+      // Fetch issue counts
+      const { data: issueCounts } = await supabase
+        .from("issues")
+        .select("meeting_id")
+        .eq("organization_id", organizationId)
+        .in("meeting_id", meetingIds);
+
+      // Count per meeting
+      const itemCountMap: Record<string, number> = {};
+      const issueCountMap: Record<string, number> = {};
+
+      (itemCounts || []).forEach((item) => {
+        itemCountMap[item.meeting_id] = (itemCountMap[item.meeting_id] || 0) + 1;
+      });
+      (issueCounts || []).forEach((issue) => {
+        if (issue.meeting_id) {
+          issueCountMap[issue.meeting_id] = (issueCountMap[issue.meeting_id] || 0) + 1;
+        }
+      });
+
+      // Enrich meetings
+      const enriched: MeetingWithCounts[] = (meetingsData || []).map((m) => ({
+        ...m,
+        itemCount: itemCountMap[m.id] || 0,
+        issueCount: issueCountMap[m.id] || 0,
+      }));
+
+      // Find in-progress meeting
+      const inProgress = enriched.find((m) => m.status === "in_progress") || null;
+
+      const upcoming = enriched.filter(
         (m) => m.status !== "completed" && m.scheduled_for >= sixHoursAgo
       );
-      const past = (data || []).filter(
-        (m) => m.status === "completed" || m.scheduled_for < sixHoursAgo
-      );
+      const past = enriched
+        .filter((m) => m.status === "completed" || m.scheduled_for < sixHoursAgo)
+        .reverse();
 
-      return { upcoming, past: past.reverse() };
+      return { upcoming, past, inProgress };
     },
     enabled: !!organizationId,
   });
@@ -84,7 +143,7 @@ export default function Meetings() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["meetings"] });
+      queryClient.invalidateQueries({ queryKey: ["meetings-with-counts"] });
       toast({ title: "Meeting deleted" });
       setDeleteTarget(null);
     },
@@ -96,7 +155,6 @@ export default function Meetings() {
   // Duplicate meeting mutation
   const duplicateMutation = useMutation({
     mutationFn: async (meetingId: string) => {
-      // Fetch original meeting
       const { data: original, error: fetchError } = await supabase
         .from("meetings")
         .select("*")
@@ -104,11 +162,9 @@ export default function Meetings() {
         .single();
       if (fetchError) throw fetchError;
 
-      // Calculate next week same day
       const originalDate = new Date(original.scheduled_for);
       const nextWeekDate = addDays(originalDate, 7);
 
-      // Create new meeting
       const { data: newMeeting, error: createError } = await supabase
         .from("meetings")
         .insert({
@@ -124,7 +180,6 @@ export default function Meetings() {
         .single();
       if (createError) throw createError;
 
-      // Copy meeting items
       const { data: items, error: itemsError } = await supabase
         .from("meeting_items")
         .select("*")
@@ -155,7 +210,7 @@ export default function Meetings() {
       return newMeeting;
     },
     onSuccess: (newMeeting) => {
-      queryClient.invalidateQueries({ queryKey: ["meetings"] });
+      queryClient.invalidateQueries({ queryKey: ["meetings-with-counts"] });
       toast({ title: "Meeting duplicated" });
       navigate(`/meetings/${newMeeting.id}`);
     },
@@ -164,10 +219,88 @@ export default function Meetings() {
     },
   });
 
-  const handleCreateSuccess = (meetingId: string) => {
+  const handleCreateSuccess = (newMeetingId: string) => {
     setShowCreateModal(false);
-    navigate(`/meetings/${meetingId}`);
+    navigate(`/meetings/${newMeetingId}`);
   };
+
+  const MeetingRow = ({ meeting, showDuplicate = false }: { meeting: MeetingWithCounts; showDuplicate?: boolean }) => (
+    <div className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <Calendar className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium truncate">{meeting.title || "Level 10 Meeting"}</p>
+          <p className="text-sm text-muted-foreground">
+            {format(new Date(meeting.scheduled_for), "PPP 'at' p")}
+          </p>
+        </div>
+        <Badge className={statusColors[meeting.status]}>
+          {statusLabels[meeting.status]}
+        </Badge>
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <FileText className="w-3 h-3" />
+            {meeting.itemCount}
+          </span>
+          {meeting.issueCount > 0 && (
+            <span className="flex items-center gap-1 text-amber-600">
+              <AlertTriangle className="w-3 h-3" />
+              {meeting.issueCount}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(`/meetings/${meeting.id}`)}
+        >
+          <Eye className="w-4 h-4 mr-1" />
+          {meeting.status === "completed" ? "Review" : "Preview"}
+        </Button>
+        {(meeting.status === "draft" || meeting.status === "scheduled") && (
+          <Button
+            size="sm"
+            onClick={() => navigate(`/meetings/${meeting.id}?start=1`)}
+          >
+            <Play className="w-4 h-4 mr-1" />
+            Start
+          </Button>
+        )}
+        {meeting.status === "in_progress" && (
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => navigate(`/meetings/${meeting.id}`)}
+          >
+            <Play className="w-4 h-4 mr-1" />
+            Resume
+          </Button>
+        )}
+        {showDuplicate && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => duplicateMutation.mutate(meeting.id)}
+            disabled={duplicateMutation.isPending}
+          >
+            <Copy className="w-4 h-4 mr-1" />
+            Duplicate
+          </Button>
+        )}
+        {meeting.status !== "completed" && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setDeleteTarget(meeting.id)}
+          >
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -190,118 +323,96 @@ export default function Meetings() {
         </Button>
       </div>
 
-      {/* Upcoming Meetings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Upcoming Meetings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {meetings?.upcoming.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No upcoming meetings scheduled.</p>
-          ) : (
-            <div className="space-y-2">
-              {meetings?.upcoming.map((meeting) => (
-                <div
-                  key={meeting.id}
-                  className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <Calendar className="w-5 h-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">{meeting.title || "Level 10 Meeting"}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(meeting.scheduled_for), "PPP 'at' p")}
-                      </p>
-                    </div>
-                    <Badge className={statusColors[meeting.status]}>
-                      {statusLabels[meeting.status]}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/meetings/${meeting.id}`)}
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      Preview
-                    </Button>
-                    {(meeting.status === "draft" || meeting.status === "scheduled") && (
-                      <Button
-                        size="sm"
-                        onClick={() => navigate(`/meetings/${meeting.id}?start=1`)}
-                      >
-                        <Play className="w-4 h-4 mr-1" />
-                        Start
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDeleteTarget(meeting.id)}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
+      {/* Resume In-Progress Meeting Banner */}
+      {meetings?.inProgress && (
+        <Card className="border-green-500/50 bg-green-500/10">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <PlayCircle className="w-8 h-8 text-green-600" />
+                <div>
+                  <p className="font-semibold text-green-700">Meeting in Progress</p>
+                  <p className="text-sm text-green-600">
+                    {meetings.inProgress.title || "Level 10 Meeting"} • Started {format(new Date(meetings.inProgress.started_at || meetings.inProgress.scheduled_for), "h:mm a")}
+                  </p>
                 </div>
-              ))}
+              </div>
+              <Button onClick={() => navigate(`/meetings/${meetings.inProgress?.id}`)}>
+                <Play className="w-4 h-4 mr-2" />
+                Resume Meeting
+              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Past Meetings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Past Meetings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {meetings?.past.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No past meetings.</p>
-          ) : (
-            <div className="space-y-2">
-              {meetings?.past.slice(0, 10).map((meeting) => (
-                <div
-                  key={meeting.id}
-                  className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <Calendar className="w-5 h-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">{meeting.title || "Level 10 Meeting"}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(meeting.scheduled_for), "PPP 'at' p")}
-                      </p>
-                    </div>
-                    <Badge className={statusColors[meeting.status]}>
-                      {statusLabels[meeting.status]}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/meetings/${meeting.id}`)}
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      Review
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => duplicateMutation.mutate(meeting.id)}
-                      disabled={duplicateMutation.isPending}
-                    >
-                      <Copy className="w-4 h-4 mr-1" />
-                      Duplicate
-                    </Button>
-                  </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="upcoming">
+            Upcoming ({meetings?.upcoming.length || 0})
+          </TabsTrigger>
+          <TabsTrigger value="past">
+            Past ({meetings?.past.length || 0})
+          </TabsTrigger>
+          <TabsTrigger value="all">
+            All ({(meetings?.upcoming.length || 0) + (meetings?.past.length || 0)})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="upcoming" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Upcoming Meetings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {meetings?.upcoming.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No upcoming meetings scheduled.</p>
+              ) : (
+                <div className="space-y-2">
+                  {meetings?.upcoming.map((meeting) => (
+                    <MeetingRow key={meeting.id} meeting={meeting} />
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="past" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Past Meetings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {meetings?.past.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No past meetings.</p>
+              ) : (
+                <div className="space-y-2">
+                  {meetings?.past.slice(0, 20).map((meeting) => (
+                    <MeetingRow key={meeting.id} meeting={meeting} showDuplicate />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="all" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">All Meetings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {[...(meetings?.upcoming || []), ...(meetings?.past || [])].map((meeting) => (
+                  <MeetingRow key={meeting.id} meeting={meeting} showDuplicate={meeting.status === "completed"} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Create Meeting Modal */}
       <CreateMeetingModal

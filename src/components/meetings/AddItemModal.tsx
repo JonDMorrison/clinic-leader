@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ interface AddItemModalProps {
   onOpenChange: (open: boolean) => void;
   organizationId: string;
   meetingId: string;
+  initialSection?: string;
 }
 
 const SECTIONS = [
@@ -51,15 +52,23 @@ export function AddItemModal({
   onOpenChange,
   organizationId,
   meetingId,
+  initialSection,
 }: AddItemModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [section, setSection] = useState("custom");
+  const [section, setSection] = useState(initialSection || "custom");
   const [itemType, setItemType] = useState("text");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [linkedId, setLinkedId] = useState("");
+
+  // Reset section when modal opens with initialSection
+  useEffect(() => {
+    if (open && initialSection) {
+      setSection(initialSection);
+    }
+  }, [open, initialSection]);
 
   // Fetch issues for linking
   const { data: issues } = useQuery({

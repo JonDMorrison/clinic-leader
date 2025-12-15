@@ -158,3 +158,77 @@ All colors MUST be HSL.
     background-size: 200% 200%;
   }
 }
+
+/* Print Styles */
+@media print {
+  /* Hide navigation, sidebar, and non-essential elements */
+  nav,
+  aside,
+  .sidebar,
+  header,
+  footer,
+  button,
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Reset page styling */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Ensure content takes full width */
+  main,
+  .main-content,
+  [data-content] {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Card styling for print */
+  .card,
+  [data-card] {
+    border: 1px solid #ccc !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 1em !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+
+  /* Badge styling */
+  .badge {
+    border: 1px solid #999 !important;
+    background: transparent !important;
+    color: black !important;
+    padding: 2px 6px !important;
+  }
+
+  /* Remove glass effects */
+  .glass,
+  .glass-dark {
+    background: white !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Links */
+  a {
+    color: black !important;
+    text-decoration: underline !important;
+  }
+
+  /* Page breaks */
+  h1, h2, h3 {
+    page-break-after: avoid !important;
+  }
+
+  /* Print view specific styling */
+  .print-view {
+    display: block !important;
+  }
+}
