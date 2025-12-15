@@ -18,7 +18,6 @@ import {
 import { toast } from "sonner";
 import { 
   FileSpreadsheet, 
-  Link2, 
   RefreshCw, 
   CheckCircle, 
   AlertCircle, 
@@ -27,7 +26,9 @@ import {
   Copy,
   Loader2,
   ExternalLink,
-  Settings2
+  Settings2,
+  Download,
+  ArrowUp
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -196,6 +197,37 @@ export function GoogleSheetSyncSection({
     const text = syncResult.unmatched_metric_keys.map(u => u.key).join('\n');
     navigator.clipboard.writeText(text);
     toast.success("Copied unmatched keys to clipboard");
+  };
+
+  // Download unmatched keys as CSV
+  const downloadUnmatchedKeysCsv = () => {
+    if (!syncResult?.unmatched_metric_keys?.length) return;
+    
+    const header = "row_number,metric_key,reason";
+    const rows = syncResult.unmatched_metric_keys.flatMap(u => 
+      u.rows.map(rowNum => 
+        `${rowNum},"${u.key}","metric_key not found in scorecard template (locked mode prevents metric creation)"`
+      )
+    );
+    const csv = [header, ...rows].join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `unmatched_keys_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Downloaded unmatched keys CSV");
+  };
+
+  // Scroll to template health section
+  const scrollToTemplateHealth = () => {
+    setShowResultModal(false);
+    const el = document.getElementById('metric-keys-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   if (configLoading) {
@@ -421,26 +453,48 @@ export function GoogleSheetSyncSection({
                 </div>
               )}
 
+              {/* Detected headers (always show for debugging) */}
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Detected Headers:</p>
+                <div className="flex flex-wrap gap-1">
+                  {syncResult.detected_headers.map((h, i) => (
+                    <Badge key={i} variant="outline" className="text-xs font-mono">
+                      {h}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
               {/* Unmatched keys */}
               {syncResult.unmatched_metric_keys.length > 0 && (
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-2">
                       <div>
                         <strong>{syncResult.unmatched_metric_keys.length} unmatched metric keys</strong>
                         <p className="text-xs mt-1">
                           These keys don't exist in your template. Locked mode prevents creating new metrics.
                         </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={copyUnmatchedKeys}
-                      >
-                        <Copy className="w-3 h-3 mr-1" />
-                        Copy
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={copyUnmatchedKeys}
+                        >
+                          <Copy className="w-3 h-3 mr-1" />
+                          Copy
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={downloadUnmatchedKeysCsv}
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          CSV
+                        </Button>
+                      </div>
                     </div>
                     <div className="mt-2 max-h-24 overflow-y-auto">
                       <ul className="text-xs space-y-1">
@@ -500,7 +554,13 @@ export function GoogleSheetSyncSection({
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
+            {syncResult?.unmatched_metric_keys && syncResult.unmatched_metric_keys.length > 0 && (
+              <Button variant="outline" onClick={scrollToTemplateHealth}>
+                <ArrowUp className="w-4 h-4 mr-2" />
+                Fix Template
+              </Button>
+            )}
             <Button onClick={() => setShowResultModal(false)}>
               Close
             </Button>
