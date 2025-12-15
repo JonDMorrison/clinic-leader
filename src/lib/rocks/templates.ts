@@ -173,6 +173,21 @@ export function getCurrentQuarter(): string {
   return `Q${quarter} ${year}`;
 }
 
+export function getPreviousQuarter(): string {
+  const now = new Date();
+  let year = now.getFullYear();
+  let quarter = Math.floor(now.getMonth() / 3) + 1;
+  
+  // Go back one quarter
+  quarter -= 1;
+  if (quarter < 1) {
+    quarter = 4;
+    year -= 1;
+  }
+  
+  return `Q${quarter} ${year}`;
+}
+
 export function getEndOfQuarter(quarter?: string): Date {
   const now = new Date();
   let year = now.getFullYear();
