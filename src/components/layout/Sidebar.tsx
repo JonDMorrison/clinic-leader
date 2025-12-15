@@ -54,6 +54,7 @@ const navGroups: NavGroup[] = [
         eosOnly: true,
         children: [
           { title: "Monthly Review", path: "/rocks/monthly-review", icon: Calendar },
+          { title: "Quarterly Close", path: "/rocks/quarterly-close", icon: History },
         ]
       },
     ],
