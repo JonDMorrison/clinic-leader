@@ -43,14 +43,23 @@ export function CreateIssueFromMetricModal({
 }: CreateIssueFromMetricModalProps) {
   const queryClient = useQueryClient();
   
-  // Prefill title and description
-  const defaultTitle = `${metric.name} is ${metric.status === 'off_track' ? 'off-track' : metric.status.replace('_', ' ')} for ${periodLabel}`;
+  // Prefill title - include rock context if provided
+  const defaultTitle = rockTitle
+    ? `${rockTitle} impacted by ${metric.name} for ${periodLabel}`
+    : `${metric.name} is ${metric.status === 'off_track' ? 'off-track' : metric.status.replace('_', ' ')} for ${periodLabel}`;
   
   const buildDescription = () => {
     const lines = [];
     
     // Always include period context
     lines.push(`Month: ${periodLabel} (${periodKey})`);
+    
+    // Include rock context if provided
+    if (rockTitle) {
+      lines.push(`Rock: ${rockTitle}`);
+    }
+    
+    lines.push(`Metric: ${metric.name}`);
     
     if (metric.status === 'off_track') {
       lines.push(`Current value: ${formatMetricValue(metric.currentValue, metric.unit)}`);
@@ -81,11 +90,11 @@ export function CreateIssueFromMetricModal({
     }
     
     lines.push('');
-    lines.push('Suggested question: What is the root cause, and what will we do in the next 7 days?');
-    
+    // Different prompt based on whether rock context exists
     if (rockTitle) {
-      lines.push('');
-      lines.push(`Linked Rock: ${rockTitle}`);
+      lines.push('Suggested question: What is blocking progress on this Rock, and what will we do next?');
+    } else {
+      lines.push('Suggested question: What is the root cause, and what will we do in the next 7 days?');
     }
     
     return lines.join('\n');
@@ -121,6 +130,10 @@ export function CreateIssueFromMetricModal({
           priority: parseInt(priority),
           owner_id: ownerId || null,
           status: 'open',
+          // Link to rock/metric/period if provided
+          rock_id: rockId || null,
+          metric_id: metric.id || null,
+          period_key: periodKey || null,
         })
         .select()
         .single();
@@ -131,7 +144,11 @@ export function CreateIssueFromMetricModal({
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['issues'] });
       queryClient.invalidateQueries({ queryKey: ['off-track-metrics'] });
-      toast.success('Issue created successfully', {
+      queryClient.invalidateQueries({ queryKey: ['reality-gap'] });
+      const message = rockId 
+        ? 'Issue created and linked to Rock' 
+        : 'Issue created successfully';
+      toast.success(message, {
         action: {
           label: 'View Issue',
           onClick: () => window.location.href = `/issues`,
