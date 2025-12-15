@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { parseExcel } from "@/lib/importers/excelParser";
 import { parseCSV } from "@/lib/importers/csvParser";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -30,12 +29,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { GoogleSheetSyncSection } from "@/components/scorecard/GoogleSheetSyncSection";
+import { ResolveDuplicatesSection } from "@/components/scorecard/ResolveDuplicatesSection";
 import { 
   computeTemplateHealth, 
   generateImportKey, 
   validateImportKeyUnique,
   type MetricWithHealth,
-  type TemplateHealthMetrics
 } from "@/lib/scorecard/templateHealth";
 import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
 
@@ -70,11 +69,6 @@ const ScorecardTemplate = () => {
   const [editingImportKeys, setEditingImportKeys] = useState<Record<string, string>>({});
   const [editingMetrics, setEditingMetrics] = useState<Record<string, { owner?: string; target?: number | null }>>({});
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  
-  // Duplicate resolver state
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-  const [duplicateGroups, setDuplicateGroups] = useState<Map<string, MetricWithHealth[]>>(new Map());
-  const [selectedDuplicates, setSelectedDuplicates] = useState<Record<string, string>>({});
   
   // Template download copied state
   const [copiedTemplate, setCopiedTemplate] = useState(false);
@@ -325,54 +319,10 @@ const ScorecardTemplate = () => {
     toast.success('Template copied to clipboard');
   };
 
-  // Open duplicate name resolver
-  const openDuplicateResolver = () => {
-    const nameGroups = new Map<string, MetricWithHealth[]>();
-    activeMetrics.forEach(m => {
-      const name = m.name.toLowerCase().trim();
-      if (!nameGroups.has(name)) nameGroups.set(name, []);
-      nameGroups.get(name)!.push(m);
-    });
-    
-    const duplicates = new Map<string, MetricWithHealth[]>();
-    nameGroups.forEach((metrics, name) => {
-      if (metrics.length > 1) {
-        duplicates.set(name, metrics);
-      }
-    });
-    
-    setDuplicateGroups(duplicates);
-    setSelectedDuplicates({});
-    setShowDuplicateDialog(true);
+  // Handler for when duplicates are resolved (refresh template health)
+  const handleDuplicatesResolved = () => {
+    refetchMetrics();
   };
-
-  // Resolve duplicates by archiving non-selected
-  const resolveDuplicatesMutation = useMutation({
-    mutationFn: async () => {
-      let archived = 0;
-      for (const [name, metrics] of duplicateGroups) {
-        const keepId = selectedDuplicates[name];
-        if (!keepId) continue;
-        
-        for (const m of metrics) {
-          if (m.id !== keepId) {
-            const { error } = await supabase
-              .from('metrics')
-              .update({ is_active: false })
-              .eq('id', m.id)
-              .eq('organization_id', orgId);
-            if (!error) archived++;
-          }
-        }
-      }
-      return archived;
-    },
-    onSuccess: (archived) => {
-      queryClient.invalidateQueries({ queryKey: ['template-health'] });
-      setShowDuplicateDialog(false);
-      toast.success(`Archived ${archived} duplicate metrics`);
-    },
-  });
 
   // Template import logic (for defining metrics from Excel)
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -685,12 +635,6 @@ const ScorecardTemplate = () => {
                     <Key className="w-4 h-4 mr-2" />
                   )}
                   Auto-Generate Missing Keys
-                </Button>
-              )}
-              {(health?.duplicate_metric_names_count || 0) > 0 && (
-                <Button variant="outline" onClick={openDuplicateResolver}>
-                  <AlertTriangle className="w-4 h-4 mr-2" />
-                  Resolve Duplicate Names
                 </Button>
               )}
             </div>
@@ -1036,50 +980,15 @@ const ScorecardTemplate = () => {
         </Card>
       )}
 
-      {/* Duplicate Resolver Dialog */}
-      <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Resolve Duplicate Metric Names</DialogTitle>
-            <DialogDescription>
-              Select which metric to keep for each duplicate name. Others will be archived.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 max-h-96 overflow-y-auto">
-            {Array.from(duplicateGroups.entries()).map(([name, metrics]) => (
-              <div key={name} className="border rounded-lg p-4">
-                <p className="font-medium mb-2 capitalize">{name}</p>
-                <div className="space-y-2">
-                  {metrics.map(m => (
-                    <label key={m.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
-                      <input
-                        type="radio"
-                        name={`dup-${name}`}
-                        checked={selectedDuplicates[name] === m.id}
-                        onChange={() => setSelectedDuplicates(prev => ({ ...prev, [name]: m.id }))}
-                        className="w-4 h-4"
-                      />
-                      <span>{m.name}</span>
-                      {m.import_key && <Badge variant="outline">{m.import_key}</Badge>}
-                      {m.owner && <span className="text-sm text-muted-foreground">({m.owner})</span>}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDuplicateDialog(false)}>Cancel</Button>
-            <Button 
-              onClick={() => resolveDuplicatesMutation.mutate()}
-              disabled={resolveDuplicatesMutation.isPending || Object.keys(selectedDuplicates).length < duplicateGroups.size}
-            >
-              {resolveDuplicatesMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Archive Duplicates
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Resolve Duplicates Section (replaces old dialog) */}
+      {isAdmin && orgId && (health?.duplicate_metric_names_count || 0) > 0 && (
+        <ResolveDuplicatesSection
+          orgId={orgId}
+          isAdmin={isAdmin}
+          duplicateCount={health?.duplicate_metric_names_count || 0}
+          onResolved={handleDuplicatesResolved}
+        />
+      )}
 
       {/* Leave Confirmation Dialog */}
       <Dialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
