@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfMonth, startOfQuarter, getQuarter, getYear } from "date-fns";
+import { format, startOfMonth, subMonths, getQuarter, getYear } from "date-fns";
 
 export interface PeriodInfo {
   selectedPeriodKey: string; // YYYY-MM
@@ -9,46 +9,107 @@ export interface PeriodInfo {
   hasData: boolean;
 }
 
+export interface MonthlyPeriodSelection {
+  selectedPeriodKey: string; // YYYY-MM
+  periodStartDate: Date; // first day of month
+  periodLabel: string; // "January 2024"
+  hasAnyData: boolean;
+  availablePeriodKeys: string[]; // list of YYYY-MM with data
+}
+
 /**
  * Get the current/selected period info for monthly metrics
- * Default: latest period_key that exists in metric_results for the org
- * If none exist: use current month with hasData = false
+ * This is the SINGLE SOURCE OF TRUTH for period selection in monthly orgs
+ * 
+ * Rules:
+ * A) If metric_results exist for the org (monthly): defaultSelectedPeriodKey = max(period_key)
+ * B) If no results exist: defaultSelectedPeriodKey = current month, hasAnyData = false
  */
-export async function getLatestPeriodForOrg(organizationId: string): Promise<PeriodInfo> {
-  const { data: latestResult } = await supabase
-    .from('metric_results')
-    .select('period_key, period_start')
-    .eq('period_type', 'monthly')
-    .order('period_start', { ascending: false })
-    .limit(1);
-  
-  // Need to filter by org through metrics table join
+export async function getMonthlyPeriodSelection(
+  organizationId: string,
+  maxPeriods: number = 12
+): Promise<MonthlyPeriodSelection> {
+  // Get all unique period_keys for this org's monthly results
   const { data: metricsWithResults } = await supabase
     .from('metrics')
     .select('id')
     .eq('organization_id', organizationId)
-    .eq('is_active', true)
-    .limit(1);
+    .eq('is_active', true);
 
   if (!metricsWithResults?.length) {
-    // No active metrics, use current month
-    return buildPeriodInfo(format(new Date(), 'yyyy-MM'), false);
+    // No active metrics, return current month with no data
+    const now = new Date();
+    const currentPeriodKey = format(now, 'yyyy-MM');
+    return {
+      selectedPeriodKey: currentPeriodKey,
+      periodStartDate: startOfMonth(now),
+      periodLabel: format(now, 'MMMM yyyy'),
+      hasAnyData: false,
+      availablePeriodKeys: [],
+    };
   }
 
-  const { data: orgLatest } = await supabase
+  // Get all distinct period_keys from metric_results for this org
+  const { data: periodResults } = await supabase
     .from('metric_results')
-    .select('period_key, period_start, metric_id')
+    .select('period_key, period_start')
     .in('metric_id', metricsWithResults.map(m => m.id))
     .eq('period_type', 'monthly')
-    .order('period_start', { ascending: false })
-    .limit(1);
+    .order('period_start', { ascending: false });
 
-  if (orgLatest && orgLatest.length > 0) {
-    return buildPeriodInfo(orgLatest[0].period_key, true);
+  // Extract unique period_keys
+  const uniquePeriodKeys = [...new Set(periodResults?.map(r => r.period_key) || [])];
+  const limitedPeriodKeys = uniquePeriodKeys.slice(0, maxPeriods);
+
+  if (limitedPeriodKeys.length === 0) {
+    // No monthly results exist, use current month
+    const now = new Date();
+    const currentPeriodKey = format(now, 'yyyy-MM');
+    return {
+      selectedPeriodKey: currentPeriodKey,
+      periodStartDate: startOfMonth(now),
+      periodLabel: format(now, 'MMMM yyyy'),
+      hasAnyData: false,
+      availablePeriodKeys: [],
+    };
   }
 
-  // No data yet, use current month
-  return buildPeriodInfo(format(new Date(), 'yyyy-MM'), false);
+  // Use the latest period_key as default
+  const selectedPeriodKey = limitedPeriodKeys[0];
+  const [year, month] = selectedPeriodKey.split('-').map(Number);
+  const periodStartDate = new Date(year, month - 1, 1);
+
+  return {
+    selectedPeriodKey,
+    periodStartDate,
+    periodLabel: format(periodStartDate, 'MMMM yyyy'),
+    hasAnyData: true,
+    availablePeriodKeys: limitedPeriodKeys,
+  };
+}
+
+/**
+ * Legacy function - Get the current/selected period info for monthly metrics
+ * @deprecated Use getMonthlyPeriodSelection instead for new code
+ */
+export async function getLatestPeriodForOrg(organizationId: string): Promise<PeriodInfo> {
+  const selection = await getMonthlyPeriodSelection(organizationId);
+  return {
+    selectedPeriodKey: selection.selectedPeriodKey,
+    periodStart: selection.periodStartDate,
+    quarterKey: buildQuarterKey(selection.periodStartDate),
+    periodLabel: selection.periodLabel,
+    hasData: selection.hasAnyData,
+  };
+}
+
+/**
+ * Build quarter key from date
+ */
+function buildQuarterKey(date: Date): string {
+  const quarter = getQuarter(date);
+  const year = getYear(date);
+  return `Q${quarter}-${year}`;
 }
 
 /**
@@ -57,20 +118,18 @@ export async function getLatestPeriodForOrg(organizationId: string): Promise<Per
 export function buildPeriodInfo(periodKey: string, hasData: boolean): PeriodInfo {
   const [year, month] = periodKey.split('-').map(Number);
   const periodStart = new Date(year, month - 1, 1);
-  const quarter = getQuarter(periodStart);
-  const quarterYear = getYear(periodStart);
   
   return {
     selectedPeriodKey: periodKey,
     periodStart,
-    quarterKey: `Q${quarter}-${quarterYear}`,
+    quarterKey: buildQuarterKey(periodStart),
     periodLabel: format(periodStart, 'MMMM yyyy'),
     hasData,
   };
 }
 
 /**
- * Get list of available periods (last 12 months)
+ * Get list of available periods (last 12 months from current date)
  */
 export function getAvailablePeriods(): { key: string; label: string }[] {
   const periods: { key: string; label: string }[] = [];
