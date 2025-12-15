@@ -738,9 +738,9 @@ export default function MeetingDetail() {
 
         {/* Sidebar - To-Dos + Issues */}
         {(isLiveMode || isCompleted) && (
-          <div className="lg:col-span-1 space-y-4 print:hidden">
-            {/* To-Do Panel in Live mode */}
-            {isLiveMode && organizationId && meetingId && (
+          <div id="todos-sidebar" className="lg:col-span-1 space-y-4 print:hidden">
+            {/* To-Do Panel */}
+            {organizationId && meetingId && (
               <LiveTodoPanel
                 organizationId={organizationId}
                 meetingId={meetingId}
@@ -855,21 +855,49 @@ export default function MeetingDetail() {
                 {/* Warning for open todos */}
                 {openTodosCount > 0 && (
                   <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-amber-700">
-                    <p className="font-medium">⚠ You have {openTodosCount} open To-Do{openTodosCount > 1 ? 's' : ''}</p>
-                    <p className="text-sm mt-1">Make sure action items are assigned before ending.</p>
+                    <p className="font-medium">⚠ Open To-Dos remaining</p>
+                    <p className="text-sm mt-1">
+                      You have {openTodosCount} open To-Do{openTodosCount > 1 ? 's' : ''}. 
+                      Do you want to review them before ending the meeting?
+                    </p>
                   </div>
                 )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Review To-Dos</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => endMutation.mutate()}
-              disabled={endMutation.isPending}
-            >
-              End Meeting
-            </AlertDialogAction>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            {openTodosCount > 0 ? (
+              <>
+                <AlertDialogCancel 
+                  onClick={() => {
+                    setShowEndDialog(false);
+                    // Scroll to To-Dos sidebar
+                    document.getElementById("todos-sidebar")?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Review To-Dos
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => endMutation.mutate()}
+                  disabled={endMutation.isPending}
+                  className="w-full sm:w-auto"
+                >
+                  End Anyway
+                </AlertDialogAction>
+              </>
+            ) : (
+              <>
+                <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => endMutation.mutate()}
+                  disabled={endMutation.isPending}
+                  className="w-full sm:w-auto"
+                >
+                  End Meeting
+                </AlertDialogAction>
+              </>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
