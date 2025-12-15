@@ -4,6 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ChevronUp,
   ChevronDown,
   Trash2,
@@ -14,12 +20,19 @@ import {
   Circle,
   AlertCircle,
   ExternalLink,
+  MoreHorizontal,
+  UserPlus,
+  Users,
+  AlertTriangle,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { CreateIssueFromItemDialog } from "./CreateIssueFromItemDialog";
+import { ReassignRockOwnerDialog } from "./ReassignRockOwnerDialog";
+import { AddCollaboratorDialog } from "./AddCollaboratorDialog";
+import { RockGapPanel, RockGapData, buildRockGapBadgeText } from "./RockGapPanel";
 import { MetricStatusResult, getStatusDisplay } from "@/lib/scorecard/metricStatus";
 
 interface AgendaItemRowProps {
@@ -46,6 +59,7 @@ interface AgendaItemRowProps {
   meetingId: string;
   periodKey: string;
   metricStatusObj?: (MetricStatusResult & { metricName?: string; metricUnit?: string }) | null;
+  rockGapData?: RockGapData | null;
 }
 
 export function AgendaItemRow({
@@ -59,6 +73,7 @@ export function AgendaItemRow({
   meetingId,
   periodKey,
   metricStatusObj,
+  rockGapData,
 }: AgendaItemRowProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -67,6 +82,8 @@ export function AgendaItemRow({
   const [editDescription, setEditDescription] = useState(item.description || "");
   const [isEditing, setIsEditing] = useState(false);
   const [showCreateIssue, setShowCreateIssue] = useState(false);
+  const [showReassignOwner, setShowReassignOwner] = useState(false);
+  const [showAddCollaborator, setShowAddCollaborator] = useState(false);
 
   // Check if this item already has an issue created (uses dedicated column)
   const hasCreatedIssue = !!item.created_issue_id;
@@ -202,9 +219,14 @@ export function AgendaItemRow({
 
   const hasLinked = item.source_ref_type && item.source_ref_id;
   const isLinkedIssue = item.item_type === "issue" && item.source_ref_id;
+  const isRockItem = item.item_type === "rock" && item.source_ref_id;
 
   // Get status badge for metrics
   const statusDisplay = metricStatusObj ? getStatusDisplay(metricStatusObj.status) : null;
+
+  // Rock gap display
+  const rockHasIssues = rockGapData && (rockGapData.offTrackCount > 0 || rockGapData.needsDataCount > 0);
+  const rockBadgeVariant = rockGapData?.offTrackCount ? "destructive" : rockHasIssues ? "outline" : "default";
 
   return (
     <>
@@ -273,6 +295,12 @@ export function AgendaItemRow({
               {isExpanded && item.description && (
                 <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{item.description}</p>
               )}
+              {/* Rock gap summary inline for live mode */}
+              {isRockItem && rockGapData && (isLiveMode || isCompleted) && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Reality Gap ({periodKey}): {buildRockGapBadgeText(rockGapData)}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -289,6 +317,20 @@ export function AgendaItemRow({
             </Badge>
           )}
 
+          {/* Rock gap badge with panel trigger */}
+          {isRockItem && rockGapData && (
+            <RockGapPanel gapData={rockGapData}>
+              <Badge
+                variant={rockGapData.totalLinkedMetrics === 0 ? "outline" : rockBadgeVariant}
+                className="cursor-pointer gap-1 hover:opacity-80 transition-opacity text-xs"
+              >
+                {rockGapData.offTrackCount > 0 && <AlertTriangle className="w-3 h-3" />}
+                {rockGapData.totalLinkedMetrics === 0 && <LinkIcon className="w-3 h-3" />}
+                {buildRockGapBadgeText(rockGapData)}
+              </Badge>
+            </RockGapPanel>
+          )}
+
           {/* Discussed badge */}
           {item.discussed && (
             <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-700">
@@ -297,7 +339,7 @@ export function AgendaItemRow({
           )}
 
           {/* Linked badge */}
-          {hasLinked && (
+          {hasLinked && !isRockItem && (
             <Badge variant="outline" className="text-xs">
               <LinkIcon className="w-3 h-3 mr-1" />
               {item.source_ref_type}
@@ -378,6 +420,27 @@ export function AgendaItemRow({
                       <AlertCircle className="w-4 h-4" />
                     </Button>
                   ) : null}
+
+                  {/* Rock-specific actions dropdown in live mode */}
+                  {isRockItem && !isCompleted && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="p-1 h-7 px-2">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setShowReassignOwner(true)}>
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          Reassign Owner
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setShowAddCollaborator(true)}>
+                          <Users className="w-4 h-4 mr-2" />
+                          Add Collaborator
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </>
               )}
 
@@ -427,6 +490,7 @@ export function AgendaItemRow({
         item={item}
         periodKey={periodKey}
         metricStatusObj={metricStatusObj}
+        rockGapData={rockGapData}
         onIssueCreated={(issueId, itemId) => {
           // Update the meeting_item with created_issue_id
           supabase
@@ -440,6 +504,36 @@ export function AgendaItemRow({
             });
         }}
       />
+
+      {/* Reassign Rock Owner Dialog */}
+      {isRockItem && rockGapData && (
+        <ReassignRockOwnerDialog
+          open={showReassignOwner}
+          onOpenChange={setShowReassignOwner}
+          organizationId={organizationId}
+          rockId={item.source_ref_id!}
+          rockTitle={rockGapData.rock.title}
+          currentOwnerId={rockGapData.rock.owner_id}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["meeting-rock-data"] });
+          }}
+        />
+      )}
+
+      {/* Add Collaborator Dialog */}
+      {isRockItem && rockGapData && (
+        <AddCollaboratorDialog
+          open={showAddCollaborator}
+          onOpenChange={setShowAddCollaborator}
+          organizationId={organizationId}
+          rockId={item.source_ref_id!}
+          rockTitle={rockGapData.rock.title}
+          currentOwnerId={rockGapData.rock.owner_id}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["meeting-rock-data"] });
+          }}
+        />
+      )}
     </>
   );
 }

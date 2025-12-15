@@ -25,8 +25,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { generateL10Agenda, shouldGenerateAgenda } from "@/lib/meetings/agendaGenerator";
-import { getMonthlyPeriodSelection } from "@/lib/scorecard/periodHelper";
-import { metricStatus, MetricStatusResult } from "@/lib/scorecard/metricStatus";
+import { getMonthlyPeriodSelection, periodKeyToStart } from "@/lib/scorecard/periodHelper";
+import { metricStatus, MetricStatusResult, normalizeDirection, MetricStatus } from "@/lib/scorecard/metricStatus";
+import { RockGapData } from "@/components/meetings/RockGapPanel";
 
 const SECTION_ORDER = ["scorecard", "rocks", "issues", "todo", "segue", "conclusion", "custom"];
 const SECTION_LABELS: Record<string, string> = {
@@ -174,6 +175,159 @@ export default function MeetingDetail() {
       return statusMap;
     },
     enabled: metricIds.length > 0 && !!periodKey && !!organizationId,
+  });
+
+  // Collect rock IDs from meeting items
+  const rockIds = (items || [])
+    .filter((item) => item.item_type === "rock" && item.source_ref_id)
+    .map((item) => item.source_ref_id as string);
+
+  // Batch fetch rock data with reality gap for rock items
+  const { data: rockGapMap } = useQuery({
+    queryKey: ["meeting-rock-data", rockIds, periodKey, organizationId],
+    queryFn: async (): Promise<Map<string, RockGapData>> => {
+      if (!rockIds.length || !periodKey || !organizationId) {
+        return new Map();
+      }
+
+      // Fetch rocks with owner info
+      const { data: rocks } = await supabase
+        .from("rocks")
+        .select("id, title, owner_id, confidence, status, quarter, users(id, full_name)")
+        .eq("organization_id", organizationId)
+        .in("id", rockIds);
+
+      if (!rocks?.length) return new Map();
+
+      // Fetch rock_metric_links for these rocks
+      const { data: links } = await supabase
+        .from("rock_metric_links")
+        .select("rock_id, metric_id")
+        .eq("organization_id", organizationId)
+        .in("rock_id", rockIds);
+
+      const linksByRock: Record<string, string[]> = {};
+      for (const link of links || []) {
+        if (!linksByRock[link.rock_id]) linksByRock[link.rock_id] = [];
+        linksByRock[link.rock_id].push(link.metric_id);
+      }
+
+      // Collect all metric IDs from rock links
+      const allLinkedMetricIds = Array.from(new Set((links || []).map(l => l.metric_id)));
+
+      // Fetch metrics
+      const { data: metrics } = allLinkedMetricIds.length > 0
+        ? await supabase
+            .from("metrics")
+            .select("id, name, target, direction, owner, unit")
+            .eq("organization_id", organizationId)
+            .eq("is_active", true)
+            .in("id", allLinkedMetricIds)
+        : { data: [] };
+
+      // Fetch metric results for the period
+      const periodStart = periodKeyToStart(periodKey);
+      const { data: results } = allLinkedMetricIds.length > 0
+        ? await supabase
+            .from("metric_results")
+            .select("metric_id, value, period_key")
+            .in("metric_id", allLinkedMetricIds)
+            .eq("period_type", "monthly")
+            .eq("period_start", periodStart)
+        : { data: [] };
+
+      // Build result lookup
+      const resultsByMetric = (results || []).reduce((acc, r) => {
+        acc[r.metric_id] = r;
+        return acc;
+      }, {} as Record<string, { value: number | null }>);
+
+      // Build metrics map
+      const metricsById = (metrics || []).reduce((acc, m) => {
+        acc[m.id] = m;
+        return acc;
+      }, {} as Record<string, typeof metrics[0]>);
+
+      // Compute gap data for each rock
+      const gapMap = new Map<string, RockGapData>();
+
+      for (const rock of rocks) {
+        const linkedMetricIds = linksByRock[rock.id] || [];
+        const linkedMetrics: RockGapData["linkedMetrics"] = [];
+
+        let offTrackCount = 0;
+        let needsDataCount = 0;
+        let needsTargetCount = 0;
+        let needsOwnerCount = 0;
+        let onTrackCount = 0;
+
+        for (const metricId of linkedMetricIds) {
+          const metric = metricsById[metricId];
+          if (!metric) continue;
+
+          const result = resultsByMetric[metricId] ?? null;
+          const statusResult = metricStatus(metric, result, periodKey);
+
+          switch (statusResult.status) {
+            case 'off_track': offTrackCount++; break;
+            case 'needs_data': needsDataCount++; break;
+            case 'needs_target': needsTargetCount++; break;
+            case 'needs_owner': needsOwnerCount++; break;
+            case 'on_track': onTrackCount++; break;
+          }
+
+          linkedMetrics.push({
+            id: metric.id,
+            name: metric.name,
+            target: metric.target,
+            direction: normalizeDirection(metric.direction),
+            unit: metric.unit,
+            owner: metric.owner,
+            value: result?.value ?? null,
+            status: statusResult.status,
+            statusResult,
+            delta: statusResult.delta,
+          });
+        }
+
+        // Sort metrics: OFF_TRACK first by abs delta, then others
+        const statusOrder: Record<MetricStatus, number> = {
+          'off_track': 0, 'needs_data': 1, 'needs_target': 2, 'needs_owner': 3, 'on_track': 4,
+        };
+        linkedMetrics.sort((a, b) => {
+          const orderDiff = statusOrder[a.status] - statusOrder[b.status];
+          if (orderDiff !== 0) return orderDiff;
+          if (a.status === 'off_track' && b.status === 'off_track') {
+            return Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0);
+          }
+          return a.name.localeCompare(b.name);
+        });
+
+        gapMap.set(rock.id, {
+          rock: {
+            id: rock.id,
+            title: rock.title,
+            owner_id: rock.owner_id,
+            owner_name: (rock.users as any)?.full_name || null,
+            confidence: rock.confidence,
+            status: rock.status,
+            quarter: rock.quarter,
+          },
+          offTrackCount,
+          needsDataCount,
+          needsTargetCount,
+          needsOwnerCount,
+          onTrackCount,
+          totalLinkedMetrics: linkedMetrics.length,
+          linkedMetrics,
+          periodKey,
+          periodLabel: `${periodKey.slice(0, 4)}-${periodKey.slice(5)}`,
+        });
+      }
+
+      return gapMap;
+    },
+    enabled: rockIds.length > 0 && !!periodKey && !!organizationId,
   });
 
   // Fetch issues created in this meeting
@@ -454,6 +608,11 @@ export default function MeetingDetail() {
                           ? metricStatusMap?.get(item.source_ref_id) ?? null
                           : null;
 
+                        // Get rock gap data from prefetched data
+                        const rockGapData = item.item_type === "rock" && item.source_ref_id
+                          ? rockGapMap?.get(item.source_ref_id) ?? null
+                          : null;
+
                         return (
                           <AgendaItemRow
                             key={item.id}
@@ -467,6 +626,7 @@ export default function MeetingDetail() {
                             meetingId={meetingId!}
                             periodKey={periodKey}
                             metricStatusObj={metricStatusObj}
+                            rockGapData={rockGapData}
                           />
                         );
                       })}
