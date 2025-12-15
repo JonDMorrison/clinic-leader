@@ -70,16 +70,20 @@ const People = () => {
   const { data: currentUser } = useCurrentUser();
 
   const { data: seats, refetch: refetchSeats } = useQuery({
-    queryKey: ["seats"],
+    queryKey: ["seats", currentUser?.team_id],
     queryFn: async () => {
+      if (!currentUser?.team_id) return [];
+      
       const { data, error } = await supabase
         .from("seats")
         .select("*, users(full_name)")
+        .eq("organization_id", currentUser.team_id) // MULTI-TENANCY: Explicit org filter
         .order("title");
 
       if (error) throw error;
       return data;
     },
+    enabled: !!currentUser?.team_id,
   });
 
   const { data: users = [], refetch: refetchUsers } = useQuery({

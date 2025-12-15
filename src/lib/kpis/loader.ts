@@ -31,10 +31,13 @@ export async function loadDefaultKPIs(options: LoadDefaultsOptions): Promise<Loa
   } = options;
 
   try {
-    // Validate organizationId
+    // MULTI-TENANCY: Validate organizationId is present and non-empty
     if (!organizationId || organizationId.trim() === "") {
       return { success: false, createdCount: 0, skippedNames: [], error: "No organization ID provided" };
     }
+
+    // TODO: Add locked mode check here when needed
+    // For now, this function is only called from explicit "Load Defaults" flow
 
     // Get template
     const template = KPI_TEMPLATES[templateKey];

@@ -5,6 +5,7 @@ import { Plus, PenSquare, Search, Filter, Star, GripVertical, Sparkles, FileDown
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
 import { supabase } from "@/integrations/supabase/client";
 import { AddKpiModal } from "@/components/scorecard/AddKpiModal";
 import { LoadDefaultsDialog } from "@/components/scorecard/LoadDefaultsDialog";
@@ -56,14 +57,15 @@ const Scorecard = () => {
   );
 
   // Use the shared hook for proper impersonation support
-  const { data: currentUser } = useCurrentUser();
+  const { data: currentUser, isLoading: userLoading } = useCurrentUser();
+  const { orgId, isValid, OrgMissingError } = useOrgSafetyCheck();
   const queryClient = useQueryClient();
 
   // Fetch metrics with last 12 weeks of data
   const { data: metricsData, isLoading, isError, refetch } = useQuery({
-    queryKey: ["scorecard-metrics", currentUser?.team_id],
+    queryKey: ["scorecard-metrics", orgId],
     queryFn: async () => {
-      if (!currentUser?.team_id) return [];
+      if (!orgId) return []; // MULTI-TENANCY: Guard against missing org
 
       // Get last 12 weeks
       const weeks = Array.from({ length: 12 }, (_, i) => {

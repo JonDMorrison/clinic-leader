@@ -156,10 +156,12 @@ const Rocks = () => {
     // Validate status
     if (!["on_track", "off_track", "done"].includes(newStatus)) return;
 
+    // MULTI-TENANCY: Add org filter to rock status update
     const { error } = await supabase
       .from("rocks")
       .update({ status: newStatus as "on_track" | "off_track" | "done" })
-      .eq("id", rockId);
+      .eq("id", rockId)
+      .eq("organization_id", organizationId);
 
     if (error) {
       toast.error("Failed to update rock status");

@@ -7,6 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useQuery } from "@tanstack/react-query";
+import { guardLockedMode } from "@/lib/scorecard/lockedModeGuard";
+import { assertOrgId } from "@/hooks/useOrgSafetyCheck";
+import { Lock } from "lucide-react";
 
 const kpiSchema = z.object({
   name: z.string().trim().min(3, "Name must be at least 3 characters").max(100, "Name must be less than 100 characters"),
@@ -32,12 +37,39 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
   const [ownerId, setOwnerId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
+  const { data: currentUser } = useCurrentUser();
+
+  // Fetch org settings to check if locked mode
+  const { data: orgSettings } = useQuery({
+    queryKey: ['org-settings', currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return null;
+      const { data, error } = await supabase
+        .from('teams')
+        .select('scorecard_mode')
+        .eq('id', currentUser.team_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentUser?.team_id && open,
+  });
+
+  const isLockedMode = orgSettings?.scorecard_mode === 'locked_to_template';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
 
+    // LOCKED MODE GUARD: Block metric creation in locked mode
+    if (!guardLockedMode(orgSettings?.scorecard_mode, "add custom metrics")) {
+      return;
+    }
+
     try {
+      // MULTI-TENANCY: Assert org ID before creating metric
+      assertOrgId(currentUser?.team_id, 'metric creation');
+
       const validated = kpiSchema.parse({
         name: name.trim(),
         unit,
@@ -46,21 +78,24 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
         category: category.trim(),
       });
 
-      const { error } = await supabase.from("kpis").insert({
+      // Insert into METRICS table (not kpis) - MULTI-TENANCY: Always set organization_id
+      const { error } = await supabase.from("metrics").insert({
         name: validated.name,
         unit: validated.unit,
         target: validated.target,
         direction: validated.direction,
         category: validated.category,
-        owner_id: ownerId || null,
-        active: true,
+        owner: ownerId || null,
+        organization_id: currentUser!.team_id, // MULTI-TENANCY: Explicit org ID
+        is_active: true,
+        sync_source: 'manual',
       });
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "KPI created successfully",
+        description: "Metric created successfully",
       });
       onSuccess();
       onClose();
@@ -91,15 +126,42 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
     }
   };
 
+  // Show locked mode warning
+  if (isLockedMode) {
+    return (
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="w-5 h-5 text-amber-500" />
+              Locked Scorecard
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-muted-foreground">
+            <p>Your organization uses a locked scorecard template.</p>
+            <p className="mt-2">
+              Metrics must be managed in the{" "}
+              <a href="/scorecard/template" className="text-primary underline">
+                Scorecard Template
+              </a>
+              {" "}page.
+            </p>
+          </div>
+          <Button onClick={onClose}>Close</Button>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add New KPI</DialogTitle>
+          <DialogTitle>Add New Metric</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">KPI Name *</Label>
+            <Label htmlFor="name">Metric Name *</Label>
             <Input
               id="name"
               value={name}
@@ -189,7 +251,7 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">Create KPI</Button>
+            <Button type="submit">Create Metric</Button>
           </div>
         </form>
       </DialogContent>
