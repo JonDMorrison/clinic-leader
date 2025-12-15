@@ -251,9 +251,7 @@ export default function Meetings() {
             </span>
           )}
           {meeting.level10_score && (
-            <span className={`font-medium ${
-              meeting.level10_score >= 8 ? "text-green-600" : meeting.level10_score >= 5 ? "text-amber-600" : "text-red-600"
-            }`}>
+            <span className="font-medium text-muted-foreground">
               {meeting.level10_score}/10
             </span>
           )}
