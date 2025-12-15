@@ -6,7 +6,7 @@ import { RockCard } from "@/components/rocks/RockCard";
 import { NewRockModal } from "@/components/rocks/NewRockModal";
 import { CreateFromScorecardDialog } from "@/components/rocks/CreateFromScorecardDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Target, Filter, Plus, Sparkles, BarChart3 } from "lucide-react";
+import { Target, Filter, Plus, Sparkles, BarChart3, Calendar } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -243,6 +243,12 @@ const Rocks = () => {
           <p className="text-muted-foreground">90-day priorities and goals</p>
         </div>
         <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <a href="/rocks/monthly-review">
+              <Calendar className="w-4 h-4 mr-2" />
+              Monthly Review
+            </a>
+          </Button>
           <Button onClick={() => setCreateFromScorecardOpen(true)} variant="outline">
             <BarChart3 className="w-4 h-4 mr-2" />
             Create from Scorecard
