@@ -1,0 +1,41 @@
+import { Link } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, ArrowRight } from "lucide-react";
+import { useCutoverReadiness } from "@/hooks/useCutoverReadiness";
+
+interface CutoverBannerProps {
+  variant?: "warning" | "info";
+}
+
+export function CutoverBanner({ variant = "warning" }: CutoverBannerProps) {
+  const { cutoverStatus, isLoading } = useCutoverReadiness();
+
+  // Don't show banner if:
+  // - Loading
+  // - Not a locked org
+  // - Already ready
+  if (isLoading || !cutoverStatus.isLockedMode || cutoverStatus.scorecardReady) {
+    return null;
+  }
+
+  return (
+    <Alert variant={variant === "warning" ? "destructive" : "default"} className="mb-4">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
+        <span>
+          {variant === "warning" 
+            ? "Setup incomplete. Complete cutover to prevent scorecard errors."
+            : "Data may be incomplete until setup is finished."
+          }
+        </span>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/scorecard/cutover">
+            Complete Setup
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Link>
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+}

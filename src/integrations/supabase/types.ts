@@ -2814,6 +2814,9 @@ export type Database = {
           onboarding_status: string | null
           review_cadence: string | null
           scorecard_mode: string
+          scorecard_ready: boolean | null
+          scorecard_ready_checked_at: string | null
+          scorecard_ready_notes: string | null
           team_size: number | null
           timezone: string | null
           unit_system: string | null
@@ -2841,6 +2844,9 @@ export type Database = {
           onboarding_status?: string | null
           review_cadence?: string | null
           scorecard_mode?: string
+          scorecard_ready?: boolean | null
+          scorecard_ready_checked_at?: string | null
+          scorecard_ready_notes?: string | null
           team_size?: number | null
           timezone?: string | null
           unit_system?: string | null
@@ -2868,6 +2874,9 @@ export type Database = {
           onboarding_status?: string | null
           review_cadence?: string | null
           scorecard_mode?: string
+          scorecard_ready?: boolean | null
+          scorecard_ready_checked_at?: string | null
+          scorecard_ready_notes?: string | null
           team_size?: number | null
           timezone?: string | null
           unit_system?: string | null

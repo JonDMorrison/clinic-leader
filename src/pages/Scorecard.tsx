@@ -33,6 +33,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TemplateSetupBanner } from "@/components/scorecard/TemplateSetupBanner";
+import { CutoverBanner } from "@/components/scorecard/CutoverBanner";
 
 const Scorecard = () => {
   const navigate = useNavigate();
@@ -308,6 +309,8 @@ const Scorecard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Cutover Banner for locked orgs (shows if not ready) */}
+      <CutoverBanner variant="warning" />
       {/* Template Setup Banner for locked orgs */}
       <TemplateSetupBanner />
       <div className="flex items-center justify-between">
