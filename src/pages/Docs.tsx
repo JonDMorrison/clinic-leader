@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,7 @@ import { Playbook, PLAYBOOK_CATEGORIES } from "@/types/playbook";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useAutoOcr } from "@/hooks/useAutoOcr";
+import { seedDefaultSopsForOrg } from "@/lib/docs/seedDefaultSops";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { UserManualViewer } from "@/components/docs/UserManualViewer";
@@ -170,6 +171,17 @@ const Docs = () => {
     },
     enabled: !!currentUser?.team_id,
   });
+
+  // Seed default SOPs on first visit (lazy seeding)
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (currentUser?.team_id && currentUser?.id && !seededRef.current) {
+      seededRef.current = true;
+      seedDefaultSopsForOrg(currentUser.team_id, currentUser.id).then(() => {
+        refetchDocs();
+      });
+    }
+  }, [currentUser?.team_id, currentUser?.id, refetchDocs]);
 
   const filteredDocs = useMemo(() => {
     if (!docs) return [];
