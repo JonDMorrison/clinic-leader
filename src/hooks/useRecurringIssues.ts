@@ -38,7 +38,13 @@ export function useRecurringIssues({ organizationId, enabled = true }: UseRecurr
     queryFn: async (): Promise<RecurringIssue[]> => {
       if (!organizationId) return [];
 
-      // Step 1: Get all meeting_items that reference issues in the last 90 days
+      // Step 1: Get meeting_items that are issues with strict filtering
+      // - item_type = 'issue' (strict type filter)
+      // - source_ref_type = 'issue' (reference type)
+      // - source_ref_id NOT NULL (must reference an actual issue)
+      // - meeting_id NOT NULL (must be linked to a meeting)
+      // - is_deleted = false
+      // - meeting status not cancelled
       const { data: meetingItems, error: itemsError } = await supabase
         .from("meeting_items")
         .select(`
@@ -46,24 +52,33 @@ export function useRecurringIssues({ organizationId, enabled = true }: UseRecurr
           source_ref_id,
           meeting_id,
           created_at,
-          meetings!inner(id, scheduled_for)
+          meetings!inner(id, scheduled_for, status)
         `)
         .eq("organization_id", organizationId)
+        .eq("item_type", "issue")
         .eq("source_ref_type", "issue")
         .eq("is_deleted", false)
         .not("source_ref_id", "is", null)
+        .not("meeting_id", "is", null)
         .gte("created_at", ninetyDaysAgo);
 
       if (itemsError) throw itemsError;
       if (!meetingItems || meetingItems.length === 0) return [];
 
-      // Step 2: Group by issue_id and count distinct meetings
+      // Step 2: Filter out cancelled meetings and group by issue_id
       const issueToMeetings = new Map<string, { meetings: Set<string>; dates: string[] }>();
       
       for (const item of meetingItems) {
-        const issueId = item.source_ref_id as string;
+        // Skip if meeting is cancelled
+        const meeting = item.meetings as { id: string; scheduled_for: string; status: string } | null;
+        if (!meeting || meeting.status === 'cancelled') continue;
+        
+        const issueId = item.source_ref_id;
         const meetingId = item.meeting_id;
         const date = item.created_at;
+
+        // Null safety - skip if any required field is missing
+        if (!issueId || !meetingId || !date) continue;
 
         if (!issueToMeetings.has(issueId)) {
           issueToMeetings.set(issueId, { meetings: new Set(), dates: [] });
@@ -81,7 +96,8 @@ export function useRecurringIssues({ organizationId, enabled = true }: UseRecurr
 
       if (recurringIssueIds.length === 0) return [];
 
-      // Step 4: Fetch issue details (only non-solved issues)
+      // Step 4: Fetch issue details (only non-solved, org-scoped issues)
+      // This also handles orphan meeting_items - if issue doesn't exist, it won't be returned
       const { data: issues, error: issuesError } = await supabase
         .from("issues")
         .select("id, title, status, priority, rock_id")
@@ -92,9 +108,9 @@ export function useRecurringIssues({ organizationId, enabled = true }: UseRecurr
       if (issuesError) throw issuesError;
       if (!issues || issues.length === 0) return [];
 
-      // Step 5: Fetch linked rock titles if any
+      // Step 5: Fetch linked rock titles if any (single query, no N+1)
       const rockIds = issues.filter(i => i.rock_id).map(i => i.rock_id as string);
-      let rocksMap = new Map<string, string>();
+      const rocksMap = new Map<string, string>();
       
       if (rockIds.length > 0) {
         const { data: rocks } = await supabase
@@ -107,12 +123,17 @@ export function useRecurringIssues({ organizationId, enabled = true }: UseRecurr
         }
       }
 
-      // Step 6: Build result with meeting counts and dates
-      const result: RecurringIssue[] = issues.map(issue => {
-        const data = issueToMeetings.get(issue.id)!;
-        const sortedDates = data.dates.sort();
+      // Step 6: Build result - only for issues that actually exist (handles orphans)
+      const result: RecurringIssue[] = [];
+      
+      for (const issue of issues) {
+        const data = issueToMeetings.get(issue.id);
+        // Skip if no meeting data (shouldn't happen but safety check)
+        if (!data || data.dates.length === 0) continue;
         
-        return {
+        const sortedDates = [...data.dates].sort();
+        
+        result.push({
           id: issue.id,
           title: issue.title,
           status: issue.status,
@@ -122,14 +143,16 @@ export function useRecurringIssues({ organizationId, enabled = true }: UseRecurr
           lastSeenAt: sortedDates[sortedDates.length - 1],
           rockId: issue.rock_id,
           rockTitle: issue.rock_id ? rocksMap.get(issue.rock_id) || null : null,
-        };
-      });
+        });
+      }
 
-      // Sort by meeting count desc, then priority asc
-      return result.sort((a, b) => {
-        if (b.meetingCount !== a.meetingCount) return b.meetingCount - a.meetingCount;
-        return a.priority - b.priority;
-      });
+      // Sort by meeting count desc, then priority asc, and limit to top 5
+      return result
+        .sort((a, b) => {
+          if (b.meetingCount !== a.meetingCount) return b.meetingCount - a.meetingCount;
+          return a.priority - b.priority;
+        })
+        .slice(0, 5);
     },
     enabled: enabled && !!organizationId,
     staleTime: 5 * 60 * 1000, // 5 minutes
