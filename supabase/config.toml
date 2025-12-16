@@ -197,3 +197,6 @@ verify_jwt = false
 
 [functions.sync-scorecard-google-sheet]
 verify_jwt = true
+
+[functions.rebuild-sop-sections]
+verify_jwt = false
