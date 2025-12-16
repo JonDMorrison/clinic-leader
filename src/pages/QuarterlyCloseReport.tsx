@@ -25,21 +25,6 @@ import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Quarter utilities
-function getQuarterFromDate(date: Date): string {
-  const q = Math.ceil((date.getMonth() + 1) / 3);
-  return `${date.getFullYear()}-Q${q}`;
-}
-
-function getPreviousQuarter(date: Date): string {
-  const month = date.getMonth();
-  const year = date.getFullYear();
-  const q = Math.ceil((month + 1) / 3);
-  if (q === 1) {
-    return `${year - 1}-Q4`;
-  }
-  return `${year}-Q${q - 1}`;
-}
-
 function getQuarterMonths(quarterKey: string): string[] {
   // quarterKey format: "2025-Q4"
   const [yearStr, qStr] = quarterKey.split("-Q");
@@ -54,22 +39,7 @@ function getQuarterMonths(quarterKey: string): string[] {
   ];
 }
 
-function getLast8Quarters(): string[] {
-  const quarters: string[] = [];
-  const now = new Date();
-  let year = now.getFullYear();
-  let q = Math.ceil((now.getMonth() + 1) / 3);
-  
-  for (let i = 0; i < 8; i++) {
-    quarters.push(`${year}-Q${q}`);
-    q--;
-    if (q === 0) {
-      q = 4;
-      year--;
-    }
-  }
-  return quarters;
-}
+// Only showing quarters with actual outcomes data
 
 interface RockOutcome {
   id: string;
@@ -101,8 +71,6 @@ export default function QuarterlyCloseReport() {
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
   const organizationId = currentUser?.team_id;
   const [selectedQuarter, setSelectedQuarter] = useState<string>("");
-  
-  const allQuarters = getLast8Quarters();
 
   // Fetch quarters that have rock_outcomes data
   const { data: quartersWithData } = useQuery({
@@ -118,14 +86,13 @@ export default function QuarterlyCloseReport() {
     enabled: !!organizationId,
   });
 
-  // Set default quarter to most recent with data
+  // Set default quarter to most recent with data (only from quarters that have outcomes)
   useEffect(() => {
     if (!selectedQuarter && quartersWithData?.length) {
       const sorted = [...quartersWithData].sort().reverse();
       setSelectedQuarter(sorted[0]);
-    } else if (!selectedQuarter && quartersWithData?.length === 0) {
-      setSelectedQuarter(getPreviousQuarter(new Date()));
     }
+    // If no quarters have data, leave selectedQuarter empty to show empty state
   }, [quartersWithData, selectedQuarter]);
 
   // Fetch rock outcomes for selected quarter
@@ -174,11 +141,12 @@ export default function QuarterlyCloseReport() {
         return [];
       }
 
-      // Fetch metrics
+      // Fetch only active metrics that are linked
       const { data: metrics } = await supabase
         .from("metrics")
         .select("id, name, target, direction")
         .eq("organization_id", organizationId)
+        .eq("is_active", true)
         .in("id", linkedMetricIds);
 
       if (!metrics?.length) return [];
@@ -311,6 +279,28 @@ export default function QuarterlyCloseReport() {
     );
   }
 
+  // Empty state when no quarters have outcomes
+  const hasNoOutcomes = quartersWithData !== undefined && quartersWithData.length === 0;
+
+  if (hasNoOutcomes) {
+    return (
+      <div className="p-6 max-w-5xl mx-auto">
+        <h1 className="text-2xl font-bold mb-2">Quarterly Close Report</h1>
+        <p className="text-muted-foreground mb-6">Review rock outcomes, KPI movement, and blockers</p>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">
+              No quarterly outcomes yet. Close out a quarter to generate this report.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Sort quarters with data for dropdown (descending)
+  const sortedQuartersWithData = [...(quartersWithData || [])].sort().reverse();
+
   return (
     <div className="p-6 max-w-5xl mx-auto print:p-2 print:max-w-none">
       {/* Header - hidden on print */}
@@ -327,7 +317,7 @@ export default function QuarterlyCloseReport() {
               <SelectValue placeholder="Select quarter" />
             </SelectTrigger>
             <SelectContent>
-              {allQuarters.map((q) => (
+              {sortedQuartersWithData.map((q) => (
                 <SelectItem key={q} value={q}>
                   {q}
                 </SelectItem>
@@ -477,16 +467,16 @@ export default function QuarterlyCloseReport() {
                     <TableCell className="font-medium">{kpi.metric_name}</TableCell>
                     <TableCell className="text-right">
                       {kpi.first_value !== null ? kpi.first_value.toLocaleString() : (
-                        <span className="text-muted-foreground text-xs">missing</span>
+                        <span className="text-muted-foreground text-xs italic">missing data</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
                       {kpi.last_value !== null ? kpi.last_value.toLocaleString() : (
-                        <span className="text-muted-foreground text-xs">missing</span>
+                        <span className="text-muted-foreground text-xs italic">missing data</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {kpi.net_change !== null ? (
+                      {kpi.first_value !== null && kpi.last_value !== null && kpi.net_change !== null ? (
                         <div className="flex items-center justify-end gap-1">
                           {kpi.net_change > 0 && <ArrowUp className="h-3 w-3 text-green-500" />}
                           {kpi.net_change < 0 && <ArrowDown className="h-3 w-3 text-red-500" />}
@@ -496,7 +486,7 @@ export default function QuarterlyCloseReport() {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-xs">-</span>
+                        <span className="text-muted-foreground text-xs italic">missing data</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -555,33 +545,6 @@ export default function QuarterlyCloseReport() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Print-specific styles */}
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print\\:block,
-          .print\\:block * {
-            visibility: visible;
-          }
-          #root > div > aside,
-          nav,
-          header {
-            display: none !important;
-          }
-          .print\\:shadow-none {
-            box-shadow: none !important;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-          .print\\:break-inside-avoid {
-            break-inside: avoid;
-          }
-        }
-      `}</style>
     </div>
   );
 }
