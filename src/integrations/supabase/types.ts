@@ -635,6 +635,65 @@ export type Database = {
         }
         Relationships: []
       }
+      doc_sections: {
+        Row: {
+          created_at: string
+          doc_id: string
+          embedding: string | null
+          heading_path: string
+          id: string
+          organization_id: string
+          section_body: string
+          section_order: number
+          section_slug: string
+          section_title: string
+          section_type: string
+          source: string
+          token_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doc_id: string
+          embedding?: string | null
+          heading_path?: string
+          id?: string
+          organization_id: string
+          section_body?: string
+          section_order?: number
+          section_slug?: string
+          section_title?: string
+          section_type?: string
+          source: string
+          token_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doc_id?: string
+          embedding?: string | null
+          heading_path?: string
+          id?: string
+          organization_id?: string
+          section_body?: string
+          section_order?: number
+          section_slug?: string
+          section_title?: string
+          section_type?: string
+          source?: string
+          token_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doc_sections_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "docs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       docs: {
         Row: {
           body: string | null
