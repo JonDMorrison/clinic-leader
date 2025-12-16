@@ -10,6 +10,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   ChevronUp,
   ChevronDown,
   Trash2,
@@ -24,6 +30,7 @@ import {
   UserPlus,
   Users,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,6 +67,7 @@ interface AgendaItemRowProps {
   periodKey: string;
   metricStatusObj?: (MetricStatusResult & { metricName?: string; metricUnit?: string }) | null;
   rockGapData?: RockGapData | null;
+  recurringInfo?: { isRecurring: boolean; meetingCount: number } | null;
 }
 
 export function AgendaItemRow({
@@ -74,6 +82,7 @@ export function AgendaItemRow({
   periodKey,
   metricStatusObj,
   rockGapData,
+  recurringInfo,
 }: AgendaItemRowProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -339,11 +348,28 @@ export function AgendaItemRow({
           )}
 
           {/* Linked badge */}
-          {hasLinked && !isRockItem && (
+          {hasLinked && !isRockItem && !recurringInfo?.isRecurring && (
             <Badge variant="outline" className="text-xs">
               <LinkIcon className="w-3 h-3 mr-1" />
               {item.source_ref_type}
             </Badge>
+          )}
+
+          {/* Recurring issue badge (live meeting only) */}
+          {isLinkedIssue && recurringInfo?.isRecurring && (isLiveMode || isCompleted) && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700 border-amber-300">
+                    <RefreshCw className="w-3 h-3 mr-1" />
+                    Recurring
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>This issue has appeared in {recurringInfo.meetingCount} meetings in the last 90 days.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
 
           {/* Created issue indicator */}

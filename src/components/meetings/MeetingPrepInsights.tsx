@@ -7,19 +7,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { subDays } from "date-fns";
+import { subDays, format } from "date-fns";
+import { useRecurringIssues, RecurringIssue } from "@/hooks/useRecurringIssues";
 
 interface MeetingPrepInsightsProps {
   meetingId: string;
   organizationId: string;
-}
-
-interface RecurringIssue {
-  id: string;
-  title: string;
-  status: string;
-  priority: number;
-  meetingCount: number;
 }
 
 interface RecurringRockBlocker {
@@ -60,55 +53,9 @@ export function MeetingPrepInsights({ meetingId, organizationId }: MeetingPrepIn
     enabled: !!meetingId && !!organizationId,
   });
 
-  // Fetch recurring issues (issues linked to 2+ meetings in last 90 days, still open)
-  const { data: recurringIssues, isLoading: issuesLoading } = useQuery({
-    queryKey: ["recurring-issues", organizationId],
-    queryFn: async () => {
-      // Get all open issues with meeting_id set in last 90 days
-      const { data: issues, error } = await supabase
-        .from("issues")
-        .select("id, title, status, priority, meeting_id, created_at")
-        .eq("organization_id", organizationId)
-        .not("meeting_id", "is", null)
-        .in("status", ["open", "in_progress"])
-        .gte("created_at", ninetyDaysAgo);
-
-      if (error) throw error;
-      if (!issues || issues.length === 0) return [];
-
-      // Group by issue id and count distinct meetings
-      const issueMap = new Map<string, { issue: typeof issues[0]; meetings: Set<string> }>();
-      
-      for (const issue of issues) {
-        if (!issueMap.has(issue.id)) {
-          issueMap.set(issue.id, { issue, meetings: new Set() });
-        }
-        if (issue.meeting_id) {
-          issueMap.get(issue.id)!.meetings.add(issue.meeting_id);
-        }
-      }
-
-      // Filter for issues seen in 2+ meetings
-      const recurring: RecurringIssue[] = [];
-      for (const [id, data] of issueMap) {
-        if (data.meetings.size >= 2) {
-          recurring.push({
-            id,
-            title: data.issue.title,
-            status: data.issue.status,
-            priority: data.issue.priority,
-            meetingCount: data.meetings.size,
-          });
-        }
-      }
-
-      // Sort by meeting count desc, then priority asc
-      return recurring.sort((a, b) => {
-        if (b.meetingCount !== a.meetingCount) return b.meetingCount - a.meetingCount;
-        return a.priority - b.priority;
-      }).slice(0, 5);
-    },
-    enabled: !!organizationId,
+  // Use the new strict recurring issues hook
+  const { data: recurringIssues, isLoading: issuesLoading } = useRecurringIssues({
+    organizationId,
   });
 
   // Fetch recurring rock blockers (rocks with 2+ meeting-linked issues in last 90 days)
@@ -282,20 +229,20 @@ export function MeetingPrepInsights({ meetingId, organizationId }: MeetingPrepIn
           </p>
         ) : (
           <>
-            {/* Recurring Issues */}
+            {/* Recurring Issues (last 90 days) */}
             {(recurringIssues?.length || 0) > 0 && (
               <div>
                 <h4 className="text-sm font-medium flex items-center gap-2 mb-2">
                   <RotateCcw className="w-3 h-3" />
-                  Recurring Issues
+                  Recurring Issues (last 90 days)
                 </h4>
                 <div className="space-y-2">
-                  {recurringIssues?.map(issue => (
+                  {recurringIssues?.slice(0, 5).map(issue => (
                     <div key={issue.id} className="flex items-center justify-between p-2 rounded bg-card text-sm">
                       <div className="flex-1 min-w-0">
                         <p className="truncate font-medium">{issue.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          Seen in {issue.meetingCount} meetings · {issue.status}
+                          Seen in {issue.meetingCount} meetings · Last: {format(new Date(issue.lastSeenAt), "MMM d")}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 ml-2">
@@ -310,7 +257,7 @@ export function MeetingPrepInsights({ meetingId, organizationId }: MeetingPrepIn
                         {isOnAgenda(issue.id, "issue") ? (
                           <Badge variant="secondary" className="text-xs">
                             <CheckCircle2 className="w-3 h-3 mr-1" />
-                            On agenda
+                            Added
                           </Badge>
                         ) : (
                           <Button
@@ -333,6 +280,11 @@ export function MeetingPrepInsights({ meetingId, organizationId }: MeetingPrepIn
                     </div>
                   ))}
                 </div>
+                {recurringIssues && recurringIssues.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No recurring issues detected. That's a good sign.
+                  </p>
+                )}
               </div>
             )}
 
