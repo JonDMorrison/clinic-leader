@@ -313,6 +313,23 @@ export default function Focus() {
     enabled: !!organizationId,
   });
 
+  // Fetch existing meeting items for next meeting (for dedupe)
+  const { data: existingAgendaIssueIds = [] } = useQuery({
+    queryKey: ["meeting-agenda-issues", nextMeeting?.id],
+    queryFn: async () => {
+      if (!nextMeeting?.id) return [];
+      const { data } = await supabase
+        .from("meeting_items")
+        .select("source_ref_id")
+        .eq("meeting_id", nextMeeting.id)
+        .eq("item_type", "issue")
+        .eq("is_deleted", false)
+        .not("source_ref_id", "is", null);
+      return (data || []).map(item => item.source_ref_id);
+    },
+    enabled: !!nextMeeting?.id,
+  });
+
   // Create issue mutation
   const createIssueMutation = useMutation({
     mutationFn: async ({ title, context, metricId, rockId }: { title: string; context: string; metricId?: string; rockId?: string }) => {
@@ -345,6 +362,20 @@ export default function Focus() {
     mutationFn: async ({ issueId, title }: { issueId: string; title: string }) => {
       if (!nextMeeting) throw new Error("No upcoming meeting");
 
+      // Double-check dedupe in mutation (race condition safety)
+      const { data: existing } = await supabase
+        .from("meeting_items")
+        .select("id")
+        .eq("meeting_id", nextMeeting.id)
+        .eq("item_type", "issue")
+        .eq("source_ref_id", issueId)
+        .eq("is_deleted", false)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        throw new Error("Issue already on agenda");
+      }
+
       const { error } = await supabase.from("meeting_items").insert({
         meeting_id: nextMeeting.id,
         organization_id: organizationId,
@@ -360,6 +391,7 @@ export default function Focus() {
     onSuccess: () => {
       toast({ title: "Added to meeting agenda" });
       queryClient.invalidateQueries({ queryKey: ["meeting-items"] });
+      queryClient.invalidateQueries({ queryKey: ["meeting-agenda-issues", nextMeeting?.id] });
     },
     onError: (error: any) => {
       toast({ title: "Failed to add", description: error.message, variant: "destructive" });
@@ -380,6 +412,9 @@ export default function Focus() {
       title: name,
     });
   };
+
+  // Check if issue is already on agenda
+  const isOnAgenda = (issueId: string) => existingAgendaIssueIds.includes(issueId);
 
   const getStatusBadge = (status: MetricStatus) => {
     switch (status) {
@@ -638,15 +673,22 @@ export default function Focus() {
                           </Link>
                         </Button>
                         {nextMeeting ? (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => addToAgendaMutation.mutate({ issueId: issue.id, title: issue.title })}
-                            disabled={addToAgendaMutation.isPending}
-                          >
-                            <Calendar className="w-3 h-3 mr-1" />
-                            Add to Agenda
-                          </Button>
+                          isOnAgenda(issue.id) ? (
+                            <Button size="sm" variant="outline" disabled>
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Already on agenda
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => addToAgendaMutation.mutate({ issueId: issue.id, title: issue.title })}
+                              disabled={addToAgendaMutation.isPending}
+                            >
+                              <Calendar className="w-3 h-3 mr-1" />
+                              Add to Agenda
+                            </Button>
+                          )
                         ) : (
                           <Button size="sm" variant="outline" asChild>
                             <Link to="/meetings">
