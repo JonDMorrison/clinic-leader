@@ -16,6 +16,7 @@ import { MeetingPrepChecklist } from "@/components/meetings/MeetingPrepChecklist
 import { MeetingPrepInsights } from "@/components/meetings/MeetingPrepInsights";
 import { MeetingReviewSummary } from "@/components/meetings/MeetingReviewSummary";
 import { MeetingPrintView } from "@/components/meetings/MeetingPrintView";
+import { OutOfAlignmentRibbon } from "@/components/scorecard/OutOfAlignmentRibbon";
 import { SectionNavigator } from "@/components/l10/SectionNavigator";
 import { SectionTimer } from "@/components/l10/SectionTimer";
 import { LiveTodoPanel } from "@/components/meetings/LiveTodoPanel";
@@ -607,6 +608,9 @@ export default function MeetingDetail() {
           )}
         </div>
       </div>
+
+      {/* Out of alignment ribbon for flexible orgs (preview mode only) */}
+      {isPreviewMode && <OutOfAlignmentRibbon />}
 
       {/* Mode Banner */}
       {isPreviewMode && (
