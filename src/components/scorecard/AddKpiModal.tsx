@@ -8,10 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useQuery } from "@tanstack/react-query";
-import { guardAlignedMode } from "@/lib/scorecard/lockedModeGuard";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { assertOrgId } from "@/hooks/useOrgSafetyCheck";
-import { Lock } from "lucide-react";
+import { StayAlignedModal } from "./StayAlignedModal";
 
 const kpiSchema = z.object({
   name: z.string().trim().min(3, "Name must be at least 3 characters").max(100, "Name must be less than 100 characters"),
@@ -36,11 +35,14 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
   const [category, setCategory] = useState("");
   const [ownerId, setOwnerId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showAlignedModal, setShowAlignedModal] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
   const { toast } = useToast();
   const { data: currentUser } = useCurrentUser();
+  const queryClient = useQueryClient();
 
   // Fetch org settings to check if aligned mode
-  const { data: orgSettings } = useQuery({
+  const { data: orgSettings, refetch: refetchOrgSettings } = useQuery({
     queryKey: ['org-settings', currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return null;
@@ -57,14 +59,8 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
 
   const isAlignedMode = orgSettings?.scorecard_mode === 'aligned';
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSubmit = async () => {
     setErrors({});
-
-    // ALIGNED MODE GUARD: Block metric creation in aligned mode
-    if (!guardAlignedMode(orgSettings?.scorecard_mode, "add custom metrics")) {
-      return;
-    }
 
     try {
       // MULTI-TENANCY: Assert org ID before creating metric
@@ -78,7 +74,7 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
         category: category.trim(),
       });
 
-      // Insert into METRICS table (not kpis) - MULTI-TENANCY: Always set organization_id
+      // Insert into METRICS table - MULTI-TENANCY: Always set organization_id
       const { error } = await supabase.from("metrics").insert({
         name: validated.name,
         unit: validated.unit,
@@ -86,7 +82,7 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
         direction: validated.direction,
         category: validated.category,
         owner: ownerId || null,
-        organization_id: currentUser!.team_id, // MULTI-TENANCY: Explicit org ID
+        organization_id: currentUser!.team_id,
         is_active: true,
         sync_source: 'manual',
       });
@@ -126,135 +122,147 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
     }
   };
 
-  // Show aligned mode warning
-  if (isAlignedMode) {
-    return (
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="w-5 h-5 text-amber-500" />
-              Aligned Scorecard
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4 text-muted-foreground">
-            <p>Your organization uses an aligned scorecard template.</p>
-            <p className="mt-2">
-              Metrics must be managed in the{" "}
-              <a href="/scorecard/template" className="text-primary underline">
-                Scorecard Template
-              </a>
-              {" "}page.
-            </p>
-          </div>
-          <Button onClick={onClose}>Close</Button>
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Intercept: If aligned mode, show the modal instead of blocking
+    if (isAlignedMode) {
+      setPendingSubmit(true);
+      setShowAlignedModal(true);
+      return;
+    }
+
+    await executeSubmit();
+  };
+
+  const handleAlignedModalClose = () => {
+    setShowAlignedModal(false);
+    setPendingSubmit(false);
+  };
+
+  const handleProceedAfterModeSwitch = async () => {
+    setShowAlignedModal(false);
+    // Refetch org settings to confirm mode change
+    await refetchOrgSettings();
+    // Now execute the original submit
+    if (pendingSubmit) {
+      setPendingSubmit(false);
+      await executeSubmit();
+    }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Add New Metric</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Metric Name *</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Daily Appointments"
-              maxLength={100}
-            />
-            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-          </div>
+    <>
+      {/* Stay Aligned intercept modal */}
+      <StayAlignedModal
+        open={showAlignedModal}
+        onClose={handleAlignedModalClose}
+        onProceed={handleProceedAfterModeSwitch}
+        organizationId={currentUser?.team_id || ''}
+      />
 
-          <div className="space-y-2">
-            <Label htmlFor="category">Category *</Label>
-            <Input
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g., Operations, Financial"
-              maxLength={50}
-            />
-            {errors.category && <p className="text-sm text-destructive">{errors.category}</p>}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add New Metric</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="unit">Unit *</Label>
-              <Select value={unit} onValueChange={setUnit}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="count">Count</SelectItem>
-                  <SelectItem value="%">Percentage (%)</SelectItem>
-                  <SelectItem value="$">Currency ($)</SelectItem>
-                  <SelectItem value="days">Days</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="direction">Target Direction *</Label>
-              <Select value={direction} onValueChange={setDirection}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value=">=">&gt;= (At least)</SelectItem>
-                  <SelectItem value="<=">&lt;= (At most)</SelectItem>
-                  <SelectItem value="==">== (Exactly)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="target">Target Value *</Label>
+              <Label htmlFor="name">Metric Name *</Label>
               <Input
-                id="target"
-                type="number"
-                step="0.01"
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-                placeholder="100"
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Daily Appointments"
+                maxLength={100}
               />
-              {errors.target && <p className="text-sm text-destructive">{errors.target}</p>}
+              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="owner">Owner</Label>
-              <Select value={ownerId} onValueChange={setOwnerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select owner" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="category">Category *</Label>
+              <Input
+                id="category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="e.g., Operations, Financial"
+                maxLength={50}
+              />
+              {errors.category && <p className="text-sm text-destructive">{errors.category}</p>}
             </div>
-          </div>
 
-          <div className="flex gap-2 justify-end">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit">Create Metric</Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="unit">Unit *</Label>
+                <Select value={unit} onValueChange={setUnit}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="count">Count</SelectItem>
+                    <SelectItem value="%">Percentage (%)</SelectItem>
+                    <SelectItem value="$">Currency ($)</SelectItem>
+                    <SelectItem value="days">Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="direction">Target Direction *</Label>
+                <Select value={direction} onValueChange={setDirection}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value=">=">&gt;= (At least)</SelectItem>
+                    <SelectItem value="<=">&lt;= (At most)</SelectItem>
+                    <SelectItem value="==">== (Exactly)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="target">Target Value *</Label>
+                <Input
+                  id="target"
+                  type="number"
+                  step="0.01"
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value)}
+                  placeholder="100"
+                />
+                {errors.target && <p className="text-sm text-destructive">{errors.target}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="owner">Owner</Label>
+                <Select value={ownerId} onValueChange={setOwnerId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Unassigned</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit">Create Metric</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
