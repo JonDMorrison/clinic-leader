@@ -36,7 +36,7 @@ export async function loadDefaultKPIs(options: LoadDefaultsOptions): Promise<Loa
       return { success: false, createdCount: 0, skippedNames: [], error: "No organization ID provided" };
     }
 
-    // TODO: Add locked mode check here when needed
+    // TODO: Add aligned mode check here when needed
     // For now, this function is only called from explicit "Load Defaults" flow
 
     // Get template
