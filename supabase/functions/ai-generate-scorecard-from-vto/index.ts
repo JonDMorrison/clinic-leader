@@ -66,7 +66,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Check if organization is in locked mode
+    // Check if organization is in aligned mode
     const { data: orgSettings, error: orgError } = await supabase
       .from('teams')
       .select('scorecard_mode')

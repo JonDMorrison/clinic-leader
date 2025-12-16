@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 /**
- * Check if organization is in aligned mode (formerly locked_to_template)
+ * Check if organization is in aligned mode
  */
 export async function isAlignedMode(organizationId: string): Promise<boolean> {
   if (!organizationId) return false;
@@ -64,11 +64,3 @@ export function guardAlignedMode(
   }
   return true;
 }
-
-// Legacy aliases for backward compatibility during transition
-/** @deprecated Use isAlignedMode instead */
-export const isLockedMode = isAlignedMode;
-/** @deprecated Use checkAlignedModeSync instead */
-export const checkLockedModeSync = checkAlignedModeSync;
-/** @deprecated Use guardAlignedMode instead */
-export const guardLockedMode = guardAlignedMode;
