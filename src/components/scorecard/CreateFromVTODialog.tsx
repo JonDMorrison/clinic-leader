@@ -109,10 +109,10 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [createdCount, setCreatedCount] = useState(0);
   
-  // For locked mode mapping
+  // For aligned mode mapping
   const [mappingItems, setMappingItems] = useState<VTOMappingItem[]>([]);
 
-  // Fetch org settings to check if locked mode
+  // Fetch org settings to check if aligned mode
   const { data: orgSettings } = useQuery({
     queryKey: ['org-settings', currentUser?.team_id],
     queryFn: async () => {
@@ -128,7 +128,7 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
     enabled: !!currentUser?.team_id && open,
   });
 
-  // Fetch existing metrics for locked mode
+  // Fetch existing metrics for aligned mode
   const { data: existingMetrics } = useQuery({
     queryKey: ['existing-metrics-for-vto', currentUser?.team_id],
     queryFn: async () => {
@@ -166,7 +166,7 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
     onClose();
   };
 
-  // For locked mode: fetch VTO goals and suggest metric mappings
+  // For aligned mode: fetch VTO goals and suggest metric mappings
   const handleMapToExisting = async () => {
     setStep('loading');
     setApiError(null);
@@ -416,7 +416,7 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
     return errorUI;
   };
 
-  // Save VTO mappings (locked mode)
+  // Save VTO mappings (aligned mode)
   const saveMappingsMutation = useMutation({
     mutationFn: async () => {
       if (!currentUser?.team_id || !vtoVersionId) {
@@ -692,16 +692,16 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
           </div>
         )}
 
-        {/* MAPPING STEP (Locked Mode) */}
+        {/* MAPPING STEP (Aligned Mode) */}
         {step === 'mapping' && (
           <div className="flex flex-col overflow-hidden flex-1 min-h-0">
             <div className="flex-shrink-0 p-3 bg-muted/50 rounded-lg mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <Lock className="w-4 h-4 text-brand" />
-                <p className="text-sm font-medium">Locked Template Mode</p>
+                <p className="text-sm font-medium">Aligned Scorecard</p>
               </div>
               <p className="text-xs text-muted-foreground">
-                Map your Vision Planner goals to existing scorecard metrics. No new metrics will be created.
+                Map your Vision Planner goals to existing scorecard metrics. Alignment keeps your metrics, meetings, and Rocks on track using one consistent set of numbers.
               </p>
             </div>
 
