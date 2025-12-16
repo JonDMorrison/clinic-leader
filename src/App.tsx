@@ -70,6 +70,7 @@ import ScorecardOffTrack from "./pages/ScorecardOffTrack";
 import ScorecardCutover from "./pages/ScorecardCutover";
 import RocksMonthlyReview from "./pages/RocksMonthlyReview";
 import QuarterlyCloseReport from "./pages/QuarterlyCloseReport";
+import Focus from "./pages/Focus";
 
 const queryClient = new QueryClient();
 
@@ -167,6 +168,7 @@ const App = () => {
             <Route path="/rocks" element={<AppLayout><Rocks /></AppLayout>} />
             <Route path="/rocks/monthly-review" element={<AppLayout><RocksMonthlyReview /></AppLayout>} />
             <Route path="/rocks/quarterly-close" element={<AppLayout><QuarterlyCloseReport /></AppLayout>} />
+            <Route path="/focus" element={<AppLayout><Focus /></AppLayout>} />
             <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
             <Route path="/meeting" element={<AppLayout><L10 /></AppLayout>} />
             <Route path="/meetings" element={<AppLayout><Meetings /></AppLayout>} />
