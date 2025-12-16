@@ -64,11 +64,11 @@ export function TemplateSetupBanner() {
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold">Monthly Scorecard Template</h3>
                   <Badge variant="outline" className="border-brand text-brand text-xs">
-                    Locked Mode
+                    Aligned
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {metricsCount} metrics defined • AI will not create new metrics automatically
+                  {metricsCount} metrics defined • Metrics are managed through alignment
                 </p>
               </div>
             </div>

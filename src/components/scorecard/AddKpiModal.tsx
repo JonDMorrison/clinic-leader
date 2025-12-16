@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useQuery } from "@tanstack/react-query";
-import { guardLockedMode } from "@/lib/scorecard/lockedModeGuard";
+import { guardAlignedMode } from "@/lib/scorecard/lockedModeGuard";
 import { assertOrgId } from "@/hooks/useOrgSafetyCheck";
 import { Lock } from "lucide-react";
 
@@ -39,7 +39,7 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
   const { toast } = useToast();
   const { data: currentUser } = useCurrentUser();
 
-  // Fetch org settings to check if locked mode
+  // Fetch org settings to check if aligned mode
   const { data: orgSettings } = useQuery({
     queryKey: ['org-settings', currentUser?.team_id],
     queryFn: async () => {
@@ -61,8 +61,8 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
     e.preventDefault();
     setErrors({});
 
-    // LOCKED MODE GUARD: Block metric creation in locked mode
-    if (!guardLockedMode(orgSettings?.scorecard_mode, "add custom metrics")) {
+    // ALIGNED MODE GUARD: Block metric creation in aligned mode
+    if (!guardAlignedMode(orgSettings?.scorecard_mode, "add custom metrics")) {
       return;
     }
 

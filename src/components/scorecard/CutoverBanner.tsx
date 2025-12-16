@@ -25,13 +25,13 @@ export function CutoverBanner({ variant = "warning" }: CutoverBannerProps) {
       <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
         <span>
           {variant === "warning" 
-            ? "Setup incomplete. Complete cutover to prevent scorecard errors."
-            : "Data may be incomplete until setup is finished."
+            ? "Alignment incomplete. Complete setup to get your scorecard on track."
+            : "Data may be incomplete until alignment setup is finished."
           }
         </span>
         <Button variant="outline" size="sm" asChild>
           <Link to="/scorecard/cutover">
-            Complete Setup
+            Get on Track
             <ArrowRight className="w-4 h-4 ml-2" />
           </Link>
         </Button>

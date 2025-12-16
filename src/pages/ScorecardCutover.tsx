@@ -26,7 +26,7 @@ import {
   PartyPopper,
 } from "lucide-react";
 
-type StepStatus = 'locked' | 'active' | 'completed' | 'needs_attention';
+type StepStatus = 'pending' | 'active' | 'completed' | 'needs_attention';
 
 interface CutoverStep {
   id: string;
@@ -49,19 +49,19 @@ export default function ScorecardCutover() {
       case 0: // Template Keys
         return cutoverStatus.templateKeysReady ? 'completed' : 'needs_attention';
       case 1: // Duplicates
-        if (!cutoverStatus.templateKeysReady) return 'locked';
+        if (!cutoverStatus.templateKeysReady) return 'pending';
         return cutoverStatus.duplicatesResolved ? 'completed' : 'needs_attention';
       case 2: // Monthly Data
-        if (!cutoverStatus.templateKeysReady || !cutoverStatus.duplicatesResolved) return 'locked';
+        if (!cutoverStatus.templateKeysReady || !cutoverStatus.duplicatesResolved) return 'pending';
         return cutoverStatus.monthlyDataLoaded ? 'completed' : 'active';
       case 3: // VTO Mapping
-        if (!cutoverStatus.templateKeysReady || !cutoverStatus.duplicatesResolved) return 'locked';
+        if (!cutoverStatus.templateKeysReady || !cutoverStatus.duplicatesResolved) return 'pending';
         return cutoverStatus.vtoMapped ? 'completed' : 'active';
       case 4: // Meeting Ready
-        if (!cutoverStatus.templateKeysReady || !cutoverStatus.duplicatesResolved || !cutoverStatus.monthlyDataLoaded) return 'locked';
+        if (!cutoverStatus.templateKeysReady || !cutoverStatus.duplicatesResolved || !cutoverStatus.monthlyDataLoaded) return 'pending';
         return cutoverStatus.meetingReady ? 'completed' : 'active';
       default:
-        return 'locked';
+        return 'pending';
     }
   };
 
@@ -129,13 +129,13 @@ export default function ScorecardCutover() {
         return <Circle className="w-6 h-6 text-brand fill-brand/10" />;
       case 'needs_attention':
         return <AlertTriangle className="w-6 h-6 text-warning" />;
-      case 'locked':
+      case 'pending':
         return <Lock className="w-6 h-6 text-muted-foreground" />;
     }
   };
 
   const renderStepContent = (step: CutoverStep) => {
-    const isLocked = step.status === 'locked';
+    const isPending = step.status === 'pending';
 
     switch (step.id) {
       case 'template-keys':
@@ -171,7 +171,7 @@ export default function ScorecardCutover() {
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>{step.blocking}</AlertDescription>
                 </Alert>
-                <Button asChild disabled={isLocked}>
+                <Button asChild disabled={isPending}>
                   <Link to="/scorecard/template#duplicates">
                     <ListChecks className="w-4 h-4 mr-2" />
                     Resolve Duplicates
@@ -208,7 +208,7 @@ export default function ScorecardCutover() {
                 </p>
               </>
             )}
-            <Button asChild variant={step.status === 'completed' ? "outline" : "default"} disabled={isLocked}>
+            <Button asChild variant={step.status === 'completed' ? "outline" : "default"} disabled={isPending}>
               <Link to="/imports/monthly-report">
                 <Upload className="w-4 h-4 mr-2" />
                 {step.status === 'completed' ? "Import More Data" : "Import Monthly Data"}
@@ -242,7 +242,7 @@ export default function ScorecardCutover() {
                 </p>
               </>
             )}
-            <Button asChild variant={step.status === 'completed' ? "outline" : "default"} disabled={isLocked}>
+            <Button asChild variant={step.status === 'completed' ? "outline" : "default"} disabled={isPending}>
               <Link to="/vto">
                 <Map className="w-4 h-4 mr-2" />
                 {step.status === 'completed' ? "View VTO" : "Map VTO to Scorecard"}
@@ -264,7 +264,7 @@ export default function ScorecardCutover() {
                 Schedule your first L10 weekly meeting.
               </p>
             )}
-            <Button asChild variant={step.status === 'completed' ? "outline" : "default"} disabled={isLocked}>
+            <Button asChild variant={step.status === 'completed' ? "outline" : "default"} disabled={isPending}>
               <Link to="/meetings">
                 <CalendarPlus className="w-4 h-4 mr-2" />
                 {step.status === 'completed' ? "View Meetings" : "Create First Meeting"}
@@ -324,9 +324,9 @@ export default function ScorecardCutover() {
     <div className="container mx-auto py-8 space-y-6 max-w-3xl">
       {/* Header */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Scorecard Cutover</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Scorecard Alignment</h1>
         <p className="text-muted-foreground">
-          Complete these 5 steps to ensure your monthly scorecard is ready for EOS execution.
+          Complete these 5 steps to get your monthly scorecard on track for EOS execution.
         </p>
       </div>
 
@@ -350,9 +350,9 @@ export default function ScorecardCutover() {
                 <PartyPopper className="w-12 h-12 text-success" />
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-semibold text-success mb-1">Ready to run EOS monthly!</h2>
+                <h2 className="text-xl font-semibold text-success mb-1">Aligned and on track!</h2>
                 <p className="text-muted-foreground">
-                  All setup steps complete. Click below to mark your scorecard as ready.
+                  All alignment steps complete. Click below to mark your scorecard as ready.
                 </p>
               </div>
               <Button 
@@ -397,7 +397,7 @@ export default function ScorecardCutover() {
         {steps.map((step, index) => (
           <Card 
             key={step.id} 
-            className={step.status === 'locked' ? 'opacity-60' : ''}
+            className={step.status === 'pending' ? 'opacity-60' : ''}
           >
             <CardContent className="py-4">
               <div className="flex gap-4">
@@ -417,14 +417,14 @@ export default function ScorecardCutover() {
                         Needs Attention
                       </Badge>
                     )}
-                    {step.status === 'locked' && (
+                    {step.status === 'pending' && (
                       <Badge variant="outline" className="text-muted-foreground text-xs">
-                        Locked
+                        Pending
                       </Badge>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">{step.description}</p>
-                  {step.status !== 'locked' && (
+                  {step.status !== 'pending' && (
                     <>
                       <Separator className="my-3" />
                       {renderStepContent(step)}

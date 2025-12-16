@@ -377,7 +377,7 @@ const ImportMonthlyReport = () => {
         }
       }
       
-      // Match metric by EXACT import_key only (no fuzzy matching in locked mode)
+      // Match metric by EXACT import_key only (no fuzzy matching in aligned mode)
       const normalizedKey = normalizeLabel(metricKey);
       const matchedMetric = importKeyMap.get(normalizedKey);
       
@@ -387,7 +387,7 @@ const ImportMonthlyReport = () => {
       
       if (!matchedMetric) {
         status = 'unmatched';
-        reason = `metric_key "${metricKey}" not found in scorecard template (locked mode prevents metric creation)`;
+        reason = `metric_key "${metricKey}" not found in scorecard template`;
       } else if (valueStatus === 'invalid') {
         status = 'invalid_value';
         reason = `Invalid numeric value: "${rawValue}"`;
@@ -749,7 +749,7 @@ const ImportMonthlyReport = () => {
                 <Alert variant="destructive" className="mt-4">
                   <FileWarning className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>Missing required columns for Locked Scorecard:</strong> {diagnostics.missingColumns.join(', ')}
+                    <strong>Missing required columns for Aligned Scorecard:</strong> {diagnostics.missingColumns.join(', ')}
                     <div className="mt-2 text-sm">
                       <p>• You may be viewing a cover sheet or instructions tab</p>
                       <p>• Try selecting a different worksheet</p>
@@ -920,7 +920,7 @@ const ImportMonthlyReport = () => {
                 </div>
                 <CardDescription>
                   These metric_keys were not found in your scorecard template. 
-                  {isAlignedMode && ' In aligned mode, unmatched keys are skipped — no metrics are created.'}
+                  {isAlignedMode && ' In aligned mode, unmatched keys are skipped — no new metrics are created.'}
                 </CardDescription>
               </CardHeader>
               <CardContent>

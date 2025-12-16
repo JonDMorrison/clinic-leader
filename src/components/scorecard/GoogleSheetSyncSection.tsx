@@ -206,7 +206,7 @@ export function GoogleSheetSyncSection({
     const header = "row_number,metric_key,reason";
     const rows = syncResult.unmatched_metric_keys.flatMap(u => 
       u.rows.map(rowNum => 
-        `${rowNum},"${u.key}","metric_key not found in scorecard template (locked mode prevents metric creation)"`
+        `${rowNum},"${u.key}","metric_key not found in scorecard template"`
       )
     );
     const csv = [header, ...rows].join('\n');
@@ -474,7 +474,7 @@ export function GoogleSheetSyncSection({
                       <div>
                         <strong>{syncResult.unmatched_metric_keys.length} unmatched metric keys</strong>
                         <p className="text-xs mt-1">
-                          These keys don't exist in your template. Locked mode prevents creating new metrics.
+                          These keys don't exist in your template. In aligned mode, unmatched keys are skipped.
                         </p>
                       </div>
                       <div className="flex gap-1">

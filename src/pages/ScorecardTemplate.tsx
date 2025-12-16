@@ -684,7 +684,7 @@ const ScorecardTemplate = () => {
           <AlertTitle>Import & Sync Blocked</AlertTitle>
           <AlertDescription className="space-y-3">
             <p>
-              Aligned Scorecard requires a READY template before you can import or sync monthly data.
+              An aligned scorecard requires a READY template before you can import or sync monthly data.
               {(health?.missing_import_keys_count || 0) > 0 && ` ${health?.missing_import_keys_count} metrics are missing import keys.`}
               {(health?.duplicate_import_keys_count || 0) > 0 && ` ${health?.duplicate_import_keys_count} metrics have duplicate import keys.`}
             </p>

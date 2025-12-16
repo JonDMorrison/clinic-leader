@@ -309,9 +309,9 @@ const Scorecard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Cutover Banner for locked orgs (shows if not ready) */}
+      {/* Alignment Banner for aligned orgs (shows if not ready) */}
       <CutoverBanner variant="warning" />
-      {/* Template Setup Banner for locked orgs */}
+      {/* Template Setup Banner for aligned orgs */}
       <TemplateSetupBanner />
       <div className="flex items-center justify-between">
         <div>
