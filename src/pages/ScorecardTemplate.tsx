@@ -120,16 +120,16 @@ const ScorecardTemplate = () => {
     enabled: !!orgId,
   });
 
-  const isLockedMode = orgSettings?.scorecard_mode === 'locked_to_template';
+  const isAlignedMode = orgSettings?.scorecard_mode === 'aligned';
   const templateReady = health?.isReady || false;
   
   // Check for unsaved changes that would leave template invalid
   const hasUnsavedChanges = Object.keys(editingImportKeys).length > 0;
   const wouldLeaveInvalid = hasUnsavedChanges && !templateReady;
 
-  // Handle navigation with validation for locked orgs
+  // Handle navigation with validation for aligned orgs
   const handleNavigate = (path: string) => {
-    if (isLockedMode && wouldLeaveInvalid) {
+    if (isAlignedMode && wouldLeaveInvalid) {
       setPendingNavigation(path);
       setShowLeaveConfirm(true);
     } else {
@@ -143,8 +143,8 @@ const ScorecardTemplate = () => {
     
     // Clear or set validation error
     const trimmedValue = value.trim();
-    if (!trimmedValue && isLockedMode) {
-      setValidationErrors(prev => ({ ...prev, [metricId]: 'Import key is required for locked organizations' }));
+    if (!trimmedValue && isAlignedMode) {
+      setValidationErrors(prev => ({ ...prev, [metricId]: 'Import key is required for aligned organizations' }));
     } else if (trimmedValue && !validateImportKeyUnique(trimmedValue, metricId, activeMetrics)) {
       setValidationErrors(prev => ({ ...prev, [metricId]: 'This import key is already used by another metric' }));
     } else {
@@ -505,8 +505,8 @@ const ScorecardTemplate = () => {
             .eq('organization_id', orgId);
           
           if (!error) updated++;
-        } else if (!isLockedMode) {
-          // Only create new metrics in flex mode
+        } else if (!isAlignedMode) {
+          // Only create new metrics in flexible mode
           const { error } = await supabase
             .from('metrics')
             .insert({
@@ -563,10 +563,10 @@ const ScorecardTemplate = () => {
           Manage your canonical KPI list and import keys for monthly data uploads
         </p>
         <div className="flex gap-2 mt-2">
-          {isLockedMode && (
+          {isAlignedMode && (
             <Badge variant="outline" className="border-primary text-primary">
               <Lock className="w-3 h-3 mr-1" />
-              Locked to Template Mode
+              Aligned Template Mode
             </Badge>
           )}
           {!isAdmin && (
@@ -677,14 +677,14 @@ const ScorecardTemplate = () => {
         </CardContent>
       </Card>
 
-      {/* Blocking panel for locked orgs - with CTAs */}
-      {isLockedMode && !templateReady && (
+      {/* Blocking panel for aligned orgs - with CTAs */}
+      {isAlignedMode && !templateReady && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Import & Sync Blocked</AlertTitle>
           <AlertDescription className="space-y-3">
             <p>
-              Locked Scorecard requires a READY template before you can import or sync monthly data.
+              Aligned Scorecard requires a READY template before you can import or sync monthly data.
               {(health?.missing_import_keys_count || 0) > 0 && ` ${health?.missing_import_keys_count} metrics are missing import keys.`}
               {(health?.duplicate_import_keys_count || 0) > 0 && ` ${health?.duplicate_import_keys_count} metrics have duplicate import keys.`}
             </p>
@@ -716,8 +716,8 @@ const ScorecardTemplate = () => {
         </Alert>
       )}
 
-      {/* Google Sheet Sync Section - only for locked mode */}
-      {isLockedMode && orgId && (
+      {/* Google Sheet Sync Section - only for aligned mode */}
+      {isAlignedMode && orgId && (
         <GoogleSheetSyncSection
           orgId={orgId}
           templateReady={templateReady}
@@ -937,8 +937,8 @@ const ScorecardTemplate = () => {
             </CardTitle>
             <CardDescription>
               Upload an Excel/CSV to define or update your metric list (names, targets, owners). This is for defining metrics, not importing data.
-              {isLockedMode && (
-                <span className="text-amber-600 ml-1">(Locked mode: new metrics will be skipped)</span>
+              {isAlignedMode && (
+                <span className="text-amber-600 ml-1">(Aligned mode: new metrics will be skipped)</span>
               )}
             </CardDescription>
           </CardHeader>
@@ -981,7 +981,7 @@ const ScorecardTemplate = () => {
             <CardTitle>Template Preview ({templateMetrics.length} metrics)</CardTitle>
             <CardDescription>
               Review matches and select which metrics to import or update
-              {isLockedMode && <span className="text-amber-600 ml-2">(Locked mode: new metrics will be skipped)</span>}
+              {isAlignedMode && <span className="text-amber-600 ml-2">(Aligned mode: new metrics will be skipped)</span>}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -997,11 +997,11 @@ const ScorecardTemplate = () => {
               </TableHeader>
               <TableBody>
                 {templateMetrics.map((metric, index) => (
-                  <TableRow key={index} className={isLockedMode && metric.matchType === 'new' ? 'opacity-50' : ''}>
+                  <TableRow key={index} className={isAlignedMode && metric.matchType === 'new' ? 'opacity-50' : ''}>
                     <TableCell>
                       <Checkbox
                         checked={selectedForImport.has(index)}
-                        disabled={isLockedMode && metric.matchType === 'new'}
+                        disabled={isAlignedMode && metric.matchType === 'new'}
                         onCheckedChange={(checked) => {
                           const newSet = new Set(selectedForImport);
                           if (checked) newSet.add(index);
@@ -1027,8 +1027,8 @@ const ScorecardTemplate = () => {
                         <Badge variant="outline" className="border-amber-500 text-amber-600">Fuzzy Match</Badge>
                       )}
                       {metric.matchType === 'new' && (
-                        <Badge variant={isLockedMode ? 'secondary' : 'outline'} className={!isLockedMode ? 'border-blue-500 text-blue-600' : ''}>
-                          {isLockedMode ? 'Skipped (New)' : 'New Metric'}
+                        <Badge variant={isAlignedMode ? 'secondary' : 'outline'} className={!isAlignedMode ? 'border-blue-500 text-blue-600' : ''}>
+                          {isAlignedMode ? 'Skipped (New)' : 'New Metric'}
                         </Badge>
                       )}
                     </TableCell>

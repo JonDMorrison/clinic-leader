@@ -300,8 +300,8 @@ export default function ScorecardCutover() {
     );
   }
 
-  // Non-locked orgs see a simple message
-  if (!cutoverStatus.isLockedMode) {
+  // Non-aligned orgs see a simple message
+  if (!cutoverStatus.isAlignedMode) {
     return (
       <div className="container mx-auto py-8 max-w-3xl">
         <Card>
@@ -309,7 +309,7 @@ export default function ScorecardCutover() {
             <Sparkles className="w-12 h-12 mx-auto text-brand mb-4" />
             <h2 className="text-xl font-semibold mb-2">Flexible Scorecard Mode</h2>
             <p className="text-muted-foreground mb-4">
-              Your organization uses flexible scorecard mode. The cutover wizard is for locked template organizations only.
+              Your organization uses flexible scorecard mode. The cutover wizard is for aligned template organizations only.
             </p>
             <Button asChild variant="outline">
               <Link to="/scorecard">Go to Scorecard</Link>

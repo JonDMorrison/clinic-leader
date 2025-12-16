@@ -142,10 +142,10 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
       if (error) throw error;
       return data as ExistingMetric[];
     },
-    enabled: !!currentUser?.team_id && open && orgSettings?.scorecard_mode === 'locked_to_template',
+    enabled: !!currentUser?.team_id && open && orgSettings?.scorecard_mode === 'aligned',
   });
 
-  const isLockedMode = orgSettings?.scorecard_mode === 'locked_to_template';
+  const isAlignedMode = orgSettings?.scorecard_mode === 'aligned';
 
   // Reset all state to initial
   const resetState = () => {
@@ -231,7 +231,7 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
 
   // Generate suggestions from VTO (standard mode)
   const handleGenerate = async () => {
-    if (isLockedMode) {
+    if (isAlignedMode) {
       await handleMapToExisting();
       return;
     }
@@ -486,7 +486,7 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {isLockedMode ? (
+            {isAlignedMode ? (
               <>
                 <Lock className="w-5 h-5 text-primary" />
                 Map V/TO to Scorecard
@@ -499,7 +499,7 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
             )}
           </DialogTitle>
           <DialogDescription>
-            {isLockedMode 
+            {isAlignedMode 
               ? "Link your Vision Planner goals to existing scorecard metrics. No new metrics will be created."
               : "AI analyzes your Vision Planner goals and suggests KPIs to track on your weekly scorecard"
             }
@@ -511,14 +511,14 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
           <div className="py-8 space-y-6">
             <div className="text-center space-y-3">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                {isLockedMode ? <Lock className="h-8 w-8 text-primary" /> : <Sparkles className="h-8 w-8 text-primary" />}
+                {isAlignedMode ? <Lock className="h-8 w-8 text-primary" /> : <Sparkles className="h-8 w-8 text-primary" />}
               </div>
               <h3 className="text-lg font-semibold">
-                {isLockedMode ? "Map V/TO to Existing Metrics" : "Let AI build your Scorecard"}
+                {isAlignedMode ? "Map V/TO to Existing Metrics" : "Let AI build your Scorecard"}
               </h3>
               <p className="text-muted-foreground max-w-md mx-auto">
-                {isLockedMode 
-                  ? "We'll read your Vision Planner goals and help you link them to your locked scorecard metrics."
+                {isAlignedMode 
+                  ? "We'll read your Vision Planner goals and help you link them to your aligned scorecard metrics."
                   : "We'll read your long-term and short-term goals from your Vision Planner and suggest relevant KPIs to track weekly progress toward those goals."
                 }
               </p>
@@ -528,7 +528,7 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
                 Cancel
               </Button>
               <Button onClick={handleGenerate} className="gradient-brand">
-                {isLockedMode ? (
+                {isAlignedMode ? (
                   <>
                     <LinkIcon className="w-4 h-4 mr-2" />
                     Load Goals & Map
@@ -796,10 +796,10 @@ export const CreateFromVTODialog = ({ open, onClose, onSuccess }: CreateFromVTOD
               <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
             <h3 className="text-lg font-semibold mb-2">
-              {isLockedMode ? "Mappings Saved!" : "Scorecard Created!"}
+              {isAlignedMode ? "Mappings Saved!" : "Scorecard Created!"}
             </h3>
             <p className="text-muted-foreground mb-6">
-              {isLockedMode 
+              {isAlignedMode 
                 ? `${mappedCount} metrics are now linked to your Vision Planner goals`
                 : `${createdCount} metrics are now tracking progress toward your Vision Planner goals`
               }

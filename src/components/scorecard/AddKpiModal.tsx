@@ -55,7 +55,7 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
     enabled: !!currentUser?.team_id && open,
   });
 
-  const isLockedMode = orgSettings?.scorecard_mode === 'locked_to_template';
+  const isAlignedMode = orgSettings?.scorecard_mode === 'aligned';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,19 +126,19 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
     }
   };
 
-  // Show locked mode warning
-  if (isLockedMode) {
+  // Show aligned mode warning
+  if (isAlignedMode) {
     return (
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Lock className="w-5 h-5 text-amber-500" />
-              Locked Scorecard
+              Aligned Scorecard
             </DialogTitle>
           </DialogHeader>
           <div className="py-4 text-muted-foreground">
-            <p>Your organization uses a locked scorecard template.</p>
+            <p>Your organization uses an aligned scorecard template.</p>
             <p className="mt-2">
               Metrics must be managed in the{" "}
               <a href="/scorecard/template" className="text-primary underline">
