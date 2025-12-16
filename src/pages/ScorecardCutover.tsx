@@ -422,7 +422,7 @@ export default function ScorecardCutover() {
                     )}
                     {step.status === 'pending' && (
                       <Badge variant="outline" className="text-muted-foreground text-xs">
-                        Awaiting
+                        Needs attention
                       </Badge>
                     )}
                   </div>
