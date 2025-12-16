@@ -77,8 +77,8 @@ serve(async (req) => {
       console.warn('[ORG_SETTINGS_WARN] Could not fetch org settings:', orgError);
     }
 
-    const isLockedMode = orgSettings?.scorecard_mode === 'locked_to_template';
-    console.log('[ai-generate-scorecard-from-vto] Locked mode:', isLockedMode);
+    const isAlignedMode = orgSettings?.scorecard_mode === 'aligned';
+    console.log('[ai-generate-scorecard-from-vto] Aligned mode:', isAlignedMode);
 
     // Fetch active VTO with versions
     const { data: vto, error: vtoError } = await supabase
@@ -327,30 +327,30 @@ Return a JSON array with this structure:
       return errorResponse(500, 'AI_OR_UNKNOWN_ERROR', 'We ran into a problem generating scorecard suggestions. Please try again.');
     }
 
-    // If locked mode, fetch existing metrics and return for mapping instead of creation
-    if (isLockedMode) {
+    // If aligned mode, fetch existing metrics and return for mapping instead of creation
+    if (isAlignedMode) {
       const { data: existingMetrics } = await supabase
         .from('metrics')
         .select('id, name, category, unit, target, direction, cadence')
         .eq('organization_id', organization_id)
         .order('name');
 
-      console.log(`[ai-generate-scorecard-from-vto] Locked mode - returning ${existingMetrics?.length || 0} existing metrics for mapping`);
+      console.log(`[ai-generate-scorecard-from-vto] Aligned mode - returning ${existingMetrics?.length || 0} existing metrics for mapping`);
 
       return successResponse({
-        mode: 'locked_to_template',
-        message: 'This organization uses a fixed metric template. AI will suggest mappings to existing metrics only.',
+        mode: 'aligned',
+        message: 'This organization uses an aligned metric template. AI will suggest mappings to existing metrics only.',
         vtoVersionId: version.id,
         goals,
         existingMetrics: existingMetrics || [],
-        suggestedMetrics: [], // No AI-generated metrics in locked mode
+        suggestedMetrics: [], // No AI-generated metrics in aligned mode
       });
     }
 
     console.log(`[ai-generate-scorecard-from-vto] Success! AI suggested ${suggestedMetrics.metrics.length} metrics`);
 
     return successResponse({
-      mode: 'flex',
+      mode: 'flexible',
       vtoVersionId: version.id,
       goals,
       suggestedMetrics: suggestedMetrics.metrics,

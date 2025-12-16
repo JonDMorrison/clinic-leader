@@ -30,7 +30,7 @@ export interface CutoverStatus {
   // Overall
   allStepsComplete: boolean;
   scorecardReady: boolean;
-  isLockedMode: boolean;
+  isAlignedMode: boolean;
 }
 
 export function useCutoverReadiness() {
@@ -52,14 +52,14 @@ export function useCutoverReadiness() {
         .eq("id", organizationId)
         .single();
 
-      const isLockedMode = org?.scorecard_mode === "locked_to_template";
+      const isAlignedMode = org?.scorecard_mode === "aligned";
       const scorecardReady = org?.scorecard_ready ?? false;
 
-      // If not locked mode, skip cutover checks
-      if (!isLockedMode) {
+      // If not aligned mode, skip cutover checks
+      if (!isAlignedMode) {
         return {
           ...getDefaultStatus(),
-          isLockedMode: false,
+          isAlignedMode: false,
           scorecardReady: true,
           allStepsComplete: true,
         };
@@ -163,7 +163,7 @@ export function useCutoverReadiness() {
         upcomingMeetingCount,
         allStepsComplete,
         scorecardReady,
-        isLockedMode,
+        isAlignedMode,
       };
     },
     enabled: !!organizationId,
@@ -218,6 +218,6 @@ function getDefaultStatus(): CutoverStatus {
     upcomingMeetingCount: 0,
     allStepsComplete: false,
     scorecardReady: false,
-    isLockedMode: false,
+    isAlignedMode: false,
   };
 }

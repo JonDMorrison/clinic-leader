@@ -2,9 +2,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 /**
- * Check if organization is in locked_to_template mode
+ * Check if organization is in aligned mode (formerly locked_to_template)
  */
-export async function isLockedMode(organizationId: string): Promise<boolean> {
+export async function isAlignedMode(organizationId: string): Promise<boolean> {
   if (!organizationId) return false;
   
   const { data, error } = await supabase
@@ -18,19 +18,19 @@ export async function isLockedMode(organizationId: string): Promise<boolean> {
     return false;
   }
   
-  return data?.scorecard_mode === 'locked_to_template';
+  return data?.scorecard_mode === 'aligned';
 }
 
 /**
- * Guard function to prevent metric creation in locked mode
+ * Guard function to prevent metric creation in aligned mode
  * Returns true if metric creation is allowed, false otherwise (with toast)
  */
 export async function canCreateMetric(organizationId: string): Promise<boolean> {
-  const locked = await isLockedMode(organizationId);
+  const aligned = await isAlignedMode(organizationId);
   
-  if (locked) {
+  if (aligned) {
     toast.error(
-      "Locked Scorecard: metrics must be created in the Scorecard Template.",
+      "Aligned Scorecard: metrics must be created in the Scorecard Template.",
       { duration: 5000 }
     );
     return false;
@@ -42,25 +42,33 @@ export async function canCreateMetric(organizationId: string): Promise<boolean> 
 /**
  * Sync check version - uses pre-fetched org settings
  */
-export function checkLockedModeSync(
+export function checkAlignedModeSync(
   scorecardMode: string | null | undefined
 ): boolean {
-  return scorecardMode === 'locked_to_template';
+  return scorecardMode === 'aligned';
 }
 
 /**
- * Guard for locked mode - shows toast and returns false if locked
+ * Guard for aligned mode - shows toast and returns false if aligned
  */
-export function guardLockedMode(
+export function guardAlignedMode(
   scorecardMode: string | null | undefined,
   action: string = "create metrics"
 ): boolean {
-  if (checkLockedModeSync(scorecardMode)) {
+  if (checkAlignedModeSync(scorecardMode)) {
     toast.error(
-      `Locked Scorecard: Cannot ${action}. Metrics must be managed in the Scorecard Template.`,
+      `Aligned Scorecard: Cannot ${action}. Metrics must be managed in the Scorecard Template.`,
       { duration: 5000 }
     );
     return false;
   }
   return true;
 }
+
+// Legacy aliases for backward compatibility during transition
+/** @deprecated Use isAlignedMode instead */
+export const isLockedMode = isAlignedMode;
+/** @deprecated Use checkAlignedModeSync instead */
+export const checkLockedModeSync = checkAlignedModeSync;
+/** @deprecated Use guardAlignedMode instead */
+export const guardLockedMode = guardAlignedMode;

@@ -13,9 +13,9 @@ export function CutoverBanner({ variant = "warning" }: CutoverBannerProps) {
 
   // Don't show banner if:
   // - Loading
-  // - Not a locked org
+  // - Not an aligned org
   // - Already ready
-  if (isLoading || !cutoverStatus.isLockedMode || cutoverStatus.scorecardReady) {
+  if (isLoading || !cutoverStatus.isAlignedMode || cutoverStatus.scorecardReady) {
     return null;
   }
 

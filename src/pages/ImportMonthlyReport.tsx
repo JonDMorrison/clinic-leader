@@ -120,7 +120,7 @@ const ImportMonthlyReport = () => {
     enabled: !!currentUser?.team_id,
   });
 
-  const isLockedMode = orgSettings?.scorecard_mode === 'locked_to_template';
+  const isAlignedMode = orgSettings?.scorecard_mode === 'aligned';
 
   // Check if template is ready (all metrics have import_key)
   const missingImportKeys = useMemo(() => 
@@ -526,19 +526,19 @@ const ImportMonthlyReport = () => {
         <p className="text-muted-foreground">
           Upload your monthly scorecard data using the canonical template format
         </p>
-        {isLockedMode && (
+        {isAlignedMode && (
           <Badge variant="outline" className="mt-2 border-brand text-brand">
-            Locked to Template Mode
+            Aligned Template Mode
           </Badge>
         )}
       </div>
 
-      {/* Locked mode banner */}
-      {isLockedMode && (
+      {/* Aligned mode banner */}
+      {isAlignedMode && (
         <Alert className="border-primary bg-primary/5">
           <FileSpreadsheet className="h-4 w-4" />
           <AlertDescription>
-            <strong>Locked Monthly Scorecard:</strong> Upload must use Scorecard_Input format 
+            <strong>Aligned Monthly Scorecard:</strong> Upload must use Scorecard_Input format 
             (<code className="mx-1 px-1 bg-muted rounded">metric_key</code>, 
             <code className="mx-1 px-1 bg-muted rounded">value</code>, 
             <code className="mx-1 px-1 bg-muted rounded">month</code>). 
@@ -548,7 +548,7 @@ const ImportMonthlyReport = () => {
       )}
 
       {/* Template not ready alert */}
-      {isLockedMode && !templateReady && (
+      {isAlignedMode && !templateReady && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
@@ -625,7 +625,7 @@ const ImportMonthlyReport = () => {
                 accept=".csv,.xlsx,.xls"
                 onChange={handleFileSelect}
                 className="max-w-sm mx-auto"
-                disabled={isLockedMode && !templateReady}
+                disabled={isAlignedMode && !templateReady}
               />
               <p className="text-sm text-muted-foreground mt-2">
                 Supports: Excel (.xlsx, .xls), CSV
@@ -920,7 +920,7 @@ const ImportMonthlyReport = () => {
                 </div>
                 <CardDescription>
                   These metric_keys were not found in your scorecard template. 
-                  {isLockedMode && ' In locked mode, unmatched keys are skipped — no metrics are created.'}
+                  {isAlignedMode && ' In aligned mode, unmatched keys are skipped — no metrics are created.'}
                 </CardDescription>
               </CardHeader>
               <CardContent>

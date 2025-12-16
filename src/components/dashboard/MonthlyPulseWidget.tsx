@@ -34,7 +34,7 @@ interface PulseData {
   atRiskRocksCount: number;
   lastSyncDate: Date | null;
   lastSyncMonth: string | null;
-  isLockedMode: boolean;
+  isAlignedMode: boolean;
   totalMetrics: number;
   hasGoogleSheet: boolean;
   syncStatus: string | null;
@@ -86,7 +86,7 @@ export function MonthlyPulseWidget() {
           atRiskRocksCount: 0,
           lastSyncDate: importConfig?.last_synced_at ? new Date(importConfig.last_synced_at) : null,
           lastSyncMonth: importConfig?.last_synced_month || null,
-          isLockedMode: orgData?.scorecard_mode === 'locked_to_template',
+          isAlignedMode: orgData?.scorecard_mode === 'aligned',
           totalMetrics: 0,
           hasGoogleSheet: importConfig?.source === 'google_sheet' && !!importConfig?.sheet_id,
           syncStatus: importConfig?.status || null,
@@ -191,7 +191,7 @@ export function MonthlyPulseWidget() {
         atRiskRocksCount,
         lastSyncDate,
         lastSyncMonth,
-        isLockedMode: orgData?.scorecard_mode === 'locked_to_template',
+        isAlignedMode: orgData?.scorecard_mode === 'aligned',
         totalMetrics: monthlyMetrics.length,
         hasGoogleSheet: importConfig?.source === 'google_sheet' && !!importConfig?.sheet_id,
         syncStatus: importConfig?.status || null,
@@ -269,8 +269,8 @@ export function MonthlyPulseWidget() {
                   Google Sheet
                 </Badge>
               )}
-              {pulseData.isLockedMode && (
-                <Badge variant="outline" className="text-xs border-brand text-brand">Locked Template</Badge>
+              {pulseData.isAlignedMode && (
+                <Badge variant="outline" className="text-xs border-brand text-brand">Aligned Template</Badge>
               )}
             </div>
           </div>
@@ -398,7 +398,7 @@ export function MonthlyPulseWidget() {
           </div>
 
           {/* Template health link */}
-          {pulseData.isLockedMode && (
+          {pulseData.isAlignedMode && (
             <div className="pt-1">
               <Button
                 variant="ghost"

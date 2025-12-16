@@ -42,8 +42,8 @@ export function TemplateSetupBanner() {
     enabled: !!currentUser?.team_id,
   });
 
-  // Only show for locked_to_template mode and for admin users
-  if (!orgSettings || orgSettings.scorecard_mode !== 'locked_to_template') {
+  // Only show for aligned mode and for admin users
+  if (!orgSettings || orgSettings.scorecard_mode !== 'aligned') {
     return null;
   }
 
