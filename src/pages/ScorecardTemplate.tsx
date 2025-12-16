@@ -938,7 +938,7 @@ const ScorecardTemplate = () => {
             <CardDescription>
               Upload an Excel/CSV to define or update your metric list (names, targets, owners). This is for defining metrics, not importing data.
               {isAlignedMode && (
-                <span className="text-amber-600 ml-1">(Aligned mode: new metrics will be skipped)</span>
+                <span className="text-amber-600 ml-1">(Aligned mode: new metrics won't be added automatically)</span>
               )}
             </CardDescription>
           </CardHeader>
@@ -981,7 +981,7 @@ const ScorecardTemplate = () => {
             <CardTitle>Template Preview ({templateMetrics.length} metrics)</CardTitle>
             <CardDescription>
               Review matches and select which metrics to import or update
-              {isAlignedMode && <span className="text-amber-600 ml-2">(Aligned mode: new metrics will be skipped)</span>}
+              {isAlignedMode && <span className="text-amber-600 ml-2">(Aligned mode: new metrics won't be added)</span>}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1028,7 +1028,7 @@ const ScorecardTemplate = () => {
                       )}
                       {metric.matchType === 'new' && (
                         <Badge variant={isAlignedMode ? 'secondary' : 'outline'} className={!isAlignedMode ? 'border-blue-500 text-blue-600' : ''}>
-                          {isAlignedMode ? 'Skipped (New)' : 'New Metric'}
+                          {isAlignedMode ? 'Not in Template' : 'New Metric'}
                         </Badge>
                       )}
                     </TableCell>

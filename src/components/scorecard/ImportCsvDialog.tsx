@@ -69,7 +69,7 @@ export const ImportCsvDialog = ({
       if (result.errors.length === 0) {
         toast({
           title: "Import successful",
-          description: `Inserted: ${result.inserted}, Updated: ${result.updated}, Skipped: ${result.skipped}`,
+          description: `Inserted: ${result.inserted}, Updated: ${result.updated}, Not imported: ${result.skipped}`,
         });
         onImportComplete();
       } else {
@@ -186,7 +186,7 @@ export const ImportCsvDialog = ({
                 <div className="p-3 border rounded-lg bg-amber-50 dark:bg-amber-950/30">
                   <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                     <AlertCircle className="w-4 h-4" />
-                    <span className="text-sm font-medium">Skipped</span>
+                    <span className="text-sm font-medium">Not Imported</span>
                   </div>
                   <p className="text-2xl font-bold mt-1">{importResult.skipped}</p>
                 </div>

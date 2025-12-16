@@ -442,7 +442,7 @@ export function GoogleSheetSyncSection({
                   <p className="text-2xl font-bold">
                     {syncResult.rows_processed - syncResult.rows_upserted}
                   </p>
-                  <p className="text-xs text-muted-foreground">Rows Skipped</p>
+                  <p className="text-xs text-muted-foreground">Not Imported</p>
                 </div>
               </div>
 
