@@ -3829,6 +3829,24 @@ export type Database = {
       is_same_team: { Args: { check_team_id: string }; Returns: boolean }
       is_user_admin: { Args: { _user_id: string }; Returns: boolean }
       is_user_manager: { Args: { _user_id: string }; Returns: boolean }
+      match_doc_sections: {
+        Args: {
+          match_count?: number
+          match_org_id: string
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          doc_id: string
+          doc_title: string
+          heading_path: string
+          id: string
+          section_body: string
+          section_title: string
+          section_type: string
+          similarity: number
+        }[]
+      }
     }
     Enums: {
       ar_bucket: "30-60" | "60-90" | "90-120" | "120+"

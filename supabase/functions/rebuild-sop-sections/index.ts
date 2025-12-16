@@ -169,6 +169,48 @@ function sectionizeDocument(docId: string, organizationId: string, title: string
   return sections;
 }
 
+/**
+ * Generate embedding for text using Lovable AI
+ */
+async function generateEmbedding(text: string, lovableApiKey: string): Promise<number[] | null> {
+  if (!text || text.trim().length < 10) return null;
+  
+  // Truncate to ~8000 chars to fit embedding model limits
+  const truncated = text.slice(0, 8000);
+  
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'text-embedding-3-small',
+        input: truncated,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`Embedding API error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.data?.[0]?.embedding || null;
+  } catch (e) {
+    console.error('Embedding generation error:', e);
+    return null;
+  }
+}
+
+/**
+ * Format embedding array for pgvector
+ */
+function formatEmbeddingForPgvector(embedding: number[]): string {
+  return `[${embedding.join(',')}]`;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -177,16 +219,16 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { organizationId, allOrgs } = await req.json();
+    const { organizationId, allOrgs, skipEmbeddings } = await req.json();
 
-    console.log(`[rebuild-sop-sections] Starting rebuild. organizationId=${organizationId}, allOrgs=${allOrgs}`);
+    console.log(`[rebuild-sop-sections] Starting rebuild. organizationId=${organizationId}, allOrgs=${allOrgs}, skipEmbeddings=${skipEmbeddings}`);
 
     let orgsToProcess: string[] = [];
 
     if (allOrgs) {
-      // Get all unique organization IDs from docs
       const { data: orgs, error: orgsError } = await supabase
         .from('docs')
         .select('organization_id')
@@ -208,12 +250,12 @@ serve(async (req) => {
     let totalDocs = 0;
     let totalSections = 0;
     let fallbackDocs = 0;
-    const results: { org: string; docs: number; sections: number; fallbacks: number }[] = [];
+    let embeddingsGenerated = 0;
+    const results: { org: string; docs: number; sections: number; fallbacks: number; embeddings: number }[] = [];
 
     for (const orgId of orgsToProcess) {
       console.log(`[rebuild-sop-sections] Processing org ${orgId}`);
 
-      // Fetch SOPs for this org
       const { data: docs, error: docsError } = await supabase
         .from('docs')
         .select('id, organization_id, title, body, parsed_text, file_type')
@@ -233,6 +275,7 @@ serve(async (req) => {
 
       let orgSections = 0;
       let orgFallbacks = 0;
+      let orgEmbeddings = 0;
 
       for (const doc of docs) {
         // Delete existing sections for this doc
@@ -260,15 +303,40 @@ serve(async (req) => {
           continue;
         }
 
-        // Check if fallback was used (single overview section with full content)
+        // Check if fallback was used
         if (sections.length === 1 && sections[0].section_title === 'Overview' && sections[0].heading_path === '') {
           orgFallbacks++;
+        }
+
+        // Generate embeddings for each section (unless skipped)
+        const sectionsWithEmbeddings: any[] = [];
+        for (const section of sections) {
+          let embedding: number[] | null = null;
+          
+          if (!skipEmbeddings && lovableApiKey && section.section_body.length >= 20) {
+            // Build embedding text: title + heading path + body
+            const embeddingText = [
+              section.section_title,
+              section.heading_path,
+              section.section_body
+            ].filter(Boolean).join('\n');
+            
+            embedding = await generateEmbedding(embeddingText, lovableApiKey);
+            if (embedding) {
+              orgEmbeddings++;
+            }
+          }
+          
+          sectionsWithEmbeddings.push({
+            ...section,
+            embedding: embedding ? formatEmbeddingForPgvector(embedding) : null,
+          });
         }
 
         // Insert new sections
         const { error: insertError } = await supabase
           .from('doc_sections')
-          .insert(sections);
+          .insert(sectionsWithEmbeddings);
 
         if (insertError) {
           console.error(`[rebuild-sop-sections] Error inserting sections for doc ${doc.id}:`, insertError);
@@ -276,22 +344,24 @@ serve(async (req) => {
         }
 
         orgSections += sections.length;
-        console.log(`[rebuild-sop-sections] Doc "${doc.title}" -> ${sections.length} sections`);
+        console.log(`[rebuild-sop-sections] Doc "${doc.title}" -> ${sections.length} sections, ${orgEmbeddings} embeddings`);
       }
 
       totalDocs += docs.length;
       totalSections += orgSections;
       fallbackDocs += orgFallbacks;
-      results.push({ org: orgId, docs: docs.length, sections: orgSections, fallbacks: orgFallbacks });
+      embeddingsGenerated += orgEmbeddings;
+      results.push({ org: orgId, docs: docs.length, sections: orgSections, fallbacks: orgFallbacks, embeddings: orgEmbeddings });
     }
 
-    console.log(`[rebuild-sop-sections] Complete. Docs: ${totalDocs}, Sections: ${totalSections}, Fallbacks: ${fallbackDocs}`);
+    console.log(`[rebuild-sop-sections] Complete. Docs: ${totalDocs}, Sections: ${totalSections}, Fallbacks: ${fallbackDocs}, Embeddings: ${embeddingsGenerated}`);
 
     return new Response(JSON.stringify({
       success: true,
       totalDocs,
       totalSections,
       fallbackDocs,
+      embeddingsGenerated,
       results,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
