@@ -962,7 +962,7 @@ const ImportMonthlyReport = () => {
                   Invalid Rows ({invalidCount})
                 </CardTitle>
                 <CardDescription>
-                  These rows have invalid values or month formats and will be skipped.
+                  These rows have invalid values or month formats and will not be imported.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1029,14 +1029,14 @@ const ImportMonthlyReport = () => {
                 <p className="text-3xl font-bold text-success">{importSummary.imported}</p>
               </div>
               <div className="p-4 rounded-lg bg-muted/50 border">
-                <p className="text-sm text-muted-foreground">Rows Skipped</p>
+                <p className="text-sm text-muted-foreground">Not Imported</p>
                 <p className="text-3xl font-bold">{importSummary.skipped.length}</p>
               </div>
             </div>
 
             {importSummary.skipped.length > 0 && (
               <div className="space-y-2">
-                <p className="font-medium">Skipped Rows:</p>
+                <p className="font-medium">Rows Not Imported:</p>
                 <div className="max-h-48 overflow-y-auto space-y-1">
                   {importSummary.skipped.map((r, i) => (
                     <div key={i} className="text-sm text-muted-foreground flex gap-2">

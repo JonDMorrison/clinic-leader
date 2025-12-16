@@ -19,6 +19,7 @@ import { loadDefaultKPIs, previewDefaultKPIs } from "@/lib/kpis/loader";
 import { getBundleOptions } from "@/lib/kpis/templates";
 import { PreviewStep } from "./PreviewStep";
 import { QuickAssignOwners } from "./QuickAssignOwners";
+import { StayAlignedModal } from "./StayAlignedModal";
 
 interface LoadDefaultsDialogProps {
   open: boolean;
@@ -33,6 +34,7 @@ export function LoadDefaultsDialog({ open, onOpenChange, organizationId }: LoadD
   const [ownerMode, setOwnerMode] = useState<"auto" | "self" | "custom">("auto");
   const [customOwners, setCustomOwners] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<any>(null);
+  const [showAlignedModal, setShowAlignedModal] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -53,6 +55,24 @@ export function LoadDefaultsDialog({ open, onOpenChange, organizationId }: LoadD
     },
   });
 
+  // Fetch org settings to check alignment mode
+  const { data: orgSettings } = useQuery({
+    queryKey: ['org-settings', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return null;
+      const { data, error } = await supabase
+        .from('teams')
+        .select('scorecard_mode')
+        .eq('id', organizationId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organizationId && open,
+  });
+
+  const isAlignedMode = orgSettings?.scorecard_mode === 'aligned';
+
   const bundleOptions = getBundleOptions("clinic_standard");
 
   const loadMutation = useMutation({
@@ -71,7 +91,7 @@ export function LoadDefaultsDialog({ open, onOpenChange, organizationId }: LoadD
       if (result.success) {
         toast({
           title: "KPIs Loaded",
-          description: `Created ${result.createdCount} KPIs${result.skippedNames.length > 0 ? `, skipped ${result.skippedNames.length} existing` : ""}.`,
+          description: `Created ${result.createdCount} KPIs${result.skippedNames.length > 0 ? `, ${result.skippedNames.length} already exist` : ""}.`,
         });
         queryClient.invalidateQueries({ queryKey: ["scorecard-metrics"] });
         setStep(4);
@@ -84,6 +104,10 @@ export function LoadDefaultsDialog({ open, onOpenChange, organizationId }: LoadD
       }
     },
   });
+
+  const executeLoad = () => {
+    loadMutation.mutate();
+  };
 
   const handleNext = async () => {
     if (step === 1) {
@@ -100,8 +124,18 @@ export function LoadDefaultsDialog({ open, onOpenChange, organizationId }: LoadD
     } else if (step === 2 && ownerMode === "custom") {
       setStep(3);
     } else if (step === 2 || step === 3) {
-      loadMutation.mutate();
+      // Check if in aligned mode before creating metrics
+      if (isAlignedMode) {
+        setShowAlignedModal(true);
+      } else {
+        executeLoad();
+      }
     }
+  };
+
+  const handleAlignedProceed = () => {
+    setShowAlignedModal(false);
+    executeLoad();
   };
 
   const handleClose = () => {
@@ -270,6 +304,14 @@ export function LoadDefaultsDialog({ open, onOpenChange, organizationId }: LoadD
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Alignment intercept modal */}
+      <StayAlignedModal
+        open={showAlignedModal}
+        onClose={() => setShowAlignedModal(false)}
+        onProceed={handleAlignedProceed}
+        organizationId={organizationId}
+      />
     </Dialog>
   );
 }
