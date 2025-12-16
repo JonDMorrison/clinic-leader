@@ -20,9 +20,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Printer, CheckCircle2, AlertCircle, XCircle, ArrowUp, ArrowDown, Minus, ExternalLink } from "lucide-react";
+import { Printer, CheckCircle2, AlertCircle, XCircle, ArrowUp, ArrowDown, Minus, ExternalLink, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { subDays } from "date-fns";
 
 // Quarter utilities
 function getQuarterMonths(quarterKey: string): string[] {
@@ -218,6 +219,91 @@ export default function QuarterlyCloseReport() {
         .not("metric_id", "is", null)
         .in("period_key", quarterMonths);
       return data || [];
+    },
+    enabled: !!organizationId && quarterMonths.length > 0,
+  });
+
+  // Fetch recurring issues for the quarter (issues appearing in 2+ meetings)
+  interface QuarterlyRecurringIssue {
+    id: string;
+    title: string;
+    status: string;
+    meetingCount: number;
+    rockId: string | null;
+    rockTitle: string | null;
+  }
+  
+  const { data: recurringIssuesQuarter } = useQuery({
+    queryKey: ["recurring-issues-quarter", organizationId, selectedQuarter],
+    queryFn: async (): Promise<QuarterlyRecurringIssue[]> => {
+      if (!organizationId || quarterMonths.length === 0) return [];
+      
+      // Get quarter date range for filtering
+      const quarterStart = `${quarterMonths[0]}-01`;
+      const quarterEnd = `${quarterMonths[2]}-31`;
+      
+      // Get meeting_items for issues in this quarter
+      const { data: meetingItems, error: itemsError } = await supabase
+        .from("meeting_items")
+        .select(`
+          id,
+          source_ref_id,
+          meeting_id,
+          created_at
+        `)
+        .eq("organization_id", organizationId)
+        .eq("source_ref_type", "issue")
+        .eq("is_deleted", false)
+        .not("source_ref_id", "is", null)
+        .gte("created_at", quarterStart)
+        .lte("created_at", quarterEnd);
+
+      if (itemsError || !meetingItems?.length) return [];
+
+      // Group by issue_id and count distinct meetings
+      const issueToMeetings = new Map<string, Set<string>>();
+      for (const item of meetingItems) {
+        const issueId = item.source_ref_id as string;
+        if (!issueToMeetings.has(issueId)) {
+          issueToMeetings.set(issueId, new Set());
+        }
+        issueToMeetings.get(issueId)!.add(item.meeting_id);
+      }
+
+      // Filter for issues in 2+ meetings
+      const recurringIds = Array.from(issueToMeetings.entries())
+        .filter(([_, meetings]) => meetings.size >= 2)
+        .map(([issueId]) => issueId);
+
+      if (recurringIds.length === 0) return [];
+
+      // Fetch issue details
+      const { data: issues } = await supabase
+        .from("issues")
+        .select("id, title, status, rock_id")
+        .eq("organization_id", organizationId)
+        .in("id", recurringIds);
+
+      if (!issues?.length) return [];
+
+      // Fetch rock titles if any
+      const rockIds = issues.filter(i => i.rock_id).map(i => i.rock_id as string);
+      let rocksMap = new Map<string, string>();
+      if (rockIds.length > 0) {
+        const { data: rocks } = await supabase.from("rocks").select("id, title").in("id", rockIds);
+        for (const rock of rocks || []) {
+          rocksMap.set(rock.id, rock.title);
+        }
+      }
+
+      return issues.map(issue => ({
+        id: issue.id,
+        title: issue.title,
+        status: issue.status,
+        meetingCount: issueToMeetings.get(issue.id)?.size || 0,
+        rockId: issue.rock_id,
+        rockTitle: issue.rock_id ? rocksMap.get(issue.rock_id) || null : null,
+      })).sort((a, b) => b.meetingCount - a.meetingCount).slice(0, 5);
     },
     enabled: !!organizationId && quarterMonths.length > 0,
   });
@@ -496,6 +582,54 @@ export default function QuarterlyCloseReport() {
                       <Badge variant="outline" className="text-xs capitalize">
                         {kpi.direction}
                       </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Recurring Issues This Quarter */}
+      <Card className="mb-6 print:shadow-none print:border print:break-inside-avoid">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Recurring Issues This Quarter
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!recurringIssuesQuarter?.length ? (
+            <p className="text-muted-foreground">No recurring issues this quarter.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Issue</TableHead>
+                  <TableHead>Meetings</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Linked Rock</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recurringIssuesQuarter.map((issue) => (
+                  <TableRow key={issue.id}>
+                    <TableCell className="font-medium max-w-[200px] truncate">
+                      {issue.title}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {issue.meetingCount} meetings
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs capitalize">
+                        {issue.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[150px] truncate text-sm text-muted-foreground">
+                      {issue.rockTitle || "-"}
                     </TableCell>
                   </TableRow>
                 ))}

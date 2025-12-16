@@ -19,6 +19,7 @@ import { MeetingPrintView } from "@/components/meetings/MeetingPrintView";
 import { SectionNavigator } from "@/components/l10/SectionNavigator";
 import { SectionTimer } from "@/components/l10/SectionTimer";
 import { LiveTodoPanel } from "@/components/meetings/LiveTodoPanel";
+import { useRecurringIssues } from "@/hooks/useRecurringIssues";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -410,6 +411,18 @@ export default function MeetingDetail() {
 
   const openTodosCount = (meetingTodos || []).filter(t => !t.done_at).length;
 
+  // Fetch recurring issues for badge display in live/completed mode
+  const { data: recurringIssues } = useRecurringIssues({
+    organizationId,
+    enabled: meeting?.status === "in_progress" || meeting?.status === "completed",
+  });
+
+  // Build recurring issues lookup map
+  const recurringIssueMap = new Map<string, number>();
+  for (const ri of recurringIssues || []) {
+    recurringIssueMap.set(ri.id, ri.meetingCount);
+  }
+
   // Auto-generate agenda when conditions are met
   useEffect(() => {
     async function tryGenerateAgenda() {
@@ -728,6 +741,14 @@ export default function MeetingDetail() {
                           ? rockGapMap?.get(item.source_ref_id) ?? null
                           : null;
 
+                        // Get recurring issue info for issue items
+                        const recurringInfo = item.item_type === "issue" && item.source_ref_id
+                          ? {
+                              isRecurring: recurringIssueMap.has(item.source_ref_id),
+                              meetingCount: recurringIssueMap.get(item.source_ref_id) || 0,
+                            }
+                          : null;
+
                         return (
                           <AgendaItemRow
                             key={item.id}
@@ -742,6 +763,7 @@ export default function MeetingDetail() {
                             periodKey={periodKey}
                             metricStatusObj={metricStatusObj}
                             rockGapData={rockGapData}
+                            recurringInfo={recurringInfo}
                           />
                         );
                       })}
