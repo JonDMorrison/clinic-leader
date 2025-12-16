@@ -34,6 +34,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStr
 import { CSS } from "@dnd-kit/utilities";
 import { TemplateSetupBanner } from "@/components/scorecard/TemplateSetupBanner";
 import { CutoverBanner } from "@/components/scorecard/CutoverBanner";
+import { OutOfAlignmentRibbon } from "@/components/scorecard/OutOfAlignmentRibbon";
 
 const Scorecard = () => {
   const navigate = useNavigate();
@@ -309,6 +310,8 @@ const Scorecard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Out of alignment ribbon for flexible orgs */}
+      <OutOfAlignmentRibbon />
       {/* Alignment Banner for aligned orgs (shows if not ready) */}
       <CutoverBanner variant="warning" />
       {/* Template Setup Banner for aligned orgs */}
