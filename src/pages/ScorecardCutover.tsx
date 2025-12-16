@@ -282,7 +282,7 @@ export default function ScorecardCutover() {
     return (
       <div className="container mx-auto py-8 text-center">
         <Loader2 className="w-8 h-8 animate-spin mx-auto" />
-        <p className="text-muted-foreground mt-2">Loading cutover checklist...</p>
+        <p className="text-muted-foreground mt-2">Loading alignment status...</p>
       </div>
     );
   }
@@ -324,9 +324,12 @@ export default function ScorecardCutover() {
     <div className="container mx-auto py-8 space-y-6 max-w-3xl">
       {/* Header */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Scorecard Alignment</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Get Back on Track</h1>
         <p className="text-muted-foreground">
-          Complete these 5 steps to get your monthly scorecard on track for EOS execution.
+          Realign your scorecard so metrics, meetings, and Rocks stay in sync.
+        </p>
+        <p className="text-sm text-muted-foreground/80">
+          Alignment keeps your metrics, meetings, and Rocks on track using one consistent set of numbers.
         </p>
       </div>
 
@@ -419,7 +422,7 @@ export default function ScorecardCutover() {
                     )}
                     {step.status === 'pending' && (
                       <Badge variant="outline" className="text-muted-foreground text-xs">
-                        Pending
+                        Awaiting
                       </Badge>
                     )}
                   </div>

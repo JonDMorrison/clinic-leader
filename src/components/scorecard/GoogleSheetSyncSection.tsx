@@ -465,16 +465,16 @@ export function GoogleSheetSyncSection({
                 </div>
               </div>
 
-              {/* Unmatched keys */}
+              {/* Unrecognized metric keys */}
               {syncResult.unmatched_metric_keys.length > 0 && (
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <strong>{syncResult.unmatched_metric_keys.length} unmatched metric keys</strong>
+                        <strong>{syncResult.unmatched_metric_keys.length} unrecognized metric keys</strong>
                         <p className="text-xs mt-1">
-                          These keys don't exist in your template. In aligned mode, unmatched keys are skipped.
+                          These keys don't exist in your template. In aligned mode, the scorecard stays consistent—unrecognized keys won't be added automatically.
                         </p>
                       </div>
                       <div className="flex gap-1">
