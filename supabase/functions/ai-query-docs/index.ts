@@ -320,27 +320,46 @@ async function generateAnswer(
 ): Promise<QueryResponse> {
   const context = buildContext(sections);
   
-  const systemPrompt = `You are a helpful assistant answering questions about clinic SOPs and documents.
+  // Build source labels for reference
+  const sourceLabels = sections.map((s, i) => {
+    const path = s.heading_path ? `${s.heading_path} → ` : '';
+    return `[S${i + 1}]: "${s.doc_title} → ${path}${s.section_title}"`;
+  }).join('\n');
+  
+  const systemPrompt = `You answer questions about clinic SOPs using ONLY the provided sections.
 
-RULES:
-- Only answer based on the provided sections below
-- If the sections don't contain relevant information, say so
-- Always cite which section(s) you used (reference by [S1], [S2], etc.)
-- Be concise and direct
-- If asked for steps, format as a numbered list
-- Do NOT make up information not in the sections
+FORMAT:
+- Start with 1-3 sentences that DIRECTLY answer the question
+- Use bullets ONLY for steps or explicit lists
+- If the user asks for steps/process, return a "steps" array; otherwise omit it
+- NEVER dump entire SOP text unless the user explicitly asks to "show the full SOP" or "paste the SOP"
+- Do NOT merge multiple unrelated procedures into one answer
+
+CITATIONS:
+- Every factual claim MUST cite its source inline using [S1], [S2], etc.
+- ALWAYS include the "sources" array when any section is referenced
+- Use label format: "{Doc Title} → {heading_path} → {section_title}"
+
+WHEN YOU CANNOT FIND THE ANSWER:
+- Say clearly: "I couldn't find this in the available SOPs."
+- Ask ONE narrow clarifying question OR suggest where else to look
+- Do NOT hallucinate, guess, or use general medical/business knowledge
+- Do NOT invent steps or procedures not in the sections
+
+AVAILABLE SOURCES:
+${sourceLabels}
 
 SECTIONS:
 ${context}
 
-Respond with JSON only:
+OUTPUT (JSON only, no markdown):
 {
-  "answer": "your answer text, referencing [S1], [S2] etc.",
-  "steps": ["step 1", "step 2"] (only if question asks for steps/process),
+  "answer": "Direct answer citing [S1], [S2] inline. Keep it concise.",
+  "steps": ["step 1", "step 2"] // ONLY if question explicitly asks for steps/process/how-to, else omit
   "sources": [
-    {"doc_id": "uuid", "section_id": "uuid", "label": "Doc Title → Section Title", "confidence": "high|med|low"}
+    {"doc_id": "uuid", "section_id": "uuid", "label": "Doc Title → Path → Section Title", "confidence": "high|med|low"}
   ],
-  "suggested_followups": ["follow-up question 1", "follow-up question 2"] (optional, 2-3 suggestions)
+  "suggested_followups": ["question 1", "question 2"] // optional, max 3
 }`;
 
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
