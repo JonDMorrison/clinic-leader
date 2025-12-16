@@ -38,6 +38,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Home", path: "/", icon: Home, roles: ["staff", "manager", "director", "owner"] },
       { title: "Copilot", path: "/copilot", icon: Sparkles, roles: ["staff", "manager", "director", "owner"] },
+      { title: "Focus", path: "/focus", icon: Target, roles: ["manager", "director", "owner"] },
     ],
     alwaysOpen: true,
   },

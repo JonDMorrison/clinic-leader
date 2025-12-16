@@ -17,6 +17,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
 import { CoreValuesStrip, CoreValueOfWeekCard } from "@/components/core-values";
 import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
+import { FocusWidget } from "@/components/dashboard/FocusWidget";
 
 const Home = () => {
   const ref = useRef(null);
@@ -390,6 +391,8 @@ const Home = () => {
         <CopilotWidget />
         
         <MonthlyPulseWidget />
+
+        <FocusWidget />
 
         <CoreValueOfWeekCard />
       </motion.div>
