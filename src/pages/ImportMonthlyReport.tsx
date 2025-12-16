@@ -898,14 +898,14 @@ const ImportMonthlyReport = () => {
             </Card>
           )}
 
-          {/* Unmatched rows */}
+          {/* Unrecognized metric keys */}
           {unmatchedCount > 0 && (
             <Card className="border-destructive/50">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-destructive">
                     <AlertTriangle className="w-5 h-5" />
-                    Unmatched Metric Keys ({unmatchedCount})
+                    Unrecognized Metric Keys ({unmatchedCount})
                   </CardTitle>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={copyUnmatchedKeys}>
@@ -916,11 +916,16 @@ const ImportMonthlyReport = () => {
                       <Download className="w-4 h-4 mr-2" />
                       Download CSV
                     </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href="/scorecard/template">
+                        Fix in Template <ExternalLink className="w-3 h-3 ml-1" />
+                      </a>
+                    </Button>
                   </div>
                 </div>
                 <CardDescription>
                   These metric_keys were not found in your scorecard template. 
-                  {isAlignedMode && ' In aligned mode, unmatched keys are skipped — no new metrics are created.'}
+                  {isAlignedMode && " In aligned mode, the scorecard stays consistent. Unrecognized metric keys won't be added automatically."}
                 </CardDescription>
               </CardHeader>
               <CardContent>
