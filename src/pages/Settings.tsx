@@ -159,22 +159,6 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              KPI Data Mapping
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Connect tracked KPIs to data sources (Jane, CSV, Billing)
-            </p>
-            <Button variant="outline" onClick={() => navigate("/imports/mapping")}>
-              Manage Mappings
-            </Button>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader>

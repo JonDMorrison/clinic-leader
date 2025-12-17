@@ -40,7 +40,7 @@ import ImportKpis from "./pages/ImportKpis";
 import ImportSops from "./pages/ImportSops";
 import ImportMonthlyReport from "./pages/ImportMonthlyReport";
 import OrganizationSettings from "./pages/OrganizationSettings";
-import ImportMapping from "./pages/ImportMapping";
+
 import OnboardingAnalytics from "./pages/OnboardingAnalytics";
 import JaneIntegration from "./pages/JaneIntegration";
 import Recalls from "./pages/Recalls";
@@ -193,7 +193,7 @@ const App = () => {
             <Route path="/imports/sops" element={<AppLayout><ImportSops /></AppLayout>} />
             <Route path="/imports/monthly-report" element={<AppLayout><ImportMonthlyReport /></AppLayout>} />
             <Route path="/imports/pdf-report" element={<AppLayout><ImportPdfReport /></AppLayout>} />
-            <Route path="/imports/mapping" element={<AppLayout><ImportMapping /></AppLayout>} />
+            
             <Route path="/settings/organization" element={<AppLayout><OrganizationSettings /></AppLayout>} />
             <Route path="/settings/team" element={<AppLayout><TeamManagement /></AppLayout>} />
             <Route path="/settings/integrations" element={<AppLayout><Integrations /></AppLayout>} />

@@ -253,31 +253,17 @@ export function LoadDefaultsDialog({ open, onOpenChange, organizationId }: LoadD
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Next steps to get the most from your scorecard:</p>
               
-              <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    handleClose();
-                    window.location.href = "/imports/mapping";
-                  }}
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Map data sources
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    handleClose();
-                    window.location.href = "/settings";
-                  }}
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Invite your team
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => {
+                  handleClose();
+                  window.location.href = "/settings";
+                }}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Invite your team
+              </Button>
             </div>
           </div>
         )}
