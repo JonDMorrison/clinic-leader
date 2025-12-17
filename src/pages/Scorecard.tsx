@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { BackfillButton } from "@/components/scorecard/BackfillButton";
+
 import { MetricCard } from "@/components/scorecard/MetricCard";
 import { MetricDetailsDrawer } from "@/components/scorecard/MetricDetailsDrawer";
 import { Input } from "@/components/ui/input";
@@ -477,12 +477,6 @@ const Scorecard = () => {
               )}
             </div>
           </div>
-
-          {/* Backfill Button */}
-          <BackfillButton 
-            organizationId={currentUser?.team_id}
-            hasJaneIntegration={!!janeIntegration}
-          />
 
           {/* Metrics Grid */}
           {filteredMetrics.length === 0 ? (
