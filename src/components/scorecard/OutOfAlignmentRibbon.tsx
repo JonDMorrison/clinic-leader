@@ -8,7 +8,7 @@ import { useAlignmentStatus } from "@/hooks/useAlignmentStatus";
 export function OutOfAlignmentRibbon() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isFlexible, isLoading } = useAlignmentStatus();
+  const { isAligned, isLoading } = useAlignmentStatus();
   const [dismissed, setDismissed] = useState(false);
   const [showExplainer, setShowExplainer] = useState(false);
 
@@ -17,10 +17,10 @@ export function OutOfAlignmentRibbon() {
     return null;
   }
 
-  // Don't show if aligned, loading, or dismissed
-  if (isLoading || !isFlexible || dismissed) {
-    return null;
-  }
+  // Hide ribbon for now - the cutover workflow needs redesign
+  // Flexible mode is an intentional choice, not an alignment problem
+  // TODO: Show this based on actual alignment issues (e.g., VTO changes needing scorecard review)
+  return null;
 
   return (
     <div
