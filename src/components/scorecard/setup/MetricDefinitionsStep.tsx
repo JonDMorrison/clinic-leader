@@ -5,12 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Users, DollarSign, Activity, UserPlus, Zap, Sparkles, Loader2, RefreshCw, Target, User, Armchair } from "lucide-react";
+import { Plus, Trash2, Users, DollarSign, Activity, UserPlus, Sparkles, Loader2, RefreshCw, Target, User, Armchair } from "lucide-react";
 import { MetricDefinition } from "@/pages/ScorecardSetup";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
+
 interface MetricDefinitionsStepProps {
   metrics: MetricDefinition[];
   onMetricsChange: (metrics: MetricDefinition[]) => void;
@@ -81,15 +81,11 @@ export const MetricDefinitionsStep = ({
   const [selectedPresets, setSelectedPresets] = useState<Set<string>>(new Set());
   const [selectedVTOSuggestions, setSelectedVTOSuggestions] = useState<Set<string>>(new Set());
   const [showCustomForm, setShowCustomForm] = useState(false);
-  const [bulkOwner, setBulkOwner] = useState("");
-  const [bulkCategory, setBulkCategory] = useState("all");
-  const [bulkSyncSource, setBulkSyncSource] = useState<"manual" | "jane" | "">("");
   const [vtoSuggestionsLoading, setVtoSuggestionsLoading] = useState(false);
   const [vtoSuggestionsError, setVtoSuggestionsError] = useState<string | null>(null);
   const [vtoSuggestions, setVtoSuggestions] = useState<VTOSuggestedMetric[]>([]);
   const [vtoGoals, setVtoGoals] = useState<VTOGoal[]>([]);
   const [hasFetchedVTO, setHasFetchedVTO] = useState(false);
-  const { toast } = useToast();
 
   // Get current user's org
   const { data: userData } = useQuery({
@@ -302,42 +298,6 @@ export const MetricDefinitionsStep = ({
       return newSet;
     });
     onMetricsChange(metrics.filter((_, i) => i !== index));
-  };
-
-  const applyBulkOwner = () => {
-    if (!bulkOwner.trim()) return;
-
-    const updated = metrics.map(m => 
-      bulkCategory === "all" || m.category === bulkCategory ? { ...m, owner: bulkOwner.trim() } : m
-    );
-    
-    onMetricsChange(updated);
-    toast({
-      title: "Bulk update applied",
-      description: bulkCategory !== "all" 
-        ? `Set owner "${bulkOwner}" for all ${bulkCategory} metrics`
-        : `Set owner "${bulkOwner}" for all metrics`,
-    });
-    setBulkOwner("");
-  };
-
-  const applyBulkSyncSource = () => {
-    if (!bulkSyncSource) return;
-
-    const updated = metrics.map(m => 
-      bulkCategory === "all" || m.category === bulkCategory 
-        ? { ...m, syncSource: bulkSyncSource } 
-        : m
-    );
-    
-    onMetricsChange(updated);
-    toast({
-      title: "Sync source updated",
-      description: bulkCategory !== "all" 
-        ? `Set sync source to "${bulkSyncSource}" for ${bulkCategory} metrics`
-        : `Set sync source to "${bulkSyncSource}" for all metrics`,
-    });
-    setBulkSyncSource("");
   };
 
   const canProceed = metrics.length > 0 && metrics.every(m => m.name && m.category);
@@ -558,128 +518,6 @@ export const MetricDefinitionsStep = ({
                 </Badge>
               ))}
             </div>
-
-            {/* Bulk Assignment Controls */}
-            <Card className="border border-primary/20 bg-primary/5">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-base">Quick Assign</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="md:col-span-2 space-y-2">
-                    <Label className="text-xs">Owner</Label>
-                    <Select
-                      value={bulkOwner}
-                      onValueChange={setBulkOwner}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Select person or seat..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {orgUsers.length > 0 && (
-                          <SelectGroup>
-                            <SelectLabel className="flex items-center gap-2">
-                              <User className="h-3 w-3" />
-                              People
-                            </SelectLabel>
-                            {orgUsers.map((user) => (
-                              <SelectItem key={`user-${user.id}`} value={user.full_name || ""}>
-                                {user.full_name}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        )}
-                        {orgSeats.length > 0 && (
-                          <SelectGroup>
-                            <SelectLabel className="flex items-center gap-2">
-                              <Armchair className="h-3 w-3" />
-                              Seats
-                            </SelectLabel>
-                            {orgSeats.map((seat) => (
-                              <SelectItem key={`seat-${seat.id}`} value={seat.title}>
-                                {seat.title}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">For Category</Label>
-                    <Select
-                      value={bulkCategory}
-                      onValueChange={setBulkCategory}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="All categories" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Categories</SelectItem>
-                        <SelectItem value="Operations">Operations</SelectItem>
-                        <SelectItem value="Finance">Finance</SelectItem>
-                        <SelectItem value="Clinical Outcomes">Clinical Outcomes</SelectItem>
-                        <SelectItem value="Referrals">Referrals</SelectItem>
-                        <SelectItem value="Revenue">Revenue</SelectItem>
-                        <SelectItem value="Patients">Patients</SelectItem>
-                        <SelectItem value="Clinical">Clinical</SelectItem>
-                        <SelectItem value="Marketing">Marketing</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={applyBulkOwner}
-                    disabled={!bulkOwner.trim()}
-                    className="flex-1"
-                  >
-                    Apply Owner
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={applyBulkSyncSource}
-                    disabled={!bulkSyncSource}
-                    className="flex-1"
-                  >
-                    Apply Sync Source
-                  </Button>
-                </div>
-
-                {/* Bulk Sync Source */}
-                <div className="flex gap-2 pt-2 border-t">
-                  <Label className="text-xs flex items-center gap-2 flex-1">
-                    Sync Source:
-                  </Label>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={bulkSyncSource === "manual" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setBulkSyncSource("manual")}
-                      className="h-8"
-                    >
-                      Manual
-                    </Button>
-                    <Button
-                      variant={bulkSyncSource === "jane" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setBulkSyncSource("jane")}
-                      disabled={!hasJaneIntegration}
-                      className="h-8"
-                    >
-                      Jane
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Detailed Edit Form */}
             {showCustomForm && (
