@@ -164,6 +164,7 @@ const ScorecardSetup = () => {
               onSubmit={handleSubmit}
               onBack={handleBack}
               isSubmitting={isSubmitting}
+              metrics={metrics}
             />
           )}
         </div>
