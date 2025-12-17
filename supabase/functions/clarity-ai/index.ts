@@ -258,7 +258,16 @@ Do not include labels like "Purpose:" or "Niche:" - just the two sentences, one 
         return `Create 3 variations describing the ideal client for this clinic. Consider their pain points, demographics, and what makes them a perfect fit. Each should be 20-30 words.`;
       }
       if (field === 'proven_process') {
-        return `Create a 5-7 step proven process for a healthcare clinic patient journey. Each step should be 2-4 words. Return as a numbered list.`;
+        const clinicNiche = vision.core_focus?.niche || 'healthcare';
+        const clinicPurpose = vision.core_focus?.purpose || 'patient care';
+        const idealClient = vision.ideal_client || 'patients seeking care';
+        return `Create a 5-7 step proven process for a ${clinicNiche} clinic serving ${idealClient}.
+
+Clinic Purpose: ${clinicPurpose}
+
+For injury/MVA clinics, typical steps include: new patient scheduling, triage/workup, imaging/diagnostics, treatment planning, multi-specialty co-management, case resolution.
+
+Return as a numbered list where each step is 2-5 words. Make it specific to this clinic type, not generic healthcare.`;
       }
       if (field === 'promise' || field === 'guarantee') {
         return `Create 3 variations of a patient promise/guarantee for this clinic. Each should be compelling, specific, and demonstrate commitment to patient outcomes. 15-25 words each.`;
