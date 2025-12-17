@@ -83,7 +83,7 @@ export const MetricDefinitionsStep = ({
   const [selectedVTOSuggestions, setSelectedVTOSuggestions] = useState<Set<string>>(new Set());
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [bulkOwner, setBulkOwner] = useState("");
-  const [bulkCategory, setBulkCategory] = useState("");
+  const [bulkCategory, setBulkCategory] = useState("all");
   const [bulkSyncSource, setBulkSyncSource] = useState<"manual" | "jane" | "">("");
   const [vtoSuggestionsLoading, setVtoSuggestionsLoading] = useState(false);
   const [vtoSuggestionsError, setVtoSuggestionsError] = useState<string | null>(null);
@@ -275,16 +275,15 @@ export const MetricDefinitionsStep = ({
   const applyBulkOwner = () => {
     if (!bulkOwner.trim()) return;
 
-    const targetCategory = bulkCategory || "";
     const updated = metrics.map(m => 
-      !targetCategory || m.category === targetCategory ? { ...m, owner: bulkOwner.trim() } : m
+      bulkCategory === "all" || m.category === bulkCategory ? { ...m, owner: bulkOwner.trim() } : m
     );
     
     onMetricsChange(updated);
     toast({
       title: "Bulk update applied",
-      description: targetCategory 
-        ? `Set owner "${bulkOwner}" for all ${targetCategory} metrics`
+      description: bulkCategory !== "all" 
+        ? `Set owner "${bulkOwner}" for all ${bulkCategory} metrics`
         : `Set owner "${bulkOwner}" for all metrics`,
     });
     setBulkOwner("");
@@ -293,9 +292,8 @@ export const MetricDefinitionsStep = ({
   const applyBulkSyncSource = () => {
     if (!bulkSyncSource) return;
 
-    const targetCategory = bulkCategory || "";
     const updated = metrics.map(m => 
-      !targetCategory || m.category === targetCategory 
+      bulkCategory === "all" || m.category === bulkCategory 
         ? { ...m, syncSource: bulkSyncSource } 
         : m
     );
@@ -303,8 +301,8 @@ export const MetricDefinitionsStep = ({
     onMetricsChange(updated);
     toast({
       title: "Sync source updated",
-      description: targetCategory 
-        ? `Set sync source to "${bulkSyncSource}" for ${targetCategory} metrics`
+      description: bulkCategory !== "all" 
+        ? `Set sync source to "${bulkSyncSource}" for ${bulkCategory} metrics`
         : `Set sync source to "${bulkSyncSource}" for all metrics`,
     });
     setBulkSyncSource("");
@@ -558,7 +556,7 @@ export const MetricDefinitionsStep = ({
                         <SelectValue placeholder="All categories" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Categories</SelectItem>
+                        <SelectItem value="all">All Categories</SelectItem>
                         <SelectItem value="Operations">Operations</SelectItem>
                         <SelectItem value="Finance">Finance</SelectItem>
                         <SelectItem value="Clinical Outcomes">Clinical Outcomes</SelectItem>
