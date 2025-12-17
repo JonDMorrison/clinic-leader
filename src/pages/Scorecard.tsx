@@ -431,9 +431,8 @@ const Scorecard = () => {
           <p className="text-destructive">Failed to load scorecard. Please try refreshing.</p>
         </div>
       ) : totalMetrics === 0 ? (
-              <ScorecardOnboardingWizard
-                onCreateFromVTO={() => setCreateFromVTOOpen(true)}
-                onManualSetup={() => navigate('/scorecard/setup')}
+        <ScorecardOnboardingWizard
+          onManualSetup={() => navigate('/scorecard/setup')}
           hasActiveVTO={!!hasActiveVTO}
         />
       ) : (
