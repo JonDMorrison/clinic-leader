@@ -89,11 +89,16 @@ const ScorecardSetup = () => {
           const weekStart = new Date(today);
           weekStart.setDate(today.getDate() + (i * 7));
           weekStart.setHours(0, 0, 0, 0);
+          const weekStartStr = weekStart.toISOString().split('T')[0];
+          const periodKey = weekStartStr.slice(0, 7) + '-W' + String(i + 1).padStart(2, '0');
           
           for (const metric of insertedMetrics) {
             weeklyRows.push({
               metric_id: metric.id,
-              week_start: weekStart.toISOString().split('T')[0],
+              week_start: weekStartStr,
+              period_start: weekStartStr,
+              period_type: 'weekly',
+              period_key: periodKey,
               value: includeDemoData ? Math.floor(Math.random() * 100) : null,
             });
           }
