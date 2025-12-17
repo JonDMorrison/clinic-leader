@@ -129,8 +129,26 @@ export const CreateFromScorecardDialog = ({ open, onClose, onSuccess }: CreateFr
         { body: { organization_id: currentUser?.team_id } }
       );
 
+      // Handle invoke errors - but check if it's a structured business error first
       if (invokeError) {
         console.error('Function invoke error:', invokeError);
+        
+        // Try to parse structured error from context (400 responses)
+        try {
+          const errorBody = typeof invokeError.context === 'object' 
+            ? invokeError.context 
+            : JSON.parse(invokeError.message || '{}');
+          
+          if (errorBody?.error?.code) {
+            setErrorCode(errorBody.error.code);
+            setApiError(errorBody.error.message || 'An error occurred.');
+            setStep('error');
+            return;
+          }
+        } catch {
+          // Not a structured error, fall through to generic handling
+        }
+        
         setErrorCode('NETWORK_OR_UNKNOWN');
         setApiError('We could not reach the server. Please check your connection and try again.');
         setStep('error');
