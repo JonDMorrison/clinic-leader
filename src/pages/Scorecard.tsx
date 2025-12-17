@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload, FileSpreadsheet, MoreHorizontal, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload, FileSpreadsheet, MoreHorizontal, Trash2, RotateCcw } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { metricStatus, normalizeDirection } from "@/lib/scorecard/metricStatus";
@@ -78,6 +78,28 @@ const Scorecard = () => {
 
   const handleDeleteMetric = (metricId: string) => {
     deleteMetricMutation.mutate(metricId);
+  };
+
+  // Reset all metrics mutation
+  const resetScorecardMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentUser?.team_id) throw new Error("No organization");
+      const { error } = await supabase
+        .from("metrics")
+        .delete()
+        .eq("organization_id", currentUser.team_id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scorecard-metrics"] });
+    },
+  });
+
+  const handleResetScorecard = () => {
+    const metricCount = metricsData?.length || 0;
+    if (confirm(`⚠️ Reset Scorecard?\n\nThis will permanently delete all ${metricCount} metric${metricCount !== 1 ? 's' : ''} from your scorecard.\n\nThis action cannot be undone.`)) {
+      resetScorecardMutation.mutate();
+    }
   };
 
   // Fetch metrics with last 12 weeks of data
@@ -384,6 +406,14 @@ const Scorecard = () => {
                     </DropdownMenuItem>
                   </>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={handleResetScorecard}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Reset Scorecard
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
