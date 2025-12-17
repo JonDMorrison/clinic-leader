@@ -127,7 +127,10 @@ export const MetricDefinitionsStep = ({
     enabled: !!userData?.team_id,
   });
 
-  const hasJaneIntegration = !!janeIntegration;
+  const hasJaneIntegration = !!janeIntegration && 
+    janeIntegration.api_key && 
+    !janeIntegration.api_key.includes('placeholder') &&
+    !janeIntegration.api_key.includes('demo');
 
   // Check if VTO exists
   const { data: hasVTO } = useQuery({
