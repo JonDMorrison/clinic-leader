@@ -40,15 +40,16 @@ const VTO = () => {
 
       // Get VTO (prefer active, fallback to any for team)
       let vto: any = null;
-      const { data: activeVto, error: activeErr } = await supabase
+      const { data: activeVtoList, error: activeErr } = await supabase
         .from("vto")
         .select("*")
         .eq("organization_id", userProfile.team_id)
         .eq("is_active", true)
-        .maybeSingle();
+        .order("created_at", { ascending: false })
+        .limit(1);
 
       if (activeErr && activeErr.code !== 'PGRST116') throw activeErr;
-      vto = activeVto;
+      vto = activeVtoList?.[0] || null;
 
       if (!vto) {
         const { data: anyVto, error: anyErr } = await supabase

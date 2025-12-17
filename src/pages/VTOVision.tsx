@@ -67,12 +67,15 @@ const VTOVision = () => {
         .eq("email", userData.user.email)
         .single();
 
-      const { data: vto } = await supabase
+      const { data: vtoList } = await supabase
         .from("vto")
         .select("*")
         .eq("organization_id", userProfile.team_id)
         .eq("is_active", true)
-        .maybeSingle();
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const vto = vtoList?.[0] || null;
 
       if (vto) {
         const { data: latestVersion } = await supabase
