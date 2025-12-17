@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import clinicLeaderIcon from "@/assets/clinicleader-icon-v3.png";
+import { ClinicLeaderIcon } from "@/components/ui/ClinicLeaderIcon";
 import {
   Collapsible,
   CollapsibleContent,
@@ -174,10 +174,9 @@ export const Sidebar = () => {
     <aside className="w-64 h-screen sticky top-0 flex flex-col glass border-r border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)]">
       <div className="p-6 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-3 group cursor-pointer">
-          <img 
-            src={clinicLeaderIcon} 
-            alt="ClinicLeader" 
-            className="w-10 h-10 object-contain drop-shadow-md transition-all duration-300 group-hover:scale-105 group-hover:drop-shadow-xl"
+          <ClinicLeaderIcon 
+            size={40} 
+            className="transition-all duration-300 group-hover:scale-105"
           />
           <span className="text-xl font-bold bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent transition-opacity group-hover:opacity-80">
             ClinicLeader
@@ -197,10 +196,10 @@ export const Sidebar = () => {
             >
               {group.label && (
                 <CollapsibleTrigger className="flex items-center justify-between w-full group mb-2">
-                  <h3 className="text-xs uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                  <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
                     {group.label}
                   </h3>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground/50 transition-transform group-data-[state=open]:rotate-180" />
+                  <ChevronDown className="w-4 h-4 text-muted-foreground/70 transition-transform group-data-[state=open]:rotate-180" />
                 </CollapsibleTrigger>
               )}
               <CollapsibleContent>

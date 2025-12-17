@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import clinicLeaderIcon from "@/assets/clinicleader-icon-v3.png";
+import { ClinicLeaderIcon } from "@/components/ui/ClinicLeaderIcon";
 
 export const NavPublic = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -13,10 +13,9 @@ export const NavPublic = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <img 
-              src={clinicLeaderIcon} 
-              alt="ClinicLeader" 
-              className="w-9 h-9 object-contain drop-shadow-md transition-transform duration-300 group-hover:scale-105"
+            <ClinicLeaderIcon 
+              size={36} 
+              className="transition-transform duration-300 group-hover:scale-105"
             />
             <span className="text-2xl font-bold bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent">
               ClinicLeader
