@@ -34,31 +34,12 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { generateL10Agenda, shouldGenerateAgenda } from "@/lib/meetings/agendaGenerator";
+import { generateQuarterlyAgenda } from "@/lib/meetings/quarterlyAgendaGenerator";
+import { generateAnnualAgenda } from "@/lib/meetings/annualAgendaGenerator";
+import { getMeetingTypeConfig, getSectionOrder, getSectionLabels, getSectionTimers } from "@/lib/meetings/meetingTypes";
 import { getMonthlyPeriodSelection, periodKeyToStart } from "@/lib/scorecard/periodHelper";
 import { metricStatus, MetricStatusResult, normalizeDirection, MetricStatus } from "@/lib/scorecard/metricStatus";
 import { RockGapData } from "@/components/meetings/RockGapPanel";
-
-const SECTION_ORDER = ["scorecard", "rocks", "issues", "todo", "segue", "conclusion", "custom"];
-const SECTION_LABELS: Record<string, string> = {
-  scorecard: "Scorecard Review",
-  rocks: "Rock Review",
-  issues: "IDS (Issues)",
-  todo: "To-Do Review",
-  segue: "Segue",
-  conclusion: "Conclusion",
-  custom: "Custom Items",
-};
-
-// Default timer durations per section (in minutes)
-const SECTION_TIMERS: Record<string, number> = {
-  scorecard: 5,
-  rocks: 5,
-  issues: 60,
-  todo: 5,
-  segue: 5,
-  conclusion: 10,
-  custom: 5,
-};
 
 const statusColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -100,15 +81,9 @@ export default function MeetingDetail() {
     window.print();
   };
 
-  // Scroll to section by index
+  // Scroll to section by index - will use SECTION_ORDER from meeting config
   const handleNavigateSection = (index: number) => {
-    if (index < 0 || index >= SECTION_ORDER.length) return;
     setCurrentSectionIndex(index);
-    const sectionId = SECTION_ORDER[index];
-    const el = sectionRefs.current[sectionId];
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
   };
 
   // Auto-open start dialog if ?start=1
@@ -145,7 +120,13 @@ export default function MeetingDetail() {
     enabled: !!meetingId && !!organizationId,
   });
 
-  // Fetch meeting items
+  // Get meeting type config (default to L10 if no meeting loaded yet)
+  const meetingType = meeting?.type || "L10";
+  const meetingConfig = getMeetingTypeConfig(meetingType);
+  const SECTION_ORDER = getSectionOrder(meetingType);
+  const SECTION_LABELS = getSectionLabels(meetingType);
+  const SECTION_TIMERS = getSectionTimers(meetingType);
+
   const { data: items, isLoading: itemsLoading } = useQuery({
     queryKey: ["meeting-items", meetingId, showDeleted],
     queryFn: async () => {
@@ -438,7 +419,15 @@ export default function MeetingDetail() {
       generationAttempted.current = true;
       setIsGenerating(true);
 
-      const result = await generateL10Agenda(organizationId, meetingId);
+      // Use the appropriate agenda generator based on meeting type
+      let result;
+      if (meeting.type === "quarterly") {
+        result = await generateQuarterlyAgenda(organizationId, meetingId);
+      } else if (meeting.type === "annual") {
+        result = await generateAnnualAgenda(organizationId, meetingId);
+      } else {
+        result = await generateL10Agenda(organizationId, meetingId);
+      }
 
       setIsGenerating(false);
 
