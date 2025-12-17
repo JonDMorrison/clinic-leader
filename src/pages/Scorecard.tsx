@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, PenSquare, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload } from "lucide-react";
+import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { metricStatus, normalizeDirection } from "@/lib/scorecard/metricStatus";
@@ -175,26 +175,6 @@ const Scorecard = () => {
     enabled: !!currentUser?.team_id,
   });
 
-  // Fetch org settings for scorecard mode
-  const { data: orgSettings } = useQuery({
-    queryKey: ["org-scorecard-mode", currentUser?.team_id],
-    queryFn: async () => {
-      if (!currentUser?.team_id) return null;
-
-      const { data, error } = await supabase
-        .from("teams")
-        .select("scorecard_mode")
-        .eq("id", currentUser.team_id)
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!currentUser?.team_id,
-  });
-
-  const isMonthlyOrg = orgSettings?.scorecard_mode === 'aligned' || orgSettings?.scorecard_mode === 'locked_to_template';
-
   // Check if org has an active VTO for the "Create from VTO" button
   const { data: hasActiveVTO } = useQuery({
     queryKey: ["has-active-vto", currentUser?.team_id],
@@ -346,22 +326,6 @@ const Scorecard = () => {
         
         {totalMetrics > 0 && (
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => navigate(isMonthlyOrg ? "/imports/monthly-report" : "/scorecard/update")}
-            >
-              {isMonthlyOrg ? (
-                <>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Import Monthly Data
-                </>
-              ) : (
-                <>
-                  <PenSquare className="w-4 h-4 mr-2" />
-                  Update Weekly Data
-                </>
-              )}
-            </Button>
             <div className="relative group">
               <Button 
                 onClick={() => setCreateFromVTOOpen(true)}
