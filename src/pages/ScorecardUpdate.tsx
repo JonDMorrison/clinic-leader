@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefreshCw, Save, CheckCircle2, History, Lock, ShieldAlert, Download, Upload } from "lucide-react";
+import { RefreshCw, Save, CheckCircle2, History, Lock, ShieldAlert, Download, Upload, ArrowRight, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { startOfWeek, subWeeks, format } from "date-fns";
 import { BackfillButton } from "@/components/scorecard/BackfillButton";
@@ -16,7 +17,7 @@ import { OverrideDialog } from "@/components/scorecard/OverrideDialog";
 import { Badge } from "@/components/ui/badge";
 import { ImportCsvDialog } from "@/components/scorecard/ImportCsvDialog";
 import { exportMetricResultsToCSV, downloadCSV } from "@/lib/importers/metricCsvExport";
-
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 interface MetricResult {
   id?: string;
   metric_id: string;
@@ -29,6 +30,7 @@ interface MetricResult {
 }
 
 const ScorecardUpdate = () => {
+  const navigate = useNavigate();
   const [selectedMetricId, setSelectedMetricId] = useState<string>("");
   const [editedValues, setEditedValues] = useState<Record<string, number | null>>({});
   const [isSyncing, setIsSyncing] = useState(false);
@@ -85,6 +87,26 @@ const ScorecardUpdate = () => {
   });
 
   const isAdmin = currentUser?.role === "owner" || currentUser?.role === "director";
+
+  // Check if org uses monthly cadence (aligned mode)
+  const { data: orgSettings, isLoading: orgLoading } = useQuery({
+    queryKey: ["org-scorecard-mode", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return null;
+
+      const { data, error } = await supabase
+        .from("teams")
+        .select("scorecard_mode")
+        .eq("id", currentUser.team_id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentUser?.team_id,
+  });
+
+  const isMonthlyOrg = orgSettings?.scorecard_mode === 'aligned' || orgSettings?.scorecard_mode === 'locked_to_template';
 
   // Fetch metrics for the dropdown
   const { data: metrics } = useQuery({
@@ -390,6 +412,33 @@ const ScorecardUpdate = () => {
       });
     }
   };
+
+  // Show redirect banner for monthly orgs
+  if (isMonthlyOrg && !orgLoading) {
+    return (
+      <div className="container mx-auto py-8 space-y-6">
+        <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+          <AlertCircle className="h-5 w-5 text-amber-600" />
+          <AlertTitle className="text-amber-800 dark:text-amber-200">
+            Your organization uses monthly data import
+          </AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-300">
+            <p className="mb-4">
+              This page is designed for weekly data entry. Your organization is configured for 
+              monthly scorecard updates using the import system.
+            </p>
+            <Button 
+              onClick={() => navigate("/imports/monthly-report")}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Go to Monthly Import
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 space-y-6">
