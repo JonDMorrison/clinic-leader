@@ -8,6 +8,7 @@ import { MetricDefinitionsStep } from "@/components/scorecard/setup/MetricDefini
 import { ReviewStep } from "@/components/scorecard/setup/ReviewStep";
 import { DemoDataStep } from "@/components/scorecard/setup/DemoDataStep";
 import { ConfirmationStep } from "@/components/scorecard/setup/ConfirmationStep";
+import { generateImportKey } from "@/lib/scorecard/templateHealth";
 
 export interface MetricDefinition {
   name: string;
@@ -74,6 +75,7 @@ const ScorecardSetup = () => {
             owner: metric.owner,
             category: metric.category,
             sync_source: metric.syncSource,
+            import_key: generateImportKey(metric.name),
           }))
         )
         .select();
