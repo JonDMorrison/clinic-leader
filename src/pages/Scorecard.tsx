@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload, FileSpreadsheet, MoreHorizontal, Trash2, RotateCcw } from "lucide-react";
+import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload, FileSpreadsheet, MoreHorizontal, Trash2, RotateCcw, Settings } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { metricStatus, normalizeDirection } from "@/lib/scorecard/metricStatus";
@@ -395,6 +395,7 @@ const Scorecard = () => {
                   Get Spreadsheet Template
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/scorecard/template")}>
+                  <Settings className="w-4 h-4 mr-2" />
                   Template Settings
                 </DropdownMenuItem>
                 {hasActiveVTO && (
