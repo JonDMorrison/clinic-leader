@@ -150,6 +150,7 @@ const L10 = () => {
       const { data, error } = await supabase
         .from("todos")
         .select("*, users(full_name)")
+        .eq("organization_id", organizationId)
         .order("due_date");
       
       if (error) throw error;
@@ -164,7 +165,7 @@ const L10 = () => {
       if (!organizationId) return [];
       const { data, error } = await supabase
         .from("issues")
-        .select("*, users(full_name)")
+        .select("*, users(full_name), todos(id, title, done_at)")
         .eq("organization_id", organizationId)
         .neq("status", "solved")
         .order("priority");
@@ -411,7 +412,7 @@ const L10 = () => {
 
         <div className="space-y-4">
           <AgendaTimer sectionName="IDS" defaultMinutes={60} />
-          <IDSSection issues={issues || []} />
+          <IDSSection issues={issues || []} onUpdate={refetchIssues} />
         </div>
 
         <AgendaTimer sectionName="Conclude (Recap & Rate)" defaultMinutes={5} />

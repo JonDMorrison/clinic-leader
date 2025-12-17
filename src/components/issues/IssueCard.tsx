@@ -2,12 +2,19 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, CheckCircle2, ListTodo, GripVertical, Link as LinkIcon } from "lucide-react";
+import { AlertCircle, CheckCircle2, ListTodo, GripVertical, Link as LinkIcon, TrendingUp, Target, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConvertToTodoModal } from "./ConvertToTodoModal";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
+
+// Get source type from issue
+const getSourceType = (issue: any): 'scorecard' | 'rock' | 'manual' => {
+  if (issue.metric_id) return 'scorecard';
+  if (issue.rock_id) return 'rock';
+  return 'manual';
+};
 
 interface IssueCardProps {
   issue: any;
@@ -32,6 +39,18 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
     if (status === "in_progress") return { variant: "brand", label: "In Progress" };
     if (status === "parked") return { variant: "muted", label: "Parked" };
     return { variant: "warning", label: "Open" };
+  };
+
+  const getSourceBadge = (issue: any) => {
+    const source = getSourceType(issue);
+    switch (source) {
+      case 'scorecard':
+        return { icon: TrendingUp, label: "Scorecard", className: "bg-blue-500/10 text-blue-600 border-blue-500/30" };
+      case 'rock':
+        return { icon: Target, label: "Rock", className: "bg-purple-500/10 text-purple-600 border-purple-500/30" };
+      default:
+        return { icon: User, label: "Manual", className: "bg-muted text-muted-foreground" };
+    }
   };
 
   const handleMarkSolved = async () => {
@@ -88,6 +107,8 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
 
   const priorityBadge = getPriorityBadge(issue.priority);
   const statusBadge = getStatusBadge(issue.status);
+  const sourceBadge = getSourceBadge(issue);
+  const SourceIcon = sourceBadge.icon;
 
   return (
     <>
@@ -109,6 +130,10 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                   )}
                 </div>
                 <div className="flex gap-2 flex-shrink-0 flex-wrap">
+                  <Badge variant="outline" className={`text-xs ${sourceBadge.className}`}>
+                    <SourceIcon className="w-3 h-3 mr-1" />
+                    {sourceBadge.label}
+                  </Badge>
                   <Badge variant={priorityBadge.variant as "danger" | "warning" | "muted"}>
                     {priorityBadge.label}
                   </Badge>

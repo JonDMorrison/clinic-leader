@@ -11,7 +11,8 @@ import { z } from "zod";
 
 const todoSchema = z.object({
   title: z.string().trim().min(3, "Title must be at least 3 characters").max(200, "Title must be less than 200 characters"),
-  due_date: z.string().optional(),
+  due_date: z.string().min(1, "Due date is required for EOS to-dos"),
+  owner_id: z.string().min(1, "Owner is required for EOS to-dos"),
 });
 
 interface ConvertToTodoModalProps {
@@ -48,14 +49,16 @@ export const ConvertToTodoModal = ({ open, onClose, issue, onSuccess }: ConvertT
     try {
       const validated = todoSchema.parse({
         title: title.trim(),
-        due_date: dueDate || undefined,
+        due_date: dueDate,
+        owner_id: ownerId,
       });
 
       const { error } = await supabase.from("todos").insert({
         issue_id: issue.id,
+        organization_id: issue.organization_id,
         title: validated.title,
-        owner_id: ownerId || null,
-        due_date: validated.due_date || null,
+        owner_id: validated.owner_id,
+        due_date: validated.due_date,
       });
 
       if (error) throw error;
@@ -111,19 +114,19 @@ export const ConvertToTodoModal = ({ open, onClose, issue, onSuccess }: ConvertT
               onChange={(e) => setTitle(e.target.value)}
               placeholder="What needs to be done?"
               maxLength={200}
+              required
             />
             {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="owner">Owner</Label>
-              <Select value={ownerId} onValueChange={setOwnerId}>
-                <SelectTrigger>
+              <Label htmlFor="owner">Owner *</Label>
+              <Select value={ownerId} onValueChange={setOwnerId} required>
+                <SelectTrigger className={!ownerId ? "border-warning" : ""}>
                   <SelectValue placeholder="Select owner" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
                   {users?.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.full_name}
@@ -131,17 +134,21 @@ export const ConvertToTodoModal = ({ open, onClose, issue, onSuccess }: ConvertT
                   ))}
                 </SelectContent>
               </Select>
+              {errors.owner_id && <p className="text-sm text-destructive">{errors.owner_id}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dueDate">Due Date</Label>
+              <Label htmlFor="dueDate">Due Date *</Label>
               <Input
                 id="dueDate"
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 min={new Date().toISOString().split("T")[0]}
+                required
+                className={!dueDate ? "border-warning" : ""}
               />
+              {errors.due_date && <p className="text-sm text-destructive">{errors.due_date}</p>}
             </div>
           </div>
 

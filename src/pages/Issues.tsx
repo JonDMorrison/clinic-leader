@@ -24,11 +24,25 @@ const Issues = () => {
         .from("issues")
         .select("*, users(full_name), todos(id, title, done_at)")
         .eq("organization_id", orgId) // MULTI-TENANCY: Explicit org filter
-        .order("priority")
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      return data;
+      
+      // Sort by source priority: Scorecard > Rock > Manual, then by manual priority
+      const getSourceOrder = (issue: any) => {
+        if (issue.metric_id) return 0; // Scorecard
+        if (issue.rock_id) return 1;   // Rock
+        return 2;                       // Manual
+      };
+      
+      return (data || []).sort((a, b) => {
+        // First by source
+        const sourceA = getSourceOrder(a);
+        const sourceB = getSourceOrder(b);
+        if (sourceA !== sourceB) return sourceA - sourceB;
+        // Then by priority
+        return (a.priority || 999) - (b.priority || 999);
+      });
     },
     enabled: !!orgId,
   });
