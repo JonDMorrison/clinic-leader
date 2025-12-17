@@ -33,8 +33,6 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { TemplateSetupBanner } from "@/components/scorecard/TemplateSetupBanner";
-import { CutoverBanner } from "@/components/scorecard/CutoverBanner";
-import { OutOfAlignmentRibbon } from "@/components/scorecard/OutOfAlignmentRibbon";
 
 const Scorecard = () => {
   const navigate = useNavigate();
@@ -47,7 +45,7 @@ const Scorecard = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
-  const [vtoGoalFilter, setVtoGoalFilter] = useState("all");
+  
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [celebratingMilestone, setCelebratingMilestone] = useState<any>(null);
   const [customOrder, setCustomOrder] = useState<string[]>([]);
@@ -310,11 +308,7 @@ const Scorecard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Out of alignment ribbon for flexible orgs */}
-      <OutOfAlignmentRibbon />
-      {/* Alignment Banner for aligned orgs (shows if not ready) */}
-      <CutoverBanner variant="warning" />
-      {/* Template Setup Banner for aligned orgs */}
+      {/* Template Setup Banner for locked-to-template orgs */}
       <TemplateSetupBanner />
       <div className="flex items-center justify-between">
         <div>
@@ -485,12 +479,10 @@ const Scorecard = () => {
           </div>
 
           {/* Backfill Button */}
-          <div className="flex justify-center">
-            <BackfillButton 
-              organizationId={currentUser?.team_id}
-              hasJaneIntegration={!!janeIntegration}
-            />
-          </div>
+          <BackfillButton 
+            organizationId={currentUser?.team_id}
+            hasJaneIntegration={!!janeIntegration}
+          />
 
           {/* Metrics Grid */}
           {filteredMetrics.length === 0 ? (

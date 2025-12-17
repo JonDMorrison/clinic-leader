@@ -10,7 +10,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { format, addDays } from "date-fns";
-import { OutOfAlignmentRibbon } from "@/components/scorecard/OutOfAlignmentRibbon";
+
 import { CreateMeetingModal } from "@/components/meetings/CreateMeetingModal";
 import {
   AlertDialog,
@@ -323,8 +323,6 @@ export default function Meetings() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Out of alignment ribbon for flexible orgs */}
-      <OutOfAlignmentRibbon />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Meetings</h1>
         <Button onClick={() => setShowCreateModal(true)}>
