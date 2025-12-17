@@ -1037,7 +1037,9 @@ export type Database = {
         Row: {
           context: string | null
           created_at: string
+          created_from: string | null
           id: string
+          meeting_horizon: string | null
           meeting_id: string | null
           meeting_item_id: string | null
           metric_id: string | null
@@ -1045,6 +1047,7 @@ export type Database = {
           owner_id: string | null
           period_key: string | null
           priority: number
+          recurrence_count: number | null
           rock_id: string | null
           solved_at: string | null
           status: Database["public"]["Enums"]["issue_status"]
@@ -1054,7 +1057,9 @@ export type Database = {
         Insert: {
           context?: string | null
           created_at?: string
+          created_from?: string | null
           id?: string
+          meeting_horizon?: string | null
           meeting_id?: string | null
           meeting_item_id?: string | null
           metric_id?: string | null
@@ -1062,6 +1067,7 @@ export type Database = {
           owner_id?: string | null
           period_key?: string | null
           priority?: number
+          recurrence_count?: number | null
           rock_id?: string | null
           solved_at?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
@@ -1071,7 +1077,9 @@ export type Database = {
         Update: {
           context?: string | null
           created_at?: string
+          created_from?: string | null
           id?: string
+          meeting_horizon?: string | null
           meeting_id?: string | null
           meeting_item_id?: string | null
           metric_id?: string | null
@@ -1079,6 +1087,7 @@ export type Database = {
           owner_id?: string | null
           period_key?: string | null
           priority?: number
+          recurrence_count?: number | null
           rock_id?: string | null
           solved_at?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
@@ -3869,7 +3878,7 @@ export type Database = {
         | "percentage"
         | "minutes"
         | "hours"
-      meeting_type: "L10" | "leadership_sync"
+      meeting_type: "L10" | "leadership_sync" | "quarterly" | "annual"
       rock_level: "company" | "team" | "individual"
       rock_status: "on_track" | "off_track" | "done"
       user_role:
@@ -4028,7 +4037,7 @@ export const Constants = {
         "minutes",
         "hours",
       ],
-      meeting_type: ["L10", "leadership_sync"],
+      meeting_type: ["L10", "leadership_sync", "quarterly", "annual"],
       rock_level: ["company", "team", "individual"],
       rock_status: ["on_track", "off_track", "done"],
       user_role: [
