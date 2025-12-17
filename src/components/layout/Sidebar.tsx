@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone, Plug, Sparkles, Compass, LucideIcon, ChevronDown, Settings, Palette, CreditCard, TestTube, UserCog, Cpu, FileSpreadsheet, History, FileUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { HelpMenu } from "@/components/layout/HelpMenu";
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import clinicLeaderIcon from "@/assets/clinicleader-icon-v3.png";
@@ -183,7 +183,7 @@ export const Sidebar = () => {
             ClinicLeader
           </span>
         </div>
-        <HelpMenu />
+        
       </div>
       
       <nav className="flex-1 p-4 overflow-y-auto">
