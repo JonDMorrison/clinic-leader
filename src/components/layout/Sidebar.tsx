@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { HelpMenu } from "@/components/layout/HelpMenu";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import clinicLeaderIcon from "@/assets/clinicleader-icon-new.png";
+import clinicLeaderIcon from "@/assets/clinicleader-icon-v3.png";
 import {
   Collapsible,
   CollapsibleContent,
