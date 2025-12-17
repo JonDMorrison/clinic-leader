@@ -1,173 +1,111 @@
-import { Sparkles, PenSquare, ArrowRight, Zap, ExternalLink } from "lucide-react";
+import { Sparkles, Target, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 
 interface ScorecardOnboardingWizardProps {
-  onCreateFromVTO: () => void;
+  onCreateFromVTO?: () => void; // Keep for backwards compatibility but unused
   onManualSetup: () => void;
   hasActiveVTO: boolean;
 }
 
 export const ScorecardOnboardingWizard = ({ 
-  onCreateFromVTO, 
   onManualSetup,
   hasActiveVTO
 }: ScorecardOnboardingWizardProps) => {
   const navigate = useNavigate();
 
   return (
-    <div className="max-w-3xl mx-auto py-12">
+    <div className="max-w-2xl mx-auto py-12">
       <div className="text-center mb-10">
-        <h2 className="text-3xl font-bold gradient-brand bg-clip-text text-transparent mb-3">
-          Create Your Scorecard
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+          <Target className="w-8 h-8 text-primary" />
+        </div>
+        <h2 className="text-3xl font-bold text-foreground mb-3">
+          Set Up Your Scorecard
         </h2>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
-          Track your clinic's key performance indicators to drive weekly accountability
+        <p className="text-muted-foreground max-w-lg mx-auto">
+          Track the numbers that drive your clinic's success with weekly accountability
         </p>
       </div>
 
-      {hasActiveVTO ? (
-        /* VTO exists: Show 2 clear options */
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Primary: Create from V/TO */}
-          <Card className="glass border-2 border-primary/30 hover:border-primary/50 transition-all hover:scale-[1.02] relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 gradient-brand" />
-            <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
-              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                <Sparkles className="w-7 h-7 text-primary" />
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Create from V/TO
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  AI analyzes your V/TO goals and suggests KPIs
-                </p>
-              </div>
-
-              <ul className="text-left text-sm text-muted-foreground space-y-1.5 w-full">
-                <li className="flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                  AI-powered suggestions
+      {/* Single CTA Card */}
+      <Card className="glass border-2 border-primary/30 hover:border-primary/50 transition-all hover:scale-[1.01] relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 gradient-brand" />
+        <CardContent className="p-8">
+          {/* What's included */}
+          <div className="space-y-4 mb-8">
+            <h3 className="text-lg font-semibold text-foreground">
+              The wizard will help you:
+            </h3>
+            <ul className="space-y-3">
+              {hasActiveVTO && (
+                <li className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Sparkles className="w-3 h-3 text-primary" />
+                  </div>
+                  <div>
+                    <span className="font-medium text-foreground">Get AI suggestions from your V/TO</span>
+                    <p className="text-sm text-muted-foreground">We found your Vision Planner — we'll suggest KPIs aligned to your goals</p>
+                  </div>
                 </li>
-                <li className="flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                  Auto-links to V/TO goals
-                </li>
-                <li className="flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                  Recommended targets
-                </li>
-              </ul>
-
-              <Button 
-                onClick={onCreateFromVTO}
-                className="gradient-brand w-full mt-2"
-                size="default"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Create from V/TO
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-
-              <p className="text-xs text-primary font-medium">
-                Recommended
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Secondary: Set up manually */}
-          <Card className="glass border border-border/50 hover:border-border transition-all hover:scale-[1.02]">
-            <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
-              <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
-                <PenSquare className="w-7 h-7 text-muted-foreground" />
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Set Up Manually
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  Build your scorecard from scratch or use templates
-                </p>
-              </div>
-
-              <ul className="text-left text-sm text-muted-foreground space-y-1.5 w-full">
-                <li className="flex items-center gap-2">
-                  <span className="text-muted-foreground">✓</span>
-                  Full control over metrics
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-muted-foreground">✓</span>
-                  Load industry templates
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-muted-foreground">✓</span>
-                  Generate Excel/Sheets template
-                </li>
-              </ul>
-
-              <Button 
-                onClick={onManualSetup}
-                variant="outline"
-                className="w-full mt-2"
-                size="default"
-              >
-                <PenSquare className="w-4 h-4 mr-2" />
-                Set Up Manually
-              </Button>
-
-              <p className="text-xs text-muted-foreground">
-                Custom tracking needs
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        /* No VTO: Prompt to create VTO first */
-        <div className="space-y-6">
-          <Card className="glass border-2 border-amber-500/30 bg-amber-500/5">
-            <CardContent className="p-6 text-center space-y-4">
-              <div className="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto">
-                <Sparkles className="w-7 h-7 text-amber-600" />
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  For the best experience, create your V/TO first
-                </h3>
-                <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                  Your Vision/Traction Organizer helps us suggest the right KPIs that align with your goals
-                </p>
-              </div>
-
-              <Button 
-                onClick={() => navigate('/vto/vision')}
-                className="bg-amber-600 hover:bg-amber-700"
-                size="default"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Create Your V/TO
-                <ExternalLink className="w-4 h-4 ml-2" />
-              </Button>
-            </CardContent>
-          </Card>
-
-          <div className="text-center">
-            <p className="text-muted-foreground text-sm mb-3">Or continue without V/TO</p>
-            <Button 
-              onClick={onManualSetup}
-              variant="outline"
-              size="default"
-            >
-              <PenSquare className="w-4 h-4 mr-2" />
-              Set Up Manually
-            </Button>
+              )}
+              <li className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <CheckCircle2 className="w-3 h-3 text-primary" />
+                </div>
+                <div>
+                  <span className="font-medium text-foreground">Choose from clinic templates</span>
+                  <p className="text-sm text-muted-foreground">Operations, Finance, Clinical Outcomes, Referrals — pick what matters</p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <CheckCircle2 className="w-3 h-3 text-primary" />
+                </div>
+                <div>
+                  <span className="font-medium text-foreground">Add custom metrics</span>
+                  <p className="text-sm text-muted-foreground">Track anything specific to your clinic's needs</p>
+                </div>
+              </li>
+            </ul>
           </div>
-        </div>
-      )}
+
+          {/* VTO Status Indicator */}
+          {hasActiveVTO ? (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 mb-6">
+              <div className="flex items-center gap-2 text-sm">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-primary font-medium">V/TO detected</span>
+                <span className="text-muted-foreground">— AI will suggest metrics from your goals</span>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-muted/50 border border-border rounded-lg p-3 mb-6">
+              <div className="flex items-center gap-2 text-sm">
+                <Target className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">No V/TO yet — you can</span>
+                <button 
+                  onClick={() => navigate('/vto/vision')}
+                  className="text-primary hover:underline font-medium"
+                >
+                  create one later
+                </button>
+                <span className="text-muted-foreground">to align your metrics</span>
+              </div>
+            </div>
+          )}
+
+          <Button 
+            onClick={onManualSetup}
+            className="gradient-brand w-full"
+            size="lg"
+          >
+            Get Started
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Tips Section */}
       <div className="mt-10 p-6 glass rounded-2xl border border-border">
