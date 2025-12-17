@@ -143,7 +143,7 @@ serve(async (req) => {
     }
 
     if (!metrics || metrics.length === 0) {
-      return errorResponse(400, 'NO_METRICS', 'No scorecard metrics found. Please set up your scorecard first.');
+      return errorResponse(200, 'NO_METRICS', 'No scorecard metrics found. Please set up your scorecard first.');
     }
 
     // Fetch metric results - use period_start for both weekly and monthly cadence
@@ -169,7 +169,7 @@ serve(async (req) => {
 
     if (metricsWithData.length === 0) {
       return errorResponse(
-        400, 
+        200, 
         'NO_DATA', 
         'No metrics have data imported yet. Please import your monthly report first.'
       );
