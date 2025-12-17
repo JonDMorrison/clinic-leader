@@ -176,6 +176,7 @@ const App = () => {
             <Route path="/library/:id" element={<AppLayout><LibraryDetail /></AppLayout>} />
             <Route path="/recalls" element={<AppLayout><Recalls /></AppLayout>} />
             <Route path="/people" element={<AppLayout><People /></AppLayout>} />
+            <Route path="/docs" element={<AppLayout><Docs /></AppLayout>} />
               <Route path="/vto" element={<AppLayout><VTO /></AppLayout>} />
               <Route path="/vto/vision" element={<AppLayout><VTOVision /></AppLayout>} />
               <Route path="/vto/history" element={<AppLayout><VTOHistory /></AppLayout>} />
