@@ -25,11 +25,16 @@ export const BackfillButton = ({
     }
   };
 
+  // Only show button if Jane integration exists
+  if (!hasJaneIntegration) {
+    return null;
+  }
+
   return (
     <div className="space-y-2">
       <Button
         onClick={handleBackfill}
-        disabled={!hasJaneIntegration || isBackfilling}
+        disabled={isBackfilling}
         variant={variant}
       >
         {isBackfilling ? (
