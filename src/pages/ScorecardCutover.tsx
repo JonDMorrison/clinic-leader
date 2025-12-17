@@ -38,10 +38,10 @@ interface CutoverStep {
 
 export default function ScorecardCutover() {
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
-  const { data: adminCheck } = useIsAdmin();
+  const { data: adminCheck, isLoading: adminLoading } = useIsAdmin();
   const { cutoverStatus, isLoading: statusLoading, markReady, isMarkingReady, refetch } = useCutoverReadiness();
 
-  const isLoading = userLoading || statusLoading;
+  const isLoading = userLoading || statusLoading || adminLoading;
 
   // Derive step statuses from cutover status
   const getStepStatus = (stepIndex: number): StepStatus => {
