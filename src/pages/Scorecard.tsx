@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload } from "lucide-react";
+import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload, FileSpreadsheet } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { metricStatus, normalizeDirection } from "@/lib/scorecard/metricStatus";
@@ -343,6 +343,11 @@ const Scorecard = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate("/scorecard/setup")} className="text-emerald-600">
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Template Wizard — Get Excel/Sheets Template
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Custom Metric
