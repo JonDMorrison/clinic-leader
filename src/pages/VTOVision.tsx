@@ -220,6 +220,7 @@ const VTOVision = () => {
         title: "Success",
         description: "Vision saved successfully",
       });
+      navigate("/vto");
     },
     onError: (error) => {
       toast({
