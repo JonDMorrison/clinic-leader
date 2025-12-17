@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload, FileSpreadsheet, MoreHorizontal } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { metricStatus, normalizeDirection } from "@/lib/scorecard/metricStatus";
@@ -320,34 +320,24 @@ const Scorecard = () => {
         
         {totalMetrics > 0 && (
           <div className="flex items-center gap-3">
-            <div className="relative group">
-              <Button 
-                onClick={() => setCreateFromVTOOpen(true)}
-                className="gradient-brand"
-                disabled={!currentUser?.team_id || !hasActiveVTO}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Create from V/TO
-              </Button>
-              {!hasActiveVTO && (
-                <div className="absolute top-full mt-1 right-0 w-64 text-xs text-muted-foreground bg-popover border rounded-md p-2 shadow-md hidden group-hover:block z-50">
-                  You need an active Vision Planner before we can suggest KPIs.
-                </div>
-              )}
-            </div>
+            {/* Primary action: Import Data */}
+            <Button 
+              onClick={() => navigate("/imports/monthly-report")}
+              className="gradient-brand"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import Data
+            </Button>
+
+            {/* Secondary actions dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Options
+                  <MoreHorizontal className="w-4 h-4 mr-2" />
+                  More
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate("/scorecard/setup")} className="text-emerald-600">
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Template Wizard — Get Excel/Sheets Template
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Custom Metric
@@ -360,13 +350,22 @@ const Scorecard = () => {
                   Load Template Defaults
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/imports/monthly-report")}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Import Data
+                <DropdownMenuItem onClick={() => navigate("/scorecard/setup")}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Get Spreadsheet Template
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/scorecard/template")}>
                   Template Settings
                 </DropdownMenuItem>
+                {hasActiveVTO && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setCreateFromVTOOpen(true)}>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Review V/TO Alignment
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -386,6 +385,7 @@ const Scorecard = () => {
         <ScorecardOnboardingWizard
           onCreateFromVTO={() => setCreateFromVTOOpen(true)}
           onManualSetup={() => setAddKpiModalOpen(true)}
+          hasActiveVTO={!!hasActiveVTO}
         />
       ) : (
         <div className="space-y-6">
