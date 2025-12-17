@@ -66,6 +66,11 @@ const ERROR_UI: Record<string, { title: string; body: string; icon: React.ReactN
     body: "We could not find any metrics in your scorecard. Please set up your scorecard first, then we'll help you create Rocks from it.",
     icon: <FileWarning className="h-10 w-10 text-amber-500" />,
   },
+  NO_DATA: {
+    title: "No metric data yet",
+    body: "Your scorecard metrics don't have any data imported yet. Please import your monthly report first, then we can analyze performance and suggest Rocks.",
+    icon: <BarChart3 className="h-10 w-10 text-amber-500" />,
+  },
   METRICS_QUERY_FAILED: {
     title: "Problem loading your scorecard",
     body: "We had a problem loading your scorecard. This is on us, not you. Please try again, and if it continues, contact support.",
