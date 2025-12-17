@@ -109,11 +109,15 @@ export async function loadDefaultKPIs(options: LoadDefaultsOptions): Promise<Loa
         ? suggestOwnerByGroup(item.group, usersByRole, createdBy || "")
         : (ownerUserId || createdBy);
 
+      // Convert direction from template format to database format
+      // ">=" means higher is better = "up", "<=" means lower is better = "down"
+      const dbDirection = item.direction === ">=" ? "up" : "down";
+
       // Insert into metrics table (what Scorecard.tsx actually queries)
       metricsToCreate.push({
         name: item.name,
         unit: item.unit,
-        direction: item.direction,
+        direction: dbDirection,
         category: item.group,
         organization_id: organizationId,
         owner: ownerId || null,
