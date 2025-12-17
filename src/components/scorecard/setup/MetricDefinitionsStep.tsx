@@ -2,16 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Users, DollarSign, Activity, UserPlus, Zap, Sparkles, Loader2, RefreshCw, Target } from "lucide-react";
+import { Plus, Trash2, Users, DollarSign, Activity, UserPlus, Zap, Sparkles, Loader2, RefreshCw, Target, User, Armchair } from "lucide-react";
 import { MetricDefinition } from "@/pages/ScorecardSetup";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-
 interface MetricDefinitionsStepProps {
   metrics: MetricDefinition[];
   onMetricsChange: (metrics: MetricDefinition[]) => void;
@@ -146,6 +145,36 @@ export const MetricDefinitionsStep = ({
         .maybeSingle();
 
       return !!vto;
+    },
+    enabled: !!userData?.team_id,
+  });
+
+  // Fetch users for owner selection
+  const { data: orgUsers = [] } = useQuery({
+    queryKey: ["org-users", userData?.team_id],
+    queryFn: async () => {
+      if (!userData?.team_id) return [];
+      const { data } = await supabase
+        .from("users")
+        .select("id, full_name")
+        .eq("team_id", userData.team_id)
+        .order("full_name");
+      return data || [];
+    },
+    enabled: !!userData?.team_id,
+  });
+
+  // Fetch seats for owner selection
+  const { data: orgSeats = [] } = useQuery({
+    queryKey: ["org-seats", userData?.team_id],
+    queryFn: async () => {
+      if (!userData?.team_id) return [];
+      const { data } = await supabase
+        .from("seats")
+        .select("id, title")
+        .eq("organization_id", userData.team_id)
+        .order("title");
+      return data || [];
     },
     enabled: !!userData?.team_id,
   });
@@ -541,13 +570,43 @@ export const MetricDefinitionsStep = ({
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="md:col-span-2 space-y-2">
-                    <Label className="text-xs">Owner Name</Label>
-                    <Input
-                      placeholder="e.g., Front Desk Manager"
+                    <Label className="text-xs">Owner</Label>
+                    <Select
                       value={bulkOwner}
-                      onChange={(e) => setBulkOwner(e.target.value)}
-                      className="h-9"
-                    />
+                      onValueChange={setBulkOwner}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select person or seat..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orgUsers.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel className="flex items-center gap-2">
+                              <User className="h-3 w-3" />
+                              People
+                            </SelectLabel>
+                            {orgUsers.map((user) => (
+                              <SelectItem key={`user-${user.id}`} value={user.full_name || ""}>
+                                {user.full_name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                        {orgSeats.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel className="flex items-center gap-2">
+                              <Armchair className="h-3 w-3" />
+                              Seats
+                            </SelectLabel>
+                            {orgSeats.map((seat) => (
+                              <SelectItem key={`seat-${seat.id}`} value={seat.title}>
+                                {seat.title}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">For Category</Label>
@@ -684,11 +743,42 @@ export const MetricDefinitionsStep = ({
 
                       <div>
                         <Label>Owner</Label>
-                        <Input
-                          placeholder="e.g., Front Desk Manager"
+                        <Select
                           value={metric.owner}
-                          onChange={(e) => updateMetric(index, "owner", e.target.value)}
-                        />
+                          onValueChange={(value) => updateMetric(index, "owner", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select person or seat..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {orgUsers.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel className="flex items-center gap-2">
+                                  <User className="h-3 w-3" />
+                                  People
+                                </SelectLabel>
+                                {orgUsers.map((user) => (
+                                  <SelectItem key={`user-${user.id}`} value={user.full_name || ""}>
+                                    {user.full_name}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            )}
+                            {orgSeats.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel className="flex items-center gap-2">
+                                  <Armchair className="h-3 w-3" />
+                                  Seats
+                                </SelectLabel>
+                                {orgSeats.map((seat) => (
+                                  <SelectItem key={`seat-${seat.id}`} value={seat.title}>
+                                    {seat.title}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            )}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div>
