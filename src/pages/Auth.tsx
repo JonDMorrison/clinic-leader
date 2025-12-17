@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import clinicLeaderIcon from "@/assets/clinicleader-icon-v3.png";
+import { ClinicLeaderIcon } from "@/components/ui/ClinicLeaderIcon";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -73,10 +73,9 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       {/* Logo */}
       <Link to="/" className="flex items-center gap-3 mb-8 group">
-        <img 
-          src={clinicLeaderIcon} 
-          alt="ClinicLeader" 
-          className="w-12 h-12 object-contain drop-shadow-lg transition-transform duration-300 group-hover:scale-105"
+        <ClinicLeaderIcon 
+          size={48} 
+          className="transition-transform duration-300 group-hover:scale-105"
         />
         <span className="text-3xl font-bold bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent">
           ClinicLeader
