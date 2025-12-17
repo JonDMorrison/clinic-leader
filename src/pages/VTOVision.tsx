@@ -138,7 +138,9 @@ const VTOVision = () => {
         differentiators: normalizeDifferentiators(template.marketing_strategy?.differentiators || template.marketing_strategy?.uniques),
         proven_process: typeof template.marketing_strategy?.proven_process === 'string' 
           ? template.marketing_strategy.proven_process 
-          : template.marketing_strategy?.proven_process?.steps?.map((s: any) => s.title || s).join(', ') || "",
+          : Array.isArray(template.marketing_strategy?.proven_process)
+            ? template.marketing_strategy.proven_process.map((s: any) => s.title || s).join(' → ')
+            : "",
         guarantee: template.marketing_strategy?.guarantee || template.promise || "",
       });
       setThreeYearPicture({
@@ -160,7 +162,9 @@ const VTOVision = () => {
         differentiators: normalizeDifferentiators(ms?.differentiators || ms?.uniques),
         proven_process: typeof ms?.proven_process === 'string' 
           ? ms.proven_process 
-          : ms?.proven_process?.steps?.map((s: any) => s.title || s).join(', ') || "",
+          : Array.isArray(ms?.proven_process)
+            ? ms.proven_process.map((s: any) => s.title || s).join(' → ')
+            : "",
         guarantee: ms?.guarantee || (v as any).promise || "",
       });
       
@@ -290,7 +294,12 @@ const VTOVision = () => {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: {
           intent: "draft",
-          context: { organization_id: userProfile.team_id },
+          context: { 
+            organization_id: userProfile.team_id,
+            core_focus: coreFocus,
+            core_values: coreValues,
+            ideal_client: marketingStrategy.ideal_client,
+          },
           field,
           current_value: currentValue,
         },

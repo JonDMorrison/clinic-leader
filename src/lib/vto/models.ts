@@ -348,11 +348,12 @@ export const VTO_TEMPLATES = {
         differentiators: ['Proven EOS implementation', 'Healthcare expertise', 'Measurable results'],
         uniques: ['Complete case management', 'Integrated multi-specialty care', '10+ years experience'],
         proven_process: [
-          { id: '1', title: 'Initial Assessment', description: 'Comprehensive evaluation', order: 0, sub_steps: [] },
-          { id: '2', title: 'Treatment Plan', description: 'Personalized care plan', order: 1, sub_steps: [] },
-          { id: '3', title: 'Active Care', description: 'Hands-on treatment', order: 2, sub_steps: [] },
-          { id: '4', title: 'Progress Review', description: 'Track outcomes', order: 3, sub_steps: [] },
-          { id: '5', title: 'Maintenance', description: 'Ongoing wellness', order: 4, sub_steps: [] },
+          { id: '1', title: 'New Patient Scheduling', description: 'Rapid intake within 24-48 hours', order: 0, sub_steps: [] },
+          { id: '2', title: 'Triage & Full Workup', description: 'Comprehensive evaluation and documentation', order: 1, sub_steps: [] },
+          { id: '3', title: 'Imaging & Diagnostics', description: 'MRI, X-ray, NCV/EMG as needed', order: 2, sub_steps: [] },
+          { id: '4', title: 'Treatment Plan & Education', description: 'Personalized care plan with patient education', order: 3, sub_steps: [] },
+          { id: '5', title: 'Multi-Specialty Co-Management', description: 'Chiro, PT, Pain Management coordination', order: 4, sub_steps: [] },
+          { id: '6', title: 'Case Resolution & Follow-Up', description: 'Documentation, attorney collaboration, discharge', order: 5, sub_steps: [] },
         ],
         guarantee: '100% satisfaction or money back'
       },
