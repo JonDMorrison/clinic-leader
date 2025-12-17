@@ -51,29 +51,29 @@ export const LinkToVTODialog = ({ open, onClose, linkType, linkId, itemName }: L
     queryFn: async () => {
       if (!currentUser?.team_id) return null;
 
-      const { data: vto, error } = await supabase
+      // First get the active VTO
+      const { data: vto, error: vtoError } = await supabase
         .from("vto")
-        .select(`
-          id,
-          vto_versions!inner(
-            id,
-            one_year_plan,
-            quarterly_rocks,
-            three_year_picture,
-            ten_year_target,
-            version
-          )
-        `)
+        .select("id")
         .eq("organization_id", currentUser.team_id)
         .eq("is_active", true)
-        .order("vto_versions(version)", { ascending: false })
+        .maybeSingle();
+
+      if (vtoError) throw vtoError;
+      if (!vto) return null;
+
+      // Then get the latest version
+      const { data: latestVersion, error: versionError } = await supabase
+        .from("vto_versions")
+        .select("id, one_year_plan, quarterly_rocks, three_year_picture, ten_year_target, version")
+        .eq("vto_id", vto.id)
+        .order("version", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (versionError) throw versionError;
+      if (!latestVersion) return null;
 
-      // Get the latest version
-      const latestVersion = vto.vto_versions[0] as any;
       const threeYearPicture = latestVersion.three_year_picture as any;
       return {
         vtoId: vto.id,
