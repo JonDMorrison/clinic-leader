@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload, FileSpreadsheet, MoreHorizontal } from "lucide-react";
+import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload, FileSpreadsheet, MoreHorizontal, Trash2 } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { metricStatus, normalizeDirection } from "@/lib/scorecard/metricStatus";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
@@ -61,6 +61,24 @@ const Scorecard = () => {
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
   const { orgId, isValid, OrgMissingError } = useOrgSafetyCheck();
   const queryClient = useQueryClient();
+
+  // Delete metric mutation
+  const deleteMetricMutation = useMutation({
+    mutationFn: async (metricId: string) => {
+      const { error } = await supabase
+        .from("metrics")
+        .delete()
+        .eq("id", metricId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scorecard-metrics"] });
+    },
+  });
+
+  const handleDeleteMetric = (metricId: string) => {
+    deleteMetricMutation.mutate(metricId);
+  };
 
   // Fetch metrics with last 12 weeks of data
   const { data: metricsData, isLoading, isError, refetch } = useQuery({
@@ -504,6 +522,7 @@ const Scorecard = () => {
                       key={metric.id}
                       metric={metric}
                       onClick={() => setSelectedMetricId(metric.id)}
+                      onDelete={handleDeleteMetric}
                     />
                   ))}
                 </div>
@@ -554,8 +573,8 @@ const Scorecard = () => {
   );
 };
 
-// Sortable wrapper for MetricCard
-function SortableMetricCard({ metric, onClick }: { metric: any; onClick: () => void }) {
+// Sortable wrapper for MetricCard with delete functionality
+function SortableMetricCard({ metric, onClick, onDelete }: { metric: any; onClick: () => void; onDelete: (id: string) => void }) {
   const {
     attributes,
     listeners,
@@ -571,15 +590,31 @@ function SortableMetricCard({ metric, onClick }: { metric: any; onClick: () => v
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm(`Delete "${metric.name}" from your scorecard?`)) {
+      onDelete(metric.id);
+    }
+  };
+
   return (
-    <div ref={setNodeRef} style={style} className="relative">
+    <div ref={setNodeRef} style={style} className="relative group">
+      {/* Drag handle - top left */}
       <div
         {...attributes}
         {...listeners}
-        className="absolute top-2 right-2 z-10 cursor-grab active:cursor-grabbing p-1 hover:bg-secondary rounded"
+        className="absolute top-2 left-2 z-10 cursor-grab active:cursor-grabbing p-1 hover:bg-secondary rounded opacity-0 group-hover:opacity-100 transition-opacity"
       >
         <GripVertical className="w-4 h-4 text-muted-foreground" />
       </div>
+      {/* Delete button - top right */}
+      <button
+        onClick={handleDelete}
+        className="absolute top-2 right-2 z-10 p-1 hover:bg-destructive/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Delete metric"
+      >
+        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+      </button>
       <MetricCard metric={metric} onClick={onClick} />
     </div>
   );
