@@ -159,7 +159,7 @@ const App = () => {
             <Route path="/" element={<Index />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/dashboard" element={<AppLayout><Home /></AppLayout>} />
-            <Route path="/setup/scorecard" element={<AppLayout><ScorecardSetup /></AppLayout>} />
+            <Route path="/scorecard/setup" element={<AppLayout><ScorecardSetup /></AppLayout>} />
             <Route path="/scorecard/update" element={<AppLayout><ScorecardUpdate /></AppLayout>} />
             <Route path="/scorecard/template" element={<AppLayout><ScorecardTemplate /></AppLayout>} />
             <Route path="/scorecard/off-track" element={<AppLayout><ScorecardOffTrack /></AppLayout>} />
