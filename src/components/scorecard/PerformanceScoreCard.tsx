@@ -96,7 +96,7 @@ export const PerformanceScoreCard = ({ metrics }: PerformanceScoreCardProps) => 
           <Progress value={score} className="h-3" />
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>{onTrack} of {metricsWithData} metrics on target</span>
-            <span>{Math.round((onTrack / metricsWithData) * 100)}%</span>
+            <span>{metricsWithData > 0 ? Math.round((onTrack / metricsWithData) * 100) : 0}%</span>
           </div>
         </div>
 
