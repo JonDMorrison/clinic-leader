@@ -236,6 +236,24 @@ const Scorecard = () => {
     enabled: !!currentUser?.team_id,
   });
 
+  // Check org scorecard mode for conditional UI (aligned mode hides duplicate import button)
+  const { data: orgSettings } = useQuery({
+    queryKey: ["org-scorecard-mode", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return null;
+      const { data, error } = await supabase
+        .from("teams")
+        .select("scorecard_mode")
+        .eq("id", currentUser.team_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentUser?.team_id,
+  });
+
+  const isAlignedMode = orgSettings?.scorecard_mode === "aligned";
+
   // Auto-generate alerts when data is loaded
   useQuery({
     queryKey: ["generate-alerts", currentUser?.team_id],
@@ -360,14 +378,16 @@ const Scorecard = () => {
         
         {totalMetrics > 0 && (
           <div className="flex items-center gap-3">
-            {/* Primary action: Import Data */}
-            <Button 
-              onClick={() => navigate("/imports/monthly-report")}
-              className="gradient-brand"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Import Data
-            </Button>
+            {/* Primary action: Import Data - hidden when TemplateSetupBanner shows it */}
+            {!isAlignedMode && (
+              <Button 
+                onClick={() => navigate("/imports/monthly-report")}
+                className="gradient-brand"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import Data
+              </Button>
+            )}
 
             {/* Secondary actions dropdown */}
             <DropdownMenu>
@@ -437,8 +457,10 @@ const Scorecard = () => {
         />
       ) : (
         <div className="space-y-6">
-          {/* Performance Score Card */}
-          <PerformanceScoreCard metrics={metricsData || []} />
+          {/* Performance Score Card - only show when there's meaningful data */}
+          {(metricsData || []).some(m => m.current_value !== null && m.target !== null) && (
+            <PerformanceScoreCard metrics={metricsData || []} />
+          )}
 
           {/* Alerts Panel */}
           <AlertsPanel 
