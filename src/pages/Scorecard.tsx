@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload, FileSpreadsheet, MoreHorizontal, Trash2, RotateCcw, Settings } from "lucide-react";
+import { Plus, Search, Filter, Star, GripVertical, Sparkles, FileDown, Upload, MoreHorizontal, Trash2, RotateCcw, Settings } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { metricStatus, normalizeDirection } from "@/lib/scorecard/metricStatus";
@@ -398,25 +398,26 @@ const Scorecard = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Custom Metric
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => setLoadDefaultsOpen(true)}
-                  disabled={!currentUser?.team_id}
-                >
-                  <FileDown className="w-4 h-4 mr-2" />
-                  Load Template Defaults
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/scorecard/setup")}>
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Get Spreadsheet Template
-                </DropdownMenuItem>
+                {/* Hide metric creation options for aligned orgs - they would trigger StayAlignedModal anyway */}
+                {!isAlignedMode && (
+                  <>
+                    <DropdownMenuItem onClick={() => setAddKpiModalOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Custom Metric
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setLoadDefaultsOpen(true)}
+                      disabled={!currentUser?.team_id}
+                    >
+                      <FileDown className="w-4 h-4 mr-2" />
+                      Load Template Defaults
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem onClick={() => navigate("/scorecard/template")}>
                   <Settings className="w-4 h-4 mr-2" />
-                  Template Settings
+                  Manage Template
                 </DropdownMenuItem>
                 {hasActiveVTO && (
                   <>
