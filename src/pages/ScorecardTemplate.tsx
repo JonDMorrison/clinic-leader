@@ -54,7 +54,7 @@ const ScorecardTemplate = () => {
   const queryClient = useQueryClient();
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
   const { data: adminStatus, isLoading: adminLoading } = useIsAdmin();
-  const { orgId, OrgMissingError } = useOrgSafetyCheck();
+  const { orgId, isValid, OrgMissingError } = useOrgSafetyCheck();
   
   const isAdmin = adminStatus?.isAdmin || adminStatus?.isManager || false;
   
@@ -543,7 +543,7 @@ const ScorecardTemplate = () => {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   }
 
-  if (OrgMissingError) return <>{OrgMissingError}</>;
+  if (!isValid) return <OrgMissingError />;
 
   return (
     <div className="space-y-6 p-6">
