@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, User, Users, ChevronUp, Shield } from "lucide-react";
+import { Briefcase, User, ChevronUp, Shield } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ interface SeatUser {
   users: {
     id: string;
     full_name: string;
+    avatar_url?: string | null;
   } | null;
 }
 
@@ -25,6 +26,7 @@ interface SeatTileProps {
     clearance_level?: number | null;
     users?: {
       full_name: string;
+      avatar_url?: string | null;
     } | null;
     seat_users?: SeatUser[];
     reports_to_seat?: {
@@ -62,19 +64,11 @@ export const SeatTile = ({ seat, users, onUpdate, isManager, onClick }: SeatTile
     onUpdate();
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   // Get all users assigned to this seat (from seat_users or legacy user_id)
   const assignedUsers = seat.seat_users?.filter(su => su.users)?.map(su => ({
     id: su.users!.id,
     name: su.users!.full_name,
+    avatar_url: su.users!.avatar_url,
     isPrimary: su.is_primary,
   })) || [];
 
@@ -83,6 +77,7 @@ export const SeatTile = ({ seat, users, onUpdate, isManager, onClick }: SeatTile
     assignedUsers.push({
       id: seat.user_id!,
       name: seat.users.full_name,
+      avatar_url: seat.users.avatar_url,
       isPrimary: true,
     });
   }
@@ -126,26 +121,23 @@ export const SeatTile = ({ seat, users, onUpdate, isManager, onClick }: SeatTile
             {/* User avatars */}
             <div className="flex -space-x-2">
               {assignedUsers.length > 0 ? (
-                assignedUsers.slice(0, 3).map((user, idx) => (
-                  <Avatar key={user.id} className="h-10 w-10 border-2 border-background shrink-0">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                      {getInitials(user.name)}
-                    </AvatarFallback>
-                  </Avatar>
+                assignedUsers.slice(0, 3).map((user) => (
+                  <UserAvatar 
+                    key={user.id} 
+                    user={{ id: user.id, full_name: user.name, avatar_url: user.avatar_url }} 
+                    size="md" 
+                    className="border-2 border-background shrink-0"
+                  />
                 ))
               ) : (
-                <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                    <User className="w-5 h-5" />
-                  </AvatarFallback>
-                </Avatar>
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <User className="w-5 h-5 text-muted-foreground" />
+                </div>
               )}
               {assignedUsers.length > 3 && (
-                <Avatar className="h-10 w-10 border-2 border-background shrink-0">
-                  <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                    +{assignedUsers.length - 3}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="h-10 w-10 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs text-muted-foreground shrink-0">
+                  +{assignedUsers.length - 3}
+                </div>
               )}
             </div>
           </div>

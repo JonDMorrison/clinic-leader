@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { formatDistanceToNow } from "date-fns";
 import { MessageSquare, Send, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -133,13 +133,12 @@ export function MetricComments({ metricId, organizationId }: MetricCommentsProps
         {comments && comments.length > 0 ? (
           comments.map((comment: any) => (
             <div key={comment.id} className="glass rounded-lg p-4 space-y-2">
-              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>
-                      {comment.users?.full_name?.[0] || comment.users?.email?.[0] || "?"}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar 
+                    user={{ full_name: comment.users?.full_name, avatar_url: comment.users?.avatar_url }} 
+                    size="sm"
+                  />
                   <div>
                     <p className="font-medium text-sm">
                       {comment.users?.full_name || comment.users?.email}

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { User, Users } from "lucide-react";
 
 interface Seat {
@@ -13,6 +13,7 @@ interface Seat {
     id: string;
     full_name: string;
     email: string;
+    avatar_url?: string | null;
   } | null;
 }
 
@@ -55,12 +56,6 @@ function buildTree(seats: Seat[]): TreeNode[] {
 }
 
 function SeatCard({ seat, onClick }: { seat: Seat; onClick?: () => void }) {
-  const initials = seat.user?.full_name
-    ?.split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase() || '?';
-
   return (
     <div
       className={`w-48 cursor-pointer border rounded-lg bg-card hover:border-primary transition-colors ${
@@ -69,11 +64,17 @@ function SeatCard({ seat, onClick }: { seat: Seat; onClick?: () => void }) {
       onClick={onClick}
     >
       <div className="p-3 text-center">
-        <Avatar className="h-12 w-12 mx-auto mb-2">
-          <AvatarFallback className={seat.user_id ? 'bg-primary/10 text-primary' : 'bg-muted'}>
-            {seat.user_id ? initials : <User className="h-5 w-5" />}
-          </AvatarFallback>
-        </Avatar>
+        {seat.user_id && seat.user ? (
+          <UserAvatar 
+            user={seat.user} 
+            size="lg" 
+            className="mx-auto mb-2"
+          />
+        ) : (
+          <div className="h-12 w-12 mx-auto mb-2 rounded-full bg-muted flex items-center justify-center">
+            <User className="h-5 w-5 text-muted-foreground" />
+          </div>
+        )}
         <p className="font-medium text-sm truncate">{seat.title}</p>
         {seat.user?.full_name ? (
           <p className="text-xs text-muted-foreground truncate">{seat.user.full_name}</p>
