@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Users as UsersIcon, Settings, UserPlus } from "lucide-react";
 import { HelpHint } from "@/components/help/HelpHint";
 import { SeatTile } from "@/components/people/SeatTile";
-import { ValuesList } from "@/components/people/ValuesList";
+
 import { PeopleAnalyzer } from "@/components/people/PeopleAnalyzer";
 import { SeatManagementDialog } from "@/components/people/SeatManagementDialog";
 import { SeatDetailModal } from "@/components/people/SeatDetailModal";
@@ -76,12 +76,28 @@ const People = () => {
       
       const { data, error } = await supabase
         .from("seats")
-        .select("*, users(full_name)")
-        .eq("organization_id", currentUser.team_id) // MULTI-TENANCY: Explicit org filter
+        .select(`
+          *,
+          users(full_name),
+          seat_users(id, user_id, is_primary, users:user_id(id, full_name))
+        `)
+        .eq("organization_id", currentUser.team_id)
         .order("title");
 
       if (error) throw error;
-      return data;
+      
+      // Manually join reports_to_seat info
+      const seatsWithReportsTo = data.map(seat => {
+        const reportsToSeat = seat.reports_to_seat_id 
+          ? data.find(s => s.id === seat.reports_to_seat_id)
+          : null;
+        return {
+          ...seat,
+          reports_to_seat: reportsToSeat ? { id: reportsToSeat.id, title: reportsToSeat.title } : null,
+        };
+      });
+      
+      return seatsWithReportsTo;
     },
     enabled: !!currentUser?.team_id,
   });
@@ -241,8 +257,8 @@ const People = () => {
         <p className="text-muted-foreground">Accountability and core values</p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="space-y-6">
+        <div className="space-y-6">
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-foreground">Seats</h2>
@@ -456,10 +472,6 @@ const People = () => {
               isManager={isManager}
             />
           </div>
-        </div>
-
-        <div className="lg:col-span-1">
-          <ValuesList values={coreValues || []} />
         </div>
       </div>
 
