@@ -100,27 +100,10 @@ export const CopilotWidget = () => {
       transition={{ duration: 0.5, delay: 0.3 }}
       className="relative h-full"
     >
-      {/* Animated gradient border - hidden on mobile for performance */}
-      <motion.div
-        className="absolute -inset-0.5 bg-gradient-to-r from-brand via-accent to-brand rounded-3xl opacity-20 blur-sm hidden md:block"
-        animate={{
-          backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-          ease: "linear",
-        }}
-        style={{
-          backgroundSize: "200% 200%",
-        }}
-      />
-      
-      <Card className="relative h-full flex flex-col hover:scale-[1.02] transition-all duration-300 border-brand/30">
+      <Card className="relative h-full flex flex-col bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950/50 dark:to-cyan-950/50 border-cyan-200/50 dark:border-cyan-800/30 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 md:px-6 pt-4 md:pt-6">
           <CardTitle className="flex items-center gap-2 text-base md:text-lg">
             <motion.div
-              className="md:animate-none" // Disable animation on mobile
               animate={{
                 rotate: [0, 5, -5, 0],
                 scale: [1, 1.1, 1],
@@ -131,81 +114,67 @@ export const CopilotWidget = () => {
                 ease: "easeInOut",
               }}
             >
-              <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-brand" />
+              <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-cyan-600 dark:text-cyan-400" />
             </motion.div>
-            <span className="bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent">
+            <span className="text-cyan-700 dark:text-cyan-300 font-semibold">
               AI Copilot
             </span>
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={() => navigate("/copilot")}
-            className="text-xs hover:bg-brand/10 min-h-[36px]"
+            className="text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 hover:underline transition-colors"
           >
-            Full View
-          </Button>
+            Full View →
+          </button>
         </CardHeader>
         <CardContent className="px-4 md:px-6 pb-4 md:pb-6 flex flex-col flex-1">
           {response ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-4 rounded-2xl bg-gradient-to-br from-brand/5 to-accent/5 border border-brand/20 text-sm flex-1 overflow-y-auto mb-3"
+              className="p-4 rounded-xl bg-white dark:bg-white/10 border border-cyan-100 dark:border-cyan-800/30 text-sm flex-1 overflow-y-auto mb-3 shadow-sm"
             >
-              <p className="text-foreground">{response}</p>
+              <p className="text-slate-700 dark:text-slate-200">{response}</p>
             </motion.div>
           ) : (
-            <div className="flex flex-col gap-2 flex-1 mb-3">
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
-                Suggested questions
+            <div className="flex flex-col gap-3 flex-1 mb-3">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">
+                Suggested Questions
               </p>
               <div className="flex flex-col gap-2">
                 {suggestions.map((question, index) => (
-                  <motion.div
+                  <motion.button
                     key={index}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="touch-manipulation"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => setInput(question)}
+                    className="w-full text-left py-3 px-4 bg-white dark:bg-white/10 rounded-xl shadow-sm hover:shadow-md text-sm text-slate-700 dark:text-slate-200 transition-all duration-200 border border-transparent hover:border-cyan-200 dark:hover:border-cyan-700"
                   >
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setInput(question)}
-                      className={cn(
-                        "text-xs h-auto py-2.5 px-3 w-full",
-                        "bg-gradient-to-br from-white/5 to-white/0",
-                        "border-white/10 hover:border-brand/30",
-                        "hover:shadow-[0_4px_12px_hsl(210_100%_50%_/_0.15)]",
-                        "transition-all duration-300 text-left justify-start"
-                      )}
-                    >
-                      {question}
-                    </Button>
-                  </motion.div>
+                    {question}
+                  </motion.button>
                 ))}
               </div>
             </div>
           )}
           
-          <div className="flex gap-2 mt-auto pt-3 border-t border-white/5">
+          <div className="flex gap-2 mt-auto pt-3">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Ask about KPIs, rocks, issues..."
               disabled={isLoading}
-              className="flex-1 border-white/20 focus:border-brand/50 bg-white/10 backdrop-blur-sm shadow-sm focus:shadow-brand/20 focus:shadow-md transition-all min-h-[44px]"
+              className="flex-1 bg-white dark:bg-white/10 border-slate-200 dark:border-slate-700 focus:border-cyan-400 dark:focus:border-cyan-500 rounded-xl shadow-sm focus:shadow-md transition-all min-h-[44px] placeholder:text-slate-400"
             />
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
                 size="icon"
-                className="shrink-0 bg-gradient-to-br from-brand to-accent hover:shadow-[0_4px_16px_hsl(210_100%_50%_/_0.3)] min-h-[44px] min-w-[44px]"
+                className="shrink-0 bg-gradient-to-br from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-xl shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] transition-all"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
