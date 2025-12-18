@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Calendar, Target, Link as LinkIcon, GripVertical, CheckCircle2, CircleDot, XCircle } from "lucide-react";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
@@ -25,7 +25,9 @@ interface RockCardProps {
     quarter: string;
     owner_id: string | null;
     users?: {
+      id?: string;
       full_name: string;
+      avatar_url?: string | null;
     } | null;
   };
   onUpdate: () => void;
@@ -138,15 +140,6 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
     onUpdate();
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   const getConfidenceColor = (conf: number) => {
     if (conf >= 4) return "text-success";
     if (conf >= 3) return "text-warning";
@@ -216,11 +209,11 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
               )}
             </div>
             {rock.users && (
-              <Avatar className="h-8 w-8 shrink-0">
-                <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                  {getInitials(rock.users.full_name)}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar 
+                user={{ id: rock.owner_id || undefined, full_name: rock.users.full_name, avatar_url: rock.users.avatar_url }} 
+                size="sm" 
+                className="shrink-0"
+              />
             )}
           </div>
         </CardHeader>

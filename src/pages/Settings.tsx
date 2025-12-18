@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RulesEnginePanel } from "@/components/settings/RulesEnginePanel";
 import { useNavigate } from "react-router-dom";
-import { Palette, Shield, Bell, Users, Building2, TrendingUp, FileText, GraduationCap, Plug } from "lucide-react";
+import { Palette, Shield, Bell, Users, Building2, TrendingUp, FileText, GraduationCap, Plug, UserCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -36,6 +36,23 @@ const Settings = () => {
       </div>
 
       <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCircle className="w-5 h-5" />
+              My Profile
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Manage your profile photo and account settings
+            </p>
+            <Button variant="outline" onClick={() => navigate("/settings/profile")}>
+              Edit Profile
+            </Button>
+          </CardContent>
+        </Card>
+
         <RulesEnginePanel />
 
         <Card>

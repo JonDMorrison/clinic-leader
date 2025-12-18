@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, User as UserIcon, Building2, Settings, Plug } from "lucide-react";
+import { LogOut, Building2, Settings, Plug } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,8 +14,10 @@ import {
 import { toast } from "sonner";
 
 interface UserProfile {
+  id: string;
   full_name: string;
   email: string;
+  avatar_url: string | null;
   team?: {
     name: string;
   };
@@ -48,7 +50,7 @@ export const UserNav = () => {
 
       const { data: userData } = await supabase
         .from("users")
-        .select("full_name,email,team_id")
+        .select("id, full_name, email, avatar_url, team_id")
         .eq("id", authUser.id)
         .single();
 
@@ -64,14 +66,18 @@ export const UserNav = () => {
         }
 
         setProfile({
+          id: userData.id,
           full_name: userData.full_name ?? authUser.user_metadata?.full_name ?? authUser.email ?? "User",
           email: userData.email ?? authUser.email ?? "",
+          avatar_url: userData.avatar_url,
           team: teamName ? { name: teamName } : undefined,
         });
       } else {
         setProfile({
+          id: authUser.id,
           full_name: authUser.user_metadata?.full_name ?? authUser.email ?? "User",
           email: authUser.email ?? "",
+          avatar_url: null,
         });
       }
     };
@@ -88,31 +94,24 @@ export const UserNav = () => {
     }
   };
 
-  // Derive initials from available data (profile or auth session)
-  const baseLabel = (profile?.full_name || profile?.email || authUser?.email || "User") as string;
-  const initials = baseLabel
-    .split(/[\s@._-]+/)
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  // Derive display name from available data
+  const displayName = profile?.full_name || authUser?.user_metadata?.full_name || authUser?.email || "User";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="relative h-10 w-10 rounded-full ring-2 ring-brand/20 hover:ring-brand/40 transition-all bg-background/80 backdrop-blur-sm shadow-lg border border-border/40 hover:shadow-xl">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-gradient-to-br from-brand to-accent text-white font-semibold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar 
+            user={profile} 
+            size="md" 
+            className="h-10 w-10"
+          />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-2">
-            <p className="text-sm font-semibold leading-none">{profile?.full_name || authUser?.user_metadata?.full_name || baseLabel}</p>
+            <p className="text-sm font-semibold leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground">{profile?.email || authUser?.email || ""}</p>
             {profile?.team && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">

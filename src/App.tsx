@@ -71,6 +71,7 @@ import ScorecardCutover from "./pages/ScorecardCutover";
 import RocksMonthlyReview from "./pages/RocksMonthlyReview";
 import QuarterlyCloseReport from "./pages/QuarterlyCloseReport";
 import Focus from "./pages/Focus";
+import ProfileSettings from "./pages/ProfileSettings";
 
 const queryClient = new QueryClient();
 
@@ -196,6 +197,7 @@ const App = () => {
             <Route path="/imports/pdf-report" element={<AppLayout><ImportPdfReport /></AppLayout>} />
             
             <Route path="/settings/organization" element={<AppLayout><OrganizationSettings /></AppLayout>} />
+            <Route path="/settings/profile" element={<AppLayout><ProfileSettings /></AppLayout>} />
             <Route path="/settings/team" element={<AppLayout><TeamManagement /></AppLayout>} />
             <Route path="/settings/integrations" element={<AppLayout><Integrations /></AppLayout>} />
             <Route path="/settings/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
