@@ -656,14 +656,14 @@ function SortableMetricCard({ metric, onClick, onDelete }: { metric: any; onClic
       <div
         {...attributes}
         {...listeners}
-        className="absolute top-2 left-2 z-10 cursor-grab active:cursor-grabbing p-1 hover:bg-secondary rounded opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-3 left-3 z-10 cursor-grab active:cursor-grabbing p-1.5 hover:bg-secondary rounded opacity-0 group-hover:opacity-100 transition-opacity"
       >
         <GripVertical className="w-4 h-4 text-muted-foreground" />
       </div>
       {/* Delete button - top right */}
       <button
         onClick={handleDelete}
-        className="absolute top-2 right-2 z-10 p-1 hover:bg-destructive/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-3 right-3 z-10 p-1.5 hover:bg-destructive/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
         title="Delete metric"
       >
         <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />

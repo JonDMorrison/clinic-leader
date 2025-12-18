@@ -132,12 +132,12 @@ export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
 
   return (
     <div onClick={onClick} className="cursor-pointer">
-      <Card className={`p-4 hover:border-primary/40 transition-all border-2 ${categoryColors.border} ${categoryColors.bg}`}>
-        <div className="space-y-3">
+      <Card className={`p-5 hover:border-primary/40 transition-all border-2 ${categoryColors.border} ${categoryColors.bg}`}>
+        <div className="space-y-4">
           {/* Header */}
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start justify-between gap-3 pt-2">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-3 mb-1">
                 <h3 className="font-semibold text-foreground truncate">{metric.name}</h3>
                 <Button
                   variant="ghost"
@@ -154,7 +154,7 @@ export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
                   />
                 </Button>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
                 <Badge variant="muted" className={`text-xs ${categoryColors.badgeBg} ${categoryColors.text} border-0`}>
                   {metric.category}
                 </Badge>
