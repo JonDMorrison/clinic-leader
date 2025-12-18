@@ -74,7 +74,7 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
     const trimmedTitle = title.trim();
     if (trimmedTitle.length < 3) {
       toast.error("Title must be at least 3 characters");
-      setTitle(rock.title); // Reset to original
+      setTitle(rock.title);
       return;
     }
     if (trimmedTitle.length > 200) {
