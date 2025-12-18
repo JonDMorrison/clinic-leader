@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { X, AlertTriangle, TrendingDown, AlertCircle, RefreshCw, Plus } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { X, AlertTriangle, TrendingDown, AlertCircle, RefreshCw, Plus, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { generateAlertsForOrganization } from "@/lib/alerts/alertGenerator";
 import { ConvertToIssueDialog } from "@/components/issues/ConvertToIssueDialog";
@@ -31,6 +32,7 @@ export const AlertsPanel = ({ organizationId, currentUserId }: AlertsPanelProps)
   const queryClient = useQueryClient();
   const [selectedAlert, setSelectedAlert] = useState<any>(null);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const { data: alerts, isLoading } = useQuery({
     queryKey: ["metric-alerts", organizationId],
@@ -129,72 +131,79 @@ export const AlertsPanel = ({ organizationId, currentUserId }: AlertsPanelProps)
 
   return (
     <Card className="glass p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-warning" />
-          <h3 className="font-semibold">Alerts & Coaching Tips</h3>
-          <Badge variant="outline" className="text-muted-foreground">{alerts.length}</Badge>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <div className="flex items-center justify-between">
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <AlertTriangle className="w-5 h-5 text-warning" />
+              <h3 className="font-semibold">Alerts & Coaching Tips</h3>
+              <Badge variant="outline" className="text-muted-foreground">{alerts.length}</Badge>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => regenerateMutation.mutate()}
+            disabled={regenerateMutation.isPending}
+          >
+            <RefreshCw className={`w-4 h-4 ${regenerateMutation.isPending ? "animate-spin" : ""}`} />
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => regenerateMutation.mutate()}
-          disabled={regenerateMutation.isPending}
-        >
-          <RefreshCw className={`w-4 h-4 ${regenerateMutation.isPending ? "animate-spin" : ""}`} />
-        </Button>
-      </div>
 
-      <div className="space-y-3">
-        {alerts.map((alert) => {
-          const Icon = ALERT_ICONS[alert.alert_type as keyof typeof ALERT_ICONS];
-          const color = ALERT_COLORS[alert.alert_type as keyof typeof ALERT_COLORS];
+        <CollapsibleContent className="mt-4">
+          <div className="space-y-3">
+            {alerts.map((alert) => {
+              const Icon = ALERT_ICONS[alert.alert_type as keyof typeof ALERT_ICONS];
+              const color = ALERT_COLORS[alert.alert_type as keyof typeof ALERT_COLORS];
 
-          return (
-            <div
-              key={alert.id}
-              className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/50"
-            >
-              <Icon className="w-5 h-5 mt-0.5 flex-shrink-0 text-muted-foreground" />
-              <div className="flex-1 space-y-1">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium">{alert.message}</p>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={() => {
-                        setSelectedAlert(alert);
-                        setConvertDialogOpen(true);
-                      }}
-                      title="Create issue from this alert"
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      <span className="text-xs">Issue</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() => dismissMutation.mutate(alert.id)}
-                      disabled={dismissMutation.isPending}
-                      title="Dismiss alert"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+              return (
+                <div
+                  key={alert.id}
+                  className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/50"
+                >
+                  <Icon className="w-5 h-5 mt-0.5 flex-shrink-0 text-muted-foreground" />
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium">{alert.message}</p>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={() => {
+                            setSelectedAlert(alert);
+                            setConvertDialogOpen(true);
+                          }}
+                          title="Create issue from this alert"
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          <span className="text-xs">Issue</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => dismissMutation.mutate(alert.id)}
+                          disabled={dismissMutation.isPending}
+                          title="Dismiss alert"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    {alert.tip && (
+                      <p className="text-xs text-muted-foreground">
+                        💡 {alert.tip}
+                      </p>
+                    )}
                   </div>
                 </div>
-                {alert.tip && (
-                  <p className="text-xs text-muted-foreground">
-                    💡 {alert.tip}
-                  </p>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <ConvertToIssueDialog
         open={convertDialogOpen}
