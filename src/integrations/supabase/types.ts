@@ -2720,8 +2720,51 @@ export type Database = {
           },
         ]
       }
+      seat_users: {
+        Row: {
+          created_at: string
+          id: string
+          is_primary: boolean
+          organization_id: string
+          seat_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          organization_id: string
+          seat_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          organization_id?: string
+          seat_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seat_users_seat_id_fkey"
+            columns: ["seat_id"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seat_users_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seats: {
         Row: {
+          clearance_level: number | null
           created_at: string
           department_id: string | null
           id: string
@@ -2734,6 +2777,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          clearance_level?: number | null
           created_at?: string
           department_id?: string | null
           id?: string
@@ -2746,6 +2790,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          clearance_level?: number | null
           created_at?: string
           department_id?: string | null
           id?: string
