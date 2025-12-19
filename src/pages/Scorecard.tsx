@@ -32,7 +32,7 @@ import { MilestoneCelebration } from "@/components/scorecard/MilestoneCelebratio
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { TemplateSetupBanner } from "@/components/scorecard/TemplateSetupBanner";
+
 
 const Scorecard = () => {
   const navigate = useNavigate();
@@ -366,8 +366,6 @@ const Scorecard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Template Setup Banner for locked-to-template orgs */}
-      <TemplateSetupBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold gradient-brand bg-clip-text text-transparent mb-2 flex items-center">
@@ -378,16 +376,13 @@ const Scorecard = () => {
         
         {totalMetrics > 0 && (
           <div className="flex items-center gap-3">
-            {/* Primary action: Import Data - hidden when TemplateSetupBanner shows it */}
-            {!isAlignedMode && (
-              <Button 
-                onClick={() => navigate("/imports/monthly-report")}
-                className="gradient-brand"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Import Data
-              </Button>
-            )}
+            <Button 
+              onClick={() => navigate("/imports/monthly-report")}
+              className="gradient-brand"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Upload Monthly Data
+            </Button>
 
             {/* Secondary actions dropdown */}
             <DropdownMenu>
