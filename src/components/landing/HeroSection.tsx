@@ -122,29 +122,6 @@ export const HeroSection = () => {
                 </Link>
               </Button>
             </div>
-
-            {/* Trust indicators */}
-            <div className="flex items-center gap-6 pt-4">
-              <div className="flex -space-x-2">
-                {[
-                  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-                  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-                  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-                  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-                ].map((src, i) => (
-                  <img
-                    key={i}
-                    src={src}
-                    alt=""
-                    className="w-10 h-10 rounded-full border-2 border-background object-cover"
-                  />
-                ))}
-              </div>
-              <div className="text-sm">
-                <span className="font-semibold text-foreground">50+ clinics</span>
-                <span className="text-muted-foreground"> trust ClinicLeader</span>
-              </div>
-            </div>
           </motion.div>
 
           {/* Right column - Product mockup */}

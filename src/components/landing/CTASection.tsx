@@ -71,7 +71,7 @@ export const CTASection = () => {
           </h2>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Join 50+ clinic leaders who've replaced chaos with clarity. 
+            Replace chaos with clarity. 
             When leaders have structure, teams have direction. 
             When teams have direction, patients receive better care.
           </p>
