@@ -6,8 +6,6 @@ import { NavPublic } from "@/components/layout/NavPublic";
 import { FooterPublic } from "@/components/layout/FooterPublic";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { FeatureShowcase } from "@/components/landing/FeatureShowcase";
-import { StatsBar } from "@/components/landing/StatsBar";
-import { Testimonials } from "@/components/landing/Testimonials";
 import { WhyDifferent } from "@/components/landing/WhyDifferent";
 import { CTASection } from "@/components/landing/CTASection";
 import { Button } from "@/components/ui/button";
@@ -75,14 +73,8 @@ const Index = () => {
           {/* Hero Section */}
           <HeroSection />
 
-          {/* Stats Bar */}
-          <StatsBar />
-
           {/* Feature Showcase */}
           <FeatureShowcase />
-
-          {/* Testimonials */}
-          <Testimonials />
 
           {/* Why Different */}
           <WhyDifferent />
