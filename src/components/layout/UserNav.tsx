@@ -44,46 +44,71 @@ export const UserNav = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!authUser) return;
+  const fetchUserProfile = async () => {
+    if (!authUser) return;
 
-      const { data: userData } = await supabase
-        .from("users")
-        .select("id, full_name, email, avatar_url, team_id")
-        .eq("id", authUser.id)
-        .single();
+    const { data: userData } = await supabase
+      .from("users")
+      .select("id, full_name, email, avatar_url, team_id")
+      .eq("id", authUser.id)
+      .single();
 
-      if (userData) {
-        let teamName: string | undefined = undefined;
-        if (userData.team_id) {
-          const { data: team } = await supabase
-            .from("teams")
-            .select("name")
-            .eq("id", userData.team_id)
-            .single();
-          teamName = team?.name;
-        }
-
-        setProfile({
-          id: userData.id,
-          full_name: userData.full_name ?? authUser.user_metadata?.full_name ?? authUser.email ?? "User",
-          email: userData.email ?? authUser.email ?? "",
-          avatar_url: userData.avatar_url,
-          team: teamName ? { name: teamName } : undefined,
-        });
-      } else {
-        setProfile({
-          id: authUser.id,
-          full_name: authUser.user_metadata?.full_name ?? authUser.email ?? "User",
-          email: authUser.email ?? "",
-          avatar_url: null,
-        });
+    if (userData) {
+      let teamName: string | undefined = undefined;
+      if (userData.team_id) {
+        const { data: team } = await supabase
+          .from("teams")
+          .select("name")
+          .eq("id", userData.team_id)
+          .single();
+        teamName = team?.name;
       }
-    };
 
+      setProfile({
+        id: userData.id,
+        full_name: userData.full_name ?? authUser.user_metadata?.full_name ?? authUser.email ?? "User",
+        email: userData.email ?? authUser.email ?? "",
+        avatar_url: userData.avatar_url,
+        team: teamName ? { name: teamName } : undefined,
+      });
+    } else {
+      setProfile({
+        id: authUser.id,
+        full_name: authUser.user_metadata?.full_name ?? authUser.email ?? "User",
+        email: authUser.email ?? "",
+        avatar_url: null,
+      });
+    }
+  };
+
+  useEffect(() => {
     fetchUserProfile();
   }, [authUser]);
+
+  // Subscribe to user updates to refresh avatar in real-time
+  useEffect(() => {
+    if (!authUser?.id) return;
+
+    const channel = supabase
+      .channel('user-avatar-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${authUser.id}`,
+        },
+        () => {
+          fetchUserProfile();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [authUser?.id]);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
