@@ -245,6 +245,12 @@ const ProfileSettings = () => {
           </p>
         </CardContent>
       </Card>
+
+      <div className="flex justify-end pt-4">
+        <Button onClick={() => navigate("/settings")} className="gradient-brand">
+          Save and Close
+        </Button>
+      </div>
     </div>
   );
 };
