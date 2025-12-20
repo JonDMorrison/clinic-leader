@@ -78,8 +78,8 @@ const People = () => {
         .from("seats")
         .select(`
           *,
-          users(full_name),
-          seat_users(id, user_id, is_primary, users:user_id(id, full_name))
+          users(full_name, avatar_url),
+          seat_users(id, user_id, is_primary, users:user_id(id, full_name, avatar_url))
         `)
         .eq("organization_id", currentUser.team_id)
         .order("title");
