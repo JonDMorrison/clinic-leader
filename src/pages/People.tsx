@@ -50,7 +50,7 @@ type UserFormValues = z.infer<typeof userSchema>;
 const People = () => {
   const [seatManagementOpen, setSeatManagementOpen] = useState(false);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
-  const [selectedSeat, setSelectedSeat] = useState<any>(null);
+  const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
   const [seatDetailOpen, setSeatDetailOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -201,16 +201,15 @@ const People = () => {
         }
       }
 
-      // Handle seat assignment
+      // Handle seat assignment (supports multiple users per seat)
       if (values.seat_id) {
-        const { error: seatError } = await supabase
-          .from("seats")
-          .update({ user_id: userId })
-          .eq("id", values.seat_id);
-
-        if (seatError) {
-          console.error('Failed to assign seat:', seatError);
-          // Don't throw, user is created, just log the error
+        const { data: existing, error: existingError } = await supabase.from("seat_users").select("id").eq("seat_id", values.seat_id).limit(1);
+        const isPrimary = !existingError && (existing?.length ?? 0) === 0;
+        const { error: seatUsersError } = await supabase.from("seat_users").insert({ seat_id: values.seat_id, user_id: userId, organization_id: currentUser.team_id, is_primary: isPrimary });
+        if (seatUsersError) console.error("Failed to assign seat:", seatUsersError);
+        if (isPrimary) {
+          const { error: seatError } = await supabase.from("seats").update({ user_id: userId }).eq("id", values.seat_id);
+          if (seatError) console.error("Failed to update seat primary user:", seatError);
         }
       }
 
@@ -244,8 +243,8 @@ const People = () => {
     currentUser?.role === "director" ||
     currentUser?.role === "owner";
 
-  // Filter unassigned seats for the dropdown
-  const unassignedSeats = seats?.filter(seat => !seat.user_id);
+  const selectedSeat = (seats || []).find((s) => s.id === selectedSeatId) ?? null;
+  const seatOptions = seats || [];
 
   return (
     <div className="space-y-6">
@@ -396,7 +395,7 @@ const People = () => {
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    {unassignedSeats?.map((seat) => (
+                                    {seatOptions.map((seat) => (
                                       <SelectItem key={seat.id} value={seat.id}>
                                         {seat.title}
                                       </SelectItem>
@@ -440,10 +439,10 @@ const People = () => {
                     users={users || []}
                     onUpdate={refetchSeats}
                     isManager={isManager}
-                    onClick={() => {
-                      setSelectedSeat(seat);
-                      setSeatDetailOpen(true);
-                    }}
+                     onClick={() => {
+                       setSelectedSeatId(seat.id);
+                       setSeatDetailOpen(true);
+                     }}
                   />
                 ))}
               </div>

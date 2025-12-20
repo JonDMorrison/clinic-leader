@@ -20,6 +20,7 @@ interface SeatUser {
 interface SeatTileProps {
   seat: {
     id: string;
+    organization_id: string;
     title: string;
     responsibilities: string[];
     user_id: string | null;
@@ -50,15 +51,32 @@ const CLEARANCE_LABELS: Record<number, string> = {
 
 export const SeatTile = ({ seat, users, onUpdate, isManager, onClick }: SeatTileProps) => {
   const handleUserAssignment = async (userId: string) => {
-    const { error } = await supabase
-      .from("seats")
-      .update({ user_id: userId === "unassigned" ? null : userId })
-      .eq("id", seat.id);
+    if (userId === "unassigned") {
+      const { error: deleteError } = await supabase.from("seat_users").delete().eq("seat_id", seat.id);
+      const { error: seatError } = await supabase.from("seats").update({ user_id: null }).eq("id", seat.id);
+      if (deleteError || seatError) {
+        toast.error("Failed to unassign user");
+        return;
+      }
+      toast.success("Seat unassigned");
+      onUpdate();
+      return;
+    }
 
-    if (error) {
+    const { error: insertError } = await supabase.from("seat_users").insert({
+      seat_id: seat.id,
+      user_id: userId,
+      organization_id: seat.organization_id,
+      is_primary: true,
+    });
+
+    if (insertError) {
       toast.error("Failed to assign user");
       return;
     }
+
+    // Keep legacy field in sync for compatibility
+    await supabase.from("seats").update({ user_id: userId }).eq("id", seat.id);
 
     toast.success("User assigned successfully");
     onUpdate();
