@@ -4,7 +4,7 @@ import { KpiSparkline } from "@/components/ui/KpiSparkline";
 import { TrendingUp, Users, Target, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { WeeklyHighlights } from "@/components/dashboard/WeeklyHighlights";
+
 import { QuickActions } from "@/components/layout/QuickActions";
 import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
 import { PerformanceScore } from "@/components/dashboard/PerformanceScore";
@@ -397,13 +397,6 @@ const Home = () => {
         <CoreValueOfWeekCard />
       </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8, duration: 0.6 }}
-      >
-        <WeeklyHighlights />
-      </motion.div>
     </div>
   );
 };
