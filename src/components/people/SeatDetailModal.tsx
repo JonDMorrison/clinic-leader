@@ -107,7 +107,10 @@ export const SeatDetailModal = ({ seat, users, allSeats, open, onOpenChange, onU
   };
 
   const handleSave = async () => {
-    if (!seat || !currentUser?.team_id) return;
+    if (!seat || !currentUser?.team_id) {
+      toast.error("Unable to save seat changes");
+      return;
+    }
 
     // Update seat details
     const { error: seatError } = await supabase
@@ -126,20 +129,25 @@ export const SeatDetailModal = ({ seat, users, allSeats, open, onOpenChange, onU
       return;
     }
 
-    // Update seat_users
-    // First, remove all existing assignments
-    await supabase
+    const { error: deleteError } = await supabase
       .from("seat_users")
       .delete()
       .eq("seat_id", seat.id);
 
-    // Then add new assignments
+    if (deleteError) {
+      console.error("Failed to clear seat assignments:", deleteError);
+      toast.error("Seat updated, but assignments could not be saved");
+      setIsEditing(false);
+      onUpdate();
+      return;
+    }
+
     if (assignedUserIds.length > 0) {
       const seatUsersToInsert = assignedUserIds.map((uid, idx) => ({
         seat_id: seat.id,
         user_id: uid,
         organization_id: currentUser.team_id,
-        is_primary: idx === 0, // First user is primary
+        is_primary: idx === 0,
       }));
 
       const { error: seatUsersError } = await supabase
@@ -148,6 +156,10 @@ export const SeatDetailModal = ({ seat, users, allSeats, open, onOpenChange, onU
 
       if (seatUsersError) {
         console.error("Failed to update seat_users:", seatUsersError);
+        toast.error("Seat updated, but assignments could not be saved");
+        setIsEditing(false);
+        onUpdate();
+        return;
       }
     }
 
