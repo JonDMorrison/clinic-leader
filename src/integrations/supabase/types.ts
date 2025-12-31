@@ -341,6 +341,7 @@ export type Database = {
       bulk_analytics_connectors: {
         Row: {
           cadence: Database["public"]["Enums"]["bulk_cadence"]
+          clinic_identifier: string | null
           connector_type: string
           created_at: string
           delivery_method: Database["public"]["Enums"]["bulk_delivery_method"]
@@ -356,6 +357,7 @@ export type Database = {
         }
         Insert: {
           cadence?: Database["public"]["Enums"]["bulk_cadence"]
+          clinic_identifier?: string | null
           connector_type?: string
           created_at?: string
           delivery_method?: Database["public"]["Enums"]["bulk_delivery_method"]
@@ -371,6 +373,7 @@ export type Database = {
         }
         Update: {
           cadence?: Database["public"]["Enums"]["bulk_cadence"]
+          clinic_identifier?: string | null
           connector_type?: string
           created_at?: string
           delivery_method?: Database["public"]["Enums"]["bulk_delivery_method"]
@@ -3966,7 +3969,14 @@ export type Database = {
       assessment_status: "draft" | "pending_review" | "completed"
       assessment_type: "manager" | "self" | "peer"
       bulk_cadence: "daily" | "monthly"
-      bulk_connector_status: "active" | "paused" | "error"
+      bulk_connector_status:
+        | "active"
+        | "paused"
+        | "error"
+        | "requested"
+        | "awaiting_jane_setup"
+        | "awaiting_first_file"
+        | "receiving_data"
       bulk_delivery_method: "s3" | "secure_upload" | "manual_drop"
       bulk_source_system: "jane" | "advancedmd" | "other"
       doc_kind: "SOP" | "Policy" | "Handbook" | "Training"
@@ -4128,7 +4138,15 @@ export const Constants = {
       assessment_status: ["draft", "pending_review", "completed"],
       assessment_type: ["manager", "self", "peer"],
       bulk_cadence: ["daily", "monthly"],
-      bulk_connector_status: ["active", "paused", "error"],
+      bulk_connector_status: [
+        "active",
+        "paused",
+        "error",
+        "requested",
+        "awaiting_jane_setup",
+        "awaiting_first_file",
+        "receiving_data",
+      ],
       bulk_delivery_method: ["s3", "secure_upload", "manual_drop"],
       bulk_source_system: ["jane", "advancedmd", "other"],
       doc_kind: ["SOP", "Policy", "Handbook", "Training"],
