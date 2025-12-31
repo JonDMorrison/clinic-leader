@@ -18,21 +18,19 @@ export const ClinicLeaderIcon = ({ className, size = 40 }: ClinicLeaderIconProps
       {/* Gradient definition using brand colors */}
       <defs>
         <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="hsl(210, 100%, 50%)" />
-          <stop offset="100%" stopColor="hsl(172, 100%, 48%)" />
+          <stop offset="0%" stopColor="hsl(210, 100%, 45%)" />
+          <stop offset="100%" stopColor="hsl(172, 100%, 40%)" />
         </linearGradient>
       </defs>
-      {/* Stylized C/compass mark */}
+      {/* Clean abstract CL mark - no circular border */}
       <path
-        d="M20 4C11.163 4 4 11.163 4 20C4 28.837 11.163 36 20 36C24.418 36 28.418 34.209 31.314 31.314L28.486 28.486C26.34 30.632 23.314 32 20 32C13.373 32 8 26.627 8 20C8 13.373 13.373 8 20 8C23.314 8 26.34 9.368 28.486 11.514L31.314 8.686C28.418 5.791 24.418 4 20 4Z"
+        d="M8 10C8 8.89543 8.89543 8 10 8H18C19.1046 8 20 8.89543 20 10V14C20 15.1046 19.1046 16 18 16H14V24C14 25.1046 14.8954 26 16 26H18C19.1046 26 20 26.8954 20 28V30C20 31.1046 19.1046 32 18 32H10C8.89543 32 8 31.1046 8 30V10Z"
         fill="url(#brandGradient)"
       />
-      {/* Inner accent - arrow/compass point */}
       <path
-        d="M20 12V20L26 14L20 12Z"
+        d="M22 10C22 8.89543 22.8954 8 24 8H26C27.1046 8 28 8.89543 28 10V24H30C31.1046 24 32 24.8954 32 26V30C32 31.1046 31.1046 32 30 32H24C22.8954 32 22 31.1046 22 30V10Z"
         fill="url(#brandGradient)"
       />
-      <circle cx="20" cy="20" r="3" fill="url(#brandGradient)" />
     </svg>
   );
 };
