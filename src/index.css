@@ -8,75 +8,75 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Base colors - Glassmorphic theme */
+    /* Base colors - Improved contrast theme */
     --background: 210 40% 98%;
-    --foreground: 215 25% 16%;
+    --foreground: 215 28% 12%;
 
     /* Glass surfaces */
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 16%;
-    --glass-surface: 0 0% 100% / 0.7;
-    --glass-border: 210 50% 90% / 0.5;
+    --card-foreground: 215 28% 12%;
+    --glass-surface: 0 0% 100% / 0.85;
+    --glass-border: 210 30% 82%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 16%;
+    --popover-foreground: 215 28% 12%;
 
     /* Brand - Deep Blue */
-    --brand: 210 100% 50%;
+    --brand: 210 100% 45%;
     --brand-foreground: 0 0% 100%;
-    --brand-glow: 210 100% 60%;
-    --brand-gradient-from: 210 100% 50%;
-    --brand-gradient-to: 195 100% 50%;
+    --brand-glow: 210 100% 55%;
+    --brand-gradient-from: 210 100% 45%;
+    --brand-gradient-to: 195 100% 45%;
 
     /* Accent - Aqua Glow */
-    --accent: 172 100% 48%;
-    --accent-foreground: 215 25% 16%;
-    --accent-glow: 172 100% 60%;
+    --accent: 172 100% 40%;
+    --accent-foreground: 215 28% 12%;
+    --accent-glow: 172 100% 50%;
 
     /* Status colors with glow */
-    --success: 142 76% 42%;
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    --success-glow: 142 76% 60%;
+    --success-glow: 142 76% 50%;
 
-    --warning: 38 92% 55%;
+    --warning: 38 92% 45%;
     --warning-foreground: 0 0% 100%;
-    --warning-glow: 38 92% 65%;
+    --warning-glow: 38 92% 55%;
 
-    --danger: 0 84% 60%;
+    --danger: 0 84% 55%;
     --danger-foreground: 0 0% 100%;
-    --danger-glow: 0 84% 70%;
+    --danger-glow: 0 84% 65%;
 
     /* Category-specific colors */
-    --category-operations: 210 100% 50%;
+    --category-operations: 210 100% 45%;
     --category-operations-light: 210 100% 95%;
     
-    --category-finance: 142 76% 42%;
+    --category-finance: 142 76% 36%;
     --category-finance-light: 142 76% 95%;
     
-    --category-clinical: 271 81% 56%;
+    --category-clinical: 271 81% 50%;
     --category-clinical-light: 271 81% 95%;
     
-    --category-referrals: 38 92% 55%;
+    --category-referrals: 38 92% 45%;
     --category-referrals-light: 38 92% 95%;
     
-    --category-default: 210 20% 50%;
+    --category-default: 210 20% 40%;
     --category-default-light: 210 20% 95%;
 
-    --primary: 210 100% 50%;
+    --primary: 210 100% 45%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 30% 96%;
-    --secondary-foreground: 215 25% 16%;
+    --secondary: 210 25% 95%;
+    --secondary-foreground: 215 28% 12%;
 
-    --muted: 210 20% 94%;
-    --muted-foreground: 215 20% 32%;
+    --muted: 210 20% 92%;
+    --muted-foreground: 215 16% 42%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 30% 88%;
-    --input: 210 20% 88%;
-    --ring: 210 100% 50%;
+    --border: 210 25% 82%;
+    --input: 210 20% 85%;
+    --ring: 210 100% 45%;
 
     /* Glass effects */
     --blur-sm: 8px;
@@ -84,12 +84,12 @@ All colors MUST be HSL.
     --blur-lg: 16px;
     
     /* Shadows - using HSL for consistency */
-    --shadow-glass: 0 8px 32px hsl(210 30% 30% / 0.08);
-    --shadow-glow: 0 0 20px hsl(210 100% 50% / 0.25);
-    --shadow-elevated: 0 12px 40px hsl(210 20% 20% / 0.1);
-    --shadow-brand: 0 4px 16px hsl(210 100% 50% / 0.2);
-    --shadow-success: 0 4px 16px hsl(142 76% 42% / 0.2);
-    --shadow-warning: 0 4px 16px hsl(38 92% 55% / 0.2);
+    --shadow-glass: 0 8px 32px hsl(210 30% 30% / 0.12);
+    --shadow-glow: 0 0 20px hsl(210 100% 45% / 0.3);
+    --shadow-elevated: 0 12px 40px hsl(210 20% 20% / 0.14);
+    --shadow-brand: 0 4px 16px hsl(210 100% 45% / 0.25);
+    --shadow-success: 0 4px 16px hsl(142 76% 36% / 0.25);
+    --shadow-warning: 0 4px 16px hsl(38 92% 45% / 0.25);
 
     --radius: 1.5rem;
   }
@@ -152,16 +152,17 @@ All colors MUST be HSL.
 
   /* Glassmorphic utilities */
   .glass {
-    background: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.88);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid hsl(210 25% 82%);
   }
 
   .glass-dark {
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.75);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
+    border: 1px solid hsl(210 25% 78%);
   }
 
   .glow-brand {
