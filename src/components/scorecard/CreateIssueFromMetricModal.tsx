@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, AlertTriangle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatMetricValue, type MetricStatus } from "@/lib/scorecard/metricStatus";
@@ -24,11 +26,13 @@ interface CreateIssueFromMetricModalProps {
     unit: string;
     currentValue: number | null;
     status: MetricStatus;
+    ownerName?: string | null;
   };
   periodKey: string;
   periodLabel: string;
   rockId?: string;
   rockTitle?: string;
+  consecutiveOffTrack?: number;
 }
 
 export function CreateIssueFromMetricModal({
@@ -40,19 +44,27 @@ export function CreateIssueFromMetricModal({
   periodLabel,
   rockId,
   rockTitle,
+  consecutiveOffTrack = 0,
 }: CreateIssueFromMetricModalProps) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   
-  // Prefill title - include rock context if provided
-  const defaultTitle = rockTitle
-    ? `${rockTitle} impacted by ${metric.name} for ${periodLabel}`
-    : `${metric.name} is ${metric.status === 'off_track' ? 'off-track' : metric.status.replace('_', ' ')} for ${periodLabel}`;
+  // Prefill title - simple and direct
+  const defaultTitle = `${metric.name} is off track`;
+  
+  // Include owner context if available
+  const ownerContext = metric.ownerName ? `Owner: ${metric.ownerName}` : null;
   
   const buildDescription = () => {
     const lines = [];
     
     // Always include period context
-    lines.push(`Month: ${periodLabel} (${periodKey})`);
+    lines.push(`Period: ${periodLabel}`);
+    
+    // Include owner if available
+    if (ownerContext) {
+      lines.push(ownerContext);
+    }
     
     // Include rock context if provided
     if (rockTitle) {
@@ -62,48 +74,27 @@ export function CreateIssueFromMetricModal({
     lines.push(`Metric: ${metric.name}`);
     
     if (metric.status === 'off_track') {
-      lines.push(`Current value: ${formatMetricValue(metric.currentValue, metric.unit)}`);
+      lines.push(`Current: ${formatMetricValue(metric.currentValue, metric.unit)}`);
       lines.push(`Target: ${formatMetricValue(metric.target, metric.unit)}`);
-      
-      // Format direction for display
-      const directionLabel = metric.direction === 'up' || metric.direction === 'higher_is_better' 
-        ? 'Higher is better' 
-        : metric.direction === 'down' || metric.direction === 'lower_is_better'
-        ? 'Lower is better'
-        : metric.direction === 'exact' ? 'Exact match' : metric.direction;
-      lines.push(`Direction: ${directionLabel}`);
       
       if (metric.currentValue !== null && metric.target !== null) {
         const gap = metric.currentValue - metric.target;
         const gapLabel = (metric.direction === 'up' || metric.direction === 'higher_is_better') ? 'Under' : 'Over';
         lines.push(`Gap: ${gapLabel} by ${formatMetricValue(Math.abs(gap), metric.unit)}`);
       }
-    } else if (metric.status === 'needs_data') {
-      lines.push(`Current value: missing`);
-      lines.push(`Target: ${formatMetricValue(metric.target, metric.unit)}`);
-    } else if (metric.status === 'needs_target') {
-      lines.push(`Current value: ${formatMetricValue(metric.currentValue, metric.unit)}`);
-      lines.push(`Target: missing`);
-    } else if (metric.status === 'needs_owner') {
-      lines.push(`Current value: ${formatMetricValue(metric.currentValue, metric.unit)}`);
-      lines.push(`Target: ${formatMetricValue(metric.target, metric.unit)}`);
     }
     
     lines.push('');
-    // Different prompt based on whether rock context exists
-    if (rockTitle) {
-      lines.push('Suggested question: What is blocking progress on this Rock, and what will we do next?');
-    } else {
-      lines.push('Suggested question: What is the root cause, and what will we do in the next 7 days?');
-    }
+    lines.push('What is the root cause, and what will we do in the next 7 days?');
     
     return lines.join('\n');
   };
 
   const [title, setTitle] = useState(defaultTitle);
   const [context, setContext] = useState(buildDescription);
-  const [priority, setPriority] = useState(metric.status === 'off_track' ? '1' : '2');
+  const [priority, setPriority] = useState(consecutiveOffTrack >= 3 ? '1' : '2');
   const [ownerId, setOwnerId] = useState('');
+  const [meetingHorizon, setMeetingHorizon] = useState<'weekly' | 'quarterly' | 'annual'>('weekly');
 
   // Fetch users for owner dropdown
   const { data: users } = useQuery({
@@ -134,6 +125,7 @@ export function CreateIssueFromMetricModal({
           rock_id: rockId || null,
           metric_id: metric.id || null,
           period_key: periodKey || null,
+          meeting_horizon: meetingHorizon,
         })
         .select()
         .single();
@@ -141,20 +133,13 @@ export function CreateIssueFromMetricModal({
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['issues'] });
       queryClient.invalidateQueries({ queryKey: ['off-track-metrics'] });
-      queryClient.invalidateQueries({ queryKey: ['reality-gap'] });
-      const message = rockId 
-        ? 'Issue created and linked to Rock' 
-        : 'Issue created successfully';
-      toast.success(message, {
-        action: {
-          label: 'View Issue',
-          onClick: () => window.location.href = `/issues`,
-        },
-      });
+      queryClient.invalidateQueries({ queryKey: ['scorecard-metrics'] });
+      toast.success('Issue created from off-track metric');
       onClose();
+      navigate('/issues');
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to create issue');
@@ -190,24 +175,30 @@ export function CreateIssueFromMetricModal({
               <p className="font-medium text-sm">{metric.name}</p>
               <p className="text-xs text-muted-foreground">{periodLabel}</p>
             </div>
-            <Badge 
-              variant={metric.status === 'off_track' ? 'destructive' : 'outline'}
-              className="text-xs"
-            >
-              {metric.status.replace('_', ' ')}
+            <Badge variant="destructive" className="text-xs">
+              Off Track
             </Badge>
           </div>
-          {metric.status === 'off_track' && (
-            <div className="flex items-center gap-4 mt-2 text-xs">
-              <span className="text-destructive font-medium">
-                Current: {formatMetricValue(metric.currentValue, metric.unit)}
-              </span>
-              <span className="text-muted-foreground">
-                Target: {formatMetricValue(metric.target, metric.unit)}
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-4 mt-2 text-xs">
+            <span className="text-destructive font-medium">
+              Current: {formatMetricValue(metric.currentValue, metric.unit)}
+            </span>
+            <span className="text-muted-foreground">
+              Target: {formatMetricValue(metric.target, metric.unit)}
+            </span>
+          </div>
         </div>
+
+        {/* Consecutive off-track warning */}
+        {consecutiveOffTrack >= 3 && (
+          <Alert variant="destructive" className="bg-destructive/10 border-destructive/30">
+            <Clock className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              This metric has been off track for <strong>{consecutiveOffTrack} consecutive periods</strong>. 
+              Consider escalating or addressing root cause.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -265,6 +256,23 @@ export function CreateIssueFromMetricModal({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="horizon">Meeting Horizon</Label>
+            <Select value={meetingHorizon} onValueChange={(v) => setMeetingHorizon(v as 'weekly' | 'quarterly' | 'annual')}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="weekly">Weekly (L10)</SelectItem>
+                <SelectItem value="quarterly">Quarterly</SelectItem>
+                <SelectItem value="annual">Annual</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              When should this issue be discussed?
+            </p>
           </div>
 
           <div className="flex gap-2 justify-end pt-2">
