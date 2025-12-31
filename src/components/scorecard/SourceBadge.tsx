@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -6,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDistanceToNow, format } from "date-fns";
-import { Database, RefreshCw, Clock, Calendar } from "lucide-react";
+import { Database, RefreshCw, Clock, Calendar, ExternalLink } from "lucide-react";
 
 interface SourceBadgeProps {
   source: string | null;
@@ -57,9 +58,11 @@ export function SourceBadge({
   lastUpdated,
   janeLastSync,
 }: SourceBadgeProps) {
+  const navigate = useNavigate();
   const isAutoSync = syncSource !== "manual";
   const sourceLabel = getSourceLabel(source, syncSource);
   const variant = getSourceVariant(source, syncSource);
+  const isJanePipe = isJanePipeSource(source);
 
   const formatTimestamp = (ts: string | null) => {
     if (!ts) return "—";
@@ -77,6 +80,10 @@ export function SourceBadge({
     } catch {
       return "—";
     }
+  };
+
+  const handleViewImportDetails = () => {
+    navigate("/settings/integrations/jane");
   };
 
   return (
@@ -98,7 +105,7 @@ export function SourceBadge({
         <TooltipContent 
           side="bottom" 
           align="end"
-          className="w-64 p-3 bg-popover/95 backdrop-blur-sm border shadow-lg"
+          className="w-72 p-3 bg-popover/95 backdrop-blur-sm border shadow-lg"
         >
           <div className="space-y-2.5">
             <div className="flex items-center gap-2 text-sm">
@@ -136,7 +143,23 @@ export function SourceBadge({
               </div>
             </div>
             
-            {syncSource === "jane" && janeLastSync && (
+            {/* Jane Data Pipe specific info */}
+            {isJanePipe && lastUpdated && (
+              <div className="pt-2 border-t border-border">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Derived from Jane bulk analytics delivery on {format(new Date(lastUpdated), "MMM d, yyyy")}
+                </p>
+                <button
+                  onClick={handleViewImportDetails}
+                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  View import details
+                </button>
+              </div>
+            )}
+            
+            {syncSource === "jane" && janeLastSync && !isJanePipe && (
               <div className="pt-2 border-t border-border">
                 <div className="flex items-start gap-2 text-sm">
                   <RefreshCw className="h-4 w-4 text-muted-foreground mt-0.5" />
