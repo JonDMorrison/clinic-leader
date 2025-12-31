@@ -80,8 +80,8 @@ export default function JaneIntegration() {
       return data;
     },
     onSuccess: () => {
-      toast.success("Jane data connection requested", {
-        description: "Your ClinicLeader team will coordinate activation.",
+      toast.success("Jane data connection enabled", {
+        description: "Your connection is now pending. Data will flow once activation is complete.",
       });
       queryClient.invalidateQueries({ queryKey: ["jane-bulk-connector"] });
     },
