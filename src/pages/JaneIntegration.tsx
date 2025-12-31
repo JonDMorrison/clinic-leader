@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { toast } from "sonner";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import {
   FileSpreadsheet,
   CheckCircle2,
@@ -18,15 +21,27 @@ import {
   Shield,
   Loader2,
   AlertCircle,
+  Upload,
+  Circle,
+  ExternalLink,
 } from "lucide-react";
 
-type ConnectionStatus = "not_connected" | "pending" | "active" | "error";
+type ConnectionStatus = 
+  | "not_connected" 
+  | "requested" 
+  | "awaiting_jane_setup" 
+  | "awaiting_first_file" 
+  | "receiving_data" 
+  | "error";
 
 export default function JaneIntegration() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser();
   const orgId = currentUser?.team_id;
+  
+  const [clinicUrl, setClinicUrl] = useState("");
+  const [urlError, setUrlError] = useState("");
 
   // Check for existing bulk analytics connector for Jane
   const { data: connector, isLoading } = useQuery({
@@ -47,19 +62,63 @@ export default function JaneIntegration() {
     enabled: !!orgId,
   });
 
-  // Derive connection status
+  // Evidence-based connection status - only green when data has actually arrived
   const getConnectionStatus = (): ConnectionStatus => {
     if (!connector) return "not_connected";
     if (connector.status === "error") return "error";
-    return "active";
+    
+    // Only show "receiving_data" if we have actual evidence
+    if (connector.last_received_at && connector.last_processed_at) {
+      return "receiving_data";
+    }
+    
+    // Return the actual DB status for intermediate states
+    const dbStatus = connector.status as string;
+    if (["requested", "awaiting_jane_setup", "awaiting_first_file"].includes(dbStatus)) {
+      return dbStatus as ConnectionStatus;
+    }
+    
+    // Fallback for legacy "active" status without data
+    if (dbStatus === "active" && !connector.last_received_at) {
+      return "awaiting_first_file";
+    }
+    
+    return "requested";
   };
 
   const connectionStatus = getConnectionStatus();
 
-  // Enable connection mutation
-  const enableConnection = useMutation({
+  // Validate clinic URL format
+  const validateClinicUrl = (url: string): boolean => {
+    if (!url.trim()) {
+      setUrlError("Please enter your Jane clinic URL");
+      return false;
+    }
+    
+    // Accept various formats: full URL, domain, or subdomain
+    const cleaned = url.toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
+    if (!cleaned.includes("jane") && !cleaned.includes(".")) {
+      setUrlError("Please enter a valid Jane clinic URL (e.g., yourclinic.janeapp.com)");
+      return false;
+    }
+    
+    setUrlError("");
+    return true;
+  };
+
+  // Extract clinic identifier from URL
+  const extractClinicIdentifier = (url: string): string => {
+    const cleaned = url.toLowerCase().replace(/^https?:\/\//, "").replace(/\/$/, "");
+    return cleaned;
+  };
+
+  // Request connection mutation
+  const requestConnection = useMutation({
     mutationFn: async () => {
       if (!orgId) throw new Error("No organization");
+      if (!validateClinicUrl(clinicUrl)) throw new Error("Invalid clinic URL");
+
+      const clinicIdentifier = extractClinicIdentifier(clinicUrl);
 
       const { data, error } = await supabase
         .from("bulk_analytics_connectors")
@@ -67,10 +126,11 @@ export default function JaneIntegration() {
           organization_id: orgId,
           source_system: "jane",
           connector_type: "bulk_analytics",
-          status: "active",
+          status: "requested",
           cadence: "daily",
           delivery_method: "manual_drop",
           expected_schema_version: "jane_v1",
+          clinic_identifier: clinicIdentifier,
         })
         .select()
         .single();
@@ -79,23 +139,46 @@ export default function JaneIntegration() {
       return data;
     },
     onSuccess: () => {
-      toast.success("Jane data connection enabled", {
-        description: "Connection is active and ready to receive data.",
+      toast.success("Request received", {
+        description: "We'll coordinate setup and notify you when data begins flowing.",
       });
       queryClient.invalidateQueries({ queryKey: ["jane-bulk-connector"] });
     },
     onError: (error: Error) => {
-      toast.error(`Failed to enable connection: ${error.message}`);
+      if (error.message !== "Invalid clinic URL") {
+        toast.error(`Failed to submit request: ${error.message}`);
+      }
     },
   });
 
   const getStatusBadge = (status: ConnectionStatus) => {
     switch (status) {
-      case "active":
+      case "receiving_data":
         return (
           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
             <CheckCircle2 className="w-3 h-3 mr-1" />
-            Active
+            Receiving Data
+          </Badge>
+        );
+      case "requested":
+        return (
+          <Badge variant="outline" className="bg-muted text-muted-foreground">
+            <Circle className="w-3 h-3 mr-1" />
+            Request Submitted
+          </Badge>
+        );
+      case "awaiting_jane_setup":
+        return (
+          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+            <Clock className="w-3 h-3 mr-1" />
+            Setup In Progress
+          </Badge>
+        );
+      case "awaiting_first_file":
+        return (
+          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+            <Clock className="w-3 h-3 mr-1" />
+            Awaiting First Delivery
           </Badge>
         );
       case "error":
@@ -112,6 +195,23 @@ export default function JaneIntegration() {
           </Badge>
         );
     }
+  };
+
+  // Setup checklist items
+  const getChecklistItems = () => {
+    const hasConnector = !!connector;
+    const hasClinicId = !!connector?.clinic_identifier;
+    const isPastRequested = connector?.status && connector.status !== "requested";
+    const hasReceived = !!connector?.last_received_at;
+    const hasProcessed = !!connector?.last_processed_at;
+
+    return [
+      { label: "Connection requested", checked: hasConnector },
+      { label: "Clinic identifier confirmed", checked: hasClinicId },
+      { label: "Delivery method confirmed", checked: isPastRequested },
+      { label: "First file received", checked: hasReceived },
+      { label: "Metrics visible in scorecard", checked: hasProcessed },
+    ];
   };
 
   if (isLoading) {
@@ -135,7 +235,7 @@ export default function JaneIntegration() {
             Jane – Bulk Analytics Connection
           </h1>
           <p className="text-muted-foreground mt-1">
-            Scheduled data exports for reporting and leadership analytics
+            Scheduled, read-only data delivery for leadership reporting
           </p>
         </div>
       </div>
@@ -152,8 +252,8 @@ export default function JaneIntegration() {
                 Leadership analytics from your Jane data
               </p>
               <p className="text-muted-foreground">
-                ClinicLeader connects to Jane using scheduled data exports designed for reporting and leadership analytics. 
-                This connection is read-only and optimized for predictable, ongoing insights.
+                ClinicLeader connects to Jane using scheduled, read-only data delivery designed for leadership reporting. 
+                No credentials or login required on your end.
               </p>
             </div>
           </div>
@@ -168,39 +268,95 @@ export default function JaneIntegration() {
             {getStatusBadge(connectionStatus)}
           </CardTitle>
           <CardDescription>
-            Data is delivered automatically once enabled. No login or credentials required.
+            Data delivery is coordinated with Jane. Setup is handled by your ClinicLeader team.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {connectionStatus === "not_connected" ? (
-            <div className="text-center py-8 space-y-6">
-              <div className="inline-flex p-4 rounded-full bg-muted">
-                <FileSpreadsheet className="w-10 h-10 text-muted-foreground" />
+            <div className="space-y-6">
+              <div className="text-center py-4">
+                <div className="inline-flex p-4 rounded-full bg-muted">
+                  <FileSpreadsheet className="w-10 h-10 text-muted-foreground" />
+                </div>
+                <div className="space-y-2 mt-4">
+                  <p className="font-medium text-lg">Request Jane data connection</p>
+                  <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                    Enter your Jane clinic URL to get started. We'll coordinate the setup and notify you when data begins flowing.
+                  </p>
+                </div>
               </div>
-              <div className="space-y-2">
-                <p className="font-medium text-lg">Ready to connect</p>
-                <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                  Once enabled, Jane data will flow into ClinicLeader on a daily schedule, 
-                  giving you clear visibility into trends and accountability metrics.
+
+              {/* Clinic URL Input */}
+              <div className="space-y-2 max-w-md mx-auto">
+                <Label htmlFor="clinic-url">Your Jane clinic URL</Label>
+                <Input
+                  id="clinic-url"
+                  type="text"
+                  placeholder="e.g., yourclinic.janeapp.com"
+                  value={clinicUrl}
+                  onChange={(e) => {
+                    setClinicUrl(e.target.value);
+                    if (urlError) setUrlError("");
+                  }}
+                  className={urlError ? "border-red-500" : ""}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Found in your browser address bar when logged into Jane
                 </p>
+                {urlError && (
+                  <p className="text-xs text-red-600">{urlError}</p>
+                )}
               </div>
-              <div className="space-y-3">
+
+              <div className="flex flex-col items-center gap-3">
                 <Button
                   size="lg"
-                  onClick={() => enableConnection.mutate()}
-                  disabled={enableConnection.isPending}
-                  className="min-w-[240px]"
+                  onClick={() => requestConnection.mutate()}
+                  disabled={requestConnection.isPending || !clinicUrl.trim()}
+                  className="min-w-[280px]"
                 >
-                  {enableConnection.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Enable Jane Data Connection
+                  {requestConnection.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Request Jane Data Connection
                 </Button>
-                <p className="text-xs text-muted-foreground">
-                  Admins can enable this connection directly. Data will flow once Jane exports are configured.
+                <p className="text-xs text-muted-foreground text-center max-w-sm">
+                  This starts the setup process. Your ClinicLeader team will coordinate with Jane to enable data delivery.
                 </p>
               </div>
             </div>
           ) : (
             <div className="space-y-6">
+              {/* Setup Checklist */}
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <p className="font-medium mb-3">Setup Progress</p>
+                <div className="space-y-2">
+                  {getChecklistItems().map((item, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      {item.checked ? (
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Circle className="w-4 h-4 text-muted-foreground" />
+                      )}
+                      <span className={item.checked ? "text-foreground" : "text-muted-foreground"}>
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Clinic identifier display */}
+              {connector?.clinic_identifier && (
+                <div className="p-4 rounded-lg border bg-card">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Database className="w-4 h-4" />
+                    Clinic Identifier
+                  </div>
+                  <p className="text-lg font-mono">
+                    {connector.clinic_identifier}
+                  </p>
+                </div>
+              )}
+
               {/* Status Grid */}
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="p-4 rounded-lg border bg-card">
@@ -264,15 +420,15 @@ export default function JaneIntegration() {
                 </div>
               )}
 
-              {/* Awaiting data helper - shown when active but no data yet */}
-              {connectionStatus === "active" && !connector?.last_received_at && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              {/* Awaiting data helper - shown when not yet receiving data */}
+              {connectionStatus !== "receiving_data" && connectionStatus !== "error" && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                   <div className="flex items-start gap-3">
-                    <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <Clock className="w-5 h-5 text-amber-600 mt-0.5" />
                     <div>
-                      <p className="font-medium text-blue-800">Awaiting first data delivery</p>
-                      <p className="text-sm text-blue-700 mt-1">
-                        Your connection is active and ready. Data will appear here once Jane exports are configured and the first delivery arrives.
+                      <p className="font-medium text-amber-800">Setup in progress</p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Your request has been received. Data will appear here once the connection setup is complete and the first delivery arrives.
                       </p>
                     </div>
                   </div>
@@ -280,6 +436,34 @@ export default function JaneIntegration() {
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Manual Upload Fallback */}
+      <Card className="border-dashed">
+        <CardContent className="py-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-lg bg-muted">
+              <Upload className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <div className="space-y-2 flex-1">
+              <p className="font-medium">
+                Upload Jane reports manually
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Get value immediately while automated delivery is being set up. Upload your Jane reports directly.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/import/monthly-report")}
+                className="mt-2"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Jane Report
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -341,19 +525,21 @@ export default function JaneIntegration() {
               <Shield className="w-5 h-5 text-muted-foreground" />
             </div>
             <div className="space-y-2">
-              <p className="font-medium">Data handling</p>
+              <p className="font-medium">How data access works</p>
               <ul className="space-y-1 text-sm text-muted-foreground">
-                <li>• Only operational summaries are stored — no patient-level data</li>
+                <li>• Only operational summaries are delivered — no patient-level data</li>
                 <li>• Read-only connection — ClinicLeader cannot modify your Jane data</li>
                 <li>• Data validated against expected schema before processing</li>
                 <li>• Delivered on a predictable schedule (daily or monthly)</li>
+                <li>• You control data delivery through your Jane settings</li>
               </ul>
               <Button
                 variant="link"
                 className="h-auto p-0 text-sm text-primary"
                 onClick={() => navigate("/settings/integrations/data-safety")}
               >
-                Learn more about security and data access →
+                <ExternalLink className="w-3 h-3 mr-1" />
+                Learn more about security and data access
               </Button>
             </div>
           </div>
