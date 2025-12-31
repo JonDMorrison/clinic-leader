@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sparklines, SparklinesLine } from "react-sparklines";
-import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight, Link as LinkIcon } from "lucide-react";
+import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight, Link as LinkIcon, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { calculateTrend, calculateWeekOverWeek, getCategoryColor } from "@/lib/scorecard/trendCalculator";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +13,8 @@ import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 import { LinkedRocksBadges } from "./LinkedRocksBadges";
 import { SourceBadge, LastUpdatedText } from "./SourceBadge";
+import { CreateIssueFromMetricModal } from "./CreateIssueFromMetricModal";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface MetricData {
   id: string;
@@ -73,10 +75,42 @@ const getColorClasses = (color: "green" | "amber" | "red" | "gray") => {
 };
 
 export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) => {
+  const userQuery = useCurrentUser();
+  const currentUser = userQuery.data;
+  const orgId = currentUser?.team_id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [linkToVTOOpen, setLinkToVTOOpen] = useState(false);
+  const [createIssueOpen, setCreateIssueOpen] = useState(false);
+  
+  // Determine if metric is off-track
+  const isOffTrack = metric.current_value !== null && 
+    metric.target !== null && 
+    ((metric.direction === "up" || metric.direction === ">=") 
+      ? metric.current_value < metric.target 
+      : metric.current_value > metric.target);
+
+  // Count consecutive off-track periods
+  const consecutiveOffTrack = (() => {
+    if (!isOffTrack || !metric.last_8_weeks || metric.last_8_weeks.length < 2) return 0;
+    let count = 0;
+    const target = metric.target;
+    const isHigherBetter = metric.direction === "up" || metric.direction === ">=";
+    
+    // Start from most recent and count backwards
+    for (let i = metric.last_8_weeks.length - 1; i >= 0; i--) {
+      const val = metric.last_8_weeks[i];
+      if (val === null) break;
+      const periodOffTrack = isHigherBetter ? val < target! : val > target!;
+      if (periodOffTrack) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return count;
+  })();
   
   const performanceColor = getPerformanceColor(
     metric.current_value,
@@ -286,15 +320,30 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
 
           {/* Actions */}
           <div className="flex gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="flex-1"
-              onClick={handleUpdateClick}
-            >
-              <ExternalLink className="w-3 h-3 mr-2" />
-              Update
-            </Button>
+            {isOffTrack ? (
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                className="flex-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCreateIssueOpen(true);
+                }}
+              >
+                <AlertTriangle className="w-3 h-3 mr-2" />
+                Create Issue
+              </Button>
+            ) : (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex-1"
+                onClick={handleUpdateClick}
+              >
+                <ExternalLink className="w-3 h-3 mr-2" />
+                Update
+              </Button>
+            )}
             <Button 
               variant="outline" 
               size="sm" 
@@ -318,6 +367,27 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
         linkId={metric.id}
         itemName={metric.name}
       />
+
+      {orgId && (
+        <CreateIssueFromMetricModal
+          open={createIssueOpen}
+          onClose={() => setCreateIssueOpen(false)}
+          organizationId={orgId}
+          metric={{
+            id: metric.id,
+            name: metric.name,
+            target: metric.target,
+            direction: metric.direction,
+            unit: metric.unit,
+            currentValue: metric.current_value,
+            status: isOffTrack ? 'off_track' : 'on_track',
+            ownerName: metric.owner_name,
+          }}
+          periodKey={new Date().toISOString().slice(0, 7)}
+          periodLabel={new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          consecutiveOffTrack={consecutiveOffTrack}
+        />
+      )}
     </div>
   );
 };
