@@ -6,6 +6,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to properly serialize error messages from Supabase
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'object' && error !== null) {
+    const obj = error as Record<string, unknown>;
+    if (obj.message) return String(obj.message);
+    if (obj.error) return String(obj.error);
+    if (obj.details) return String(obj.details);
+    if (obj.hint) return String(obj.hint);
+    return JSON.stringify(error);
+  }
+  return String(error);
+}
+
 interface TestResult {
   step: string;
   success: boolean;
@@ -71,7 +87,8 @@ serve(async (req) => {
       });
       testResult.summary.org_id = orgData.id;
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
+      console.error('Step 1 error details:', JSON.stringify(error, null, 2));
+      const msg = getErrorMessage(error);
       testResult.steps.push({
         step: "Create Organization",
         success: false,
@@ -110,7 +127,10 @@ serve(async (req) => {
           team_id: testResult.summary.org_id
         });
 
-      if (publicUserError) throw publicUserError;
+      if (publicUserError) {
+        console.error('Public users insert error:', JSON.stringify(publicUserError, null, 2));
+        throw publicUserError;
+      }
 
       testResult.steps.push({
         step: "Create User with Owner Role",
@@ -121,7 +141,8 @@ serve(async (req) => {
       testResult.summary.user_id = userData.user.id;
       testResult.summary.roles_confirmed.push('owner');
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
+      console.error('Step 2 error details:', JSON.stringify(error, null, 2));
+      const msg = getErrorMessage(error);
       testResult.steps.push({
         step: "Create User with Owner Role",
         success: false,
@@ -149,7 +170,7 @@ serve(async (req) => {
         }
       });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = getErrorMessage(error);
       testResult.steps.push({
         step: "Email Invitation (Mock)",
         success: false,
@@ -180,7 +201,8 @@ serve(async (req) => {
         }
       });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
+      console.error('Step 4 error details:', JSON.stringify(error, null, 2));
+      const msg = getErrorMessage(error);
       testResult.steps.push({
         step: "Invite Token Generation",
         success: false,
@@ -193,45 +215,52 @@ serve(async (req) => {
     // Step 5: Test Role-Based Permissions
     console.log("Step 5: Testing role-based permissions...");
     const step5Start = Date.now();
-    try {
-      // Check if RLS functions exist
-      const { data: functions, error: funcError } = await supabase
-        .rpc('pg_get_functiondef', { func_oid: 'is_admin()' })
-        .single();
-
-      // Alternative: Check if we can query with role checks
-      const { data: roleCheck, error: roleError } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', testResult.summary.user_id!)
-        .single();
-
-      if (roleError) throw roleError;
-
-      const rolesAvailable = ['owner', 'director', 'manager', 'staff', 'billing', 'provider'];
-      
-      testResult.steps.push({
-        step: "Role-Based Permissions",
-        success: true,
-        duration: Date.now() - step5Start,
-        details: { 
-          user_role: roleCheck?.role,
-          available_roles: rolesAvailable,
-          rls_functions_exist: true
-        }
-      });
-      
-      if (roleCheck?.role) {
-        testResult.summary.roles_confirmed.push(roleCheck.role);
-      }
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
+    
+    // Skip this step if user creation failed
+    if (!testResult.summary.user_id) {
       testResult.steps.push({
         step: "Role-Based Permissions",
         success: false,
-        duration: Date.now() - step5Start,
-        error: msg
+        duration: 0,
+        error: "Skipped - no user was created in previous step"
       });
+    } else {
+      try {
+        // Check if we can query with role checks
+        const { data: roleCheck, error: roleError } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', testResult.summary.user_id)
+          .single();
+
+        if (roleError) throw roleError;
+
+        const rolesAvailable = ['owner', 'director', 'manager', 'staff', 'billing', 'provider'];
+        
+        testResult.steps.push({
+          step: "Role-Based Permissions",
+          success: true,
+          duration: Date.now() - step5Start,
+          details: { 
+            user_role: roleCheck?.role,
+            available_roles: rolesAvailable,
+            rls_functions_exist: true
+          }
+        });
+        
+        if (roleCheck?.role) {
+          testResult.summary.roles_confirmed.push(roleCheck.role);
+        }
+      } catch (error: unknown) {
+        console.error('Step 5 error details:', JSON.stringify(error, null, 2));
+        const msg = getErrorMessage(error);
+        testResult.steps.push({
+          step: "Role-Based Permissions",
+          success: false,
+          duration: Date.now() - step5Start,
+          error: msg
+        });
+      }
     }
 
     // Step 6: Load Default KPIs
@@ -263,7 +292,8 @@ serve(async (req) => {
       });
       testResult.summary.default_kpis_count = kpiData?.length || 0;
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
+      console.error('Step 6 error details:', JSON.stringify(error, null, 2));
+      const msg = getErrorMessage(error);
       testResult.steps.push({
         step: "Load Default KPIs",
         success: false,
@@ -301,7 +331,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error('Error in test-onboarding-flow function:', error);
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = getErrorMessage(error);
     return new Response(
       JSON.stringify({ 
         error: msg,
