@@ -45,6 +45,7 @@ import OnboardingAnalytics from "./pages/OnboardingAnalytics";
 import JaneIntegration from "./pages/JaneIntegration";
 import Recalls from "./pages/Recalls";
 import Integrations from "./pages/Integrations";
+import BulkAnalyticsConnector from "./pages/BulkAnalyticsConnector";
 import SystemHealth from "./pages/SystemHealth";
 import AdminDemo from "./pages/AdminDemo";
 import VTO from "./pages/VTO";
@@ -201,6 +202,7 @@ const App = () => {
             <Route path="/settings/team" element={<AppLayout><TeamManagement /></AppLayout>} />
             <Route path="/settings/integrations" element={<AppLayout><Integrations /></AppLayout>} />
             <Route path="/settings/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
+            <Route path="/settings/integrations/bulk-analytics" element={<AppLayout><BulkAnalyticsConnector /></AppLayout>} />
             <Route path="/admin/onboarding-analytics" element={<AppLayout><OnboardingAnalytics /></AppLayout>} />
             <Route path="/admin" element={<AppLayout><AdminDashboard /></AppLayout>} />
             <Route path="/admin/upload-docs" element={<AppLayout><DocumentUploadAdmin /></AppLayout>} />

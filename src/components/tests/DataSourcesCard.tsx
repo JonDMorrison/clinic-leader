@@ -322,6 +322,57 @@ export const DataSourcesCard = () => {
         });
       }
 
+      // 4. Bulk Analytics Connectors (schema-driven, scheduled ingestion)
+      const { data: bulkConnectors } = await supabase
+        .from("bulk_analytics_connectors")
+        .select("*")
+        .eq("organization_id", orgId);
+
+      if (bulkConnectors && bulkConnectors.length > 0) {
+        for (const connector of bulkConnectors) {
+          // Determine status based on connector state
+          let bulkStatus: SourceStatus = "inactive";
+          const sourceLabel = connector.source_system === "jane" ? "Jane" 
+            : connector.source_system === "advancedmd" ? "AdvancedMD" 
+            : "Other";
+
+          if (connector.status === "active") {
+            if (connector.last_processed_at) {
+              const processedTime = new Date(connector.last_processed_at);
+              const hoursSince = (Date.now() - processedTime.getTime()) / (1000 * 60 * 60);
+              // For daily cadence, check 25 hours; for monthly, check 32 days
+              const threshold = connector.cadence === "daily" ? 25 : 32 * 24;
+              bulkStatus = hoursSince > threshold ? "delayed" : "healthy";
+            } else {
+              bulkStatus = "delayed";
+            }
+          } else if (connector.status === "error") {
+            bulkStatus = "failed";
+          } else if (connector.status === "paused") {
+            bulkStatus = "inactive";
+          }
+
+          sources.push({
+            id: `bulk_${connector.id}`,
+            name: `${sourceLabel} (Bulk Analytics)`,
+            icon: FileSpreadsheet,
+            status: bulkStatus,
+            lastSuccess: connector.last_processed_at,
+            lastAttempt: connector.last_received_at,
+            recordsProcessed: null,
+            logs: connector.last_error ? [{
+              time: connector.updated_at,
+              status: "failed",
+              message: connector.last_error,
+            }] : connector.last_processed_at ? [{
+              time: connector.last_processed_at,
+              status: "completed",
+              message: `Scheduled ingestion (${connector.cadence})`,
+            }] : [],
+          });
+        }
+      }
+
       return sources;
     },
     enabled: !!orgId,
