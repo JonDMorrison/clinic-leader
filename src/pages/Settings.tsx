@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RulesEnginePanel } from "@/components/settings/RulesEnginePanel";
 import { useNavigate } from "react-router-dom";
-import { Palette, Shield, Bell, Users, Building2, TrendingUp, FileText, GraduationCap, Plug, UserCircle } from "lucide-react";
+import { Palette, Shield, Users, Building2, TrendingUp, FileText, GraduationCap, Plug, UserCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -146,15 +146,15 @@ const Settings = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Plug className="w-5 h-5" />
-              Jane App Integration
+              Integrations
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Sync practice data from Jane App (appointments, patients, payments, A/R)
+              Connect practice management tools like Jane App, Stripe, and more
             </p>
-            <Button variant="outline" onClick={() => navigate("/settings/integrations/jane")}>
-              Manage Jane Integration
+            <Button variant="outline" onClick={() => navigate("/settings/integrations")}>
+              View All Integrations
             </Button>
           </CardContent>
         </Card>
@@ -194,19 +194,6 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5" />
-              Notifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Configure email and in-app notifications
-            </p>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader>
