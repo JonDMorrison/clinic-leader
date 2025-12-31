@@ -345,12 +345,19 @@ export type Database = {
           connector_type: string
           created_at: string
           delivery_method: Database["public"]["Enums"]["bulk_delivery_method"]
+          delivery_mode: string | null
           expected_schema_version: string
           id: string
           last_error: string | null
           last_processed_at: string | null
           last_received_at: string | null
+          locked_account_guid: string | null
           organization_id: string
+          s3_bucket: string | null
+          s3_external_id: string | null
+          s3_prefix: string | null
+          s3_region: string | null
+          s3_role_arn: string | null
           source_system: Database["public"]["Enums"]["bulk_source_system"]
           status: Database["public"]["Enums"]["bulk_connector_status"]
           updated_at: string
@@ -361,12 +368,19 @@ export type Database = {
           connector_type?: string
           created_at?: string
           delivery_method?: Database["public"]["Enums"]["bulk_delivery_method"]
+          delivery_mode?: string | null
           expected_schema_version?: string
           id?: string
           last_error?: string | null
           last_processed_at?: string | null
           last_received_at?: string | null
+          locked_account_guid?: string | null
           organization_id: string
+          s3_bucket?: string | null
+          s3_external_id?: string | null
+          s3_prefix?: string | null
+          s3_region?: string | null
+          s3_role_arn?: string | null
           source_system: Database["public"]["Enums"]["bulk_source_system"]
           status?: Database["public"]["Enums"]["bulk_connector_status"]
           updated_at?: string
@@ -377,12 +391,19 @@ export type Database = {
           connector_type?: string
           created_at?: string
           delivery_method?: Database["public"]["Enums"]["bulk_delivery_method"]
+          delivery_mode?: string | null
           expected_schema_version?: string
           id?: string
           last_error?: string | null
           last_processed_at?: string | null
           last_received_at?: string | null
+          locked_account_guid?: string | null
           organization_id?: string
+          s3_bucket?: string | null
+          s3_external_id?: string | null
+          s3_prefix?: string | null
+          s3_region?: string | null
+          s3_role_arn?: string | null
           source_system?: Database["public"]["Enums"]["bulk_source_system"]
           status?: Database["public"]["Enums"]["bulk_connector_status"]
           updated_at?: string
@@ -854,33 +875,62 @@ export type Database = {
       }
       file_ingest_log: {
         Row: {
+          account_guid: string | null
           checksum: string
           created_at: string
           error: string | null
+          file_date: string | null
           file_name: string
           id: string
+          organization_id: string | null
+          resource_name: string | null
           rows: number
+          s3_bucket: string | null
+          s3_key: string | null
+          source_system: string | null
           status: Database["public"]["Enums"]["ingest_status"]
         }
         Insert: {
+          account_guid?: string | null
           checksum: string
           created_at?: string
           error?: string | null
+          file_date?: string | null
           file_name: string
           id?: string
+          organization_id?: string | null
+          resource_name?: string | null
           rows?: number
+          s3_bucket?: string | null
+          s3_key?: string | null
+          source_system?: string | null
           status?: Database["public"]["Enums"]["ingest_status"]
         }
         Update: {
+          account_guid?: string | null
           checksum?: string
           created_at?: string
           error?: string | null
+          file_date?: string | null
           file_name?: string
           id?: string
+          organization_id?: string | null
+          resource_name?: string | null
           rows?: number
+          s3_bucket?: string | null
+          s3_key?: string | null
+          source_system?: string | null
           status?: Database["public"]["Enums"]["ingest_status"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "file_ingest_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gwc_assessments: {
         Row: {
@@ -2910,6 +2960,98 @@ export type Database = {
         }
         Relationships: []
       }
+      staging_appointments_jane: {
+        Row: {
+          account_guid: string
+          appointment_guid: string
+          arrived_at: string | null
+          booked_at: string | null
+          cancelled_at: string | null
+          clinic_guid: string | null
+          created_at: string
+          created_at_jane: string | null
+          discipline_name: string | null
+          end_at: string | null
+          file_date: string
+          first_visit: boolean | null
+          id: string
+          location_name: string | null
+          no_show_at: string | null
+          organization_id: string
+          patient_guid: string | null
+          price: number | null
+          raw_row: Json | null
+          staff_member_guid: string | null
+          start_at: string | null
+          treatment_guid: string | null
+          treatment_name: string | null
+          updated_at: string
+          updated_at_jane: string | null
+        }
+        Insert: {
+          account_guid: string
+          appointment_guid: string
+          arrived_at?: string | null
+          booked_at?: string | null
+          cancelled_at?: string | null
+          clinic_guid?: string | null
+          created_at?: string
+          created_at_jane?: string | null
+          discipline_name?: string | null
+          end_at?: string | null
+          file_date: string
+          first_visit?: boolean | null
+          id?: string
+          location_name?: string | null
+          no_show_at?: string | null
+          organization_id: string
+          patient_guid?: string | null
+          price?: number | null
+          raw_row?: Json | null
+          staff_member_guid?: string | null
+          start_at?: string | null
+          treatment_guid?: string | null
+          treatment_name?: string | null
+          updated_at?: string
+          updated_at_jane?: string | null
+        }
+        Update: {
+          account_guid?: string
+          appointment_guid?: string
+          arrived_at?: string | null
+          booked_at?: string | null
+          cancelled_at?: string | null
+          clinic_guid?: string | null
+          created_at?: string
+          created_at_jane?: string | null
+          discipline_name?: string | null
+          end_at?: string | null
+          file_date?: string
+          first_visit?: boolean | null
+          id?: string
+          location_name?: string | null
+          no_show_at?: string | null
+          organization_id?: string
+          patient_guid?: string | null
+          price?: number | null
+          raw_row?: Json | null
+          staff_member_guid?: string | null
+          start_at?: string | null
+          treatment_guid?: string | null
+          treatment_name?: string | null
+          updated_at?: string
+          updated_at_jane?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staging_appointments_jane_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staging_ar_lines: {
         Row: {
           id: string
@@ -2927,6 +3069,74 @@ export type Database = {
           raw?: Json
         }
         Relationships: []
+      }
+      staging_invoices_jane: {
+        Row: {
+          account_guid: string
+          amount_paid: number | null
+          clinic_guid: string | null
+          created_at: string
+          file_date: string
+          id: string
+          income_category: string | null
+          invoice_guid: string | null
+          invoiced_at: string | null
+          organization_id: string
+          patient_guid: string | null
+          payer_type: string | null
+          purchasable_guid: string | null
+          raw_row: Json | null
+          staff_member_guid: string | null
+          subtotal: number | null
+          updated_at: string
+        }
+        Insert: {
+          account_guid: string
+          amount_paid?: number | null
+          clinic_guid?: string | null
+          created_at?: string
+          file_date: string
+          id?: string
+          income_category?: string | null
+          invoice_guid?: string | null
+          invoiced_at?: string | null
+          organization_id: string
+          patient_guid?: string | null
+          payer_type?: string | null
+          purchasable_guid?: string | null
+          raw_row?: Json | null
+          staff_member_guid?: string | null
+          subtotal?: number | null
+          updated_at?: string
+        }
+        Update: {
+          account_guid?: string
+          amount_paid?: number | null
+          clinic_guid?: string | null
+          created_at?: string
+          file_date?: string
+          id?: string
+          income_category?: string | null
+          invoice_guid?: string | null
+          invoiced_at?: string | null
+          organization_id?: string
+          patient_guid?: string | null
+          payer_type?: string | null
+          purchasable_guid?: string | null
+          raw_row?: Json | null
+          staff_member_guid?: string | null
+          subtotal?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staging_invoices_jane_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staging_patients: {
         Row: {
@@ -2946,6 +3156,77 @@ export type Database = {
         }
         Relationships: []
       }
+      staging_patients_jane: {
+        Row: {
+          account_guid: string
+          city: string | null
+          clinic_guid: string | null
+          country: string | null
+          created_at: string
+          discharged_at: string | null
+          dob: string | null
+          email_hash: string | null
+          file_date: string
+          id: string
+          organization_id: string
+          patient_guid: string
+          postal: string | null
+          province: string | null
+          raw_row: Json | null
+          referral_source: string | null
+          sex: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_guid: string
+          city?: string | null
+          clinic_guid?: string | null
+          country?: string | null
+          created_at?: string
+          discharged_at?: string | null
+          dob?: string | null
+          email_hash?: string | null
+          file_date: string
+          id?: string
+          organization_id: string
+          patient_guid: string
+          postal?: string | null
+          province?: string | null
+          raw_row?: Json | null
+          referral_source?: string | null
+          sex?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_guid?: string
+          city?: string | null
+          clinic_guid?: string | null
+          country?: string | null
+          created_at?: string
+          discharged_at?: string | null
+          dob?: string | null
+          email_hash?: string | null
+          file_date?: string
+          id?: string
+          organization_id?: string
+          patient_guid?: string
+          postal?: string | null
+          province?: string | null
+          raw_row?: Json | null
+          referral_source?: string | null
+          sex?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staging_patients_jane_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staging_payments: {
         Row: {
           id: string
@@ -2963,6 +3244,145 @@ export type Database = {
           raw?: Json
         }
         Relationships: []
+      }
+      staging_payments_jane: {
+        Row: {
+          account_guid: string
+          amount: number | null
+          card_type: string | null
+          clinic_guid: string | null
+          created_at: string
+          file_date: string
+          id: string
+          location_guid: string | null
+          organization_id: string
+          patient_account_guid: string | null
+          payer_id: string | null
+          payer_type: string | null
+          payment_guid: string
+          payment_method: string | null
+          payment_type: string | null
+          raw_row: Json | null
+          received_at: string | null
+          updated_at: string
+          workflow: string | null
+        }
+        Insert: {
+          account_guid: string
+          amount?: number | null
+          card_type?: string | null
+          clinic_guid?: string | null
+          created_at?: string
+          file_date: string
+          id?: string
+          location_guid?: string | null
+          organization_id: string
+          patient_account_guid?: string | null
+          payer_id?: string | null
+          payer_type?: string | null
+          payment_guid: string
+          payment_method?: string | null
+          payment_type?: string | null
+          raw_row?: Json | null
+          received_at?: string | null
+          updated_at?: string
+          workflow?: string | null
+        }
+        Update: {
+          account_guid?: string
+          amount?: number | null
+          card_type?: string | null
+          clinic_guid?: string | null
+          created_at?: string
+          file_date?: string
+          id?: string
+          location_guid?: string | null
+          organization_id?: string
+          patient_account_guid?: string | null
+          payer_id?: string | null
+          payer_type?: string | null
+          payment_guid?: string
+          payment_method?: string | null
+          payment_type?: string | null
+          raw_row?: Json | null
+          received_at?: string | null
+          updated_at?: string
+          workflow?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staging_payments_jane_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staging_shifts_jane: {
+        Row: {
+          account_guid: string
+          book_online: boolean | null
+          call_to_book: boolean | null
+          clinic_guid: string | null
+          created_at: string
+          end_at: string | null
+          file_date: string
+          id: string
+          location_guid: string | null
+          organization_id: string
+          raw_row: Json | null
+          room_guid: string | null
+          shift_guid: string
+          staff_member_guid: string | null
+          start_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_guid: string
+          book_online?: boolean | null
+          call_to_book?: boolean | null
+          clinic_guid?: string | null
+          created_at?: string
+          end_at?: string | null
+          file_date: string
+          id?: string
+          location_guid?: string | null
+          organization_id: string
+          raw_row?: Json | null
+          room_guid?: string | null
+          shift_guid: string
+          staff_member_guid?: string | null
+          start_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_guid?: string
+          book_online?: boolean | null
+          call_to_book?: boolean | null
+          clinic_guid?: string | null
+          created_at?: string
+          end_at?: string | null
+          file_date?: string
+          id?: string
+          location_guid?: string | null
+          organization_id?: string
+          raw_row?: Json | null
+          room_guid?: string | null
+          shift_guid?: string
+          staff_member_guid?: string | null
+          start_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staging_shifts_jane_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       teams: {
         Row: {

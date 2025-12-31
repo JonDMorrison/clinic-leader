@@ -23,6 +23,7 @@ const getSourceLabel = (source: string | null, syncSource: string): string => {
       manual: "Manual",
       google_sheet: "Google Sheet",
       jane: "Jane",
+      jane_pipe: "Jane Data Pipe",
       csv: "CSV Import",
       import: "Import",
     };
@@ -37,9 +38,14 @@ const getSourceLabel = (source: string | null, syncSource: string): string => {
   return syncMap[syncSource] || syncSource;
 };
 
+// Check if source is from Jane Data Pipe
+export const isJanePipeSource = (source: string | null): boolean => {
+  return source?.toLowerCase() === "jane_pipe";
+};
+
 const getSourceVariant = (source: string | null, syncSource: string): "default" | "secondary" | "outline" => {
   const effectiveSource = source?.toLowerCase() || syncSource;
-  if (effectiveSource === "jane") return "default";
+  if (effectiveSource === "jane" || effectiveSource === "jane_pipe") return "default";
   if (effectiveSource === "google_sheet") return "secondary";
   return "outline";
 };
