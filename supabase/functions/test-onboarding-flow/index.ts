@@ -116,16 +116,15 @@ serve(async (req) => {
 
       if (userError) throw userError;
 
-      // Create user record in public.users
+      // Update user record in public.users (trigger already creates the base record)
       const { error: publicUserError } = await supabase
         .from('users')
-        .insert({
-          id: userData.user.id,
-          email: testEmail,
+        .update({
           full_name: 'Test Owner',
           role: 'owner',
           team_id: testResult.summary.org_id
-        });
+        })
+        .eq('id', userData.user.id);
 
       if (publicUserError) {
         console.error('Public users insert error:', JSON.stringify(publicUserError, null, 2));
