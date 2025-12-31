@@ -1,347 +1,363 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { JaneConnectWizard } from "@/components/integrations/JaneConnectWizard";
-import { Cloud, CheckCircle2, XCircle, Clock, TrendingUp } from "lucide-react";
-import { format } from "date-fns";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { toast } from "sonner";
+import { formatDistanceToNow, format } from "date-fns";
+import {
+  FileSpreadsheet,
+  CheckCircle2,
+  Clock,
+  Calendar,
+  ArrowLeft,
+  Database,
+  TrendingUp,
+  Shield,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
+
+type ConnectionStatus = "not_connected" | "pending" | "active" | "error";
 
 export default function JaneIntegration() {
-  const [showWizard, setShowWizard] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: currentUser } = useCurrentUser();
+  const orgId = currentUser?.team_id;
 
-  // Get user's team
-  const { data: user } = useQuery({
-    queryKey: ["currentUser"],
+  // Check for existing bulk analytics connector for Jane
+  const { data: connector, isLoading } = useQuery({
+    queryKey: ["jane-bulk-connector", orgId],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) throw new Error("Not authenticated");
-      
-      const { data } = await supabase
-        .from("users")
-        .select("team_id")
-        .eq("email", user.email)
-        .single();
-      
-      return data;
-    },
-  });
+      if (!orgId) return null;
 
-  // Get integration status
-  const { data: integration, refetch: refetchIntegration } = useQuery({
-    queryKey: ["janeIntegration", user?.team_id],
-    queryFn: async () => {
-      if (!user?.team_id) return null;
-      
-      const { data } = await supabase
-        .from("jane_integrations")
+      const { data, error } = await supabase
+        .from("bulk_analytics_connectors")
         .select("*")
-        .eq("organization_id", user.team_id)
+        .eq("organization_id", orgId)
+        .eq("source_system", "jane")
         .maybeSingle();
-      
+
+      if (error && error.code !== "PGRST116") throw error;
       return data;
     },
-    enabled: !!user?.team_id,
+    enabled: !!orgId,
   });
 
-  // Get recent sync logs
-  const { data: syncLogs } = useQuery({
-    queryKey: ["janeSyncLogs", integration?.id],
-    queryFn: async () => {
-      if (!integration?.id) return [];
-      
-      const { data } = await supabase
-        .from("jane_sync_logs")
-        .select("*")
-        .eq("integration_id", integration.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      
-      return data || [];
+  // Derive connection status
+  const getConnectionStatus = (): ConnectionStatus => {
+    if (!connector) return "not_connected";
+    if (connector.status === "error") return "error";
+    if (connector.status === "paused") return "pending";
+    return "active";
+  };
+
+  const connectionStatus = getConnectionStatus();
+
+  // Enable connection mutation
+  const enableConnection = useMutation({
+    mutationFn: async () => {
+      if (!orgId) throw new Error("No organization");
+
+      const { data, error } = await supabase
+        .from("bulk_analytics_connectors")
+        .insert({
+          organization_id: orgId,
+          source_system: "jane",
+          connector_type: "bulk_analytics",
+          status: "paused", // Starts as pending until activated by team
+          cadence: "daily",
+          delivery_method: "manual_drop",
+          expected_schema_version: "jane_v1",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     },
-    enabled: !!integration?.id,
+    onSuccess: () => {
+      toast.success("Jane data connection requested", {
+        description: "Your ClinicLeader team will coordinate activation.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["jane-bulk-connector"] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to enable connection: ${error.message}`);
+    },
   });
 
-  const handleForceSync = async () => {
-    if (!user?.team_id) return;
-    
-    setIsSyncing(true);
-    try {
-      await supabase.functions.invoke("jane-sync", {
-        body: { teamId: user.team_id, immediate: true },
-      });
-      
-      toast.success("Sync started successfully");
-      setTimeout(() => refetchIntegration(), 2000);
-    } catch (error) {
-      toast.error("Sync failed to start");
-    } finally {
-      setIsSyncing(false);
+  const getStatusBadge = (status: ConnectionStatus) => {
+    switch (status) {
+      case "active":
+        return (
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+            <CheckCircle2 className="w-3 h-3 mr-1" />
+            Active
+          </Badge>
+        );
+      case "pending":
+        return (
+          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+            <Clock className="w-3 h-3 mr-1" />
+            Pending
+          </Badge>
+        );
+      case "error":
+        return (
+          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Needs Attention
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="bg-muted text-muted-foreground">
+            Not Connected
+          </Badge>
+        );
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!integration?.id) return;
-    
-    await supabase
-      .from("jane_integrations")
-      .update({ status: "disconnected" })
-      .eq("id", integration.id);
-    
-    toast.success("Jane integration disconnected");
-    refetchIntegration();
-  };
-
-  if (!integration || integration.status === "disconnected") {
+  if (isLoading) {
     return (
-      <div className="container mx-auto py-8 space-y-8">
-        <div className="max-w-2xl mx-auto">
-          {!showWizard ? (
-            <Card className="bg-background/95 backdrop-blur-xl border-border/20">
-              <CardHeader>
-                <div className="flex items-center gap-3 mb-2">
-                  <Cloud className="w-8 h-8 text-primary" />
-                  <CardTitle>Connect to Jane App</CardTitle>
-                </div>
-                <CardDescription>
-                  Sync your patients, appointments, and financial data directly from Jane — securely, automatically, and without spreadsheets.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button onClick={() => setShowWizard(true)} size="lg" className="w-full">
-                  Connect Jane
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <JaneConnectWizard
-              teamId={user?.team_id || ""}
-              onComplete={() => {
-                setShowWizard(false);
-                refetchIntegration();
-              }}
-            />
-          )}
-        </div>
+      <div className="container mx-auto py-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto py-8 space-y-8 max-w-3xl">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/settings/integrations")}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
         <div>
-          <h1 className="text-4xl font-bold mb-2">Jane App Integration</h1>
-          <p className="text-muted-foreground">
-            Connected and syncing automatically
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <FileSpreadsheet className="w-8 h-8 text-primary" />
+            Jane – Bulk Analytics Connection
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Scheduled data exports for reporting and leadership analytics
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={handleForceSync}
-            disabled={isSyncing}
-            variant="outline"
-          >
-            {isSyncing ? "Syncing..." : "Force Sync Now"}
-          </Button>
-          <Button onClick={handleDisconnect} variant="destructive">
-            Disconnect
-          </Button>
-        </div>
       </div>
 
-      {/* Connection Status Dashboard */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-background/95 backdrop-blur-xl border-border/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Connection Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              {integration.status === "connected" ? (
-                <>
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  <span className="text-2xl font-bold">Connected</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="w-5 h-5 text-red-500" />
-                  <span className="text-2xl font-bold">Disconnected</span>
-                </>
-              )}
+      {/* Main Description Card */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="py-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-lg bg-primary/10">
+              <Database className="w-6 h-6 text-primary" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-background/95 backdrop-blur-xl border-border/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Last Sync
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-muted-foreground" />
-              <span className="text-2xl font-bold">
-                {integration.last_sync
-                  ? format(new Date(integration.last_sync), "MMM d, h:mm a")
-                  : "Never"}
-              </span>
+            <div className="space-y-2">
+              <p className="font-medium text-lg">
+                Leadership analytics from your Jane data
+              </p>
+              <p className="text-muted-foreground">
+                ClinicLeader connects to Jane using scheduled data exports designed for reporting and leadership analytics. 
+                This connection is read-only and optimized for predictable, ongoing insights.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card className="bg-background/95 backdrop-blur-xl border-border/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Next Sync
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Cloud className="w-5 h-5 text-primary" />
-              <span className="text-2xl font-bold">
-                {integration.sync_mode === "manual"
-                  ? "Manual"
-                  : integration.next_sync
-                  ? format(new Date(integration.next_sync), "MMM d, h:mm a")
-                  : "Scheduled"}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-background/95 backdrop-blur-xl border-border/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Records Synced
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              <span className="text-2xl font-bold">
-                {syncLogs?.[0]?.records_synced || 0}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Sync Activity */}
-      <Card className="bg-background/95 backdrop-blur-xl border-border/20">
+      {/* Connection Status Card */}
+      <Card>
         <CardHeader>
-          <CardTitle>Recent Sync Activity</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>Connection Status</span>
+            {getStatusBadge(connectionStatus)}
+          </CardTitle>
           <CardDescription>
-            View the history of your Jane App data syncs
+            Data is delivered automatically once enabled. No login or credentials required.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {syncLogs && syncLogs.length > 0 ? (
-              syncLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border/50"
+          {connectionStatus === "not_connected" ? (
+            <div className="text-center py-8 space-y-6">
+              <div className="inline-flex p-4 rounded-full bg-muted">
+                <FileSpreadsheet className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <div className="space-y-2">
+                <p className="font-medium text-lg">Ready to connect</p>
+                <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                  Once enabled, Jane data will flow into ClinicLeader on a daily schedule, 
+                  giving you clear visibility into trends and accountability metrics.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <Button
+                  size="lg"
+                  onClick={() => enableConnection.mutate()}
+                  disabled={enableConnection.isPending}
+                  className="min-w-[240px]"
                 >
-                  <div className="flex items-center gap-3">
-                    {log.status === "completed" ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                    ) : log.status === "failed" ? (
-                      <XCircle className="w-5 h-5 text-red-500" />
-                    ) : (
-                      <Clock className="w-5 h-5 text-yellow-500" />
-                    )}
+                  {enableConnection.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Enable Jane Data Connection
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  This connection is activated in coordination with Jane and your ClinicLeader team.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Status Grid */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="p-4 rounded-lg border bg-card">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Calendar className="w-4 h-4" />
+                    Data Cadence
+                  </div>
+                  <p className="text-xl font-semibold capitalize">
+                    {connector?.cadence || "Daily"}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg border bg-card">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Shield className="w-4 h-4" />
+                    Schema Version
+                  </div>
+                  <p className="text-xl font-semibold">
+                    {connector?.expected_schema_version || "jane_v1"}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg border bg-card">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Clock className="w-4 h-4" />
+                    Last Data Received
+                  </div>
+                  <p className="text-xl font-semibold">
+                    {connector?.last_received_at
+                      ? formatDistanceToNow(new Date(connector.last_received_at), { addSuffix: true })
+                      : "Awaiting first delivery"}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg border bg-card">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Last Data Processed
+                  </div>
+                  <p className="text-xl font-semibold">
+                    {connector?.last_processed_at
+                      ? formatDistanceToNow(new Date(connector.last_processed_at), { addSuffix: true })
+                      : "Awaiting first processing"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Error display */}
+              {connector?.last_error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
                     <div>
-                      <p className="font-medium capitalize">{log.sync_type} Sync</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(log.created_at), "MMM d, yyyy h:mm a")}
+                      <p className="font-medium text-red-800">Attention needed</p>
+                      <p className="text-sm text-red-700 mt-1">{connector.last_error}</p>
+                      <p className="text-xs text-red-600 mt-2">
+                        Contact your ClinicLeader team for assistance.
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <Badge variant={log.status === "completed" ? "default" : "destructive"}>
-                      {log.status}
-                    </Badge>
-                    {log.records_synced > 0 && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {log.records_synced} records
+                </div>
+              )}
+
+              {/* Pending state helper */}
+              {connectionStatus === "pending" && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-amber-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-amber-800">Connection pending</p>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Your Jane data connection is being set up. Data will begin flowing once activation is complete.
                       </p>
-                    )}
+                    </div>
                   </div>
                 </div>
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                No sync activity yet
-              </p>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Sync Configuration */}
-      <Card className="bg-background/95 backdrop-blur-xl border-border/20">
-        <CardHeader>
-          <CardTitle>Sync Configuration</CardTitle>
-          <CardDescription>
-            Manage what data is synced from Jane App
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
-              <span className="font-medium">Data Types</span>
-              <div className="flex gap-2">
-                {integration.sync_scope.map((scope: string) => (
-                  <Badge key={scope} variant="secondary">
-                    {scope}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
-              <span className="font-medium">Sync Mode</span>
-              <Badge variant="outline" className="capitalize">
-                {integration.sync_mode}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
-              <span className="font-medium">Clinic ID</span>
-              <span className="text-sm text-muted-foreground">
-                {integration.clinic_id || "Auto-detected"}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Security Info */}
-      <Card className="bg-background/95 backdrop-blur-xl border-border/20">
+      {/* What You Get Card */}
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Cloud className="w-5 h-5 text-primary" />
-            Secure API Integration
+            <TrendingUp className="w-5 h-5 text-primary" />
+            What This Provides
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            ✓ API key stored encrypted
-          </p>
-          <p className="text-sm text-muted-foreground">
-            ✓ No PHI stored - only operational summaries
-          </p>
-          <p className="text-sm text-muted-foreground">
-            ✓ Automatic daily sync at 2:00 AM
-          </p>
-          <p className="text-sm text-muted-foreground">
-            ✓ Real-time KPI updates
-          </p>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
+              <div>
+                <p className="font-medium">Leadership-ready metrics</p>
+                <p className="text-sm text-muted-foreground">
+                  Aggregated data for scorecards and accountability
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
+              <div>
+                <p className="font-medium">Trend visibility</p>
+                <p className="text-sm text-muted-foreground">
+                  Week-over-week and month-over-month comparisons
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
+              <div>
+                <p className="font-medium">No manual data entry</p>
+                <p className="text-sm text-muted-foreground">
+                  Scheduled delivery replaces spreadsheet uploads
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
+              <div>
+                <p className="font-medium">Read-only access</p>
+                <p className="text-sm text-muted-foreground">
+                  ClinicLeader only reads analytics data — never writes back
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Data Security Card */}
+      <Card className="bg-muted/30">
+        <CardContent className="py-6">
+          <div className="flex items-start gap-4">
+            <div className="p-2 rounded-lg bg-background">
+              <Shield className="w-5 h-5 text-muted-foreground" />
+            </div>
+            <div className="space-y-2">
+              <p className="font-medium">Data handling</p>
+              <ul className="space-y-1 text-sm text-muted-foreground">
+                <li>• Only operational summaries are stored — no patient-level data</li>
+                <li>• Read-only connection — ClinicLeader cannot modify your Jane data</li>
+                <li>• Data validated against expected schema before processing</li>
+                <li>• Delivered on a predictable schedule (daily or monthly)</li>
+              </ul>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
