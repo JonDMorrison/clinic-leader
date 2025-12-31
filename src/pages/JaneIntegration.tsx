@@ -51,7 +51,6 @@ export default function JaneIntegration() {
   const getConnectionStatus = (): ConnectionStatus => {
     if (!connector) return "not_connected";
     if (connector.status === "error") return "error";
-    if (connector.status === "paused") return "pending";
     return "active";
   };
 
@@ -68,7 +67,7 @@ export default function JaneIntegration() {
           organization_id: orgId,
           source_system: "jane",
           connector_type: "bulk_analytics",
-          status: "paused", // Starts as pending until activated by team
+          status: "active",
           cadence: "daily",
           delivery_method: "manual_drop",
           expected_schema_version: "jane_v1",
@@ -81,7 +80,7 @@ export default function JaneIntegration() {
     },
     onSuccess: () => {
       toast.success("Jane data connection enabled", {
-        description: "Your connection is now pending. Data will flow once activation is complete.",
+        description: "Connection is active and ready to receive data.",
       });
       queryClient.invalidateQueries({ queryKey: ["jane-bulk-connector"] });
     },
@@ -97,13 +96,6 @@ export default function JaneIntegration() {
           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
             <CheckCircle2 className="w-3 h-3 mr-1" />
             Active
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-            <Clock className="w-3 h-3 mr-1" />
-            Pending
           </Badge>
         );
       case "error":
@@ -203,7 +195,7 @@ export default function JaneIntegration() {
                   Enable Jane Data Connection
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  This connection is activated in coordination with Jane and your ClinicLeader team.
+                  Admins can enable this connection directly. Data will flow once Jane exports are configured.
                 </p>
               </div>
             </div>
@@ -272,15 +264,15 @@ export default function JaneIntegration() {
                 </div>
               )}
 
-              {/* Pending state helper */}
-              {connectionStatus === "pending" && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              {/* Awaiting data helper - shown when active but no data yet */}
+              {connectionStatus === "active" && !connector?.last_received_at && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-start gap-3">
-                    <Clock className="w-5 h-5 text-amber-600 mt-0.5" />
+                    <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
                     <div>
-                      <p className="font-medium text-amber-800">Connection pending</p>
-                      <p className="text-sm text-amber-700 mt-1">
-                        Your Jane data connection is being set up. Data will begin flowing once activation is complete.
+                      <p className="font-medium text-blue-800">Awaiting first data delivery</p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Your connection is active and ready. Data will appear here once Jane exports are configured and the first delivery arrives.
                       </p>
                     </div>
                   </div>
