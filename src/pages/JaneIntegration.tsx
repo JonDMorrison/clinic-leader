@@ -356,6 +356,13 @@ export default function JaneIntegration() {
                 <li>• Data validated against expected schema before processing</li>
                 <li>• Delivered on a predictable schedule (daily or monthly)</li>
               </ul>
+              <Button
+                variant="link"
+                className="h-auto p-0 text-sm text-primary"
+                onClick={() => navigate("/settings/integrations/data-safety")}
+              >
+                Learn more about security and data access →
+              </Button>
             </div>
           </div>
         </CardContent>
