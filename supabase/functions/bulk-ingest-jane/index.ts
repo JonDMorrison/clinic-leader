@@ -148,6 +148,48 @@ function generateChecksum(s3Key: string, fileDate: string): string {
   return `jane_${s3Key}_${fileDate}`;
 }
 
+// Count consecutive failures for a resource
+async function getConsecutiveFailures(
+  supabase: ReturnType<typeof createClient>,
+  orgId: string,
+  resource: string
+): Promise<number> {
+  const { data: recentLogs } = await supabase
+    .from("file_ingest_log")
+    .select("status")
+    .eq("organization_id", orgId)
+    .eq("source_system", "jane")
+    .eq("resource_name", resource)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (!recentLogs || recentLogs.length === 0) return 0;
+
+  let failures = 0;
+  for (const log of recentLogs as { status: string }[]) {
+    if (log.status === "error") {
+      failures++;
+    } else {
+      break;
+    }
+  }
+  return failures;
+}
+
+// Determine if error is a schema mismatch (quarantine-worthy)
+function isSchemaError(errorMessage: string): boolean {
+  const schemaErrorPatterns = [
+    "column .* does not exist",
+    "invalid input syntax",
+    "violates not-null constraint",
+    "relation .* does not exist",
+    "type .* does not exist",
+  ];
+  return schemaErrorPatterns.some(pattern => 
+    new RegExp(pattern, "i").test(errorMessage)
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -234,11 +276,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Check for duplicate file
+    // 3. Check for duplicate file or quarantined file
     const checksum = generateChecksum(s3_key, file_date);
     const { data: existingLog } = await supabase
       .from("file_ingest_log")
-      .select("id, status")
+      .select("id, status, quarantined, quarantine_reason")
       .eq("organization_id", orgId)
       .eq("checksum", checksum)
       .maybeSingle();
@@ -247,6 +289,19 @@ Deno.serve(async (req) => {
       console.log(`[bulk-ingest-jane] File already processed: ${s3_key}`);
       return new Response(
         JSON.stringify({ message: "File already processed", file: s3_key }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if file is quarantined (don't retry unless schema version changed)
+    if (existingLog?.quarantined) {
+      console.log(`[bulk-ingest-jane] File is quarantined: ${existingLog.quarantine_reason}`);
+      return new Response(
+        JSON.stringify({ 
+          message: "File is quarantined and will not be retried",
+          reason: existingLog.quarantine_reason,
+          file: s3_key 
+        }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -261,7 +316,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5. Create ingest log entry
+    // Get current consecutive failures for this resource
+    const currentConsecutiveFailures = await getConsecutiveFailures(supabase, orgId, resource);
+
+    // 5. Create or update ingest log entry
     const { data: ingestLog, error: ingestError } = await supabase
       .from("file_ingest_log")
       .upsert({
@@ -276,6 +334,9 @@ Deno.serve(async (req) => {
         checksum: checksum,
         status: "pending",
         rows: csv_data.length,
+        consecutive_failures: currentConsecutiveFailures,
+        quarantined: false,
+        quarantine_reason: null,
       }, { onConflict: "organization_id,checksum" })
       .select()
       .single();
@@ -292,7 +353,6 @@ Deno.serve(async (req) => {
       .from("bulk_analytics_connectors")
       .update({ 
         last_received_at: receivedAt,
-        last_error: null 
       })
       .eq("id", connector_id);
 
@@ -338,7 +398,19 @@ Deno.serve(async (req) => {
       console.error(`[bulk-ingest-jane] Processing error: ${processingError}`);
     }
 
-    // 8. Update ingest log with result
+    // 8. Calculate new consecutive failures
+    const newConsecutiveFailures = processingError 
+      ? currentConsecutiveFailures + 1 
+      : 0;
+
+    // Determine if we should quarantine this file (schema error)
+    const shouldQuarantine = processingError && isSchemaError(processingError);
+    
+    // SOFT-FAILURE: Only set connector to error if 3+ consecutive failures for same resource
+    // OR if it's a schema mismatch that prevents ingestion entirely
+    const shouldSetConnectorError = shouldQuarantine || newConsecutiveFailures >= 3;
+
+    // 9. Update ingest log with result
     if (ingestLog) {
       await supabase
         .from("file_ingest_log")
@@ -346,38 +418,51 @@ Deno.serve(async (req) => {
           status: processingError ? "error" : "success",
           rows: processedRows,
           error: processingError,
+          consecutive_failures: newConsecutiveFailures,
+          quarantined: shouldQuarantine,
+          quarantine_reason: shouldQuarantine ? `Schema error: ${processingError}` : null,
         })
         .eq("id", ingestLog.id);
     }
 
-    // 9. Update connector with processing result
+    // 10. Update connector with processing result
     const processedAt = new Date().toISOString();
     const isFirstSuccessfulIngest = !connector.locked_account_guid && !processingError;
     
     const connectorUpdate: Record<string, unknown> = {
-      last_processed_at: processingError ? connector.last_processed_at : processedAt,
-      last_error: processingError,
       updated_at: processedAt,
     };
+
+    // Only update last_processed_at on success
+    if (!processingError) {
+      connectorUpdate.last_processed_at = processedAt;
+      connectorUpdate.last_error = null;
+    }
 
     // Lock account GUID on first successful ingest
     if (isFirstSuccessfulIngest) {
       connectorUpdate.locked_account_guid = account_guid;
       connectorUpdate.status = "receiving_data";
       console.log(`[bulk-ingest-jane] First successful ingest - locking account_guid: ${account_guid}`);
-    } else if (processingError) {
+    } else if (shouldSetConnectorError) {
+      // Only set connector to error for severe/repeated failures
       connectorUpdate.status = "error";
-    } else {
+      connectorUpdate.last_error = shouldQuarantine 
+        ? `Schema mismatch on ${resource}: ${processingError}`
+        : `${resource} failed ${newConsecutiveFailures} times: ${processingError}`;
+      console.log(`[bulk-ingest-jane] Setting connector to error: ${connectorUpdate.last_error}`);
+    } else if (!processingError) {
       // Successful subsequent ingest
       connectorUpdate.status = "receiving_data";
     }
+    // Note: Single resource failure does NOT set connector to error (soft-failure)
 
     await supabase
       .from("bulk_analytics_connectors")
       .update(connectorUpdate)
       .eq("id", connector_id);
 
-    console.log(`[bulk-ingest-jane] Ingestion complete. Status: ${processingError ? "error" : "success"}`);
+    console.log(`[bulk-ingest-jane] Ingestion complete. Status: ${processingError ? "error" : "success"}, Consecutive failures: ${newConsecutiveFailures}`);
 
     return new Response(
       JSON.stringify({
@@ -390,6 +475,9 @@ Deno.serve(async (req) => {
         received_at: receivedAt,
         processed_at: processedAt,
         first_ingest: isFirstSuccessfulIngest,
+        consecutive_failures: newConsecutiveFailures,
+        quarantined: shouldQuarantine,
+        connector_status_changed: shouldSetConnectorError,
         error: processingError,
       }),
       { 

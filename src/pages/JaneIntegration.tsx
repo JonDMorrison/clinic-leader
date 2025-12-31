@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import {
   FileSpreadsheet,
   CheckCircle2,
@@ -24,7 +24,19 @@ import {
   Upload,
   Circle,
   ExternalLink,
+  Copy,
+  Server,
+  Activity,
+  FileText,
 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type ConnectionStatus = 
   | "not_connected" 
@@ -42,6 +54,7 @@ export default function JaneIntegration() {
   
   const [clinicUrl, setClinicUrl] = useState("");
   const [urlError, setUrlError] = useState("");
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Check for existing bulk analytics connector for Jane
   const { data: connector, isLoading } = useQuery({
@@ -61,6 +74,66 @@ export default function JaneIntegration() {
     },
     enabled: !!orgId,
   });
+
+  // Fetch recent file ingest logs for proof of connection
+  const { data: recentIngests } = useQuery({
+    queryKey: ["jane-ingest-logs", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const { data, error } = await supabase
+        .from("file_ingest_log")
+        .select("*")
+        .eq("organization_id", orgId)
+        .eq("source_system", "jane")
+        .gte("created_at", sevenDaysAgo.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orgId && !!connector,
+  });
+
+  // Calculate ingestion health metrics
+  const getIngestionHealth = () => {
+    if (!recentIngests || recentIngests.length === 0) {
+      return {
+        lastRunTime: null,
+        lastSuccessTime: null,
+        consecutiveFailures: 0,
+        statusMessage: "No ingestion runs yet",
+      };
+    }
+
+    const lastRun = recentIngests[0];
+    const lastSuccess = recentIngests.find(log => log.status === "success");
+    const consecutiveFailures = recentIngests.findIndex(log => log.status === "success");
+
+    let statusMessage = "";
+    if (lastRun.status === "success") {
+      statusMessage = "Last run completed successfully. Data is flowing daily.";
+    } else if (consecutiveFailures >= 3) {
+      statusMessage = "Multiple consecutive failures detected. Our team has been notified.";
+    } else if (consecutiveFailures > 0) {
+      statusMessage = "Last run failed. We are retrying automatically.";
+    } else {
+      statusMessage = "Ingestion is running normally.";
+    }
+
+    return {
+      lastRunTime: lastRun.created_at,
+      lastSuccessTime: lastSuccess?.created_at || null,
+      consecutiveFailures: consecutiveFailures === -1 ? recentIngests.length : consecutiveFailures,
+      statusMessage,
+    };
+  };
+
+  const ingestionHealth = getIngestionHealth();
 
   // Evidence-based connection status - only green when data has actually arrived
   const getConnectionStatus = (): ConnectionStatus => {
@@ -112,6 +185,14 @@ export default function JaneIntegration() {
     return cleaned;
   };
 
+  // Copy to clipboard helper
+  const copyToClipboard = async (text: string, fieldName: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
+    toast.success("Copied to clipboard");
+  };
+
   // Request connection mutation
   const requestConnection = useMutation({
     mutationFn: async () => {
@@ -140,7 +221,7 @@ export default function JaneIntegration() {
     },
     onSuccess: () => {
       toast.success("Request received", {
-        description: "We'll coordinate setup and notify you when data begins flowing.",
+        description: "We'll guide the next step and confirm when data is flowing.",
       });
       queryClient.invalidateQueries({ queryKey: ["jane-bulk-connector"] });
     },
@@ -206,11 +287,39 @@ export default function JaneIntegration() {
     const hasProcessed = !!connector?.last_processed_at;
 
     return [
-      { label: "Connection requested", checked: hasConnector },
-      { label: "Clinic identifier confirmed", checked: hasClinicId },
-      { label: "Delivery method confirmed", checked: isPastRequested },
-      { label: "First file received", checked: hasReceived },
+      { label: "Request submitted", checked: hasConnector },
+      { label: "Jane export configured", checked: isPastRequested, inProgress: hasConnector && !isPastRequested },
+      { label: "Awaiting first delivery", checked: hasReceived, inProgress: isPastRequested && !hasReceived },
+      { label: "Receiving data", checked: hasProcessed },
       { label: "Metrics visible in scorecard", checked: hasProcessed },
+    ];
+  };
+
+  // S3 configuration fields - shown based on delivery mode
+  const getS3ConfigFields = () => {
+    const isPartnerManaged = connector?.delivery_mode === "partner_managed";
+    
+    return [
+      { 
+        label: "S3 Bucket", 
+        value: connector?.s3_bucket || "Pending configuration", 
+        pending: !connector?.s3_bucket 
+      },
+      { 
+        label: "S3 Region", 
+        value: connector?.s3_region || "Pending configuration", 
+        pending: !connector?.s3_region 
+      },
+      { 
+        label: "IAM Role ARN", 
+        value: connector?.s3_role_arn || "Pending configuration", 
+        pending: !connector?.s3_role_arn 
+      },
+      { 
+        label: "External ID", 
+        value: connector?.s3_external_id || "Pending configuration", 
+        pending: !connector?.s3_external_id 
+      },
     ];
   };
 
@@ -221,6 +330,9 @@ export default function JaneIntegration() {
       </div>
     );
   }
+
+  const showSetupInstructions = connector && connectionStatus !== "receiving_data";
+  const showConnectionProof = connectionStatus === "receiving_data";
 
   return (
     <div className="container mx-auto py-8 space-y-8 max-w-3xl">
@@ -333,10 +445,12 @@ export default function JaneIntegration() {
                     <div key={index} className="flex items-center gap-2">
                       {item.checked ? (
                         <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      ) : item.inProgress ? (
+                        <Clock className="w-4 h-4 text-amber-500" />
                       ) : (
                         <Circle className="w-4 h-4 text-muted-foreground" />
                       )}
-                      <span className={item.checked ? "text-foreground" : "text-muted-foreground"}>
+                      <span className={item.checked ? "text-foreground" : item.inProgress ? "text-amber-700" : "text-muted-foreground"}>
                         {item.label}
                       </span>
                     </div>
@@ -411,7 +525,9 @@ export default function JaneIntegration() {
                     <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
                     <div>
                       <p className="font-medium text-red-800">Attention needed</p>
-                      <p className="text-sm text-red-700 mt-1">{connector.last_error}</p>
+                      <p className="text-sm text-red-700 mt-1">
+                        We could not process the latest file. Our team has been notified.
+                      </p>
                       <p className="text-xs text-red-600 mt-2">
                         Contact your ClinicLeader team for assistance.
                       </p>
@@ -438,6 +554,221 @@ export default function JaneIntegration() {
           )}
         </CardContent>
       </Card>
+
+      {/* CONNECTION PROOF PANEL - Only shown when receiving_data */}
+      {showConnectionProof && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-green-600" />
+              Jane Data Connection Details
+            </CardTitle>
+            <CardDescription>
+              Proof that this data belongs to your Jane account
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Connection Details Grid */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-1">Jane Clinic Identifier</p>
+                <p className="font-mono font-medium">{connector?.clinic_identifier || "—"}</p>
+              </div>
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-1">Locked Jane Account GUID</p>
+                <p className="font-mono font-medium text-sm">{connector?.locked_account_guid || "—"}</p>
+              </div>
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-1">First Data Received</p>
+                <p className="font-medium">
+                  {connector?.last_received_at 
+                    ? format(new Date(connector.last_received_at), "MMM d, yyyy")
+                    : "—"}
+                </p>
+              </div>
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-1">Last Data Processed</p>
+                <p className="font-medium">
+                  {connector?.last_processed_at 
+                    ? format(new Date(connector.last_processed_at), "MMM d, yyyy 'at' h:mm a")
+                    : "—"}
+                </p>
+              </div>
+            </div>
+
+            {/* Recent Data Deliveries Table */}
+            {recentIngests && recentIngests.length > 0 && (
+              <div>
+                <p className="font-medium mb-3 flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Recent Data Deliveries
+                </p>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Resource</TableHead>
+                        <TableHead className="text-right">Rows</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {recentIngests.slice(0, 7).map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="font-medium">
+                            {log.file_date 
+                              ? format(new Date(log.file_date), "MMM d")
+                              : format(new Date(log.created_at), "MMM d")}
+                          </TableCell>
+                          <TableCell className="capitalize">{log.resource_name || "—"}</TableCell>
+                          <TableCell className="text-right">{log.rows?.toLocaleString() || "—"}</TableCell>
+                          <TableCell>
+                            {log.status === "success" ? (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                Success
+                              </Badge>
+                            ) : log.status === "error" ? (
+                              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                                Failed
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                                Pending
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* SETUP INSTRUCTIONS - Shown until receiving_data */}
+      {showSetupInstructions && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Server className="w-5 h-5 text-primary" />
+              Complete Setup in Jane
+            </CardTitle>
+            <CardDescription>
+              Jane sends a daily file to a secure S3 location. Once enabled, ClinicLeader automatically imports the data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Step-by-step instructions */}
+            <div className="space-y-3">
+              <p className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Setup Steps</p>
+              <ol className="space-y-3 list-decimal list-inside">
+                <li className="text-sm">Log into Jane as the account owner</li>
+                <li className="text-sm">Go to <strong>Settings → Integrations → Data Warehouses</strong></li>
+                <li className="text-sm">Add a new data warehouse connection</li>
+                <li className="text-sm">Enter the configuration values below</li>
+                <li className="text-sm">Save and wait for the first delivery (runs overnight)</li>
+              </ol>
+              <p className="text-xs text-muted-foreground mt-2">
+                Note: The first delivery includes historical data and may take longer to appear.
+              </p>
+            </div>
+
+            {/* S3 Configuration Fields */}
+            <div className="space-y-3">
+              <p className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Configuration Values</p>
+              <div className="space-y-2">
+                {getS3ConfigFields().map((field) => (
+                  <div 
+                    key={field.label}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      field.pending ? "bg-muted/50 border-dashed" : "bg-card"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-muted-foreground">{field.label}</p>
+                      <p className={`font-mono text-sm truncate ${field.pending ? "text-muted-foreground italic" : ""}`}>
+                        {field.value}
+                      </p>
+                    </div>
+                    {!field.pending && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(field.value, field.label)}
+                        className="ml-2 shrink-0"
+                      >
+                        {copiedField === field.label ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {getS3ConfigFields().some(f => f.pending) && (
+                <p className="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg">
+                  Configuration values will be provided by your ClinicLeader team once setup is coordinated.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* INGESTION HEALTH - Shown when connector exists */}
+      {connector && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="w-5 h-5 text-primary" />
+              Ingestion Health
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-1">Last Ingest Run</p>
+                <p className="font-medium">
+                  {ingestionHealth.lastRunTime 
+                    ? formatDistanceToNow(new Date(ingestionHealth.lastRunTime), { addSuffix: true })
+                    : "No runs yet"}
+                </p>
+              </div>
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-1">Last Successful Ingest</p>
+                <p className="font-medium">
+                  {ingestionHealth.lastSuccessTime 
+                    ? formatDistanceToNow(new Date(ingestionHealth.lastSuccessTime), { addSuffix: true })
+                    : "No successful runs yet"}
+                </p>
+              </div>
+            </div>
+            <div className={`mt-4 p-3 rounded-lg ${
+              ingestionHealth.consecutiveFailures >= 3 
+                ? "bg-red-50 border border-red-200" 
+                : ingestionHealth.consecutiveFailures > 0
+                ? "bg-amber-50 border border-amber-200"
+                : "bg-green-50 border border-green-200"
+            }`}>
+              <p className={`text-sm ${
+                ingestionHealth.consecutiveFailures >= 3 
+                  ? "text-red-700" 
+                  : ingestionHealth.consecutiveFailures > 0
+                  ? "text-amber-700"
+                  : "text-green-700"
+              }`}>
+                {ingestionHealth.statusMessage}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Manual Upload Fallback */}
       <Card className="border-dashed">

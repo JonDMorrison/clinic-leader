@@ -877,12 +877,15 @@ export type Database = {
         Row: {
           account_guid: string | null
           checksum: string
+          consecutive_failures: number | null
           created_at: string
           error: string | null
           file_date: string | null
           file_name: string
           id: string
           organization_id: string | null
+          quarantine_reason: string | null
+          quarantined: boolean | null
           resource_name: string | null
           rows: number
           s3_bucket: string | null
@@ -893,12 +896,15 @@ export type Database = {
         Insert: {
           account_guid?: string | null
           checksum: string
+          consecutive_failures?: number | null
           created_at?: string
           error?: string | null
           file_date?: string | null
           file_name: string
           id?: string
           organization_id?: string | null
+          quarantine_reason?: string | null
+          quarantined?: boolean | null
           resource_name?: string | null
           rows?: number
           s3_bucket?: string | null
@@ -909,12 +915,15 @@ export type Database = {
         Update: {
           account_guid?: string | null
           checksum?: string
+          consecutive_failures?: number | null
           created_at?: string
           error?: string | null
           file_date?: string | null
           file_name?: string
           id?: string
           organization_id?: string | null
+          quarantine_reason?: string | null
+          quarantined?: boolean | null
           resource_name?: string | null
           rows?: number
           s3_bucket?: string | null
