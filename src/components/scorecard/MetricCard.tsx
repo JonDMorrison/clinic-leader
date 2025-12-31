@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 import { LinkedRocksBadges } from "./LinkedRocksBadges";
+import { SourceBadge, LastUpdatedText } from "./SourceBadge";
 
 interface MetricData {
   id: string;
@@ -21,15 +22,20 @@ interface MetricData {
   target: number | null;
   direction: string;
   sync_source: string;
+  cadence: string;
   owner_name: string | null;
   current_value: number | null;
   last_8_weeks: (number | null)[];
   is_favorite?: boolean;
+  // Provenance fields
+  latest_result_source: string | null;
+  latest_result_updated_at: string | null;
 }
 
 interface MetricCardProps {
   metric: MetricData;
   onClick: () => void;
+  janeLastSync?: string | null;
 }
 
 const getPerformanceColor = (
@@ -66,7 +72,7 @@ const getColorClasses = (color: "green" | "amber" | "red" | "gray") => {
   }
 };
 
-export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
+export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -166,12 +172,16 @@ export const MetricCard = ({ metric, onClick }: MetricCardProps) => {
                 <VTOGoalBadge linkType="kpi" linkId={metric.id} />
               </div>
             </div>
-            <Badge 
-              variant={metric.sync_source === "jane" ? "brand" : "muted"}
-              className="text-xs shrink-0"
-            >
-              {metric.sync_source === "jane" ? "Jane" : "Manual"}
-            </Badge>
+            <div className="flex flex-col items-end gap-1">
+              <SourceBadge
+                source={metric.latest_result_source}
+                syncSource={metric.sync_source}
+                cadence={metric.cadence}
+                lastUpdated={metric.latest_result_updated_at}
+                janeLastSync={janeLastSync}
+              />
+              <LastUpdatedText lastUpdated={metric.latest_result_updated_at} />
+            </div>
           </div>
 
           {/* Target & Trend */}

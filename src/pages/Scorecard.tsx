@@ -154,7 +154,7 @@ const Scorecard = () => {
         return acc;
       }, {} as Record<string, any[]>) || {};
 
-      // Enrich metrics with computed data
+      // Enrich metrics with computed data including provenance
       return metrics?.map(metric => {
         const metricResults = resultsByMetric[metric.id] || [];
         const last8 = metricResults.slice(-8);
@@ -168,10 +168,14 @@ const Scorecard = () => {
           target: metric.target,
           direction: metric.direction,
           sync_source: metric.sync_source,
+          cadence: metric.cadence || "weekly",
           owner_name: metric.owner ? userMap[metric.owner] : null,
           current_value: current?.value || null,
           last_8_weeks: last8.map(r => r.value),
           is_favorite: metric.is_favorite || false,
+          // Provenance fields
+          latest_result_source: current?.source || null,
+          latest_result_updated_at: current?.created_at || null,
         };
       }) || [];
     },
@@ -211,6 +215,35 @@ const Scorecard = () => {
       return data;
     },
     enabled: !!currentUser?.team_id,
+  });
+
+  // Fetch last successful Jane sync for data provenance display
+  const { data: janeLastSync } = useQuery({
+    queryKey: ["jane-last-sync", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return null;
+      
+      // Get integration ID first
+      const { data: integration } = await supabase
+        .from("jane_integrations")
+        .select("id")
+        .eq("organization_id", currentUser.team_id)
+        .maybeSingle();
+        
+      if (!integration) return null;
+
+      const { data } = await supabase
+        .from("jane_sync_logs")
+        .select("completed_at")
+        .eq("integration_id", integration.id)
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return data?.completed_at || null;
+    },
+    enabled: !!janeIntegration,
   });
 
   // Check if org has an active VTO for the "Create from VTO" button
@@ -571,6 +604,7 @@ const Scorecard = () => {
                       metric={metric}
                       onClick={() => setSelectedMetricId(metric.id)}
                       onDelete={handleDeleteMetric}
+                      janeLastSync={janeLastSync}
                     />
                   ))}
                 </div>
@@ -622,7 +656,7 @@ const Scorecard = () => {
 };
 
 // Sortable wrapper for MetricCard with delete functionality
-function SortableMetricCard({ metric, onClick, onDelete }: { metric: any; onClick: () => void; onDelete: (id: string) => void }) {
+function SortableMetricCard({ metric, onClick, onDelete, janeLastSync }: { metric: any; onClick: () => void; onDelete: (id: string) => void; janeLastSync?: string | null }) {
   const {
     attributes,
     listeners,
@@ -663,7 +697,7 @@ function SortableMetricCard({ metric, onClick, onDelete }: { metric: any; onClic
       >
         <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
       </button>
-      <MetricCard metric={metric} onClick={onClick} />
+      <MetricCard metric={metric} onClick={onClick} janeLastSync={janeLastSync} />
     </div>
   );
 }
