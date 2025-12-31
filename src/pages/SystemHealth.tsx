@@ -3,6 +3,7 @@ import { OnboardingFlowCard } from "@/components/tests/OnboardingFlowCard";
 import { KpiIntegrityCard } from "@/components/tests/KpiIntegrityCard";
 import { DocsIntegrityCard } from "@/components/tests/DocsIntegrityCard";
 import { RocksFlowCard } from "@/components/tests/RocksFlowCard";
+import { DataSourcesCard } from "@/components/tests/DataSourcesCard";
 
 const SystemHealth = () => {
   return (
@@ -15,6 +16,9 @@ const SystemHealth = () => {
           Monitor your application's health and test critical workflows
         </p>
       </div>
+
+      {/* Data Sources - prominent at top */}
+      <DataSourcesCard />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SystemHealthCard />
