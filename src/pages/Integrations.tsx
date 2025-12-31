@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Cloud, ArrowRight, Clock, CheckCircle2, Zap, Database, CreditCard } from "lucide-react";
+import { Cloud, ArrowRight, Clock, CheckCircle2, Zap, Database, CreditCard, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HelpHint } from "@/components/help/HelpHint";
 
@@ -13,12 +13,27 @@ interface Integration {
   description: string;
   icon: React.ReactNode;
   status: "available" | "coming-soon" | "connected";
-  category: "Practice Management" | "Payments" | "Communication" | "Analytics";
+  category: "Practice Management" | "Payments" | "Communication" | "Analytics" | "Bulk Analytics";
   path?: string;
   features: string[];
 }
 
 const integrations: Integration[] = [
+  {
+    id: "bulk-analytics",
+    name: "Bulk Analytics Connector",
+    description: "Schema-driven, scheduled ingestion from practice management exports",
+    icon: <FileSpreadsheet className="w-8 h-8" />,
+    status: "available",
+    category: "Bulk Analytics",
+    path: "/settings/integrations/bulk-analytics",
+    features: [
+      "Read-only scheduled ingestion",
+      "Schema-driven validation",
+      "Supports Jane, AdvancedMD, and more",
+      "No API credentials required",
+    ],
+  },
   {
     id: "jane",
     name: "Jane App",
@@ -78,7 +93,7 @@ const integrations: Integration[] = [
   },
 ];
 
-const categories = ["All", "Practice Management", "Payments", "Communication", "Analytics"] as const;
+const categories = ["All", "Bulk Analytics", "Practice Management", "Payments", "Communication", "Analytics"] as const;
 
 export default function Integrations() {
   const navigate = useNavigate();

@@ -200,3 +200,6 @@ verify_jwt = true
 
 [functions.rebuild-sop-sections]
 verify_jwt = false
+
+[functions.bulk-ingest-analytics]
+verify_jwt = false

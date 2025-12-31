@@ -338,6 +338,62 @@ export type Database = {
           },
         ]
       }
+      bulk_analytics_connectors: {
+        Row: {
+          cadence: Database["public"]["Enums"]["bulk_cadence"]
+          connector_type: string
+          created_at: string
+          delivery_method: Database["public"]["Enums"]["bulk_delivery_method"]
+          expected_schema_version: string
+          id: string
+          last_error: string | null
+          last_processed_at: string | null
+          last_received_at: string | null
+          organization_id: string
+          source_system: Database["public"]["Enums"]["bulk_source_system"]
+          status: Database["public"]["Enums"]["bulk_connector_status"]
+          updated_at: string
+        }
+        Insert: {
+          cadence?: Database["public"]["Enums"]["bulk_cadence"]
+          connector_type?: string
+          created_at?: string
+          delivery_method?: Database["public"]["Enums"]["bulk_delivery_method"]
+          expected_schema_version?: string
+          id?: string
+          last_error?: string | null
+          last_processed_at?: string | null
+          last_received_at?: string | null
+          organization_id: string
+          source_system: Database["public"]["Enums"]["bulk_source_system"]
+          status?: Database["public"]["Enums"]["bulk_connector_status"]
+          updated_at?: string
+        }
+        Update: {
+          cadence?: Database["public"]["Enums"]["bulk_cadence"]
+          connector_type?: string
+          created_at?: string
+          delivery_method?: Database["public"]["Enums"]["bulk_delivery_method"]
+          expected_schema_version?: string
+          id?: string
+          last_error?: string | null
+          last_processed_at?: string | null
+          last_received_at?: string | null
+          organization_id?: string
+          source_system?: Database["public"]["Enums"]["bulk_source_system"]
+          status?: Database["public"]["Enums"]["bulk_connector_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulk_analytics_connectors_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clarity_activity: {
         Row: {
           action: string
@@ -3909,6 +3965,10 @@ export type Database = {
       ar_bucket: "30-60" | "60-90" | "90-120" | "120+"
       assessment_status: "draft" | "pending_review" | "completed"
       assessment_type: "manager" | "self" | "peer"
+      bulk_cadence: "daily" | "monthly"
+      bulk_connector_status: "active" | "paused" | "error"
+      bulk_delivery_method: "s3" | "secure_upload" | "manual_drop"
+      bulk_source_system: "jane" | "advancedmd" | "other"
       doc_kind: "SOP" | "Policy" | "Handbook" | "Training"
       doc_status: "draft" | "approved" | "archived"
       gwc_rating: "+" | "±" | "-"
@@ -4067,6 +4127,10 @@ export const Constants = {
       ar_bucket: ["30-60", "60-90", "90-120", "120+"],
       assessment_status: ["draft", "pending_review", "completed"],
       assessment_type: ["manager", "self", "peer"],
+      bulk_cadence: ["daily", "monthly"],
+      bulk_connector_status: ["active", "paused", "error"],
+      bulk_delivery_method: ["s3", "secure_upload", "manual_drop"],
+      bulk_source_system: ["jane", "advancedmd", "other"],
       doc_kind: ["SOP", "Policy", "Handbook", "Training"],
       doc_status: ["draft", "approved", "archived"],
       gwc_rating: ["+", "±", "-"],
