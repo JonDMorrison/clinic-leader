@@ -79,6 +79,13 @@ export function useSetupProgress() {
 
       const items: SetupChecklistItem[] = [
         {
+          id: "jane-integration",
+          label: "Connect Your Data Pipeline",
+          completed: janeIntegration?.status === "active",
+          route: "/data",
+          description: "Automate your scorecard with Jane — saves 2+ hours/week",
+        },
+        {
           id: "org-profile",
           label: "Organization Profile",
           completed: !!teamData,
@@ -133,13 +140,6 @@ export function useSetupProgress() {
           completed: docsCount > 0,
           route: "/docs",
           description: "Upload SOPs, policies, or training materials",
-        },
-        {
-          id: "jane-integration",
-          label: "Jane Integration (Optional)",
-          completed: janeIntegration?.status === "active",
-          route: "/integrations/jane",
-          description: "Connect Jane App for automatic data sync",
         },
       ];
 

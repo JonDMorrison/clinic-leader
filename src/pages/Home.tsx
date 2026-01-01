@@ -18,6 +18,8 @@ import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidge
 import { CoreValuesStrip, CoreValueOfWeekCard } from "@/components/core-values";
 import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 import { FocusWidget } from "@/components/dashboard/FocusWidget";
+import { AutomationHealthWidget } from "@/components/dashboard/AutomationHealthWidget";
+import { ConnectDataCard } from "@/components/dashboard/ConnectDataCard";
 
 const Home = () => {
   const ref = useRef(null);
@@ -236,6 +238,9 @@ const Home = () => {
       {/* Core Values Strip */}
       <CoreValuesStrip />
 
+      {/* Connect Data Card - shows when Jane not connected */}
+      <ConnectDataCard />
+
       {/* Getting Started Widget */}
       <GettingStartedWidget />
 
@@ -389,6 +394,8 @@ const Home = () => {
         <QuickActions />
         
         <CopilotWidget />
+        
+        <AutomationHealthWidget organizationId={currentUser?.team_id} />
         
         <MonthlyPulseWidget />
 
