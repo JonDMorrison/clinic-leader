@@ -20,33 +20,18 @@ interface Integration {
 
 const integrations: Integration[] = [
   {
-    id: "bulk-analytics",
-    name: "Bulk Analytics Connector",
-    description: "Schema-driven, scheduled ingestion from practice management exports",
-    icon: <FileSpreadsheet className="w-8 h-8" />,
-    status: "available",
-    category: "Bulk Analytics",
-    path: "/settings/integrations/bulk-analytics",
-    features: [
-      "Read-only scheduled ingestion",
-      "Schema-driven validation",
-      "Supports Jane, AdvancedMD, and more",
-      "No API credentials required",
-    ],
-  },
-  {
     id: "jane",
     name: "Jane App",
-    description: "Sync patients, appointments, and financial data directly from Jane App",
+    description: "Connect your Jane clinic to automatically update your scorecards with daily data",
     icon: <Cloud className="w-8 h-8" />,
     status: "available",
     category: "Practice Management",
     path: "/settings/integrations/jane",
     features: [
-      "Automatic daily sync",
-      "Patient & appointment data",
-      "Financial metrics",
-      "No PHI stored",
+      "Automatic daily data delivery",
+      "No credentials or login required",
+      "Appointment & financial metrics",
+      "Guided setup wizard",
     ],
   },
   {
@@ -93,7 +78,7 @@ const integrations: Integration[] = [
   },
 ];
 
-const categories = ["All", "Bulk Analytics", "Practice Management", "Payments", "Communication", "Analytics"] as const;
+const categories = ["All", "Practice Management", "Payments", "Communication", "Analytics"] as const;
 
 export default function Integrations() {
   const navigate = useNavigate();
