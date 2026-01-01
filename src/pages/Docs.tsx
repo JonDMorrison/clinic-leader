@@ -104,7 +104,7 @@ const Docs = () => {
   // Use custom hook that properly handles impersonation
   const { data: currentUser } = useCurrentUser();
 
-  const { data: docs, refetch: refetchDocs } = useQuery({
+  const { data: docs, refetch: refetchDocs, isLoading: isLoadingDocs } = useQuery({
     queryKey: ["docs"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -477,7 +477,12 @@ const Docs = () => {
                   </>
                 )}
               </div>
-              {filteredDocs.length === 0 ? (
+              {isLoadingDocs ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <span className="ml-3 text-muted-foreground">Loading documents...</span>
+                </div>
+              ) : filteredDocs.length === 0 ? (
                 <EmptyState
                   icon={<FileText className="w-12 h-12" />}
                   title="No documents found"
