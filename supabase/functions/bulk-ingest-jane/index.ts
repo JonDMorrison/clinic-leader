@@ -149,8 +149,9 @@ function generateChecksum(s3Key: string, fileDate: string): string {
 }
 
 // Count consecutive failures for a resource
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getConsecutiveFailures(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   orgId: string,
   resource: string
 ): Promise<number> {
