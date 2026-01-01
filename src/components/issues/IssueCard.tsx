@@ -2,12 +2,23 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, CheckCircle2, ListTodo, GripVertical, Link as LinkIcon, TrendingUp, Target, User } from "lucide-react";
+import { AlertCircle, CheckCircle2, ListTodo, GripVertical, Link as LinkIcon, TrendingUp, Target, User, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConvertToTodoModal } from "./ConvertToTodoModal";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // Get source type from issue
 const getSourceType = (issue: any): 'scorecard' | 'rock' | 'manual' => {
@@ -94,6 +105,29 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
       toast({
         title: "Success",
         description: "Issue reopened",
+      });
+      onUpdate();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const { error } = await supabase
+        .from("issues")
+        .delete()
+        .eq("id", issue.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Issue deleted",
+        description: "The issue has been permanently removed",
       });
       onUpdate();
     } catch (error: any) {
@@ -199,6 +233,27 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                       Reopen
                     </Button>
                   )}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Issue</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete "{issue.title}"? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </div>
