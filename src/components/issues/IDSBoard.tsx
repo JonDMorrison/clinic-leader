@@ -108,8 +108,11 @@ export const IDSBoard = ({ issues, onUpdate }: IDSBoardProps) => {
     }
   };
 
-  // Update local state when issues prop changes
-  if (JSON.stringify(items.map(i => i.id)) !== JSON.stringify(issues.map(i => i.id))) {
+  // Update local state when issues prop changes (compare full data, not just IDs)
+  const issuesKey = JSON.stringify(issues.map(i => ({ id: i.id, status: i.status, priority: i.priority })));
+  const itemsKey = JSON.stringify(items.map(i => ({ id: i.id, status: i.status, priority: i.priority })));
+  
+  if (issuesKey !== itemsKey) {
     setItems(issues);
   }
 
