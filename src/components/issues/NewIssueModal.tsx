@@ -55,7 +55,7 @@ export const NewIssueModal = ({ open, onClose, teams, users, onSuccess, organiza
         context: validated.context || null,
         priority: validated.priority,
         organization_id: effectiveOrgId, // MULTI-TENANCY: Always set org ID
-        owner_id: ownerId || null,
+        owner_id: ownerId && ownerId !== "_unassigned" ? ownerId : null,
         status: "open",
       });
 
@@ -149,7 +149,7 @@ export const NewIssueModal = ({ open, onClose, teams, users, onSuccess, organiza
                 <SelectValue placeholder="Select owner" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="_unassigned">Unassigned</SelectItem>
                 {users.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.full_name}

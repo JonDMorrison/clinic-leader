@@ -61,7 +61,7 @@ export const IssueModal = ({ open, onClose, prefillData, users, teamId, onSucces
         context: validated.context || null,
         priority: validated.priority,
         organization_id: teamId,
-        owner_id: ownerId || null,
+        owner_id: ownerId && ownerId !== "_unassigned" ? ownerId : null,
         status: "open",
       });
 
@@ -147,7 +147,7 @@ export const IssueModal = ({ open, onClose, prefillData, users, teamId, onSucces
                   <SelectValue placeholder="Select owner" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="_unassigned">Unassigned</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.full_name}
