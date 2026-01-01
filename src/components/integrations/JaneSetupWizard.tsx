@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,56 +41,127 @@ interface Connector {
   delivery_mode: string | null;
 }
 
+interface IngestLog {
+  id: string;
+  status: string;
+  created_at: string;
+  resource_name: string | null;
+  rows: number;
+  file_date: string | null;
+}
+
 interface JaneSetupWizardProps {
   connector: Connector | null;
   orgId: string;
-  recentIngests: Array<{
-    id: string;
-    status: string;
-    created_at: string;
-    resource_name: string | null;
-    rows: number;
-    file_date: string | null;
-  }>;
+  recentIngests: IngestLog[];
+}
+
+/**
+ * Evidence-driven wizard step derivation:
+ * - Step 1 incomplete if clinic_identifier missing
+ * - Step 2 complete if status in (requested, awaiting_jane_setup, awaiting_first_file, receiving_data)
+ * - Step 3 complete only if status in (awaiting_first_file, receiving_data) AND s3 fields present (or delivery_mode=clinic_owned)
+ * - Step 4 complete only if locked_account_guid exists AND last_processed_at exists AND success ingest exists
+ */
+function deriveWizardStepFromEvidence(
+  connector: Connector | null,
+  hasSuccessIngest: boolean
+): { currentStep: WizardStep; stepStatus: Record<WizardStep, 'complete' | 'current' | 'pending'> } {
+  if (!connector) {
+    return {
+      currentStep: 1,
+      stepStatus: { 1: 'current', 2: 'pending', 3: 'pending', 4: 'pending' }
+    };
+  }
+
+  // Step 1: clinic_identifier required
+  const step1Complete = !!connector.clinic_identifier;
+  
+  // Step 2: connector exists with valid status
+  const validStep2Statuses = ['requested', 'awaiting_jane_setup', 'awaiting_first_file', 'receiving_data', 'error'];
+  const step2Complete = step1Complete && validStep2Statuses.includes(connector.status);
+  
+  // Step 3: S3 config present (or clinic_owned mode)
+  const hasS3Config = !!(connector.s3_bucket && connector.s3_region && connector.s3_role_arn && connector.s3_external_id);
+  const isClinicOwned = connector.delivery_mode === 'clinic_owned';
+  const step3Statuses = ['awaiting_first_file', 'receiving_data', 'error'];
+  const step3Complete = step2Complete && step3Statuses.includes(connector.status) && (hasS3Config || isClinicOwned);
+  
+  // Step 4: Full verification - locked_account_guid + last_processed_at + success ingest
+  const step4Complete = step3Complete && 
+    !!connector.locked_account_guid && 
+    !!connector.last_processed_at && 
+    hasSuccessIngest;
+
+  // Determine current step
+  let currentStep: WizardStep = 1;
+  if (step4Complete) {
+    currentStep = 4;
+  } else if (step3Complete) {
+    currentStep = 4; // Show step 4 when waiting for verification
+  } else if (step2Complete) {
+    currentStep = 3;
+  } else if (step1Complete) {
+    currentStep = 2;
+  }
+
+  return {
+    currentStep,
+    stepStatus: {
+      1: step1Complete ? 'complete' : 'current',
+      2: step2Complete ? 'complete' : step1Complete ? 'current' : 'pending',
+      3: step3Complete ? 'complete' : step2Complete ? 'current' : 'pending',
+      4: step4Complete ? 'complete' : step3Complete ? 'current' : 'pending',
+    }
+  };
 }
 
 export default function JaneSetupWizard({ connector, orgId, recentIngests }: JaneSetupWizardProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
-  const [clinicUrl, setClinicUrl] = useState("");
+  const [clinicUrl, setClinicUrl] = useState(connector?.clinic_identifier || "");
   const [urlError, setUrlError] = useState("");
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [step3Error, setStep3Error] = useState("");
 
-  // Derive wizard step from connector state
-  const deriveWizardStep = (): WizardStep => {
-    if (!connector) return 1;
-    
-    const status = connector.status;
-    
-    // Step 4 complete: receiving data
-    if (connector.last_received_at && connector.last_processed_at) {
-      return 4;
-    }
-    
-    // Step 4: awaiting first file or error during verification
-    if (status === "awaiting_first_file" || status === "error") {
-      return 4;
-    }
-    
-    // Step 3: awaiting jane setup or has connector but no first file
-    if (status === "awaiting_jane_setup" || status === "requested") {
-      // If they clicked "I've completed this step" previously, they're on step 4
-      // Otherwise step 3
-      return 3;
-    }
-    
-    return 2;
-  };
+  // Check for recent jane_pipe metric_results (within 48h) - evidence for "Scorecards updating"
+  const { data: recentMetricUpdates } = useQuery({
+    queryKey: ["jane-metric-updates", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      
+      const { data, error } = await supabase
+        .from("metric_results")
+        .select("id, updated_at")
+        .eq("source", "jane_pipe")
+        .gte("updated_at", twoDaysAgo.toISOString())
+        .limit(1);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orgId,
+  });
 
-  const currentStep = deriveWizardStep();
-  const isComplete = connector?.last_received_at && connector?.last_processed_at;
+  // Evidence checks
+  const hasSuccessIngest = recentIngests.some(log => log.status === "success");
+  const hasScorecardsUpdating = (recentMetricUpdates?.length ?? 0) > 0;
+
+  // Derive step from evidence
+  const { currentStep, stepStatus } = deriveWizardStepFromEvidence(connector, hasSuccessIngest);
+  
+  // Full completion requires all evidence
+  const isComplete = stepStatus[4] === 'complete';
   const hasError = connector?.status === "error";
+
+  // S3 config validation
+  const hasS3Config = !!(connector?.s3_bucket && connector?.s3_region && connector?.s3_role_arn && connector?.s3_external_id);
+  const isClinicOwned = connector?.delivery_mode === 'clinic_owned';
+  const canAdvanceToStep4 = hasS3Config || isClinicOwned;
 
   // Validate clinic URL format
   const validateClinicUrl = (url: string): boolean => {
@@ -159,10 +230,15 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
     },
   });
 
-  // Step 3: Mark as awaiting first file
+  // Step 3: Mark as awaiting first file - ONLY if S3 config exists
   const markJaneSetupComplete = useMutation({
     mutationFn: async () => {
       if (!connector?.id) throw new Error("No connector");
+      
+      // Evidence check: require S3 config or clinic_owned mode
+      if (!canAdvanceToStep4) {
+        throw new Error("MISSING_CONFIG");
+      }
 
       const { error } = await supabase
         .from("bulk_analytics_connectors")
@@ -172,10 +248,18 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
       if (error) throw error;
     },
     onSuccess: () => {
+      setStep3Error("");
       toast.success("Great!", {
         description: "We're now waiting for the first delivery from Jane.",
       });
       queryClient.invalidateQueries({ queryKey: ["jane-bulk-connector"] });
+    },
+    onError: (error: Error) => {
+      if (error.message === "MISSING_CONFIG") {
+        setStep3Error("We still need the delivery details to continue. Please wait for configuration values to appear.");
+      } else {
+        toast.error(`Failed to update: ${error.message}`);
+      }
     },
   });
 
@@ -187,35 +271,38 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
     { label: "External ID", value: connector?.s3_external_id, pending: !connector?.s3_external_id },
   ];
 
-  // Progress indicator
+  // Progress indicator with evidence-based status
   const StepIndicator = () => (
     <div className="flex items-center justify-center gap-2 mb-6">
-      {[1, 2, 3, 4].map((step) => (
-        <div key={step} className="flex items-center">
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-              step < currentStep || isComplete
-                ? "bg-primary text-primary-foreground"
-                : step === currentStep
-                ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {step < currentStep || (step === 4 && isComplete) ? (
-              <CheckCircle2 className="w-4 h-4" />
-            ) : (
-              step
+      {([1, 2, 3, 4] as WizardStep[]).map((step) => {
+        const status = stepStatus[step];
+        return (
+          <div key={step} className="flex items-center">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                status === 'complete'
+                  ? "bg-primary text-primary-foreground"
+                  : status === 'current'
+                  ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {status === 'complete' ? (
+                <CheckCircle2 className="w-4 h-4" />
+              ) : (
+                step
+              )}
+            </div>
+            {step < 4 && (
+              <div
+                className={`w-8 h-0.5 mx-1 ${
+                  status === 'complete' ? "bg-primary" : "bg-muted"
+                }`}
+              />
             )}
           </div>
-          {step < 4 && (
-            <div
-              className={`w-8 h-0.5 mx-1 ${
-                step < currentStep ? "bg-primary" : "bg-muted"
-              }`}
-            />
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 
@@ -256,7 +343,7 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
             size="lg"
             onClick={() => {
               if (validateClinicUrl(clinicUrl)) {
-                // Just move to step 2, don't submit yet
+                // Move to step 2 by setting state
                 queryClient.setQueryData(["wizard-clinic-url"], clinicUrl);
               }
             }}
@@ -400,26 +487,40 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
             </div>
           </div>
 
-          <div className="flex justify-center">
+          {/* Error message if trying to advance without config */}
+          {step3Error && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-center">
+              <p className="text-sm text-destructive">{step3Error}</p>
+            </div>
+          )}
+
+          <div className="flex flex-col items-center gap-2">
             <Button
               size="lg"
               onClick={() => markJaneSetupComplete.mutate()}
-              disabled={markJaneSetupComplete.isPending}
+              disabled={markJaneSetupComplete.isPending || !canAdvanceToStep4}
+              className={!canAdvanceToStep4 ? "opacity-50 cursor-not-allowed" : ""}
             >
               {markJaneSetupComplete.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               I've completed this step
             </Button>
+            {!canAdvanceToStep4 && (
+              <p className="text-xs text-muted-foreground text-center max-w-sm">
+                Configuration values must be available before continuing.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
     );
   };
 
-  // STEP 4: Verify and Activate
+  // STEP 4: Verify and Activate - Evidence-driven indicators
   const Step4 = () => {
-    const hasFirstFile = !!connector?.last_received_at;
+    // Evidence-based indicators
+    const hasFirstFile = hasSuccessIngest; // Only true if success ingest exists
     const isVerified = !!connector?.locked_account_guid;
-    const isUpdatingScorecard = !!connector?.last_processed_at;
+    const isUpdatingScorecard = hasScorecardsUpdating;
 
     if (isComplete) {
       // Completion state
@@ -457,7 +558,7 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Live Status Indicators */}
+          {/* Live Status Indicators - Evidence-based */}
           <div className="space-y-3 max-w-md mx-auto">
             <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
               {hasFirstFile ? (
@@ -517,8 +618,8 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
                     We're retrying automatically. No action needed from you.
                   </p>
                   {connector?.last_error && (
-                    <p className="text-xs text-amber-600 mt-2">
-                      Our team has been notified and is looking into it.
+                    <p className="text-xs text-amber-600 mt-2 font-mono bg-amber-100 p-2 rounded">
+                      {connector.last_error}
                     </p>
                   )}
                 </div>
@@ -536,15 +637,7 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
     );
   };
 
-  // Determine which step to show
-  // If no connector, show step 1
-  // If connector exists but step is derived from state, show that step
-  const showStep1 = !connector && currentStep === 1;
-  const showStep2 = !connector && clinicUrl && currentStep >= 1;
-  const showStep3 = connector && currentStep === 3;
-  const showStep4 = connector && (currentStep === 4 || isComplete);
-
-  // Use a simpler approach: derive step from connector state
+  // Determine which step to render based on evidence
   const renderCurrentStep = () => {
     if (!connector) {
       // No connector yet - show step 1 or 2 based on clinicUrl
@@ -554,15 +647,16 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
       return <Step1 />;
     }
 
-    if (isComplete) {
+    // Derive from evidence
+    if (stepStatus[3] === 'complete' || stepStatus[4] === 'current' || stepStatus[4] === 'complete') {
       return <Step4 />;
     }
 
-    if (connector.status === "awaiting_first_file" || connector.status === "error") {
-      return <Step4 />;
+    if (stepStatus[2] === 'complete') {
+      return <Step3 />;
     }
 
-    // requested or awaiting_jane_setup
+    // Shouldn't happen but fallback
     return <Step3 />;
   };
 
