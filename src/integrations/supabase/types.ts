@@ -3088,13 +3088,18 @@ export type Database = {
           file_date: string
           id: string
           income_category: string | null
+          income_category_id: string | null
           invoice_guid: string | null
           invoiced_at: string | null
+          location_guid: string | null
           organization_id: string
           patient_guid: string | null
           payer_type: string | null
           purchasable_guid: string | null
+          purchasable_id: string | null
+          purchasable_type: string | null
           raw_row: Json | null
+          sale_map_coordinates: string | null
           staff_member_guid: string | null
           subtotal: number | null
           updated_at: string
@@ -3107,13 +3112,18 @@ export type Database = {
           file_date: string
           id?: string
           income_category?: string | null
+          income_category_id?: string | null
           invoice_guid?: string | null
           invoiced_at?: string | null
+          location_guid?: string | null
           organization_id: string
           patient_guid?: string | null
           payer_type?: string | null
           purchasable_guid?: string | null
+          purchasable_id?: string | null
+          purchasable_type?: string | null
           raw_row?: Json | null
+          sale_map_coordinates?: string | null
           staff_member_guid?: string | null
           subtotal?: number | null
           updated_at?: string
@@ -3126,13 +3136,18 @@ export type Database = {
           file_date?: string
           id?: string
           income_category?: string | null
+          income_category_id?: string | null
           invoice_guid?: string | null
           invoiced_at?: string | null
+          location_guid?: string | null
           organization_id?: string
           patient_guid?: string | null
           payer_type?: string | null
           purchasable_guid?: string | null
+          purchasable_id?: string | null
+          purchasable_type?: string | null
           raw_row?: Json | null
+          sale_map_coordinates?: string | null
           staff_member_guid?: string | null
           subtotal?: number | null
           updated_at?: string
@@ -3263,6 +3278,7 @@ export type Database = {
           created_at: string
           file_date: string
           id: string
+          jane_payments_partner: string | null
           location_guid: string | null
           organization_id: string
           patient_account_guid: string | null
@@ -3270,6 +3286,8 @@ export type Database = {
           payer_type: string | null
           payment_guid: string
           payment_method: string | null
+          payment_method_external: string | null
+          payment_method_internal: string | null
           payment_type: string | null
           raw_row: Json | null
           received_at: string | null
@@ -3284,6 +3302,7 @@ export type Database = {
           created_at?: string
           file_date: string
           id?: string
+          jane_payments_partner?: string | null
           location_guid?: string | null
           organization_id: string
           patient_account_guid?: string | null
@@ -3291,6 +3310,8 @@ export type Database = {
           payer_type?: string | null
           payment_guid: string
           payment_method?: string | null
+          payment_method_external?: string | null
+          payment_method_internal?: string | null
           payment_type?: string | null
           raw_row?: Json | null
           received_at?: string | null
@@ -3305,6 +3326,7 @@ export type Database = {
           created_at?: string
           file_date?: string
           id?: string
+          jane_payments_partner?: string | null
           location_guid?: string | null
           organization_id?: string
           patient_account_guid?: string | null
@@ -3312,6 +3334,8 @@ export type Database = {
           payer_type?: string | null
           payment_guid?: string
           payment_method?: string | null
+          payment_method_external?: string | null
+          payment_method_internal?: string | null
           payment_type?: string | null
           raw_row?: Json | null
           received_at?: string | null
