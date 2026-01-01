@@ -112,7 +112,7 @@ export const ConvertToIssueDialog = ({ open, onClose, alert, onSuccess }: Conver
           title: title.trim(),
           context: context.trim() || null,
           priority: parseInt(priority),
-          ownerId: ownerId || null,
+          ownerId: ownerId && ownerId !== "_unassigned" ? ownerId : null,
         },
       });
 
@@ -205,7 +205,7 @@ export const ConvertToIssueDialog = ({ open, onClose, alert, onSuccess }: Conver
                   <SelectValue placeholder="Assign to..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="_unassigned">Unassigned</SelectItem>
                   {users?.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.full_name}
