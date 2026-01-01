@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { format, formatDistanceToNow } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,8 @@ import {
   Pencil,
   Check,
   X,
+  AlertCircle,
+  Clock,
 } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,6 +70,26 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
   const [clinicUrl, setClinicUrl] = useState(connector.clinic_identifier || "");
   const [isSaving, setIsSaving] = useState(false);
 
+  // Check for recent jane_pipe metric_results (within 48h) - evidence for active updates
+  const { data: recentMetricUpdates } = useQuery({
+    queryKey: ["jane-metric-updates-summary", connector.organization_id],
+    queryFn: async () => {
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      
+      const { data, error } = await supabase
+        .from("metric_results")
+        .select("id, updated_at")
+        .eq("source", "jane_pipe")
+        .gte("updated_at", twoDaysAgo.toISOString())
+        .limit(1);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!connector.organization_id,
+  });
+
   const handleSaveClinicUrl = async () => {
     if (!clinicUrl.trim()) {
       toast.error("Please enter a valid clinic URL");
@@ -97,14 +120,20 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
     setIsEditingUrl(false);
   };
 
-  // Calculate ingestion health
+  // Evidence-based checks
+  const hasSuccessIngest = recentIngests.some(log => log.status === "success");
+  const hasScorecardsUpdating = (recentMetricUpdates?.length ?? 0) > 0;
+  const hasError = connector.status === "error";
+
+  // Calculate ingestion health with evidence
   const getIngestionHealth = () => {
     if (!recentIngests || recentIngests.length === 0) {
       return {
         lastRunTime: null,
         lastSuccessTime: null,
         consecutiveFailures: 0,
-        statusMessage: "No ingestion runs yet",
+        statusMessage: "Awaiting first delivery",
+        status: "waiting" as const,
       };
     }
 
@@ -113,14 +142,23 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
     const consecutiveFailures = recentIngests.findIndex(log => log.status === "success");
 
     let statusMessage = "";
-    if (lastRun.status === "success") {
+    let status: "healthy" | "warning" | "error" | "waiting" = "healthy";
+
+    if (!hasSuccessIngest) {
+      statusMessage = "Awaiting first successful delivery";
+      status = "waiting";
+    } else if (lastRun.status === "success") {
       statusMessage = "Last run completed successfully. Data is flowing daily.";
+      status = "healthy";
     } else if (consecutiveFailures >= 3) {
       statusMessage = "Multiple consecutive failures detected. Our team has been notified.";
+      status = "error";
     } else if (consecutiveFailures > 0) {
       statusMessage = "Last run failed. We are retrying automatically.";
+      status = "warning";
     } else {
       statusMessage = "Ingestion is running normally.";
+      status = "healthy";
     }
 
     return {
@@ -128,35 +166,121 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
       lastSuccessTime: lastSuccess?.created_at || null,
       consecutiveFailures: consecutiveFailures === -1 ? recentIngests.length : consecutiveFailures,
       statusMessage,
+      status,
     };
   };
 
   const ingestionHealth = getIngestionHealth();
 
-  // Find first delivery date from oldest successful ingest or connector created_at
+  // Find first delivery date from oldest successful ingest
   const getFirstDeliveryDate = () => {
     const successfulIngests = recentIngests.filter(log => log.status === "success");
     if (successfulIngests.length > 0) {
       const oldest = successfulIngests[successfulIngests.length - 1];
       return oldest.file_date || oldest.created_at;
     }
-    return connector.last_received_at;
+    return null; // Don't show if no success ingest
+  };
+
+  // Show error banner if connector has error
+  const ErrorBanner = () => {
+    if (!hasError || !connector.last_error) return null;
+    
+    return (
+      <Card className="border-destructive/50 bg-destructive/5">
+        <CardContent className="py-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+            <div>
+              <p className="font-medium text-destructive">Connection Error</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {connector.last_error}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                We're investigating and will retry automatically.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Show awaiting state if no success ingest exists
+  const AwaitingDeliveryBanner = () => {
+    if (hasSuccessIngest) return null;
+    
+    return (
+      <Card className="border-amber-200 bg-amber-50/50">
+        <CardContent className="py-4">
+          <div className="flex items-start gap-3">
+            <Clock className="w-5 h-5 text-amber-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-amber-800">Awaiting First Delivery</p>
+              <p className="text-sm text-amber-700 mt-1">
+                Your connection is configured. We're waiting for Jane to send the first data file.
+              </p>
+              <p className="text-xs text-amber-600 mt-2">
+                This usually happens within 24 hours of completing Jane setup.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
     <div className="space-y-6">
+      {/* Error Banner */}
+      <ErrorBanner />
+      
+      {/* Awaiting Banner */}
+      <AwaitingDeliveryBanner />
+
       {/* Connection Summary Card */}
-      <Card className="border-green-200 bg-green-50/30">
+      <Card className={hasSuccessIngest ? "border-green-200 bg-green-50/30" : "border-muted"}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-green-600" />
-            Jane Data Connection Active
+            <Shield className={`w-5 h-5 ${hasSuccessIngest ? "text-green-600" : "text-muted-foreground"}`} />
+            {hasSuccessIngest ? "Jane Data Connection Active" : "Jane Data Connection Pending"}
           </CardTitle>
           <CardDescription>
-            Your scorecards update automatically from Jane data.
+            {hasSuccessIngest 
+              ? "Your scorecards update automatically from Jane data."
+              : "Connection configured, awaiting first successful data delivery."
+            }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Evidence-based Status Indicators */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="flex items-center gap-2 p-3 rounded-lg border bg-card">
+              {hasSuccessIngest ? (
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              ) : (
+                <Clock className="w-4 h-4 text-muted-foreground" />
+              )}
+              <span className="text-sm">First file received</span>
+            </div>
+            <div className="flex items-center gap-2 p-3 rounded-lg border bg-card">
+              {connector.locked_account_guid ? (
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              ) : (
+                <Clock className="w-4 h-4 text-muted-foreground" />
+              )}
+              <span className="text-sm">Data verified</span>
+            </div>
+            <div className="flex items-center gap-2 p-3 rounded-lg border bg-card">
+              {hasScorecardsUpdating ? (
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              ) : (
+                <Clock className="w-4 h-4 text-muted-foreground" />
+              )}
+              <span className="text-sm">Scorecards updating</span>
+            </div>
+          </div>
+
           {/* Connection Details Grid */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="p-4 rounded-lg border bg-background">
@@ -207,7 +331,7 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
             <div className="p-4 rounded-lg border bg-background">
               <p className="text-sm text-muted-foreground mb-1">Verification ID</p>
               <p className="font-mono font-medium text-sm truncate" title="Unique identifier that confirms this data belongs to your clinic">
-                {connector.locked_account_guid || "—"}
+                {connector.locked_account_guid || "Pending verification"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Confirms data ownership</p>
             </div>
@@ -216,23 +340,15 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
               <p className="font-medium">
                 {getFirstDeliveryDate()
                   ? format(new Date(getFirstDeliveryDate()!), "MMM d, yyyy")
-                  : "—"}
+                  : "Awaiting first file"}
               </p>
             </div>
             <div className="p-4 rounded-lg border bg-background">
-              <p className="text-sm text-muted-foreground mb-1">Last Delivery</p>
-              <p className="font-medium">
-                {connector.last_received_at
-                  ? format(new Date(connector.last_received_at), "MMM d, yyyy")
-                  : "—"}
-              </p>
-            </div>
-            <div className="p-4 rounded-lg border bg-background md:col-span-2">
               <p className="text-sm text-muted-foreground mb-1">Last Processed</p>
               <p className="font-medium">
                 {connector.last_processed_at
                   ? format(new Date(connector.last_processed_at), "MMM d, yyyy 'at' h:mm a")
-                  : "—"}
+                  : "Not yet processed"}
               </p>
             </div>
           </div>
@@ -251,16 +367,16 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
         </CardContent>
       </Card>
 
-      {/* Recent Deliveries */}
-      {recentIngests && recentIngests.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <FileText className="w-5 h-5 text-primary" />
-              Recent Data Deliveries
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Recent Deliveries - Show last 7 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileText className="w-5 h-5 text-primary" />
+            Recent Data Deliveries
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentIngests && recentIngests.length > 0 ? (
             <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
@@ -301,9 +417,17 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="p-8 text-center border rounded-lg border-dashed">
+              <Clock className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground">No deliveries yet</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Data will appear here once Jane starts sending files.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Ingestion Health */}
       <Card>
@@ -333,17 +457,21 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
             </div>
           </div>
           <div className={`mt-4 p-3 rounded-lg ${
-            ingestionHealth.consecutiveFailures >= 3
+            ingestionHealth.status === "error"
               ? "bg-red-50 border border-red-200"
-              : ingestionHealth.consecutiveFailures > 0
+              : ingestionHealth.status === "warning"
               ? "bg-amber-50 border border-amber-200"
+              : ingestionHealth.status === "waiting"
+              ? "bg-muted border border-muted"
               : "bg-green-50 border border-green-200"
           }`}>
             <p className={`text-sm ${
-              ingestionHealth.consecutiveFailures >= 3
+              ingestionHealth.status === "error"
                 ? "text-red-700"
-                : ingestionHealth.consecutiveFailures > 0
+                : ingestionHealth.status === "warning"
                 ? "text-amber-700"
+                : ingestionHealth.status === "waiting"
+                ? "text-muted-foreground"
                 : "text-green-700"
             }`}>
               {ingestionHealth.statusMessage}
