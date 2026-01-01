@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import {
   CheckCircle2,
   Shield,
@@ -19,7 +20,13 @@ import {
   Activity,
   TrendingUp,
   Upload,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Connector {
   id: string;
@@ -56,6 +63,39 @@ interface JaneConnectionSummaryProps {
 
 export default function JaneConnectionSummary({ connector, recentIngests }: JaneConnectionSummaryProps) {
   const navigate = useNavigate();
+  const [isEditingUrl, setIsEditingUrl] = useState(false);
+  const [clinicUrl, setClinicUrl] = useState(connector.clinic_identifier || "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveClinicUrl = async () => {
+    if (!clinicUrl.trim()) {
+      toast.error("Please enter a valid clinic URL");
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("bulk_analytics_connectors")
+        .update({ clinic_identifier: clinicUrl.trim() })
+        .eq("id", connector.id);
+      
+      if (error) throw error;
+      
+      toast.success("Clinic URL updated");
+      setIsEditingUrl(false);
+    } catch (err) {
+      console.error("Failed to update clinic URL:", err);
+      toast.error("Failed to update clinic URL");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setClinicUrl(connector.clinic_identifier || "");
+    setIsEditingUrl(false);
+  };
 
   // Calculate ingestion health
   const getIngestionHealth = () => {
@@ -120,12 +160,56 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
           {/* Connection Details Grid */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="p-4 rounded-lg border bg-background">
-              <p className="text-sm text-muted-foreground mb-1">Jane Clinic URL</p>
-              <p className="font-mono font-medium">{connector.clinic_identifier || "—"}</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm text-muted-foreground">Jane Clinic URL</p>
+                {!isEditingUrl && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => setIsEditingUrl(true)}
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                  </Button>
+                )}
+              </div>
+              {isEditingUrl ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={clinicUrl}
+                    onChange={(e) => setClinicUrl(e.target.value)}
+                    placeholder="https://yourclinic.janeapp.com"
+                    className="h-8 font-mono text-sm"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={handleSaveClinicUrl}
+                    disabled={isSaving}
+                  >
+                    <Check className="w-4 h-4 text-green-600" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={handleCancelEdit}
+                    disabled={isSaving}
+                  >
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </Button>
+                </div>
+              ) : (
+                <p className="font-mono font-medium">{connector.clinic_identifier || "—"}</p>
+              )}
             </div>
             <div className="p-4 rounded-lg border bg-background">
-              <p className="text-sm text-muted-foreground mb-1">Locked Account GUID</p>
-              <p className="font-mono font-medium text-sm truncate">{connector.locked_account_guid || "—"}</p>
+              <p className="text-sm text-muted-foreground mb-1">Verification ID</p>
+              <p className="font-mono font-medium text-sm truncate" title="Unique identifier that confirms this data belongs to your clinic">
+                {connector.locked_account_guid || "—"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Confirms data ownership</p>
             </div>
             <div className="p-4 rounded-lg border bg-background">
               <p className="text-sm text-muted-foreground mb-1">First Delivery</p>
