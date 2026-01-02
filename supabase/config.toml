@@ -209,3 +209,6 @@ verify_jwt = false
 
 [functions.jane-kpi-rollup]
 verify_jwt = false
+
+[functions.jane-s3-webhook]
+verify_jwt = false

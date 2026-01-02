@@ -19,6 +19,7 @@ import {
   Server,
   Shield,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
 
 type WizardStep = 1 | 2 | 3 | 4;
@@ -56,11 +57,18 @@ interface JaneSetupWizardProps {
   recentIngests: IngestLog[];
 }
 
+// Partner-managed S3 configuration - pre-filled values
+const PARTNER_S3_CONFIG = {
+  bucket: "clinicleader-jane-ingest",
+  region: "us-west-2",
+  roleArn: "arn:aws:iam::YOUR_ACCOUNT:role/JaneDataPipeRole", // Will be replaced with actual ARN
+};
+
 /**
  * Evidence-driven wizard step derivation:
  * - Step 1 incomplete if clinic_identifier missing
  * - Step 2 complete if status in (requested, awaiting_jane_setup, awaiting_first_file, receiving_data)
- * - Step 3 complete only if status in (awaiting_first_file, receiving_data) AND s3 fields present (or delivery_mode=clinic_owned)
+ * - Step 3 complete if partner_managed OR s3 fields present
  * - Step 4 complete only if locked_account_guid exists AND last_processed_at exists AND success ingest exists
  */
 function deriveWizardStepFromEvidence(
@@ -81,11 +89,11 @@ function deriveWizardStepFromEvidence(
   const validStep2Statuses = ['requested', 'awaiting_jane_setup', 'awaiting_first_file', 'receiving_data', 'error'];
   const step2Complete = step1Complete && validStep2Statuses.includes(connector.status);
   
-  // Step 3: S3 config present (or clinic_owned mode)
-  const hasS3Config = !!(connector.s3_bucket && connector.s3_region && connector.s3_role_arn && connector.s3_external_id);
-  const isClinicOwned = connector.delivery_mode === 'clinic_owned';
+  // Step 3: Partner-managed mode OR S3 config present
+  const isPartnerManaged = connector.delivery_mode === 'partner_managed';
+  const hasS3Config = !!(connector.s3_bucket && connector.s3_region);
   const step3Statuses = ['awaiting_first_file', 'receiving_data', 'error'];
-  const step3Complete = step2Complete && step3Statuses.includes(connector.status) && (hasS3Config || isClinicOwned);
+  const step3Complete = step2Complete && step3Statuses.includes(connector.status) && (isPartnerManaged || hasS3Config);
   
   // Step 4: Full verification - locked_account_guid + last_processed_at + success ingest
   const step4Complete = step3Complete && 
@@ -123,7 +131,6 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
   const [clinicUrl, setClinicUrl] = useState(connector?.clinic_identifier || "");
   const [urlError, setUrlError] = useState("");
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [step3Error, setStep3Error] = useState("");
 
   // Check for recent jane_pipe metric_results (within 48h) - evidence for "Scorecards updating"
   const { data: recentMetricUpdates } = useQuery({
@@ -158,10 +165,9 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
   const isComplete = stepStatus[4] === 'complete';
   const hasError = connector?.status === "error";
 
-  // S3 config validation
-  const hasS3Config = !!(connector?.s3_bucket && connector?.s3_region && connector?.s3_role_arn && connector?.s3_external_id);
-  const isClinicOwned = connector?.delivery_mode === 'clinic_owned';
-  const canAdvanceToStep4 = hasS3Config || isClinicOwned;
+  // Generate external ID based on org ID
+  const externalId = `org_${orgId}`;
+  const s3Prefix = `org_${orgId}/`;
 
   // Validate clinic URL format
   const validateClinicUrl = (url: string): boolean => {
@@ -191,7 +197,7 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
     toast.success("Copied to clipboard");
   };
 
-  // Step 1 & 2: Request connection
+  // Step 1 & 2: Request connection with partner_managed mode
   const requestConnection = useMutation({
     mutationFn: async () => {
       if (!orgId) throw new Error("No organization");
@@ -207,9 +213,13 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
           connector_type: "bulk_analytics",
           status: "requested",
           cadence: "daily",
-          delivery_method: "manual_drop",
+          delivery_method: "s3",
+          delivery_mode: "partner_managed",
           expected_schema_version: "jane_v1",
           clinic_identifier: clinicIdentifier,
+          s3_bucket: PARTNER_S3_CONFIG.bucket,
+          s3_region: PARTNER_S3_CONFIG.region,
+          s3_external_id: `org_${orgId}`,
         })
         .select()
         .single();
@@ -219,7 +229,7 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
     },
     onSuccess: () => {
       toast.success("Request received", {
-        description: "Next, you'll enable data delivery inside Jane.",
+        description: "Next, you'll share these details with Jane.",
       });
       queryClient.invalidateQueries({ queryKey: ["jane-bulk-connector"] });
     },
@@ -230,15 +240,10 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
     },
   });
 
-  // Step 3: Mark as awaiting first file - ONLY if S3 config exists
+  // Step 3: Mark as awaiting first file
   const markJaneSetupComplete = useMutation({
     mutationFn: async () => {
       if (!connector?.id) throw new Error("No connector");
-      
-      // Evidence check: require S3 config or clinic_owned mode
-      if (!canAdvanceToStep4) {
-        throw new Error("MISSING_CONFIG");
-      }
 
       const { error } = await supabase
         .from("bulk_analytics_connectors")
@@ -248,27 +253,22 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
       if (error) throw error;
     },
     onSuccess: () => {
-      setStep3Error("");
       toast.success("Great!", {
         description: "We're now waiting for the first delivery from Jane.",
       });
       queryClient.invalidateQueries({ queryKey: ["jane-bulk-connector"] });
     },
     onError: (error: Error) => {
-      if (error.message === "MISSING_CONFIG") {
-        setStep3Error("We still need the delivery details to continue. Please wait for configuration values to appear.");
-      } else {
-        toast.error(`Failed to update: ${error.message}`);
-      }
+      toast.error(`Failed to update: ${error.message}`);
     },
   });
 
-  // S3 configuration fields
+  // Pre-filled S3 configuration fields for partner-managed mode
   const getS3ConfigFields = () => [
-    { label: "S3 Bucket", value: connector?.s3_bucket, pending: !connector?.s3_bucket },
-    { label: "S3 Region", value: connector?.s3_region, pending: !connector?.s3_region },
-    { label: "IAM Role ARN", value: connector?.s3_role_arn, pending: !connector?.s3_role_arn },
-    { label: "External ID", value: connector?.s3_external_id, pending: !connector?.s3_external_id },
+    { label: "S3 Bucket", value: PARTNER_S3_CONFIG.bucket, description: "ClinicLeader's data ingest bucket" },
+    { label: "S3 Region", value: PARTNER_S3_CONFIG.region, description: "AWS region" },
+    { label: "S3 Prefix", value: s3Prefix, description: "Your organization's folder" },
+    { label: "External ID", value: externalId, description: "Required for secure access" },
   ];
 
   // Progress indicator with evidence-based status
@@ -303,6 +303,23 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
           </div>
         );
       })}
+    </div>
+  );
+
+  // Pilot Status Banner
+  const PilotBanner = () => (
+    <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border border-primary/20">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-primary/20">
+          <Sparkles className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <p className="font-medium text-sm">Jane Partnership Pilot</p>
+          <p className="text-xs text-muted-foreground">
+            Simplified setup — no AWS expertise needed
+          </p>
+        </div>
+      </div>
     </div>
   );
 
@@ -343,7 +360,6 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
             size="lg"
             onClick={() => {
               if (validateClinicUrl(clinicUrl)) {
-                // Move to step 2 by setting state
                 queryClient.setQueryData(["wizard-clinic-url"], clinicUrl);
               }
             }}
@@ -381,6 +397,10 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
             <span className="font-medium">Jane</span>
           </div>
           <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Delivery</span>
+            <Badge variant="secondary" className="text-xs">Partner Managed</Badge>
+          </div>
+          <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Cadence</span>
             <span className="font-medium">Daily</span>
           </div>
@@ -396,17 +416,16 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
             Request connection
           </Button>
           <p className="text-xs text-muted-foreground text-center max-w-sm">
-            Request received. Next, you'll enable data delivery inside Jane.
+            We'll provide you with everything Jane needs to start sending data.
           </p>
         </div>
       </CardContent>
     </Card>
   );
 
-  // STEP 3: Enable Data Delivery in Jane
+  // STEP 3: Enable Data Delivery in Jane (Simplified for Partner-Managed)
   const Step3 = () => {
     const s3Fields = getS3ConfigFields();
-    const allFieldsPending = s3Fields.every(f => f.pending);
 
     return (
       <Card>
@@ -414,101 +433,85 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
           <div className="mx-auto mb-4 p-4 rounded-full bg-primary/10 w-fit">
             <Server className="w-8 h-8 text-primary" />
           </div>
-          <CardTitle className="text-xl">Enable data delivery in Jane</CardTitle>
+          <CardTitle className="text-xl">Share these details with Jane</CardTitle>
           <CardDescription>
-            This step happens inside your Jane account.
+            Send these values to your Jane account manager or support team.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Configuration Values */}
+          {/* Pre-filled Configuration Values */}
           <div className="space-y-3">
-            <p className="font-medium text-sm text-center">Configuration Values</p>
-            {allFieldsPending ? (
-              <div className="p-4 rounded-lg border border-dashed bg-muted/30 text-center">
-                <Clock className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Waiting for setup details. We'll update this automatically.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {s3Fields.map((field) => (
-                  <div
-                    key={field.label}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${
-                      field.pending ? "bg-muted/50 border-dashed" : "bg-card"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-muted-foreground">{field.label}</p>
-                      <p className={`font-mono text-sm truncate ${field.pending ? "text-muted-foreground italic" : ""}`}>
-                        {field.value || "Pending configuration"}
-                      </p>
-                    </div>
-                    {!field.pending && field.value && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(field.value!, field.label)}
-                        className="ml-2 shrink-0"
-                      >
-                        {copiedField === field.label ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-600" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </Button>
-                    )}
+            <p className="font-medium text-sm text-center">Copy these values for Jane</p>
+            <div className="space-y-2">
+              {s3Fields.map((field) => (
+                <div
+                  key={field.label}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-muted-foreground">{field.label}</p>
+                    <p className="font-mono text-sm truncate">{field.value}</p>
                   </div>
-                ))}
-              </div>
-            )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(field.value, field.label)}
+                    className="ml-2 shrink-0"
+                  >
+                    {copiedField === field.label ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Setup Instructions */}
+          {/* Copy All Button */}
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const allValues = s3Fields.map(f => `${f.label}: ${f.value}`).join('\n');
+                copyToClipboard(allValues, "all");
+                toast.success("All values copied!");
+              }}
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copy all values
+            </Button>
+          </div>
+
+          {/* Instructions */}
           <div className="p-4 rounded-lg bg-muted/30 space-y-3">
-            <ol className="space-y-2 text-sm list-decimal list-inside">
-              <li>Log into Jane as the account owner</li>
-              <li>Go to <strong>Settings → Integrations → Data Warehouses</strong></li>
-              <li>Add a new data warehouse connection</li>
-              <li>Paste the values shown above</li>
-              <li>Save and wait for the first delivery</li>
+            <p className="font-medium text-sm">What to tell Jane:</p>
+            <ol className="space-y-2 text-sm list-decimal list-inside text-muted-foreground">
+              <li>Contact your Jane account manager or support</li>
+              <li>Request access to the Data Warehouse feature</li>
+              <li>Share the S3 configuration values above</li>
+              <li>Jane will confirm when data delivery is enabled</li>
             </ol>
-            <p className="text-xs text-muted-foreground">
-              The first delivery includes historical data and may take longer to appear.
-            </p>
           </div>
 
           {/* Status Message */}
           <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-center">
             <div className="flex items-center justify-center gap-2 text-amber-700">
               <Clock className="w-4 h-4" />
-              <span className="text-sm font-medium">Waiting for first delivery from Jane</span>
+              <span className="text-sm font-medium">Waiting for Jane to enable data delivery</span>
             </div>
           </div>
-
-          {/* Error message if trying to advance without config */}
-          {step3Error && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-center">
-              <p className="text-sm text-destructive">{step3Error}</p>
-            </div>
-          )}
 
           <div className="flex flex-col items-center gap-2">
             <Button
               size="lg"
               onClick={() => markJaneSetupComplete.mutate()}
-              disabled={markJaneSetupComplete.isPending || !canAdvanceToStep4}
-              className={!canAdvanceToStep4 ? "opacity-50 cursor-not-allowed" : ""}
+              disabled={markJaneSetupComplete.isPending}
             >
               {markJaneSetupComplete.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              I've completed this step
+              I've shared this with Jane
             </Button>
-            {!canAdvanceToStep4 && (
-              <p className="text-xs text-muted-foreground text-center max-w-sm">
-                Configuration values must be available before continuing.
-              </p>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -517,13 +520,11 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
 
   // STEP 4: Verify and Activate - Evidence-driven indicators
   const Step4 = () => {
-    // Evidence-based indicators
-    const hasFirstFile = hasSuccessIngest; // Only true if success ingest exists
+    const hasFirstFile = hasSuccessIngest;
     const isVerified = !!connector?.locked_account_guid;
     const isUpdatingScorecard = hasScorecardsUpdating;
 
     if (isComplete) {
-      // Completion state
       return (
         <Card className="border-green-200 bg-green-50/30">
           <CardHeader className="text-center">
@@ -554,11 +555,11 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
           </div>
           <CardTitle className="text-xl">We're verifying your data</CardTitle>
           <CardDescription>
-            Once the first file arrives, we verify it belongs to your clinic and activate the connection.
+            Once Jane sends the first file, we verify it belongs to your clinic and activate the connection.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Live Status Indicators - Evidence-based */}
+          {/* Live Status Indicators */}
           <div className="space-y-3 max-w-md mx-auto">
             <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
               {hasFirstFile ? (
@@ -629,7 +630,7 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
 
           {!hasError && (
             <p className="text-center text-sm text-muted-foreground">
-              This usually happens within 24 hours of completing Jane setup.
+              This usually happens within 24 hours of Jane enabling data delivery.
             </p>
           )}
         </CardContent>
@@ -640,14 +641,12 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
   // Determine which step to render based on evidence
   const renderCurrentStep = () => {
     if (!connector) {
-      // No connector yet - show step 1 or 2 based on clinicUrl
       if (clinicUrl) {
         return <Step2 />;
       }
       return <Step1 />;
     }
 
-    // Derive from evidence
     if (stepStatus[3] === 'complete' || stepStatus[4] === 'current' || stepStatus[4] === 'complete') {
       return <Step4 />;
     }
@@ -656,12 +655,12 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
       return <Step3 />;
     }
 
-    // Shouldn't happen but fallback
     return <Step3 />;
   };
 
   return (
     <div className="space-y-6">
+      <PilotBanner />
       <StepIndicator />
       {renderCurrentStep()}
     </div>
