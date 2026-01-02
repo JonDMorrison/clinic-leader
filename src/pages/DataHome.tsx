@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { 
   Database, 
   ArrowRight, 
@@ -10,20 +9,41 @@ import {
   Clock, 
   AlertTriangle,
   Zap,
-  TrendingUp,
   Target,
   RefreshCw,
   Calendar,
   BarChart3,
-  Loader2
+  Loader2,
+  FileText,
+  Users,
+  DollarSign,
+  Receipt,
+  CalendarClock
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { motion } from "framer-motion";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, differenceInHours } from "date-fns";
 import { AutomationHealthWidget } from "@/components/dashboard/AutomationHealthWidget";
 import { DataInsightsWidget } from "@/components/dashboard/DataInsightsWidget";
+
+// Resource types with icons
+const RESOURCE_CONFIG: Record<string, { icon: typeof FileText; label: string }> = {
+  appointments: { icon: CalendarClock, label: "Appointments" },
+  payments: { icon: DollarSign, label: "Payments" },
+  invoices: { icon: Receipt, label: "Invoices" },
+  patients: { icon: Users, label: "Patients" },
+  shifts: { icon: Calendar, label: "Shifts" },
+};
+
+interface ResourceStatus {
+  resource: string;
+  lastSync: string | null;
+  rowCount: number;
+  status: 'healthy' | 'stale' | 'waiting' | 'error';
+  lastError: string | null;
+}
 
 export default function DataHome() {
   const navigate = useNavigate();
@@ -57,13 +77,55 @@ export default function DataHome() {
         .from("file_ingest_log")
         .select("*")
         .eq("organization_id", currentUser.team_id)
-        .eq("source_system", "jane_pipe")
+        .eq("source_system", "jane")
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(20);
       
       return data || [];
     },
     enabled: !!currentUser?.team_id,
+  });
+
+  // Fetch per-resource sync status
+  const { data: resourceStatuses } = useQuery({
+    queryKey: ["resource-statuses", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id || !recentIngests) return [];
+      
+      const resources = Object.keys(RESOURCE_CONFIG);
+      const statuses: ResourceStatus[] = [];
+      
+      for (const resource of resources) {
+        const resourceLogs = recentIngests.filter(log => log.resource_name === resource);
+        const latestLog = resourceLogs[0];
+        
+        let status: 'healthy' | 'stale' | 'waiting' | 'error' = 'waiting';
+        
+        if (latestLog) {
+          if (latestLog.status === 'error') {
+            status = 'error';
+          } else if (latestLog.status === 'success') {
+            const hoursSinceSync = differenceInHours(new Date(), new Date(latestLog.created_at));
+            status = hoursSinceSync > 48 ? 'stale' : 'healthy';
+          }
+        }
+        
+        const totalRows = resourceLogs
+          .filter(log => log.status === 'success')
+          .reduce((sum, log) => sum + (log.rows || 0), 0);
+        
+        statuses.push({
+          resource,
+          lastSync: latestLog?.created_at || null,
+          rowCount: totalRows,
+          status,
+          lastError: latestLog?.status === 'error' ? latestLog.error : null,
+        });
+      }
+      
+      return statuses;
+    },
+    enabled: !!currentUser?.team_id && !!recentIngests,
   });
 
   // Fetch automated metrics count
@@ -86,9 +148,13 @@ export default function DataHome() {
     enabled: !!currentUser?.team_id,
   });
 
-  const isConnected = janeConnector?.status === "active";
+  const isConnected = janeConnector?.status === "receiving_data" || janeConnector?.status === "awaiting_first_file";
   const hasData = (recentIngests?.length || 0) > 0;
   const lastSync = recentIngests?.[0]?.created_at;
+
+  // Check for stale data (no sync in 48+ hours)
+  const hasStaleData = resourceStatuses?.some(r => r.status === 'stale');
+  const hasErrors = resourceStatuses?.some(r => r.status === 'error');
 
   if (janeLoading) {
     return (
@@ -202,6 +268,90 @@ export default function DataHome() {
         </div>
       </motion.div>
 
+      {/* Resource Sync Status - Shows when connected */}
+      {isConnected && resourceStatuses && resourceStatuses.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="w-5 h-5" />
+                  Data Resources
+                </CardTitle>
+                <CardDescription>Status of each data type from Jane</CardDescription>
+              </div>
+              {(hasStaleData || hasErrors) && (
+                <Badge variant="destructive" className="flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  {hasErrors ? "Errors detected" : "Stale data"}
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {resourceStatuses.map((resource) => {
+                const config = RESOURCE_CONFIG[resource.resource];
+                if (!config) return null;
+                
+                const Icon = config.icon;
+                
+                return (
+                  <div
+                    key={resource.resource}
+                    className={`p-4 rounded-lg border ${
+                      resource.status === 'healthy' 
+                        ? 'bg-success/5 border-success/20'
+                        : resource.status === 'stale'
+                        ? 'bg-warning/5 border-warning/20'
+                        : resource.status === 'error'
+                        ? 'bg-destructive/5 border-destructive/20'
+                        : 'bg-muted/50 border-dashed'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Icon className={`w-4 h-4 ${
+                        resource.status === 'healthy' ? 'text-success' :
+                        resource.status === 'stale' ? 'text-warning' :
+                        resource.status === 'error' ? 'text-destructive' :
+                        'text-muted-foreground'
+                      }`} />
+                      <span className="font-medium text-sm">{config.label}</span>
+                    </div>
+                    
+                    {resource.status === 'waiting' ? (
+                      <p className="text-xs text-muted-foreground">Waiting for first data</p>
+                    ) : (
+                      <>
+                        <p className="text-lg font-semibold">
+                          {resource.rowCount.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">rows</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {resource.lastSync 
+                            ? formatDistanceToNow(new Date(resource.lastSync), { addSuffix: true })
+                            : 'No data yet'
+                          }
+                        </p>
+                        {resource.status === 'stale' && (
+                          <Badge variant="outline" className="mt-2 text-xs bg-warning/10 text-warning border-warning/30">
+                            No update in 48h
+                          </Badge>
+                        )}
+                        {resource.status === 'error' && resource.lastError && (
+                          <p className="text-xs text-destructive mt-2 truncate" title={resource.lastError}>
+                            {resource.lastError}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Automation Health Widget - Shows when connected */}
       {isConnected && (
         <AutomationHealthWidget organizationId={currentUser?.team_id} />
@@ -283,7 +433,7 @@ export default function DataHome() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentIngests.map((ingest) => (
+              {recentIngests.slice(0, 5).map((ingest) => (
                 <div 
                   key={ingest.id} 
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
@@ -329,7 +479,7 @@ export default function DataHome() {
                 <div className="flex-1">
                   <h4 className="font-semibold">Connect your Jane account</h4>
                   <p className="text-sm text-muted-foreground">
-                    Follow the guided setup wizard to configure your data pipeline. No API keys or credentials needed.
+                    Follow the guided setup wizard to configure your data pipeline. No AWS expertise needed.
                   </p>
                   <Button 
                     className="mt-2" 

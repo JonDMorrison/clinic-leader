@@ -107,6 +107,10 @@ function mapRowToStagingColumns(resource: string, row: Record<string, unknown>, 
         workflow: row.workflow,
         payment_method: row.payment_method,
         card_type: row.card_type,
+        // New fields from Jane data pipe
+        payment_method_internal: row.payment_method_internal,
+        payment_method_external: row.payment_method_external,
+        jane_payments_partner: row.jane_payments_partner,
       };
 
     case "invoices":
@@ -122,6 +126,12 @@ function mapRowToStagingColumns(resource: string, row: Record<string, unknown>, 
         income_category: row.income_category,
         invoiced_at: row.invoiced_at,
         payer_type: row.payer_type,
+        // New fields from Jane data pipe
+        location_guid: row.location_guid,
+        purchasable_type: row.purchasable_type,
+        purchasable_id: row.purchasable_id,
+        income_category_id: row.income_category_id,
+        sale_map_coordinates: row.sale_map_coordinates,
       };
 
     case "shifts":
