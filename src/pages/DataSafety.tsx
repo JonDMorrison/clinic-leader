@@ -4,6 +4,7 @@ import { ArrowLeft, Shield, Lock, Eye, CheckCircle2, XCircle } from "lucide-reac
 import { useNavigate } from "react-router-dom";
 import { DataAccessAuditPanel } from "@/components/admin/DataAccessAuditPanel";
 import { SecurityOverviewPanel } from "@/components/admin/SecurityOverviewPanel";
+import { DataRetentionPanel } from "@/components/admin/DataRetentionPanel";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export default function DataSafety() {
@@ -164,7 +165,17 @@ export default function DataSafety() {
             </div>
           </section>
 
-          {/* Section 8: Zero Standing Access (Admin Only) */}
+          {/* Section 8: Data Retention & Lifecycle */}
+          <section className="space-y-4 border-t pt-8">
+            <h2 className="text-xl font-medium text-foreground">Data Retention & Lifecycle</h2>
+            <p className="text-muted-foreground mb-6">
+              How long data is retained and what can be deleted. Staging data is automatically 
+              purged after the retention period. Aggregated metrics are kept indefinitely.
+            </p>
+            <DataRetentionPanel />
+          </section>
+
+          {/* Section 9: Zero Standing Access (Admin Only) */}
           {isAdmin && (
             <section className="space-y-4 border-t pt-8">
               <h2 className="text-xl font-medium text-foreground">Data Access Controls</h2>

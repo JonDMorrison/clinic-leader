@@ -816,6 +816,62 @@ export type Database = {
           },
         ]
       }
+      data_deletion_requests: {
+        Row: {
+          created_at: string
+          date_range_end: string | null
+          date_range_start: string | null
+          executed_at: string | null
+          id: string
+          justification: string
+          organization_id: string
+          records_deleted: number | null
+          requested_by: string
+          resource_type: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          date_range_end?: string | null
+          date_range_start?: string | null
+          executed_at?: string | null
+          id?: string
+          justification: string
+          organization_id: string
+          records_deleted?: number | null
+          requested_by: string
+          resource_type: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          date_range_end?: string | null
+          date_range_start?: string | null
+          executed_at?: string | null
+          id?: string
+          justification?: string
+          organization_id?: string
+          records_deleted?: number | null
+          requested_by?: string
+          resource_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_deletion_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_ingestion_ledger: {
         Row: {
           account_guid_verified: boolean | null
@@ -893,6 +949,103 @@ export type Database = {
           },
           {
             foreignKeyName: "fk_ledger_org"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_purge_log: {
+        Row: {
+          error_message: string | null
+          executed_at: string
+          execution_duration_ms: number | null
+          id: string
+          newest_record_date: string | null
+          oldest_record_date: string | null
+          organization_id: string
+          purge_type: string
+          records_purged: number
+          requested_by: string | null
+          resource_type: string
+          retention_days_applied: number
+          status: string
+        }
+        Insert: {
+          error_message?: string | null
+          executed_at?: string
+          execution_duration_ms?: number | null
+          id?: string
+          newest_record_date?: string | null
+          oldest_record_date?: string | null
+          organization_id: string
+          purge_type?: string
+          records_purged?: number
+          requested_by?: string | null
+          resource_type: string
+          retention_days_applied: number
+          status?: string
+        }
+        Update: {
+          error_message?: string | null
+          executed_at?: string
+          execution_duration_ms?: number | null
+          id?: string
+          newest_record_date?: string | null
+          oldest_record_date?: string | null
+          organization_id?: string
+          purge_type?: string
+          records_purged?: number
+          requested_by?: string | null
+          resource_type?: string
+          retention_days_applied?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_purge_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_retention_policies: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_purgeable: boolean
+          organization_id: string | null
+          resource_type: string
+          retention_days: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_purgeable?: boolean
+          organization_id?: string | null
+          resource_type: string
+          retention_days?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_purgeable?: boolean
+          organization_id?: string | null
+          resource_type?: string
+          retention_days?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_retention_policies_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
