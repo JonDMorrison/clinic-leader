@@ -13,6 +13,7 @@ import {
 import JaneSetupWizard from "@/components/integrations/JaneSetupWizard";
 import JaneConnectionSummary from "@/components/integrations/JaneConnectionSummary";
 import DataDeliveryHistory from "@/components/integrations/DataDeliveryHistory";
+import DataSafetyEvents from "@/components/integrations/DataSafetyEvents";
 
 export default function JaneIntegration() {
   const navigate = useNavigate();
@@ -123,6 +124,10 @@ export default function JaneIntegration() {
           {/* Data Delivery History - Audit Trail */}
           {orgId && (
             <DataDeliveryHistory organizationId={orgId} />
+          )}
+          {/* Data Safety Events - PHI Quarantine Log */}
+          {orgId && (
+            <DataSafetyEvents organizationId={orgId} />
           )}
         </>
       ) : (
