@@ -268,55 +268,60 @@ export default function DataHome() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand/10 via-background to-accent/10 border border-brand/20 p-8"
+        className="rounded-2xl bg-card border p-8"
       >
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-brand/5 via-accent/5 to-brand/5"
-          animate={{ x: ["-100%", "100%"] }}
-          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-        />
-        
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-xl bg-brand/20">
-              <Database className="w-8 h-8 text-brand" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">Data Automation</h1>
-              <p className="text-muted-foreground">Your clinic data, automatically tracked</p>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-3 rounded-xl bg-brand/10">
+            <Zap className="w-8 h-8 text-brand" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold">Integrations</h1>
+            <p className="text-muted-foreground">Connect your tools to automate data flow</p>
+          </div>
+        </div>
+
+        {!isConnected ? (
+          <div className="mt-6">
+            <Card className="border-dashed hover:border-brand/50 transition-colors cursor-pointer group" onClick={() => navigate("/integrations/jane")}>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-brand/10 group-hover:bg-brand/20 transition-colors">
+                    <CalendarClock className="w-6 h-6 text-brand" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      Jane App
+                      <Badge variant="outline" className="text-xs">Available</Badge>
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Automate appointments, revenue, and patient metrics
+                    </p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-brand transition-colors" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { name: "Cliniko", icon: Stethoscope },
+                { name: "QuickBooks", icon: DollarSign },
+                { name: "Gusto", icon: Users },
+                { name: "Excel/CSV", icon: FileText },
+              ].map((integration) => (
+                <Card key={integration.name} className="border-dashed opacity-60">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-center gap-3">
+                      <integration.icon className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">{integration.name}</span>
+                      <Badge variant="outline" className="text-xs ml-auto">Soon</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
-
-          {!isConnected ? (
-            <div className="mt-6 space-y-4">
-              <div className="flex items-center gap-2 text-lg">
-                <Zap className="w-5 h-5 text-brand" />
-                <span>Connect Jane to automate your scorecard</span>
-              </div>
-              <ul className="space-y-2 text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-success" />
-                  <span>Automatic daily data delivery — no login required</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-success" />
-                  <span>Appointments, revenue, patients, and more</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-success" />
-                  <span>Saves 2+ hours/week of manual data entry</span>
-                </li>
-              </ul>
-              <Button 
-                size="lg" 
-                className="mt-4 gradient-brand"
-                onClick={() => navigate("/integrations/jane")}
-              >
-                Connect Jane
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </div>
-          ) : (
+        ) : (
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="bg-background/50 backdrop-blur">
                 <CardContent className="pt-6">
@@ -362,10 +367,8 @@ export default function DataHome() {
                 </CardContent>
               </Card>
             </div>
-          )}
-        </div>
+        )}
       </motion.div>
-
 
       {/* Available Jane Resources - Interactive section */}
       {isConnected && (
