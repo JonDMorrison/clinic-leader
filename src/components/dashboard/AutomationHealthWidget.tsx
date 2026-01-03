@@ -7,12 +7,9 @@ import { Progress } from "@/components/ui/progress";
 import { 
   CheckCircle2, 
   AlertTriangle, 
-  Clock, 
   Database, 
-  RefreshCw,
   ArrowRight,
-  Zap,
-  TrendingUp
+  Zap
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow, differenceInHours } from "date-fns";
@@ -87,28 +84,13 @@ export const AutomationHealthWidget = ({ organizationId, compact = false }: Auto
     return null;
   }
 
-  const isActive = connector.status === "active";
   const lastProcessed = connector.last_processed_at;
-  const hoursSinceLastProcess = lastProcessed 
-    ? differenceInHours(new Date(), new Date(lastProcessed)) 
-    : null;
   
-  // Determine health status
-  let healthStatus: "healthy" | "warning" | "error" = "healthy";
-  let healthMessage = "Pipeline running smoothly";
-  
-  if (!lastProcessed) {
-    healthStatus = "warning";
-    healthMessage = "Awaiting first data delivery";
-  } else if (hoursSinceLastProcess !== null && hoursSinceLastProcess > 48) {
-    healthStatus = "error";
-    healthMessage = "No data in 48+ hours";
-  } else if (hoursSinceLastProcess !== null && hoursSinceLastProcess > 24) {
-    healthStatus = "warning";
-    healthMessage = "No data in 24+ hours";
-  }
+  // Determine health status - only flag actual errors, not time gaps
+  let healthStatus: "healthy" | "error" = "healthy";
+  let healthMessage = lastProcessed ? "Pipeline running smoothly" : "Awaiting first data delivery";
 
-  // Check for recent failures
+  // Only flag actual failures
   const recentFailures = recentIngests?.filter(i => i.status === "error").length || 0;
   if (recentFailures >= 3) {
     healthStatus = "error";
@@ -127,13 +109,10 @@ export const AutomationHealthWidget = ({ organizationId, compact = false }: Auto
         className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-brand/10 to-accent/10 border border-brand/20"
       >
         <div className={`p-2 rounded-lg ${
-          healthStatus === "healthy" ? "bg-success/20" : 
-          healthStatus === "warning" ? "bg-warning/20" : "bg-destructive/20"
+          healthStatus === "healthy" ? "bg-success/20" : "bg-destructive/20"
         }`}>
           {healthStatus === "healthy" ? (
             <Zap className="w-4 h-4 text-success" />
-          ) : healthStatus === "warning" ? (
-            <Clock className="w-4 h-4 text-warning" />
           ) : (
             <AlertTriangle className="w-4 h-4 text-destructive" />
           )}
@@ -163,8 +142,6 @@ export const AutomationHealthWidget = ({ organizationId, compact = false }: Auto
           >
             {healthStatus === "healthy" ? (
               <><CheckCircle2 className="w-3 h-3 mr-1" /> Healthy</>
-            ) : healthStatus === "warning" ? (
-              <><Clock className="w-3 h-3 mr-1" /> Warning</>
             ) : (
               <><AlertTriangle className="w-3 h-3 mr-1" /> Issue</>
             )}
