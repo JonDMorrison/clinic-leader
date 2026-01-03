@@ -340,6 +340,7 @@ export type Database = {
       }
       bulk_analytics_connectors: {
         Row: {
+          allowed_resources: string[] | null
           cadence: Database["public"]["Enums"]["bulk_cadence"]
           clinic_identifier: string | null
           connector_type: string
@@ -348,11 +349,13 @@ export type Database = {
           delivery_mode: string | null
           expected_schema_version: string
           id: string
+          ingestion_mode: string | null
           last_error: string | null
           last_processed_at: string | null
           last_received_at: string | null
           locked_account_guid: string | null
           organization_id: string
+          prohibited_fields: string[] | null
           s3_bucket: string | null
           s3_external_id: string | null
           s3_prefix: string | null
@@ -363,6 +366,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allowed_resources?: string[] | null
           cadence?: Database["public"]["Enums"]["bulk_cadence"]
           clinic_identifier?: string | null
           connector_type?: string
@@ -371,11 +375,13 @@ export type Database = {
           delivery_mode?: string | null
           expected_schema_version?: string
           id?: string
+          ingestion_mode?: string | null
           last_error?: string | null
           last_processed_at?: string | null
           last_received_at?: string | null
           locked_account_guid?: string | null
           organization_id: string
+          prohibited_fields?: string[] | null
           s3_bucket?: string | null
           s3_external_id?: string | null
           s3_prefix?: string | null
@@ -386,6 +392,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allowed_resources?: string[] | null
           cadence?: Database["public"]["Enums"]["bulk_cadence"]
           clinic_identifier?: string | null
           connector_type?: string
@@ -394,11 +401,13 @@ export type Database = {
           delivery_mode?: string | null
           expected_schema_version?: string
           id?: string
+          ingestion_mode?: string | null
           last_error?: string | null
           last_processed_at?: string | null
           last_received_at?: string | null
           locked_account_guid?: string | null
           organization_id?: string
+          prohibited_fields?: string[] | null
           s3_bucket?: string | null
           s3_external_id?: string | null
           s3_prefix?: string | null
@@ -2386,6 +2395,63 @@ export type Database = {
           version?: number
         }
         Relationships: []
+      }
+      quarantined_fields_log: {
+        Row: {
+          action_taken: string
+          connector_id: string
+          created_at: string
+          detection_method: string
+          field_name: string
+          field_value_preview: string | null
+          file_name: string
+          id: string
+          organization_id: string
+          resource_name: string
+          severity: string
+        }
+        Insert: {
+          action_taken?: string
+          connector_id: string
+          created_at?: string
+          detection_method: string
+          field_name: string
+          field_value_preview?: string | null
+          file_name: string
+          id?: string
+          organization_id: string
+          resource_name: string
+          severity?: string
+        }
+        Update: {
+          action_taken?: string
+          connector_id?: string
+          created_at?: string
+          detection_method?: string
+          field_name?: string
+          field_value_preview?: string | null
+          file_name?: string
+          id?: string
+          organization_id?: string
+          resource_name?: string
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quarantined_fields_log_connector_id_fkey"
+            columns: ["connector_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_analytics_connectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quarantined_fields_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recall_actions: {
         Row: {
@@ -4438,6 +4504,34 @@ export type Database = {
       }
     }
     Views: {
+      v_data_scope_compliance: {
+        Row: {
+          connector_id: string | null
+          critical_count: number | null
+          files_affected: number | null
+          log_date: string | null
+          organization_id: string | null
+          total_violations: number | null
+          unique_fields_flagged: number | null
+          warning_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quarantined_fields_log_connector_id_fkey"
+            columns: ["connector_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_analytics_connectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quarantined_fields_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_recall_metrics: {
         Row: {
           due_today: number | null
