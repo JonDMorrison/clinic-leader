@@ -528,7 +528,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
             {metric.source === "jane" ? "Jane App" : metric.source}
           </Badge>
         </TableCell>
-        <TableCell className="text-muted-foreground">{metric.category}</TableCell>
         <TableCell className="text-right font-mono">
           {metric.isTracked ? formatValue(metric.weekValue, metric.unit) : "—"}
         </TableCell>
@@ -613,7 +612,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
             <TableRow>
               <TableHead className="w-[300px]">Data Point</TableHead>
               <TableHead>Source</TableHead>
-              <TableHead>Category</TableHead>
               <TableHead className="text-right">This Week</TableHead>
               <TableHead className="text-right">This Month</TableHead>
               <TableHead className="text-right">YTD</TableHead>
@@ -657,7 +655,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
             </AnimatePresence>
             {dataMetrics.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No metrics found. {searchQuery && "Try a different search term."}
                 </TableCell>
               </TableRow>
