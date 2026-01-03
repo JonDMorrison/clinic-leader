@@ -17,6 +17,12 @@ interface RollupResult {
   value: number;
   period_key: string;
   period_start: string;
+  owner?: string; // Provider name for per-provider metrics
+}
+
+interface StaffMember {
+  staff_member_guid: string;
+  staff_member_name: string;
 }
 
 Deno.serve(async (req) => {
@@ -48,14 +54,12 @@ Deno.serve(async (req) => {
     let periodKey: string;
 
     if (period_type === "monthly") {
-      // Start of current month
       periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
       periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     } else {
-      // Start of current week (Monday)
       const dayOfWeek = now.getDay();
-      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Monday = 1
+      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
       periodStart = new Date(now);
       periodStart.setDate(now.getDate() + diff);
       periodStart.setHours(0, 0, 0, 0);
@@ -69,105 +73,95 @@ Deno.serve(async (req) => {
 
     console.log(`[jane-kpi-rollup] Period: ${periodStartStr} to ${periodEndStr}, key: ${periodKey}`);
 
-    // Rollup results array
     const rollups: RollupResult[] = [];
 
     // ========================================
-    // KPI 1: Total Visits (non-cancelled appointments)
+    // ORGANIZATION-LEVEL METRICS
     // ========================================
-    const { data: visitsData, error: visitsError } = await supabase
+
+    // Fetch all appointments for the period
+    const { data: allAppointments, error: apptError } = await supabase
       .from("staging_appointments_jane")
-      .select("id", { count: "exact" })
+      .select("id, staff_member_guid, staff_member_name, cancelled_at, no_show_at, arrived_at, first_visit")
       .eq("organization_id", organization_id)
       .gte("start_at", periodStartStr)
-      .lte("start_at", periodEndStr)
-      .is("cancelled_at", null);
+      .lte("start_at", periodEndStr);
 
-    if (!visitsError && visitsData) {
-      const totalVisits = visitsData.length;
-      rollups.push({
-        metric_name: "Total Visits",
-        import_key: "jane_total_visits",
-        value: totalVisits,
-        period_key: periodKey,
-        period_start: periodStartStr,
-      });
-      console.log(`[jane-kpi-rollup] Total Visits: ${totalVisits}`);
+    if (apptError) {
+      console.error(`[jane-kpi-rollup] Failed to fetch appointments: ${apptError.message}`);
     }
 
-    // ========================================
-    // KPI 2: New Patient Visits (first_visit = true)
-    // ========================================
-    const { data: newPatientsData, error: newPatientsError } = await supabase
-      .from("staging_appointments_jane")
-      .select("id", { count: "exact" })
-      .eq("organization_id", organization_id)
-      .gte("start_at", periodStartStr)
-      .lte("start_at", periodEndStr)
-      .is("cancelled_at", null)
-      .eq("first_visit", true);
+    const appointments = allAppointments || [];
+    const nonCancelled = appointments.filter(a => !a.cancelled_at);
+    const cancelled = appointments.filter(a => a.cancelled_at);
+    const noShows = appointments.filter(a => a.no_show_at);
+    const newPatients = nonCancelled.filter(a => a.first_visit);
+    const arrivedCount = nonCancelled.filter(a => a.arrived_at).length;
 
-    if (!newPatientsError && newPatientsData) {
-      const newPatientVisits = newPatientsData.length;
-      rollups.push({
-        metric_name: "New Patient Visits",
-        import_key: "jane_new_patient_visits",
-        value: newPatientVisits,
-        period_key: periodKey,
-        period_start: periodStartStr,
-      });
-      console.log(`[jane-kpi-rollup] New Patient Visits: ${newPatientVisits}`);
-    }
+    // KPI 1: Total Visits
+    rollups.push({
+      metric_name: "Total Visits",
+      import_key: "jane_total_visits",
+      value: nonCancelled.length,
+      period_key: periodKey,
+      period_start: periodStartStr,
+    });
+    console.log(`[jane-kpi-rollup] Total Visits: ${nonCancelled.length}`);
 
-    // ========================================
+    // KPI 2: New Patient Visits
+    rollups.push({
+      metric_name: "New Patient Visits",
+      import_key: "jane_new_patient_visits",
+      value: newPatients.length,
+      period_key: periodKey,
+      period_start: periodStartStr,
+    });
+    console.log(`[jane-kpi-rollup] New Patient Visits: ${newPatients.length}`);
+
     // KPI 3: Cancelled Appointments
-    // ========================================
-    const { data: cancelledData, error: cancelledError } = await supabase
-      .from("staging_appointments_jane")
-      .select("id", { count: "exact" })
-      .eq("organization_id", organization_id)
-      .gte("start_at", periodStartStr)
-      .lte("start_at", periodEndStr)
-      .not("cancelled_at", "is", null);
+    rollups.push({
+      metric_name: "Cancelled Appointments",
+      import_key: "jane_cancelled_appointments",
+      value: cancelled.length,
+      period_key: periodKey,
+      period_start: periodStartStr,
+    });
+    console.log(`[jane-kpi-rollup] Cancelled Appointments: ${cancelled.length}`);
 
-    if (!cancelledError && cancelledData) {
-      const cancelledAppointments = cancelledData.length;
-      rollups.push({
-        metric_name: "Cancelled Appointments",
-        import_key: "jane_cancelled_appointments",
-        value: cancelledAppointments,
-        period_key: periodKey,
-        period_start: periodStartStr,
-      });
-      console.log(`[jane-kpi-rollup] Cancelled Appointments: ${cancelledAppointments}`);
-    }
-
-    // ========================================
     // KPI 4: No Shows
-    // ========================================
-    const { data: noShowsData, error: noShowsError } = await supabase
-      .from("staging_appointments_jane")
-      .select("id", { count: "exact" })
-      .eq("organization_id", organization_id)
-      .gte("start_at", periodStartStr)
-      .lte("start_at", periodEndStr)
-      .not("no_show_at", "is", null);
+    rollups.push({
+      metric_name: "No Shows",
+      import_key: "jane_no_shows",
+      value: noShows.length,
+      period_key: periodKey,
+      period_start: periodStartStr,
+    });
+    console.log(`[jane-kpi-rollup] No Shows: ${noShows.length}`);
 
-    if (!noShowsError && noShowsData) {
-      const noShows = noShowsData.length;
-      rollups.push({
-        metric_name: "No Shows",
-        import_key: "jane_no_shows",
-        value: noShows,
-        period_key: periodKey,
-        period_start: periodStartStr,
-      });
-      console.log(`[jane-kpi-rollup] No Shows: ${noShows}`);
-    }
+    // KPI 5: Show Rate %
+    const totalBooked = appointments.length;
+    const showRate = totalBooked > 0 ? Math.round((arrivedCount / totalBooked) * 10000) / 100 : 0;
+    rollups.push({
+      metric_name: "Show Rate %",
+      import_key: "jane_show_rate",
+      value: showRate,
+      period_key: periodKey,
+      period_start: periodStartStr,
+    });
+    console.log(`[jane-kpi-rollup] Show Rate: ${showRate}%`);
 
-    // ========================================
-    // KPI 5: Total Collected Revenue (sum of payments)
-    // ========================================
+    // KPI 6: Cancellation Rate %
+    const cancellationRate = totalBooked > 0 ? Math.round((cancelled.length / totalBooked) * 10000) / 100 : 0;
+    rollups.push({
+      metric_name: "Cancellation Rate %",
+      import_key: "jane_cancellation_rate",
+      value: cancellationRate,
+      period_key: periodKey,
+      period_start: periodStartStr,
+    });
+    console.log(`[jane-kpi-rollup] Cancellation Rate: ${cancellationRate}%`);
+
+    // Fetch payments for revenue metrics
     const { data: paymentsData, error: paymentsError } = await supabase
       .from("staging_payments_jane")
       .select("amount")
@@ -175,63 +169,198 @@ Deno.serve(async (req) => {
       .gte("received_at", periodStartStr)
       .lte("received_at", periodEndStr);
 
-    if (!paymentsError && paymentsData) {
-      const totalCollected = paymentsData.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-      rollups.push({
-        metric_name: "Total Collected Revenue",
-        import_key: "jane_total_collected",
-        value: Math.round(totalCollected * 100) / 100,
-        period_key: periodKey,
-        period_start: periodStartStr,
-      });
-      console.log(`[jane-kpi-rollup] Total Collected Revenue: ${totalCollected}`);
-    }
+    const totalCollected = (paymentsData || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-    // ========================================
-    // KPI 6: Total Invoiced (sum of invoice subtotals)
-    // ========================================
+    // KPI 7: Total Collected Revenue
+    rollups.push({
+      metric_name: "Total Collected Revenue",
+      import_key: "jane_total_collected",
+      value: Math.round(totalCollected * 100) / 100,
+      period_key: periodKey,
+      period_start: periodStartStr,
+    });
+    console.log(`[jane-kpi-rollup] Total Collected Revenue: ${totalCollected}`);
+
+    // Fetch invoices for invoiced revenue and per-provider breakdown
     const { data: invoicesData, error: invoicesError } = await supabase
       .from("staging_invoices_jane")
-      .select("subtotal")
+      .select("subtotal, amount_paid, staff_member_guid, staff_member_name")
       .eq("organization_id", organization_id)
       .gte("invoiced_at", periodStartStr)
       .lte("invoiced_at", periodEndStr);
 
-    if (!invoicesError && invoicesData) {
-      const totalInvoiced = invoicesData.reduce((sum, i) => sum + (Number(i.subtotal) || 0), 0);
-      rollups.push({
-        metric_name: "Total Invoiced",
-        import_key: "jane_total_invoiced",
-        value: Math.round(totalInvoiced * 100) / 100,
-        period_key: periodKey,
-        period_start: periodStartStr,
-      });
-      console.log(`[jane-kpi-rollup] Total Invoiced: ${totalInvoiced}`);
-    }
+    const invoices = invoicesData || [];
+    const totalInvoiced = invoices.reduce((sum, i) => sum + (Number(i.subtotal) || 0), 0);
+
+    // KPI 8: Total Invoiced
+    rollups.push({
+      metric_name: "Total Invoiced",
+      import_key: "jane_total_invoiced",
+      value: Math.round(totalInvoiced * 100) / 100,
+      period_key: periodKey,
+      period_start: periodStartStr,
+    });
+    console.log(`[jane-kpi-rollup] Total Invoiced: ${totalInvoiced}`);
+
+    // KPI 9: Average Revenue Per Visit
+    const avgRevenuePerVisit = nonCancelled.length > 0 ? totalCollected / nonCancelled.length : 0;
+    rollups.push({
+      metric_name: "Average Revenue Per Visit",
+      import_key: "jane_avg_revenue_per_visit",
+      value: Math.round(avgRevenuePerVisit * 100) / 100,
+      period_key: periodKey,
+      period_start: periodStartStr,
+    });
+    console.log(`[jane-kpi-rollup] Average Revenue Per Visit: ${avgRevenuePerVisit}`);
 
     // ========================================
-    // KPI 7: Average Revenue Per Visit
+    // PER-PROVIDER METRICS
     // ========================================
-    const totalVisitsCount = rollups.find(r => r.import_key === "jane_total_visits")?.value || 0;
-    const totalCollectedAmount = rollups.find(r => r.import_key === "jane_total_collected")?.value || 0;
+
+    // Collect unique staff members from appointments and invoices
+    const staffMap = new Map<string, string>();
     
-    if (totalVisitsCount > 0) {
-      const avgRevenuePerVisit = totalCollectedAmount / totalVisitsCount;
+    for (const appt of appointments) {
+      if (appt.staff_member_guid && appt.staff_member_name) {
+        staffMap.set(appt.staff_member_guid, appt.staff_member_name);
+      }
+    }
+    for (const inv of invoices) {
+      if (inv.staff_member_guid && inv.staff_member_name) {
+        staffMap.set(inv.staff_member_guid, inv.staff_member_name);
+      }
+    }
+
+    const uniqueStaff: StaffMember[] = Array.from(staffMap.entries()).map(([guid, name]) => ({
+      staff_member_guid: guid,
+      staff_member_name: name,
+    }));
+
+    console.log(`[jane-kpi-rollup] Found ${uniqueStaff.length} unique staff members`);
+
+    // Auto-create provider users
+    const createdProviders: string[] = [];
+    for (const staff of uniqueStaff) {
+      if (!staff.staff_member_name || staff.staff_member_name.trim() === "") continue;
+
+      // Check if user exists with this jane_staff_member_guid
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id, full_name")
+        .eq("jane_staff_member_guid", staff.staff_member_guid)
+        .maybeSingle();
+
+      if (!existingUser) {
+        // Create new provider user
+        const { data: newUser, error: createUserError } = await supabase
+          .from("users")
+          .insert({
+            email: `provider-${staff.staff_member_guid.slice(0, 8)}@jane-sync.local`,
+            full_name: staff.staff_member_name,
+            role: "provider",
+            team_id: organization_id,
+            jane_staff_member_guid: staff.staff_member_guid,
+          })
+          .select("id")
+          .single();
+
+        if (createUserError) {
+          console.error(`[jane-kpi-rollup] Failed to create user for ${staff.staff_member_name}: ${createUserError.message}`);
+        } else if (newUser) {
+          createdProviders.push(staff.staff_member_name);
+          console.log(`[jane-kpi-rollup] Created provider user: ${staff.staff_member_name} (${newUser.id})`);
+          
+          // Create user_roles entry
+          await supabase.from("user_roles").insert({
+            user_id: newUser.id,
+            role: "provider",
+          });
+        }
+      }
+    }
+
+    // Generate per-provider metrics
+    for (const staff of uniqueStaff) {
+      if (!staff.staff_member_name || staff.staff_member_name.trim() === "") continue;
+
+      const providerName = staff.staff_member_name;
+      const staffGuid = staff.staff_member_guid;
+
+      // Provider Visits
+      const providerAppointments = nonCancelled.filter(a => a.staff_member_guid === staffGuid);
       rollups.push({
-        metric_name: "Average Revenue Per Visit",
-        import_key: "jane_avg_revenue_per_visit",
-        value: Math.round(avgRevenuePerVisit * 100) / 100,
+        metric_name: `Visits (${providerName})`,
+        import_key: `jane_visits_${staffGuid}`,
+        value: providerAppointments.length,
         period_key: periodKey,
         period_start: periodStartStr,
+        owner: providerName,
       });
-      console.log(`[jane-kpi-rollup] Average Revenue Per Visit: ${avgRevenuePerVisit}`);
+
+      // Provider New Patients
+      const providerNewPatients = providerAppointments.filter(a => a.first_visit);
+      rollups.push({
+        metric_name: `New Patients (${providerName})`,
+        import_key: `jane_new_patients_${staffGuid}`,
+        value: providerNewPatients.length,
+        period_key: periodKey,
+        period_start: periodStartStr,
+        owner: providerName,
+      });
+
+      // Provider No Shows
+      const providerNoShows = appointments.filter(a => a.staff_member_guid === staffGuid && a.no_show_at);
+      rollups.push({
+        metric_name: `No Shows (${providerName})`,
+        import_key: `jane_no_shows_${staffGuid}`,
+        value: providerNoShows.length,
+        period_key: periodKey,
+        period_start: periodStartStr,
+        owner: providerName,
+      });
+
+      // Provider Cancellations
+      const providerCancellations = cancelled.filter(a => a.staff_member_guid === staffGuid);
+      rollups.push({
+        metric_name: `Cancellations (${providerName})`,
+        import_key: `jane_cancellations_${staffGuid}`,
+        value: providerCancellations.length,
+        period_key: periodKey,
+        period_start: periodStartStr,
+        owner: providerName,
+      });
+
+      // Provider Revenue Invoiced
+      const providerInvoices = invoices.filter(i => i.staff_member_guid === staffGuid);
+      const providerInvoiced = providerInvoices.reduce((sum, i) => sum + (Number(i.subtotal) || 0), 0);
+      rollups.push({
+        metric_name: `Revenue Invoiced (${providerName})`,
+        import_key: `jane_invoiced_${staffGuid}`,
+        value: Math.round(providerInvoiced * 100) / 100,
+        period_key: periodKey,
+        period_start: periodStartStr,
+        owner: providerName,
+      });
+
+      // Provider Revenue Collected (from invoices amount_paid)
+      const providerCollected = providerInvoices.reduce((sum, i) => sum + (Number(i.amount_paid) || 0), 0);
+      rollups.push({
+        metric_name: `Revenue Collected (${providerName})`,
+        import_key: `jane_collected_${staffGuid}`,
+        value: Math.round(providerCollected * 100) / 100,
+        period_key: periodKey,
+        period_start: periodStartStr,
+        owner: providerName,
+      });
+
+      console.log(`[jane-kpi-rollup] Provider ${providerName}: ${providerAppointments.length} visits, $${providerInvoiced} invoiced`);
     }
 
     // ========================================
-    // Upsert rollup results into metric_results
+    // UPSERT ALL METRICS
     // ========================================
     let upsertedCount = 0;
-    let upsertErrors: string[] = [];
+    const upsertErrors: string[] = [];
 
     for (const rollup of rollups) {
       // Find or create metric by import_key
@@ -259,6 +388,7 @@ Deno.serve(async (req) => {
             sync_source: "jane",
             cadence: period_type,
             is_active: true,
+            owner: rollup.owner || null,
           })
           .select("id")
           .single();
@@ -295,7 +425,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[jane-kpi-rollup] Rollup complete. Upserted ${upsertedCount}/${rollups.length} metrics.`);
+    console.log(`[jane-kpi-rollup] Rollup complete. Upserted ${upsertedCount}/${rollups.length} metrics, created ${createdProviders.length} new providers.`);
 
     return new Response(
       JSON.stringify({
@@ -307,7 +437,9 @@ Deno.serve(async (req) => {
         period_end: periodEndStr,
         metrics_processed: rollups.length,
         metrics_upserted: upsertedCount,
-        rollups: rollups.map(r => ({ name: r.metric_name, value: r.value })),
+        providers_found: uniqueStaff.length,
+        providers_created: createdProviders,
+        rollups: rollups.map(r => ({ name: r.metric_name, value: r.value, owner: r.owner })),
         errors: upsertErrors,
       }),
       { 
@@ -327,14 +459,42 @@ Deno.serve(async (req) => {
 
 // Default values for auto-created metrics
 function getMetricDefaults(importKey: string): { category: string; unit: string; direction: string } {
-  const defaults: Record<string, { category: string; unit: string; direction: string }> = {
+  // Organization-level metrics
+  const orgDefaults: Record<string, { category: string; unit: string; direction: string }> = {
     jane_total_visits: { category: "Operations", unit: "visits", direction: "up" },
     jane_new_patient_visits: { category: "Growth", unit: "visits", direction: "up" },
     jane_cancelled_appointments: { category: "Operations", unit: "appointments", direction: "down" },
     jane_no_shows: { category: "Operations", unit: "appointments", direction: "down" },
+    jane_show_rate: { category: "Operations", unit: "%", direction: "up" },
+    jane_cancellation_rate: { category: "Operations", unit: "%", direction: "down" },
     jane_total_collected: { category: "Revenue", unit: "$", direction: "up" },
     jane_total_invoiced: { category: "Revenue", unit: "$", direction: "up" },
     jane_avg_revenue_per_visit: { category: "Revenue", unit: "$", direction: "up" },
   };
-  return defaults[importKey] || { category: "Operations", unit: "#", direction: "up" };
+
+  if (orgDefaults[importKey]) {
+    return orgDefaults[importKey];
+  }
+
+  // Per-provider metrics (pattern matching)
+  if (importKey.startsWith("jane_visits_")) {
+    return { category: "Provider - Operations", unit: "visits", direction: "up" };
+  }
+  if (importKey.startsWith("jane_new_patients_")) {
+    return { category: "Provider - Growth", unit: "patients", direction: "up" };
+  }
+  if (importKey.startsWith("jane_no_shows_")) {
+    return { category: "Provider - Operations", unit: "appointments", direction: "down" };
+  }
+  if (importKey.startsWith("jane_cancellations_")) {
+    return { category: "Provider - Operations", unit: "appointments", direction: "down" };
+  }
+  if (importKey.startsWith("jane_invoiced_")) {
+    return { category: "Provider - Revenue", unit: "$", direction: "up" };
+  }
+  if (importKey.startsWith("jane_collected_")) {
+    return { category: "Provider - Revenue", unit: "$", direction: "up" };
+  }
+
+  return { category: "Operations", unit: "#", direction: "up" };
 }
