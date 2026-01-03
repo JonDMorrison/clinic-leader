@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ClinicLeaderIcon } from "@/components/ui/ClinicLeaderIcon";
+import { ClinicLeaderLogo } from "@/components/ui/ClinicLeaderLogo";
+import { LOGO_SIZES } from "@/components/brand/logoConstants";
 import {
   Collapsible,
   CollapsibleContent,
@@ -163,17 +164,13 @@ export const Sidebar = () => {
 
   return (
     <aside className="w-64 h-screen sticky top-0 flex flex-col glass border-r border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)]">
-      <div className="p-6 border-b border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-3 group cursor-pointer">
-          <ClinicLeaderIcon 
-            size={40} 
-            className="transition-all duration-300 group-hover:scale-105"
+      <div className="p-6 border-b border-white/10">
+        <div className="group cursor-pointer transition-all duration-300 hover:opacity-90">
+          <ClinicLeaderLogo 
+            size={LOGO_SIZES.sidebar} 
+            className="transition-transform duration-300 group-hover:scale-[1.02]"
           />
-          <span className="text-xl font-bold bg-gradient-to-r from-brand to-accent bg-clip-text text-transparent transition-opacity group-hover:opacity-80">
-            ClinicLeader
-          </span>
         </div>
-        
       </div>
       
       <nav className="flex-1 p-4 overflow-y-auto">

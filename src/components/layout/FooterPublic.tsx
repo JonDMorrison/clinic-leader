@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { ClinicLeaderLogo } from "@/components/ui/ClinicLeaderLogo";
 
 export const FooterPublic = () => {
   return (
@@ -7,7 +8,7 @@ export const FooterPublic = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="col-span-1 md:col-span-2">
-            <h3 className="text-xl font-bold text-brand mb-4">Clinic Leader</h3>
+            <ClinicLeaderLogo size={32} className="mb-4" />
             <p className="text-muted-foreground mb-4">
               Empowering healthcare practices to grow with the right data and proven operational frameworks.
             </p>
