@@ -1,8 +1,25 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useHiddenJaneResources } from "@/hooks/useHiddenJaneResources";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Table,
   TableBody,
@@ -42,12 +59,15 @@ import {
   Building2,
   FileSpreadsheet,
   TrendingUp,
+  GripVertical,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { AddJaneMetricModal } from "@/components/data/AddJaneMetricModal";
 import { CreateIssueFromMetricModal } from "@/components/scorecard/CreateIssueFromMetricModal";
 import { format, startOfWeek, startOfYear, subWeeks, subMonths } from "date-fns";
 import type { MetricStatus } from "@/lib/scorecard/metricStatus";
+
+const STORAGE_KEY = "data-metrics-order";
 
 // Template metrics for non-Jane users (and as additional options)
 const TEMPLATE_METRICS = [
@@ -145,6 +165,7 @@ interface DimensionValue {
 }
 
 interface DataMetric {
+  id: string; // Unique ID for drag and drop
   name: string;
   category: string;
   source: "jane" | "template" | "manual";
@@ -161,12 +182,149 @@ interface DataMetric {
   status?: MetricStatus;
   isDimensional?: boolean;
   dimensions?: DimensionValue[];
-  dimensionValue?: string; // For child rows
-  parentName?: string; // For child rows
+  dimensionValue?: string;
+  parentName?: string;
 }
 
 interface DataMetricsTableProps {
   isConnected: boolean;
+}
+
+// Sortable row component
+function SortableMetricRow({
+  metric,
+  isChild,
+  isHidden,
+  isExpanded,
+  hasDimensions,
+  formatValue,
+  getStatusBadge,
+  toggleExpanded,
+  handleAddToScorecard,
+  handleCreateIssue,
+  handleHide,
+  handleUnhide,
+}: {
+  metric: DataMetric;
+  isChild: boolean;
+  isHidden: boolean;
+  isExpanded: boolean;
+  hasDimensions: boolean;
+  formatValue: (value: number | null | undefined, unit: string) => string;
+  getStatusBadge: (metric: DataMetric, isChild?: boolean) => React.ReactNode;
+  toggleExpanded: (name: string) => void;
+  handleAddToScorecard: (metric: DataMetric) => void;
+  handleCreateIssue: (metric: DataMetric) => void;
+  handleHide: (resourceKey: string) => void;
+  handleUnhide: (resourceKey: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: metric.id, disabled: isChild });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : isHidden ? 0.5 : 1,
+  };
+
+  const CategoryIcon = CATEGORY_ICONS[metric.category] || FileSpreadsheet;
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={`border-b transition-colors hover:bg-muted/50 ${isHidden ? 'bg-muted/20' : ''} ${isChild ? 'bg-muted/10' : ''} ${isDragging ? 'bg-muted' : ''}`}
+    >
+      <TableCell className="font-medium">
+        <div className={`flex items-center gap-2 ${isChild ? 'pl-8' : ''}`}>
+          {!isChild && (
+            <button
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-1 -ml-1 text-muted-foreground hover:text-foreground"
+            >
+              <GripVertical className="w-4 h-4" />
+            </button>
+          )}
+          {isChild && <div className="w-6" />}
+          {hasDimensions && !isChild && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-5 w-5 p-0"
+              onClick={() => toggleExpanded(metric.name)}
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+            </Button>
+          )}
+          {!hasDimensions && !isChild && <div className="w-5" />}
+          <CategoryIcon className="w-4 h-4 text-muted-foreground" />
+          <span>{metric.dimensionValue || metric.name}</span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline" className="text-xs capitalize whitespace-nowrap">
+          {metric.source === "jane" ? "Jane App" : metric.source}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right font-mono">
+        {metric.isTracked ? formatValue(metric.weekValue, metric.unit) : "—"}
+      </TableCell>
+      <TableCell className="text-right font-mono">
+        {metric.isTracked ? formatValue(metric.monthValue, metric.unit) : "—"}
+      </TableCell>
+      <TableCell className="text-right font-mono">
+        {metric.isTracked ? formatValue(metric.ytdValue, metric.unit) : "—"}
+      </TableCell>
+      <TableCell>{getStatusBadge(metric, isChild)}</TableCell>
+      <TableCell>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {!metric.isTracked && !metric.comingSoon && (
+              <DropdownMenuItem onClick={() => handleAddToScorecard(metric)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add to Scorecard
+              </DropdownMenuItem>
+            )}
+            {metric.isTracked && metric.status === "off_track" && (
+              <DropdownMenuItem onClick={() => handleCreateIssue(metric)}>
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Create Issue
+              </DropdownMenuItem>
+            )}
+            {metric.source === "jane" && metric.resourceKey && !isChild && (
+              isHidden ? (
+                <DropdownMenuItem onClick={() => handleUnhide(metric.resourceKey!)}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Show
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => handleHide(metric.resourceKey!)}>
+                  <EyeOff className="w-4 h-4 mr-2" />
+                  Hide
+                </DropdownMenuItem>
+              )
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </tr>
+  );
 }
 
 export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
@@ -175,6 +333,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showHidden, setShowHidden] = useState(false);
   const [expandedMetrics, setExpandedMetrics] = useState<Set<string>>(new Set());
+  const [metricOrder, setMetricOrder] = useState<string[]>([]);
   const [addMetricModal, setAddMetricModal] = useState<{
     open: boolean;
     resourceKey: string;
@@ -184,6 +343,35 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     open: boolean;
     metric: DataMetric | null;
   }>({ open: false, metric: null });
+
+  // Load saved order from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        setMetricOrder(JSON.parse(saved));
+      } catch (e) {
+        // Invalid JSON, ignore
+      }
+    }
+  }, []);
+
+  // Save order to localStorage
+  const saveOrder = (order: string[]) => {
+    setMetricOrder(order);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Fetch tracked metrics
   const { data: trackedMetrics } = useQuery({
@@ -208,7 +396,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
       
       const results: Record<string, DimensionValue[]> = {};
       
-      // Fetch providers from invoices
       try {
         const { data: providers } = await supabase
           .from("staging_invoices_jane")
@@ -221,11 +408,8 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           const uniqueProviders = [...new Set(providers.map(p => p.staff_member_name).filter(Boolean))];
           results["Revenue by Provider"] = uniqueProviders.map(p => ({ value: p!, label: p! }));
         }
-      } catch (e) {
-        // Table may not be accessible
-      }
+      } catch (e) {}
 
-      // Fetch locations from payments
       try {
         const { data: locations } = await supabase
           .from("staging_payments_jane")
@@ -238,11 +422,8 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           const uniqueLocations = [...new Set(locations.map(l => l.location_guid).filter(Boolean))];
           results["Revenue by Location"] = uniqueLocations.map(l => ({ value: l!, label: `Location ${l!.slice(-6)}` }));
         }
-      } catch (e) {
-        // Table may not be accessible
-      }
+      } catch (e) {}
 
-      // Fetch referral sources from patients
       try {
         const { data: sources } = await supabase
           .from("staging_patients_jane")
@@ -255,11 +436,8 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           const uniqueSources = [...new Set(sources.map(s => s.referral_source).filter(Boolean))];
           results["Referral Sources"] = uniqueSources.map(s => ({ value: s!, label: s! }));
         }
-      } catch (e) {
-        // Table may not be accessible
-      }
+      } catch (e) {}
 
-      // Fetch disciplines/income categories from invoices
       try {
         const { data: disciplines } = await supabase
           .from("staging_invoices_jane")
@@ -272,9 +450,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           const uniqueDisciplines = [...new Set(disciplines.map(d => d.income_category).filter(Boolean))];
           results["Revenue by Discipline"] = uniqueDisciplines.map(d => ({ value: d!, label: d! }));
         }
-      } catch (e) {
-        // Table may not be accessible
-      }
+      } catch (e) {}
 
       return results;
     },
@@ -328,10 +504,9 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
   });
 
   // Build the merged data list
-  const dataMetrics = useMemo(() => {
+  const rawDataMetrics = useMemo(() => {
     const metrics: DataMetric[] = [];
 
-    // Add Jane metrics if connected
     if (isConnected) {
       JANE_METRICS.forEach(janeMetric => {
         const isHidden = hiddenResources.includes(janeMetric.resourceKey || "");
@@ -339,7 +514,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
         
         const tracked = trackedMetrics?.find(m => m.name.toLowerCase() === janeMetric.name.toLowerCase());
         
-        // Get time values from results
         let weekValue: number | null = null;
         let monthValue: number | null = null;
         let ytdValue: number | null = null;
@@ -359,7 +533,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
             : null;
         }
 
-        // Determine status
         let status: MetricStatus = "needs_data";
         if (tracked && monthValue !== null && tracked.target !== null) {
           const isHigherBetter = tracked.direction === "up" || tracked.direction === "higher_is_better" || tracked.direction === ">=";
@@ -372,12 +545,12 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           status = "on_track";
         }
 
-        // Get dimensions if this is a dimensional metric
         const dimensions = janeMetric.isDimensional && dimensionData 
           ? dimensionData[janeMetric.name] || []
           : undefined;
 
         metrics.push({
+          id: `jane-${janeMetric.name}`,
           name: janeMetric.name,
           category: janeMetric.category,
           source: "jane",
@@ -398,7 +571,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
       });
     }
 
-    // Add template metrics that aren't already in Jane list
     TEMPLATE_METRICS.forEach(templateMetric => {
       const alreadyAdded = metrics.some(m => m.name.toLowerCase() === templateMetric.name.toLowerCase());
       if (alreadyAdded) return;
@@ -406,6 +578,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
       const tracked = trackedMetrics?.find(m => m.name.toLowerCase() === templateMetric.name.toLowerCase());
       
       metrics.push({
+        id: `template-${templateMetric.name}`,
         name: templateMetric.name,
         category: templateMetric.category,
         source: "template",
@@ -416,18 +589,37 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
       });
     });
 
-    // Filter by search
+    return metrics;
+  }, [isConnected, trackedMetrics, metricResults, hiddenResources, showHidden, currentWeekStart, lastWeekStart, currentMonthKey, lastMonthKey, dimensionData]);
+
+  // Apply custom order and search filter
+  const dataMetrics = useMemo(() => {
+    let metrics = [...rawDataMetrics];
+    
+    // Apply custom order if exists
+    if (metricOrder.length > 0) {
+      metrics.sort((a, b) => {
+        const aIndex = metricOrder.indexOf(a.id);
+        const bIndex = metricOrder.indexOf(b.id);
+        // Items not in order go to the end
+        if (aIndex === -1 && bIndex === -1) return 0;
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
+      });
+    }
+
+    // Apply search filter
     if (searchQuery) {
-      return metrics.filter(m => 
+      metrics = metrics.filter(m => 
         m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.category.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     return metrics;
-  }, [isConnected, trackedMetrics, metricResults, hiddenResources, showHidden, searchQuery, currentWeekStart, lastWeekStart, currentMonthKey, lastMonthKey, dimensionData]);
+  }, [rawDataMetrics, metricOrder, searchQuery]);
 
-  // Count hidden
   const hiddenCount = isConnected 
     ? JANE_METRICS.filter(m => hiddenResources.includes(m.resourceKey || "")).length
     : 0;
@@ -487,95 +679,16 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     unhideResource(resourceKey);
   };
 
-  const renderMetricRow = (metric: DataMetric, isChild = false) => {
-    const isHidden = metric.resourceKey && hiddenResources.includes(metric.resourceKey);
-    const CategoryIcon = CATEGORY_ICONS[metric.category] || FileSpreadsheet;
-    const isExpanded = expandedMetrics.has(metric.name);
-    const hasDimensions = metric.isDimensional && metric.dimensions && metric.dimensions.length > 0;
-    
-    return (
-      <motion.tr
-        key={`${metric.source}-${metric.name}${metric.dimensionValue ? `-${metric.dimensionValue}` : ''}`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isHidden ? 0.5 : 1 }}
-        exit={{ opacity: 0 }}
-        className={`border-b transition-colors hover:bg-muted/50 ${isHidden ? 'bg-muted/20' : ''} ${isChild ? 'bg-muted/10' : ''}`}
-      >
-        <TableCell className="font-medium">
-          <div className={`flex items-center gap-2 ${isChild ? 'pl-6' : ''}`}>
-            {hasDimensions && !isChild && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-5 w-5 p-0"
-                onClick={() => toggleExpanded(metric.name)}
-              >
-                {isExpanded ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
-                )}
-              </Button>
-            )}
-            {!hasDimensions && !isChild && <div className="w-5" />}
-            {isChild && <div className="w-2" />}
-            <CategoryIcon className="w-4 h-4 text-muted-foreground" />
-            <span>{metric.dimensionValue || metric.name}</span>
-          </div>
-        </TableCell>
-        <TableCell>
-          <Badge variant="outline" className="text-xs capitalize whitespace-nowrap">
-            {metric.source === "jane" ? "Jane App" : metric.source}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-right font-mono">
-          {metric.isTracked ? formatValue(metric.weekValue, metric.unit) : "—"}
-        </TableCell>
-        <TableCell className="text-right font-mono">
-          {metric.isTracked ? formatValue(metric.monthValue, metric.unit) : "—"}
-        </TableCell>
-        <TableCell className="text-right font-mono">
-          {metric.isTracked ? formatValue(metric.ytdValue, metric.unit) : "—"}
-        </TableCell>
-        <TableCell>{getStatusBadge(metric, isChild)}</TableCell>
-        <TableCell>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {!metric.isTracked && !metric.comingSoon && (
-                <DropdownMenuItem onClick={() => handleAddToScorecard(metric)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add to Scorecard
-                </DropdownMenuItem>
-              )}
-              {metric.isTracked && metric.status === "off_track" && (
-                <DropdownMenuItem onClick={() => handleCreateIssue(metric)}>
-                  <AlertTriangle className="w-4 h-4 mr-2" />
-                  Create Issue
-                </DropdownMenuItem>
-              )}
-              {metric.source === "jane" && metric.resourceKey && !isChild && (
-                isHidden ? (
-                  <DropdownMenuItem onClick={() => handleUnhide(metric.resourceKey!)}>
-                    <Eye className="w-4 h-4 mr-2" />
-                    Show
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={() => handleHide(metric.resourceKey!)}>
-                    <EyeOff className="w-4 h-4 mr-2" />
-                    Hide
-                  </DropdownMenuItem>
-                )
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </TableCell>
-      </motion.tr>
-    );
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = dataMetrics.findIndex(m => m.id === active.id);
+      const newIndex = dataMetrics.findIndex(m => m.id === over.id);
+      
+      const newOrder = arrayMove(dataMetrics.map(m => m.id), oldIndex, newIndex);
+      saveOrder(newOrder);
+    }
   };
 
   return (
@@ -610,7 +723,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[300px]">Data Point</TableHead>
+              <TableHead className="w-[320px]">Data Point</TableHead>
               <TableHead>Source</TableHead>
               <TableHead className="text-right">This Week</TableHead>
               <TableHead className="text-right">This Month</TableHead>
@@ -620,39 +733,78 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <AnimatePresence mode="popLayout">
-              {dataMetrics.map((metric) => {
-                const isExpanded = expandedMetrics.has(metric.name);
-                const hasDimensions = metric.isDimensional && metric.dimensions && metric.dimensions.length > 0;
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={dataMetrics.map(m => m.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {dataMetrics.map((metric) => {
+                  const isExpanded = expandedMetrics.has(metric.name);
+                  const hasDimensions = metric.isDimensional && metric.dimensions && metric.dimensions.length > 0;
+                  const isHidden = metric.resourceKey ? hiddenResources.includes(metric.resourceKey) : false;
 
-                return (
-                  <>
-                    {renderMetricRow(metric)}
-                    {/* Render child rows if expanded */}
-                    {isExpanded && hasDimensions && metric.dimensions!.map((dim) => {
-                      // Check if this specific dimension is tracked
-                      const childMetricName = `${metric.name} - ${dim.label}`;
-                      const tracked = trackedMetrics?.find(m => 
-                        m.name.toLowerCase() === childMetricName.toLowerCase()
-                      );
-                      
-                      const childMetric: DataMetric = {
-                        ...metric,
-                        name: childMetricName,
-                        dimensionValue: dim.label,
-                        parentName: metric.name,
-                        isDimensional: false,
-                        dimensions: undefined,
-                        isTracked: !!tracked,
-                        metricId: tracked?.id,
-                      };
-                      
-                      return renderMetricRow(childMetric, true);
-                    })}
-                  </>
-                );
-              })}
-            </AnimatePresence>
+                  return (
+                    <AnimatePresence key={metric.id} mode="popLayout">
+                      <SortableMetricRow
+                        metric={metric}
+                        isChild={false}
+                        isHidden={isHidden}
+                        isExpanded={isExpanded}
+                        hasDimensions={hasDimensions}
+                        formatValue={formatValue}
+                        getStatusBadge={getStatusBadge}
+                        toggleExpanded={toggleExpanded}
+                        handleAddToScorecard={handleAddToScorecard}
+                        handleCreateIssue={handleCreateIssue}
+                        handleHide={handleHide}
+                        handleUnhide={handleUnhide}
+                      />
+                      {/* Render child rows if expanded */}
+                      {isExpanded && hasDimensions && metric.dimensions!.map((dim) => {
+                        const childMetricName = `${metric.name} - ${dim.label}`;
+                        const tracked = trackedMetrics?.find(m => 
+                          m.name.toLowerCase() === childMetricName.toLowerCase()
+                        );
+                        
+                        const childMetric: DataMetric = {
+                          ...metric,
+                          id: `${metric.id}-${dim.value}`,
+                          name: childMetricName,
+                          dimensionValue: dim.label,
+                          parentName: metric.name,
+                          isDimensional: false,
+                          dimensions: undefined,
+                          isTracked: !!tracked,
+                          metricId: tracked?.id,
+                        };
+                        
+                        return (
+                          <SortableMetricRow
+                            key={childMetric.id}
+                            metric={childMetric}
+                            isChild={true}
+                            isHidden={false}
+                            isExpanded={false}
+                            hasDimensions={false}
+                            formatValue={formatValue}
+                            getStatusBadge={getStatusBadge}
+                            toggleExpanded={toggleExpanded}
+                            handleAddToScorecard={handleAddToScorecard}
+                            handleCreateIssue={handleCreateIssue}
+                            handleHide={handleHide}
+                            handleUnhide={handleUnhide}
+                          />
+                        );
+                      })}
+                    </AnimatePresence>
+                  );
+                })}
+              </SortableContext>
+            </DndContext>
             {dataMetrics.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
