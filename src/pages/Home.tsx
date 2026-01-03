@@ -244,9 +244,6 @@ const Home = () => {
       {/* Getting Started Widget */}
       <GettingStartedWidget />
 
-      {/* Year in Progress Preview */}
-      <ProgressPreviewCard />
-
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -406,6 +403,8 @@ const Home = () => {
         <CoreValueOfWeekCard />
       </motion.div>
 
+      {/* Year in Progress Preview */}
+      <ProgressPreviewCard />
     </div>
   );
 };
