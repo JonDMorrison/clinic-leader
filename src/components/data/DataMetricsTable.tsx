@@ -524,7 +524,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           </div>
         </TableCell>
         <TableCell>
-          <Badge variant="outline" className="text-xs capitalize">
+          <Badge variant="outline" className="text-xs capitalize whitespace-nowrap">
             {metric.source === "jane" ? "Jane App" : metric.source}
           </Badge>
         </TableCell>
