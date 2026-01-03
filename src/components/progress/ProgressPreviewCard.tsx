@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button";
 export const ProgressPreviewCard = () => {
   const { data: stats, isLoading } = useProgressStats();
 
-  // Don't show if no data or loading
-  if (isLoading || !stats?.hasData) return null;
+  // Don't show while loading
+  if (isLoading) return null;
 
-  const totalWins = stats.issuesSolved + stats.rocksCompleted + stats.milestonesHit;
+  const totalWins = (stats?.issuesSolved || 0) + (stats?.rocksCompleted || 0) + (stats?.milestonesHit || 0);
+  const unlockedBadges = stats?.badges?.filter(b => b.unlocked).length || 0;
   const currentYear = new Date().getFullYear();
 
   return (
@@ -93,7 +94,7 @@ export const ProgressPreviewCard = () => {
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold">
-                      <AnimatedCounter value={stats.badges.filter(b => b.unlocked).length} />
+                      <AnimatedCounter value={unlockedBadges} />
                     </p>
                     <p className="text-xs text-white/70">Badges</p>
                   </div>
