@@ -62,23 +62,9 @@ const integrations: Integration[] = [
       "Tax reporting",
     ],
   },
-  {
-    id: "mailchimp",
-    name: "Mailchimp",
-    description: "Email marketing and patient communication",
-    icon: <Zap className="w-8 h-8" />,
-    status: "coming-soon",
-    category: "Communication",
-    features: [
-      "Email campaigns",
-      "Patient newsletters",
-      "Automated reminders",
-      "Engagement tracking",
-    ],
-  },
 ];
 
-const categories = ["All", "Practice Management", "Payments", "Communication", "Analytics"] as const;
+const categories = ["All", "Practice Management", "Payments", "Analytics"] as const;
 
 export default function Integrations() {
   const navigate = useNavigate();
