@@ -1558,6 +1558,45 @@ export type Database = {
           },
         ]
       }
+      hidden_jane_resources: {
+        Row: {
+          created_at: string
+          hidden_by: string | null
+          id: string
+          organization_id: string
+          resource_key: string
+        }
+        Insert: {
+          created_at?: string
+          hidden_by?: string | null
+          id?: string
+          organization_id: string
+          resource_key: string
+        }
+        Update: {
+          created_at?: string
+          hidden_by?: string | null
+          id?: string
+          organization_id?: string
+          resource_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hidden_jane_resources_hidden_by_fkey"
+            columns: ["hidden_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hidden_jane_resources_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_mappings: {
         Row: {
           created_at: string | null

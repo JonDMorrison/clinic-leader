@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   Database, 
   ArrowRight, 
@@ -24,24 +26,22 @@ import {
   Stethoscope,
   Package,
   ClipboardList,
-  Building2
+  Building2,
+  ChevronDown,
+  EyeOff
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow, differenceInHours } from "date-fns";
 import { AutomationHealthWidget } from "@/components/dashboard/AutomationHealthWidget";
 import { DataInsightsWidget } from "@/components/dashboard/DataInsightsWidget";
+import { ResourceCard, type JaneResource, type ResourceStatus } from "@/components/data/ResourceCard";
+import { AddJaneMetricModal } from "@/components/data/AddJaneMetricModal";
+import { useHiddenJaneResources } from "@/hooks/useHiddenJaneResources";
 
 // Full Jane data resources with descriptions
-interface JaneResource {
-  icon: typeof FileText;
-  label: string;
-  description: string;
-  available: boolean;
-  metrics?: string[];
-}
 
 const JANE_RESOURCES: Record<string, JaneResource> = {
   appointments: { 
@@ -132,17 +132,20 @@ const RESOURCE_CONFIG: Record<string, { icon: typeof FileText; label: string }> 
   shifts: { icon: Calendar, label: "Shifts" },
 };
 
-interface ResourceStatus {
-  resource: string;
-  lastSync: string | null;
-  rowCount: number;
-  status: 'healthy' | 'stale' | 'waiting' | 'error';
-  lastError: string | null;
-}
-
 export default function DataHome() {
   const navigate = useNavigate();
   const { data: currentUser } = useCurrentUser();
+  
+  // Hidden resources management
+  const { hiddenResources, hideResource, unhideResource } = useHiddenJaneResources();
+  const [showHidden, setShowHidden] = useState(false);
+  
+  // Add metric modal state
+  const [addMetricModal, setAddMetricModal] = useState<{
+    open: boolean;
+    resourceKey: string;
+    metricName: string;
+  }>({ open: false, resourceKey: "", metricName: "" });
 
   // Fetch Jane connector status
   const { data: janeConnector, isLoading: janeLoading } = useQuery({
@@ -447,113 +450,115 @@ export default function DataHome() {
         </Card>
       )}
 
-      {/* Available Jane Resources - Shows all resources from Jane schema */}
+      {/* Available Jane Resources - Interactive section */}
       {isConnected && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="w-5 h-5" />
-                  Available Jane Resources
-                </CardTitle>
-                <CardDescription>
-                  All data resources available from your Jane App integration
-                </CardDescription>
+        <>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Database className="w-5 h-5" />
+                    Available Jane Resources
+                  </CardTitle>
+                  <CardDescription>
+                    Click any metric to add it to your scorecard
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  {hiddenResources.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowHidden(!showHidden)}
+                      className="text-muted-foreground"
+                    >
+                      <EyeOff className="w-4 h-4 mr-1" />
+                      {hiddenResources.length} hidden
+                      <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${showHidden ? 'rotate-180' : ''}`} />
+                    </Button>
+                  )}
+                  <Badge variant="secondary">
+                    {Object.values(JANE_RESOURCES).filter(r => r.available && !hiddenResources.includes(Object.keys(JANE_RESOURCES).find(k => JANE_RESOURCES[k] === r) || '')).length} Active
+                  </Badge>
+                </div>
               </div>
-              <Badge variant="secondary">
-                {Object.values(JANE_RESOURCES).filter(r => r.available).length} Active
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(JANE_RESOURCES).map(([key, resource]) => {
-                const Icon = resource.icon;
-                const isActive = Object.keys(RESOURCE_CONFIG).includes(key);
-                const status = resourceStatuses?.find(s => s.resource === key);
-                
-                return (
-                  <div
-                    key={key}
-                    className={`p-4 rounded-lg border transition-all ${
-                      resource.available
-                        ? isActive && status?.status === 'healthy'
-                          ? 'bg-success/5 border-success/20'
-                          : isActive
-                          ? 'bg-primary/5 border-primary/20'
-                          : 'bg-muted/30 border-border hover:border-primary/30'
-                        : 'bg-muted/20 border-dashed opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded ${
-                          resource.available
-                            ? isActive ? 'bg-primary/10' : 'bg-muted'
-                            : 'bg-muted/50'
-                        }`}>
-                          <Icon className={`w-4 h-4 ${
-                            resource.available
-                              ? isActive ? 'text-primary' : 'text-muted-foreground'
-                              : 'text-muted-foreground/50'
-                          }`} />
-                        </div>
-                        <span className="font-medium text-sm">{resource.label}</span>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Visible Resources */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <AnimatePresence mode="popLayout">
+                  {Object.entries(JANE_RESOURCES)
+                    .filter(([key]) => !hiddenResources.includes(key))
+                    .map(([key, resource]) => {
+                      const isActive = Object.keys(RESOURCE_CONFIG).includes(key);
+                      const status = resourceStatuses?.find(s => s.resource === key);
+                      
+                      return (
+                        <ResourceCard
+                          key={key}
+                          resourceKey={key}
+                          resource={resource}
+                          isActive={isActive}
+                          isHidden={false}
+                          status={status}
+                          onHide={hideResource}
+                          onUnhide={unhideResource}
+                          onAddMetric={(rk, metric) => setAddMetricModal({ open: true, resourceKey: rk, metricName: metric })}
+                        />
+                      );
+                    })}
+                </AnimatePresence>
+              </div>
+
+              {/* Hidden Resources Section */}
+              {hiddenResources.length > 0 && (
+                <Collapsible open={showHidden} onOpenChange={setShowHidden}>
+                  <CollapsibleContent>
+                    <div className="pt-4 border-t border-dashed">
+                      <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                        <EyeOff className="w-4 h-4" />
+                        Hidden Resources
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <AnimatePresence mode="popLayout">
+                          {Object.entries(JANE_RESOURCES)
+                            .filter(([key]) => hiddenResources.includes(key))
+                            .map(([key, resource]) => {
+                              const isActive = Object.keys(RESOURCE_CONFIG).includes(key);
+                              const status = resourceStatuses?.find(s => s.resource === key);
+                              
+                              return (
+                                <ResourceCard
+                                  key={key}
+                                  resourceKey={key}
+                                  resource={resource}
+                                  isActive={isActive}
+                                  isHidden={true}
+                                  status={status}
+                                  onHide={hideResource}
+                                  onUnhide={unhideResource}
+                                  onAddMetric={(rk, metric) => setAddMetricModal({ open: true, resourceKey: rk, metricName: metric })}
+                                />
+                              );
+                            })}
+                        </AnimatePresence>
                       </div>
-                      {resource.available ? (
-                        isActive && status?.status === 'healthy' ? (
-                          <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Active
-                          </Badge>
-                        ) : isActive ? (
-                          <Badge variant="outline" className="text-xs">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Pending
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">
-                            Available
-                          </Badge>
-                        )
-                      ) : (
-                        <Badge variant="outline" className="text-xs opacity-60">
-                          Coming Soon
-                        </Badge>
-                      )}
                     </div>
-                    
-                    <p className="text-xs text-muted-foreground mb-3">
-                      {resource.description}
-                    </p>
-                    
-                    {resource.metrics && resource.metrics.length > 0 && (
-                      <div className="pt-2 border-t border-border/50">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Metrics:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {resource.metrics.slice(0, 3).map((metric) => (
-                            <span 
-                              key={metric} 
-                              className="text-xs px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground"
-                            >
-                              {metric}
-                            </span>
-                          ))}
-                          {resource.metrics.length > 3 && (
-                            <span className="text-xs text-muted-foreground">
-                              +{resource.metrics.length - 3} more
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Add Metric Modal */}
+          <AddJaneMetricModal
+            open={addMetricModal.open}
+            onOpenChange={(open) => setAddMetricModal(prev => ({ ...prev, open }))}
+            resourceKey={addMetricModal.resourceKey}
+            metricName={addMetricModal.metricName}
+          />
+        </>
       )}
 
       {/* Automation Health Widget - Shows when connected */}
