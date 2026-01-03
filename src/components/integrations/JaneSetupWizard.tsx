@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import {
   CheckCircle2,
@@ -20,7 +21,15 @@ import {
   Shield,
   ArrowRight,
   Sparkles,
+  AlertTriangle,
+  FlaskConical,
 } from "lucide-react";
+import { 
+  isSandboxEnvironment, 
+  canActivateProductionConnectors, 
+  getEnvironmentRestrictionMessage,
+  getEnvironmentConfig 
+} from "@/lib/environment";
 
 type WizardStep = 1 | 2 | 3 | 4;
 
@@ -197,11 +206,21 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
     toast.success("Copied to clipboard");
   };
 
+  // Environment checks for connector activation
+  const envConfig = getEnvironmentConfig();
+  const isSandbox = isSandboxEnvironment();
+  const canActivateProduction = canActivateProductionConnectors();
+
   // Step 1 & 2: Request connection with partner_managed mode
   const requestConnection = useMutation({
     mutationFn: async () => {
       if (!orgId) throw new Error("No organization");
       if (!validateClinicUrl(clinicUrl)) throw new Error("Invalid clinic URL");
+
+      // Prevent production connector activation in sandbox environments
+      if (!canActivateProduction) {
+        throw new Error(`Production connectors cannot be activated in ${envConfig.label.toLowerCase()} environment. Only sandbox connectors are permitted.`);
+      }
 
       const clinicIdentifier = extractClinicIdentifier(clinicUrl);
 
@@ -220,6 +239,7 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
           s3_bucket: PARTNER_S3_CONFIG.bucket,
           s3_region: PARTNER_S3_CONFIG.region,
           s3_external_id: `org_${orgId}`,
+          is_sandbox: isSandbox, // Tag connector with environment
         })
         .select()
         .single();
@@ -228,7 +248,8 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
       return data;
     },
     onSuccess: () => {
-      toast.success("Request received", {
+      const envNote = isSandbox ? " (Sandbox Mode)" : "";
+      toast.success(`Request received${envNote}`, {
         description: "Next, you'll share these details with Jane.",
       });
       queryClient.invalidateQueries({ queryKey: ["jane-bulk-connector"] });
@@ -374,54 +395,91 @@ export default function JaneSetupWizard({ connector, orgId, recentIngests }: Jan
   );
 
   // STEP 2: Request the Connection
-  const Step2 = () => (
-    <Card>
-      <CardHeader className="text-center">
-        <div className="mx-auto mb-4 p-4 rounded-full bg-primary/10 w-fit">
-          <Server className="w-8 h-8 text-primary" />
-        </div>
-        <CardTitle className="text-xl">Request the Jane data connection</CardTitle>
-        <CardDescription>
-          This starts the setup process. No data flows yet.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Summary Card */}
-        <div className="p-4 rounded-lg border bg-muted/30 max-w-md mx-auto space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Clinic URL</span>
-            <span className="font-mono text-sm">{extractClinicIdentifier(clinicUrl)}</span>
+  const Step2 = () => {
+    const envRestrictionMessage = getEnvironmentRestrictionMessage();
+    
+    return (
+      <Card>
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 p-4 rounded-full bg-primary/10 w-fit">
+            <Server className="w-8 h-8 text-primary" />
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Source</span>
-            <span className="font-medium">Jane</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Delivery</span>
-            <Badge variant="secondary" className="text-xs">Partner Managed</Badge>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Cadence</span>
-            <span className="font-medium">Daily</span>
-          </div>
-        </div>
+          <CardTitle className="text-xl">Request the Jane data connection</CardTitle>
+          <CardDescription>
+            This starts the setup process. No data flows yet.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Environment Warning for Sandbox */}
+          {isSandbox && (
+            <Alert variant="destructive" className="max-w-md mx-auto">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle className="flex items-center gap-2">
+                <FlaskConical className="h-4 w-4" />
+                {envConfig.label} Environment
+              </AlertTitle>
+              <AlertDescription className="text-sm">
+                {envRestrictionMessage}
+                <br /><br />
+                <strong>To connect to production Jane data:</strong> Use the production environment at app.clinicleader.com
+              </AlertDescription>
+            </Alert>
+          )}
 
-        <div className="flex flex-col items-center gap-3">
-          <Button
-            size="lg"
-            onClick={() => requestConnection.mutate()}
-            disabled={requestConnection.isPending}
-          >
-            {requestConnection.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Request connection
-          </Button>
-          <p className="text-xs text-muted-foreground text-center max-w-sm">
-            We'll provide you with everything Jane needs to start sending data.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
+          {/* Summary Card */}
+          <div className="p-4 rounded-lg border bg-muted/30 max-w-md mx-auto space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Clinic URL</span>
+              <span className="font-mono text-sm">{extractClinicIdentifier(clinicUrl)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Source</span>
+              <span className="font-medium">Jane</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Delivery</span>
+              <Badge variant="secondary" className="text-xs">Partner Managed</Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Cadence</span>
+              <span className="font-medium">Daily</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Environment</span>
+              <Badge 
+                variant={isSandbox ? "outline" : "default"} 
+                className="text-xs gap-1"
+              >
+                {isSandbox && <FlaskConical className="h-3 w-3" />}
+                {envConfig.label}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center gap-3">
+            <Button
+              size="lg"
+              onClick={() => requestConnection.mutate()}
+              disabled={requestConnection.isPending || !canActivateProduction}
+              title={!canActivateProduction ? "Production connectors cannot be activated in sandbox environments" : undefined}
+            >
+              {requestConnection.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {isSandbox ? "Sandbox Mode Only" : "Request connection"}
+            </Button>
+            {!canActivateProduction ? (
+              <p className="text-xs text-destructive text-center max-w-sm">
+                Production connector activation is disabled in {envConfig.label.toLowerCase()} environments.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center max-w-sm">
+                We'll provide you with everything Jane needs to start sending data.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   // STEP 3: Enable Data Delivery in Jane (Simplified for Partner-Managed)
   const Step3 = () => {
