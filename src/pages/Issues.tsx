@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { IDSBoard } from "@/components/issues/IDSBoard";
 import { NewIssueModal } from "@/components/issues/NewIssueModal";
+import { IssueSuggestionsBanner } from "@/components/issues/IssueSuggestionsBanner";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
@@ -105,6 +106,9 @@ const Issues = () => {
           New Issue
         </Button>
       </div>
+
+      {/* AI Issue Suggestions Banner */}
+      <IssueSuggestionsBanner organizationId={orgId} onIssueCreated={refetch} />
 
       <Card>
         <CardHeader>
