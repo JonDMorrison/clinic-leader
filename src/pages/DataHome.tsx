@@ -18,7 +18,13 @@ import {
   Users,
   DollarSign,
   Receipt,
-  CalendarClock
+  CalendarClock,
+  UserCog,
+  MapPin,
+  Stethoscope,
+  Package,
+  ClipboardList,
+  Building2
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +34,96 @@ import { formatDistanceToNow, differenceInHours } from "date-fns";
 import { AutomationHealthWidget } from "@/components/dashboard/AutomationHealthWidget";
 import { DataInsightsWidget } from "@/components/dashboard/DataInsightsWidget";
 
-// Resource types with icons
+// Full Jane data resources with descriptions
+interface JaneResource {
+  icon: typeof FileText;
+  label: string;
+  description: string;
+  available: boolean;
+  metrics?: string[];
+}
+
+const JANE_RESOURCES: Record<string, JaneResource> = {
+  appointments: { 
+    icon: CalendarClock, 
+    label: "Appointments",
+    description: "Booking status, duration, practitioner assignment, location. No clinical notes.",
+    available: true,
+    metrics: ["Total Visits", "New Patient Visits", "Show Rate %", "Cancellation Rate %", "No Shows"]
+  },
+  payments: { 
+    icon: DollarSign, 
+    label: "Payments",
+    description: "Amount, date, payment method category, payer type. No card numbers.",
+    available: true,
+    metrics: ["Total Collected Revenue", "Average Revenue Per Visit"]
+  },
+  invoices: { 
+    icon: Receipt, 
+    label: "Invoices",
+    description: "Totals, income category, staff assignment. No line-item descriptions.",
+    available: true,
+    metrics: ["Total Invoiced", "Revenue by Provider"]
+  },
+  patients: { 
+    icon: Users, 
+    label: "Patients",
+    description: "Anonymized demographics. City, province, postal prefix, referral source. No names or contact info.",
+    available: true,
+    metrics: ["New Patients", "Patient Retention", "Referral Sources"]
+  },
+  shifts: { 
+    icon: Calendar, 
+    label: "Shifts",
+    description: "Scheduled hours, practitioner assignment, location. Used for utilization metrics.",
+    available: true,
+    metrics: ["Practitioner Utilization", "Available Hours"]
+  },
+  staff_members: {
+    icon: UserCog,
+    label: "Staff Members",
+    description: "Practitioner profiles, disciplines, and active status. Used for provider-level breakdowns.",
+    available: true,
+    metrics: ["Provider Scorecards", "Team Performance"]
+  },
+  locations: {
+    icon: MapPin,
+    label: "Locations",
+    description: "Clinic locations and room configurations. Used for location-based reporting.",
+    available: true,
+    metrics: ["Revenue by Location", "Utilization by Room"]
+  },
+  treatments: {
+    icon: Stethoscope,
+    label: "Treatments",
+    description: "Service types, pricing, and duration. No clinical protocols.",
+    available: true,
+    metrics: ["Service Mix", "Revenue by Treatment Type"]
+  },
+  products: {
+    icon: Package,
+    label: "Products",
+    description: "Retail inventory and sales. Product names and pricing only.",
+    available: false,
+    metrics: ["Product Sales", "Inventory Turnover"]
+  },
+  waitlist: {
+    icon: ClipboardList,
+    label: "Waitlist",
+    description: "Waitlist entries and conversion rates. No patient identifiers.",
+    available: false,
+    metrics: ["Waitlist Conversion", "Average Wait Time"]
+  },
+  disciplines: {
+    icon: Building2,
+    label: "Disciplines",
+    description: "Practice areas and specialties. Used for service categorization.",
+    available: true,
+    metrics: ["Revenue by Discipline"]
+  },
+};
+
+// Active resource types (currently supported in data pipeline)
 const RESOURCE_CONFIG: Record<string, { icon: typeof FileText; label: string }> = {
   appointments: { icon: CalendarClock, label: "Appointments" },
   payments: { icon: DollarSign, label: "Payments" },
@@ -343,6 +438,115 @@ export default function DataHome() {
                           </p>
                         )}
                       </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Available Jane Resources - Shows all resources from Jane schema */}
+      {isConnected && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="w-5 h-5" />
+                  Available Jane Resources
+                </CardTitle>
+                <CardDescription>
+                  All data resources available from your Jane App integration
+                </CardDescription>
+              </div>
+              <Badge variant="secondary">
+                {Object.values(JANE_RESOURCES).filter(r => r.available).length} Active
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(JANE_RESOURCES).map(([key, resource]) => {
+                const Icon = resource.icon;
+                const isActive = Object.keys(RESOURCE_CONFIG).includes(key);
+                const status = resourceStatuses?.find(s => s.resource === key);
+                
+                return (
+                  <div
+                    key={key}
+                    className={`p-4 rounded-lg border transition-all ${
+                      resource.available
+                        ? isActive && status?.status === 'healthy'
+                          ? 'bg-success/5 border-success/20'
+                          : isActive
+                          ? 'bg-primary/5 border-primary/20'
+                          : 'bg-muted/30 border-border hover:border-primary/30'
+                        : 'bg-muted/20 border-dashed opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded ${
+                          resource.available
+                            ? isActive ? 'bg-primary/10' : 'bg-muted'
+                            : 'bg-muted/50'
+                        }`}>
+                          <Icon className={`w-4 h-4 ${
+                            resource.available
+                              ? isActive ? 'text-primary' : 'text-muted-foreground'
+                              : 'text-muted-foreground/50'
+                          }`} />
+                        </div>
+                        <span className="font-medium text-sm">{resource.label}</span>
+                      </div>
+                      {resource.available ? (
+                        isActive && status?.status === 'healthy' ? (
+                          <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            Active
+                          </Badge>
+                        ) : isActive ? (
+                          <Badge variant="outline" className="text-xs">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Pending
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            Available
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge variant="outline" className="text-xs opacity-60">
+                          Coming Soon
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground mb-3">
+                      {resource.description}
+                    </p>
+                    
+                    {resource.metrics && resource.metrics.length > 0 && (
+                      <div className="pt-2 border-t border-border/50">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Metrics:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {resource.metrics.slice(0, 3).map((metric) => (
+                            <span 
+                              key={metric} 
+                              className="text-xs px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground"
+                            >
+                              {metric}
+                            </span>
+                          ))}
+                          {resource.metrics.length > 3 && (
+                            <span className="text-xs text-muted-foreground">
+                              +{resource.metrics.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
                 );
