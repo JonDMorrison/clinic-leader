@@ -14,6 +14,12 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   CheckCircle2,
   Shield,
   ExternalLink,
@@ -26,6 +32,8 @@ import {
   X,
   AlertCircle,
   Clock,
+  Lock,
+  Info,
 } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -329,11 +337,42 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
               )}
             </div>
             <div className="p-4 rounded-lg border bg-background">
-              <p className="text-sm text-muted-foreground mb-1">Verification ID</p>
-              <p className="font-mono font-medium text-sm truncate" title="Unique identifier that confirms this data belongs to your clinic">
-                {connector.locked_account_guid || "Pending verification"}
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-sm text-muted-foreground">Bound to Jane Account</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p className="text-sm">
+                        <strong>Security Lock:</strong> This connector is permanently bound to this Jane account. 
+                        Data from any other Jane account will be automatically rejected to prevent cross-clinic data mixing. 
+                        This cannot be changed for safety reasons.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              {connector.locked_account_guid ? (
+                <div className="flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-green-600" />
+                  <p className="font-mono font-medium text-sm truncate">
+                    {connector.locked_account_guid.substring(0, 8)}...{connector.locked_account_guid.substring(connector.locked_account_guid.length - 4)}
+                  </p>
+                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                    Locked
+                  </Badge>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <p className="text-sm">Will lock on first successful ingest</p>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Ensures data isolation between clinics
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Confirms data ownership</p>
             </div>
             <div className="p-4 rounded-lg border bg-background">
               <p className="text-sm text-muted-foreground mb-1">First Delivery</p>

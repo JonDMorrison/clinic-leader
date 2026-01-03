@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_lock_audit: {
+        Row: {
+          connector_id: string
+          id: string
+          locked_account_guid: string
+          locked_at: string
+          locked_by: string | null
+          organization_id: string
+        }
+        Insert: {
+          connector_id: string
+          id?: string
+          locked_account_guid: string
+          locked_at?: string
+          locked_by?: string | null
+          organization_id: string
+        }
+        Update: {
+          connector_id?: string
+          id?: string
+          locked_account_guid?: string
+          locked_at?: string
+          locked_by?: string | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_account_lock_connector"
+            columns: ["connector_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_analytics_connectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_account_lock_org"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       acknowledgements: {
         Row: {
           acknowledged_at: string
@@ -943,6 +985,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "file_ingest_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_rejection_log: {
+        Row: {
+          connector_id: string
+          expected_account_guid: string | null
+          file_checksum: string | null
+          file_name: string
+          id: string
+          organization_id: string
+          received_account_guid: string | null
+          rejected_at: string
+          rejection_reason: string
+        }
+        Insert: {
+          connector_id: string
+          expected_account_guid?: string | null
+          file_checksum?: string | null
+          file_name: string
+          id?: string
+          organization_id: string
+          received_account_guid?: string | null
+          rejected_at?: string
+          rejection_reason: string
+        }
+        Update: {
+          connector_id?: string
+          expected_account_guid?: string | null
+          file_checksum?: string | null
+          file_name?: string
+          id?: string
+          organization_id?: string
+          received_account_guid?: string | null
+          rejected_at?: string
+          rejection_reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_rejection_connector"
+            columns: ["connector_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_analytics_connectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_rejection_org"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
