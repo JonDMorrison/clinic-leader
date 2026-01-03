@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Shield, Lock, Eye, CheckCircle2, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DataAccessAuditPanel } from "@/components/admin/DataAccessAuditPanel";
+import { SecurityOverviewPanel } from "@/components/admin/SecurityOverviewPanel";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export default function DataSafety() {
@@ -128,32 +129,9 @@ export default function DataSafety() {
             </Card>
           </section>
 
-          {/* Section 5: Security & Safeguards */}
+          {/* Section 5: Security & Encryption Overview */}
           <section className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Shield className="h-5 w-5 text-primary" />
-              </div>
-              <h2 className="text-xl font-medium text-foreground">Security and Safeguards</h2>
-            </div>
-            <ul className="space-y-2 text-muted-foreground">
-              <li className="flex items-start gap-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                <span>All data is encrypted in transit and at rest</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                <span>Access is scoped to your organization only</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                <span>Internal audit logs track all data access</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                <span>Only authorized team members can view analytics</span>
-              </li>
-            </ul>
+            <SecurityOverviewPanel />
           </section>
 
           {/* Section 6: Control & Transparency */}
