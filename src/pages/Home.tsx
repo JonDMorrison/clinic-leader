@@ -19,6 +19,7 @@ import { CoreValuesStrip, CoreValueOfWeekCard } from "@/components/core-values";
 import { FocusWidget } from "@/components/dashboard/FocusWidget";
 import { ConnectDataCard } from "@/components/dashboard/ConnectDataCard";
 import { IssueSuggestionsWidget } from "@/components/dashboard/IssueSuggestionsWidget";
+import { ProgressPreviewCard } from "@/components/progress/ProgressPreviewCard";
 
 const Home = () => {
   const ref = useRef(null);
@@ -242,6 +243,9 @@ const Home = () => {
 
       {/* Getting Started Widget */}
       <GettingStartedWidget />
+
+      {/* Year in Progress Preview */}
+      <ProgressPreviewCard />
 
       <motion.div
         initial={{ opacity: 0 }}

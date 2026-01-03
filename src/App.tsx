@@ -78,6 +78,7 @@ import DataSafety from "./pages/DataSafety";
 import DataHome from "./pages/DataHome";
 import JaneCompliance from "./pages/JaneCompliance";
 import Security from "./pages/Security";
+import Progress from "./pages/Progress";
 
 const queryClient = new QueryClient();
 
@@ -180,6 +181,7 @@ const App = () => {
             <Route path="/rocks/monthly-review" element={<AppLayout><RocksMonthlyReview /></AppLayout>} />
             <Route path="/rocks/quarterly-close" element={<AppLayout><QuarterlyCloseReport /></AppLayout>} />
             <Route path="/focus" element={<AppLayout><Focus /></AppLayout>} />
+            <Route path="/progress" element={<AppLayout><Progress /></AppLayout>} />
             <Route path="/data" element={<AppLayout><DataHome /></AppLayout>} />
             <Route path="/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
             <Route path="/meeting" element={<AppLayout><L10 /></AppLayout>} />
