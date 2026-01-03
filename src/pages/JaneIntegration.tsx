@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import JaneSetupWizard from "@/components/integrations/JaneSetupWizard";
 import JaneConnectionSummary from "@/components/integrations/JaneConnectionSummary";
+import DataDeliveryHistory from "@/components/integrations/DataDeliveryHistory";
 
 export default function JaneIntegration() {
   const navigate = useNavigate();
@@ -114,10 +115,16 @@ export default function JaneIntegration() {
 
       {/* Main Content: Either Wizard or Summary */}
       {isSetupComplete && connector ? (
-        <JaneConnectionSummary 
-          connector={connector} 
-          recentIngests={recentIngests || []} 
-        />
+        <>
+          <JaneConnectionSummary 
+            connector={connector} 
+            recentIngests={recentIngests || []} 
+          />
+          {/* Data Delivery History - Audit Trail */}
+          {orgId && (
+            <DataDeliveryHistory organizationId={orgId} />
+          )}
+        </>
       ) : (
         <JaneSetupWizard 
           connector={connector} 

@@ -860,6 +860,8 @@ Deno.serve(async (req) => {
     // 10. Update connector status
     const processedAt = new Date().toISOString();
     const isFirstSuccessfulIngest = !connector.locked_account_guid && !processingError;
+    const processingEndTime = Date.now();
+    const processingDurationMs = processingEndTime - (new Date(receivedAt).getTime());
     
     const connectorUpdate: Record<string, unknown> = {
       updated_at: processedAt,
@@ -898,6 +900,35 @@ Deno.serve(async (req) => {
       .from("bulk_analytics_connectors")
       .update(connectorUpdate)
       .eq("id", connector_id);
+
+    // =========================================================================
+    // AUDIT LEDGER: Write immutable record for compliance
+    // =========================================================================
+    const ledgerStatus = processingError 
+      ? "rejected" 
+      : (allQuarantinedFields.length > 0 ? "partial" : "accepted");
+    
+    await supabase
+      .from("data_ingestion_ledger")
+      .insert({
+        organization_id: orgId,
+        connector_id: connector_id,
+        source_system: "Jane Data Pipe",
+        resource_type: resource,
+        file_name: s3_key,
+        file_date: file_date,
+        rows_received: csv_data.length,
+        rows_ingested: processedRows,
+        fields_quarantined: allQuarantinedFields.length,
+        checksum: checksum,
+        status: ledgerStatus,
+        rejection_reason: processingError || null,
+        processing_duration_ms: processingDurationMs,
+        account_guid_verified: !!connector.locked_account_guid || isFirstSuccessfulIngest,
+        data_minimization_applied: true,
+      });
+    
+    console.log(`[LEDGER] Recorded ${ledgerStatus} ingestion: ${resource}, ${processedRows}/${csv_data.length} rows`);
 
     return new Response(
       JSON.stringify({
