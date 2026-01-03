@@ -1,151 +1,28 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   Database, 
   ArrowRight, 
   CheckCircle2, 
-  Clock, 
   AlertTriangle,
-  Zap,
   Target,
   RefreshCw,
-  Calendar,
   BarChart3,
   Loader2,
-  FileText,
-  Users,
-  DollarSign,
-  Receipt,
-  CalendarClock,
-  UserCog,
-  MapPin,
-  Stethoscope,
-  Package,
-  ClipboardList,
-  Building2,
-  ChevronDown,
-  EyeOff
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { motion, AnimatePresence } from "framer-motion";
-import { formatDistanceToNow, differenceInHours } from "date-fns";
-import { AutomationHealthWidget } from "@/components/dashboard/AutomationHealthWidget";
-import { DataInsightsWidget } from "@/components/dashboard/DataInsightsWidget";
-import { ResourceCard, type JaneResource, type ResourceStatus } from "@/components/data/ResourceCard";
-import { AddJaneMetricModal } from "@/components/data/AddJaneMetricModal";
-import { useHiddenJaneResources } from "@/hooks/useHiddenJaneResources";
-
-// Full Jane data resources with descriptions
-
-const JANE_RESOURCES: Record<string, JaneResource> = {
-  appointments: { 
-    icon: CalendarClock, 
-    label: "Appointments",
-    description: "Booking status, duration, practitioner assignment, location. No clinical notes.",
-    available: true,
-    metrics: ["Total Visits", "New Patient Visits", "Show Rate %", "Cancellation Rate %", "No Shows"]
-  },
-  payments: { 
-    icon: DollarSign, 
-    label: "Payments",
-    description: "Amount, date, payment method category, payer type. No card numbers.",
-    available: true,
-    metrics: ["Total Collected Revenue", "Average Revenue Per Visit"]
-  },
-  invoices: { 
-    icon: Receipt, 
-    label: "Invoices",
-    description: "Totals, income category, staff assignment. No line-item descriptions.",
-    available: true,
-    metrics: ["Total Invoiced", "Revenue by Provider"]
-  },
-  patients: { 
-    icon: Users, 
-    label: "Patients",
-    description: "Anonymized demographics. City, province, postal prefix, referral source. No names or contact info.",
-    available: true,
-    metrics: ["New Patients", "Patient Retention", "Referral Sources"]
-  },
-  shifts: { 
-    icon: Calendar, 
-    label: "Shifts",
-    description: "Scheduled hours, practitioner assignment, location. Used for utilization metrics.",
-    available: true,
-    metrics: ["Practitioner Utilization", "Available Hours"]
-  },
-  staff_members: {
-    icon: UserCog,
-    label: "Staff Members",
-    description: "Practitioner profiles, disciplines, and active status. Used for provider-level breakdowns.",
-    available: true,
-    metrics: ["Provider Scorecards", "Team Performance"]
-  },
-  locations: {
-    icon: MapPin,
-    label: "Locations",
-    description: "Clinic locations and room configurations. Used for location-based reporting.",
-    available: true,
-    metrics: ["Revenue by Location", "Utilization by Room"]
-  },
-  treatments: {
-    icon: Stethoscope,
-    label: "Treatments",
-    description: "Service types, pricing, and duration. No clinical protocols.",
-    available: true,
-    metrics: ["Service Mix", "Revenue by Treatment Type"]
-  },
-  products: {
-    icon: Package,
-    label: "Products",
-    description: "Retail inventory and sales. Product names and pricing only.",
-    available: false,
-    metrics: ["Product Sales", "Inventory Turnover"]
-  },
-  waitlist: {
-    icon: ClipboardList,
-    label: "Waitlist",
-    description: "Waitlist entries and conversion rates. No patient identifiers.",
-    available: false,
-    metrics: ["Waitlist Conversion", "Average Wait Time"]
-  },
-  disciplines: {
-    icon: Building2,
-    label: "Disciplines",
-    description: "Practice areas and specialties. Used for service categorization.",
-    available: true,
-    metrics: ["Revenue by Discipline"]
-  },
-};
-
-// Active resource types (currently supported in data pipeline)
-const RESOURCE_CONFIG: Record<string, { icon: typeof FileText; label: string }> = {
-  appointments: { icon: CalendarClock, label: "Appointments" },
-  payments: { icon: DollarSign, label: "Payments" },
-  invoices: { icon: Receipt, label: "Invoices" },
-  patients: { icon: Users, label: "Patients" },
-  shifts: { icon: Calendar, label: "Shifts" },
-};
+import { motion } from "framer-motion";
+import { formatDistanceToNow } from "date-fns";
+import { DataMetricsTable } from "@/components/data/DataMetricsTable";
+import { IntegrationsBanner } from "@/components/data/IntegrationsBanner";
 
 export default function DataHome() {
   const navigate = useNavigate();
   const { data: currentUser } = useCurrentUser();
-  
-  // Hidden resources management
-  const { hiddenResources, hideResource, unhideResource } = useHiddenJaneResources();
-  const [showHidden, setShowHidden] = useState(false);
-  
-  // Add metric modal state
-  const [addMetricModal, setAddMetricModal] = useState<{
-    open: boolean;
-    resourceKey: string;
-    metricName: string;
-  }>({ open: false, resourceKey: "", metricName: "" });
 
   // Fetch Jane connector status
   const { data: janeConnector, isLoading: janeLoading } = useQuery({
@@ -165,7 +42,7 @@ export default function DataHome() {
     enabled: !!currentUser?.team_id,
   });
 
-  // Fetch recent ingest logs
+  // Fetch recent ingest logs for last sync time
   const { data: recentIngests } = useQuery({
     queryKey: ["recent-ingests", currentUser?.team_id],
     queryFn: async () => {
@@ -173,64 +50,22 @@ export default function DataHome() {
       
       const { data } = await supabase
         .from("file_ingest_log")
-        .select("*")
+        .select("created_at, status")
         .eq("organization_id", currentUser.team_id)
         .eq("source_system", "jane")
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(1);
       
       return data || [];
     },
     enabled: !!currentUser?.team_id,
   });
 
-  // Fetch per-resource sync status
-  const { data: resourceStatuses } = useQuery({
-    queryKey: ["resource-statuses", currentUser?.team_id],
-    queryFn: async () => {
-      if (!currentUser?.team_id || !recentIngests) return [];
-      
-      const resources = Object.keys(RESOURCE_CONFIG);
-      const statuses: ResourceStatus[] = [];
-      
-      for (const resource of resources) {
-        const resourceLogs = recentIngests.filter(log => log.resource_name === resource);
-        const latestLog = resourceLogs[0];
-        
-        let status: 'healthy' | 'stale' | 'waiting' | 'error' = 'waiting';
-        
-        if (latestLog) {
-          if (latestLog.status === 'error') {
-            status = 'error';
-          } else if (latestLog.status === 'success') {
-            const hoursSinceSync = differenceInHours(new Date(), new Date(latestLog.created_at));
-            status = hoursSinceSync > 48 ? 'stale' : 'healthy';
-          }
-        }
-        
-        const totalRows = resourceLogs
-          .filter(log => log.status === 'success')
-          .reduce((sum, log) => sum + (log.rows || 0), 0);
-        
-        statuses.push({
-          resource,
-          lastSync: latestLog?.created_at || null,
-          rowCount: totalRows,
-          status,
-          lastError: latestLog?.status === 'error' ? latestLog.error : null,
-        });
-      }
-      
-      return statuses;
-    },
-    enabled: !!currentUser?.team_id && !!recentIngests,
-  });
-
   // Fetch automated metrics count
-  const { data: automatedMetrics } = useQuery({
-    queryKey: ["automated-metrics", currentUser?.team_id],
+  const { data: metricsCount } = useQuery({
+    queryKey: ["metrics-count", currentUser?.team_id],
     queryFn: async () => {
-      if (!currentUser?.team_id) return { automated: 0, manual: 0 };
+      if (!currentUser?.team_id) return { total: 0, automated: 0 };
       
       const { data: metrics } = await supabase
         .from("metrics")
@@ -238,21 +73,20 @@ export default function DataHome() {
         .eq("organization_id", currentUser.team_id)
         .eq("is_active", true);
       
+      const total = metrics?.length || 0;
       const automated = metrics?.filter(m => m.sync_source === "jane_pipe").length || 0;
-      const manual = metrics?.filter(m => m.sync_source === "manual").length || 0;
       
-      return { automated, manual };
+      return { total, automated };
     },
     enabled: !!currentUser?.team_id,
   });
 
-  const isConnected = janeConnector?.status === "receiving_data" || janeConnector?.status === "awaiting_first_file" || janeConnector?.status === "active" || janeConnector?.status === "awaiting_jane_setup";
-  const hasData = (recentIngests?.length || 0) > 0;
+  const isConnected = janeConnector?.status === "receiving_data" || 
+    janeConnector?.status === "awaiting_first_file" || 
+    janeConnector?.status === "active" || 
+    janeConnector?.status === "awaiting_jane_setup";
+  
   const lastSync = recentIngests?.[0]?.created_at;
-
-  // Check for stale data (no sync in 48+ hours)
-  const hasStaleData = resourceStatuses?.some(r => r.status === 'stale');
-  const hasErrors = resourceStatuses?.some(r => r.status === 'error');
 
   if (janeLoading) {
     return (
@@ -263,233 +97,65 @@ export default function DataHome() {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      {/* Hero Section */}
+    <div className="container mx-auto py-8 space-y-6">
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-card border p-8"
+        className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
       >
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3">
           <div className="p-3 rounded-xl bg-brand/10">
-            <Zap className="w-8 h-8 text-brand" />
+            <Database className="w-8 h-8 text-brand" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Integrations</h1>
-            <p className="text-muted-foreground">Connect your tools to automate data flow</p>
+            <h1 className="text-3xl font-bold">Data</h1>
+            <p className="text-muted-foreground">View and track your clinic metrics</p>
           </div>
         </div>
 
-        {!isConnected ? (
-          <div className="mt-6">
-            <Card className="border-dashed hover:border-brand/50 transition-colors cursor-pointer group" onClick={() => navigate("/integrations/jane")}>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-brand/10 group-hover:bg-brand/20 transition-colors">
-                    <CalendarClock className="w-6 h-6 text-brand" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold flex items-center gap-2">
-                      Jane App
-                      <Badge variant="outline" className="text-xs">Available</Badge>
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Automate appointments, revenue, and patient metrics
-                    </p>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-brand transition-colors" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { name: "Cliniko", icon: Stethoscope },
-                { name: "QuickBooks", icon: DollarSign },
-                { name: "Gusto", icon: Users },
-                { name: "Excel/CSV", icon: FileText },
-              ].map((integration) => (
-                <Card key={integration.name} className="border-dashed opacity-60">
-                  <CardContent className="pt-4 pb-4">
-                    <div className="flex items-center gap-3">
-                      <integration.icon className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{integration.name}</span>
-                      <Badge variant="outline" className="text-xs ml-auto">Soon</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        ) : (
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-background/50 backdrop-blur">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-success/20">
-                      <CheckCircle2 className="w-5 h-5 text-success" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Status</p>
-                      <p className="font-semibold text-success">Connected</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-background/50 backdrop-blur">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-brand/20">
-                      <BarChart3 className="w-5 h-5 text-brand" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Automated Metrics</p>
-                      <p className="font-semibold">{automatedMetrics?.automated || 0} active</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-background/50 backdrop-blur">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-accent/20">
-                      <RefreshCw className="w-5 h-5 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Last Sync</p>
-                      <p className="font-semibold">
-                        {lastSync ? formatDistanceToNow(new Date(lastSync), { addSuffix: true }) : "Awaiting data"}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-        )}
+        {/* Connection status badges */}
+        <div className="flex items-center gap-3">
+          {isConnected && (
+            <>
+              <Badge variant="outline" className="gap-1.5 py-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+                Jane Connected
+              </Badge>
+              <Badge variant="outline" className="gap-1.5 py-1.5">
+                <RefreshCw className="w-3.5 h-3.5" />
+                {lastSync 
+                  ? formatDistanceToNow(new Date(lastSync), { addSuffix: true })
+                  : "Awaiting data"
+                }
+              </Badge>
+              <Badge variant="outline" className="gap-1.5 py-1.5">
+                <BarChart3 className="w-3.5 h-3.5" />
+                {metricsCount?.total || 0} tracked
+              </Badge>
+            </>
+          )}
+        </div>
       </motion.div>
 
-      {/* Available Jane Resources - Interactive section */}
-      {isConnected && (
-        <>
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Database className="w-5 h-5" />
-                    Available Jane Resources
-                  </CardTitle>
-                  <CardDescription>
-                    Click any metric to add it to your scorecard
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  {hiddenResources.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowHidden(!showHidden)}
-                      className="text-muted-foreground"
-                    >
-                      <EyeOff className="w-4 h-4 mr-1" />
-                      {hiddenResources.length} hidden
-                      <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${showHidden ? 'rotate-180' : ''}`} />
-                    </Button>
-                  )}
-                  <Badge variant="secondary">
-                    {Object.values(JANE_RESOURCES).filter(r => r.available && !hiddenResources.includes(Object.keys(JANE_RESOURCES).find(k => JANE_RESOURCES[k] === r) || '')).length} Active
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Visible Resources */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <AnimatePresence mode="popLayout">
-                  {Object.entries(JANE_RESOURCES)
-                    .filter(([key]) => !hiddenResources.includes(key))
-                    .map(([key, resource]) => {
-                      const isActive = Object.keys(RESOURCE_CONFIG).includes(key);
-                      const status = resourceStatuses?.find(s => s.resource === key);
-                      
-                      return (
-                        <ResourceCard
-                          key={key}
-                          resourceKey={key}
-                          resource={resource}
-                          isActive={isActive}
-                          isHidden={false}
-                          status={status}
-                          onHide={hideResource}
-                          onUnhide={unhideResource}
-                          onAddMetric={(rk, metric) => setAddMetricModal({ open: true, resourceKey: rk, metricName: metric })}
-                        />
-                      );
-                    })}
-                </AnimatePresence>
-              </div>
+      {/* Main Data Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5" />
+            Available Metrics
+          </CardTitle>
+          <CardDescription>
+            All available data points from your connected integrations and templates
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DataMetricsTable isConnected={isConnected} />
+        </CardContent>
+      </Card>
 
-              {/* Hidden Resources Section */}
-              {hiddenResources.length > 0 && (
-                <Collapsible open={showHidden} onOpenChange={setShowHidden}>
-                  <CollapsibleContent>
-                    <div className="pt-4 border-t border-dashed">
-                      <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                        <EyeOff className="w-4 h-4" />
-                        Hidden Resources
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <AnimatePresence mode="popLayout">
-                          {Object.entries(JANE_RESOURCES)
-                            .filter(([key]) => hiddenResources.includes(key))
-                            .map(([key, resource]) => {
-                              const isActive = Object.keys(RESOURCE_CONFIG).includes(key);
-                              const status = resourceStatuses?.find(s => s.resource === key);
-                              
-                              return (
-                                <ResourceCard
-                                  key={key}
-                                  resourceKey={key}
-                                  resource={resource}
-                                  isActive={isActive}
-                                  isHidden={true}
-                                  status={status}
-                                  onHide={hideResource}
-                                  onUnhide={unhideResource}
-                                  onAddMetric={(rk, metric) => setAddMetricModal({ open: true, resourceKey: rk, metricName: metric })}
-                                />
-                              );
-                            })}
-                        </AnimatePresence>
-                      </div>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Add Metric Modal */}
-          <AddJaneMetricModal
-            open={addMetricModal.open}
-            onOpenChange={(open) => setAddMetricModal(prev => ({ ...prev, open }))}
-            resourceKey={addMetricModal.resourceKey}
-            metricName={addMetricModal.metricName}
-          />
-        </>
-      )}
-
-      {/* Automation Health Widget - Shows when connected */}
-      {isConnected && (
-        <AutomationHealthWidget organizationId={currentUser?.team_id} />
-      )}
-
-      {/* Data Insights Widget - Shows when connected with data */}
-      {isConnected && hasData && (
-        <DataInsightsWidget organizationId={currentUser?.team_id} />
-      )}
+      {/* Integrations Banner */}
+      <IntegrationsBanner isConnected={isConnected} />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -500,8 +166,8 @@ export default function DataHome() {
               View Scorecard
             </CardTitle>
             <CardDescription>
-              {isConnected 
-                ? `${automatedMetrics?.automated || 0} automated, ${automatedMetrics?.manual || 0} manual metrics`
+              {metricsCount?.total 
+                ? `${metricsCount.automated} automated, ${metricsCount.total - metricsCount.automated} manual metrics`
                 : "Set up your key performance indicators"
               }
             </CardDescription>
@@ -550,99 +216,6 @@ export default function DataHome() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Recent Data Deliveries */}
-      {isConnected && recentIngests && recentIngests.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Recent Data Deliveries
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentIngests.slice(0, 5).map((ingest) => (
-                <div 
-                  key={ingest.id} 
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                >
-                  <div className="flex items-center gap-3">
-                    {ingest.status === "success" ? (
-                      <CheckCircle2 className="w-5 h-5 text-success" />
-                    ) : ingest.status === "error" ? (
-                      <AlertTriangle className="w-5 h-5 text-destructive" />
-                    ) : (
-                      <Clock className="w-5 h-5 text-muted-foreground" />
-                    )}
-                    <div>
-                      <p className="font-medium">{ingest.resource_name || ingest.file_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {ingest.rows} rows • {formatDistanceToNow(new Date(ingest.created_at), { addSuffix: true })}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant={ingest.status === "success" ? "default" : "destructive"}>
-                    {ingest.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Not connected - show setup steps */}
-      {!isConnected && (
-        <Card className="border-dashed border-2">
-          <CardHeader>
-            <CardTitle>Getting Started with Data Automation</CardTitle>
-            <CardDescription>
-              Follow these steps to start receiving automatic data from Jane
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-4 p-4 rounded-lg bg-muted/50">
-                <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white font-bold">1</div>
-                <div className="flex-1">
-                  <h4 className="font-semibold">Connect your Jane account</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Follow the guided setup wizard to configure your data pipeline. No AWS expertise needed.
-                  </p>
-                  <Button 
-                    className="mt-2" 
-                    size="sm"
-                    onClick={() => navigate("/integrations/jane")}
-                  >
-                    Start Setup
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 opacity-60">
-                <div className="w-8 h-8 rounded-full bg-muted-foreground flex items-center justify-center text-white font-bold">2</div>
-                <div className="flex-1">
-                  <h4 className="font-semibold">Wait for first data delivery</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Jane will start sending data within 24 hours. You'll see it automatically populate your scorecard.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 opacity-60">
-                <div className="w-8 h-8 rounded-full bg-muted-foreground flex items-center justify-center text-white font-bold">3</div>
-                <div className="flex-1">
-                  <h4 className="font-semibold">Create issues and rocks from insights</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Use AI-powered suggestions to turn off-track metrics into actionable priorities.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
