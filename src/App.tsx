@@ -77,6 +77,7 @@ import ProfileSettings from "./pages/ProfileSettings";
 import DataSafety from "./pages/DataSafety";
 import DataHome from "./pages/DataHome";
 import JaneCompliance from "./pages/JaneCompliance";
+import Security from "./pages/Security";
 
 const queryClient = new QueryClient();
 
@@ -166,6 +167,7 @@ const App = () => {
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
+            <Route path="/security" element={<Security />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/dashboard" element={<AppLayout><Home /></AppLayout>} />
             <Route path="/scorecard/setup" element={<AppLayout><ScorecardSetup /></AppLayout>} />

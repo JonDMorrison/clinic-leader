@@ -40,6 +40,11 @@ export const FooterPublic = () => {
             <h4 className="font-semibold mb-4">Legal</h4>
             <ul className="space-y-2">
               <li>
+                <Link to="/security" className="text-muted-foreground hover:text-brand transition-colors">
+                  Security
+                </Link>
+              </li>
+              <li>
                 <a href="#" className="text-muted-foreground hover:text-brand transition-colors">
                   Privacy Policy
                 </a>
