@@ -16,9 +16,7 @@ import { HelpHint } from "@/components/help/HelpHint";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
 import { CoreValuesStrip, CoreValueOfWeekCard } from "@/components/core-values";
-import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 import { FocusWidget } from "@/components/dashboard/FocusWidget";
-import { AutomationHealthWidget } from "@/components/dashboard/AutomationHealthWidget";
 import { ConnectDataCard } from "@/components/dashboard/ConnectDataCard";
 import { IssueSuggestionsWidget } from "@/components/dashboard/IssueSuggestionsWidget";
 
@@ -398,10 +396,6 @@ const Home = () => {
         <QuickActions />
         
         <CopilotWidget />
-        
-        <AutomationHealthWidget organizationId={currentUser?.team_id} />
-        
-        <MonthlyPulseWidget />
 
         <FocusWidget />
 
