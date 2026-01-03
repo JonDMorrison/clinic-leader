@@ -7,7 +7,6 @@ import { HelmetProvider } from "react-helmet-async";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserNav } from "@/components/layout/UserNav";
 import { ImpersonationBanner } from "@/components/layout/ImpersonationBanner";
-import { SandboxBanner } from "@/components/layout/SandboxBanner";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { OnboardingGuard } from "@/components/onboarding/OnboardingGuard";
@@ -16,7 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useDemoProvisioning } from "@/hooks/useDemoProvisioning";
-import { isSandboxEnvironment } from "@/lib/environment";
 import Home from "./pages/Home";
 import Index from "./pages/Index";
 import Scorecard from "./pages/Scorecard";
@@ -83,17 +81,14 @@ import JaneCompliance from "./pages/JaneCompliance";
 const queryClient = new QueryClient();
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
-  const isSandbox = isSandboxEnvironment();
-  
   return (
     <div className="flex w-full min-h-screen relative">
-      {isSandbox && <SandboxBanner />}
       <Sidebar />
       <div className="flex-1 flex flex-col relative">
-        <div className={`fixed ${isSandbox ? 'top-12' : 'top-4'} right-8 z-50 transition-all`}>
+        <div className="fixed top-4 right-8 z-50 transition-all">
           <UserNav />
         </div>
-        <main className={`flex-1 p-8 ${isSandbox ? 'pt-28' : 'pt-20'} pb-16 relative`}>
+        <main className="flex-1 p-8 pt-20 pb-16 relative">
           <div className="absolute inset-0 bg-gradient-to-br from-brand/5 via-transparent to-accent/5 pointer-events-none" />
           <div className="relative z-10">
             {children}
