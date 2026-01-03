@@ -2,9 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Shield, Lock, Eye, CheckCircle2, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { DataAccessAuditPanel } from "@/components/admin/DataAccessAuditPanel";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export default function DataSafety() {
   const navigate = useNavigate();
+  const { data: adminData } = useIsAdmin();
+  const isAdmin = adminData?.isAdmin ?? false;
 
   return (
     <div className="min-h-screen bg-background">
@@ -168,7 +172,7 @@ export default function DataSafety() {
           </section>
 
           {/* Section 7: Designed for Leadership */}
-          <section className="space-y-4 pb-8">
+          <section className="space-y-4">
             <h2 className="text-xl font-medium text-foreground">Designed for Leadership</h2>
             <div className="text-muted-foreground leading-relaxed space-y-3">
               <p>
@@ -181,6 +185,18 @@ export default function DataSafety() {
               </p>
             </div>
           </section>
+
+          {/* Section 8: Zero Standing Access (Admin Only) */}
+          {isAdmin && (
+            <section className="space-y-4 border-t pt-8">
+              <h2 className="text-xl font-medium text-foreground">Data Access Controls</h2>
+              <p className="text-muted-foreground mb-6">
+                Manage temporary access requests for raw staging data. All access requires 
+                explicit approval, justification, and is time-limited.
+              </p>
+              <DataAccessAuditPanel />
+            </section>
+          )}
         </div>
       </div>
     </div>

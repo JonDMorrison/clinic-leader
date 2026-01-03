@@ -706,6 +706,116 @@ export type Database = {
           },
         ]
       }
+      data_access_audit: {
+        Row: {
+          access_request_id: string | null
+          accessed_at: string
+          action: string
+          id: string
+          ip_address: string | null
+          justification: string | null
+          organization_id: string
+          resource_type: string
+          row_count: number | null
+          user_agent: string | null
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          access_request_id?: string | null
+          accessed_at?: string
+          action: string
+          id?: string
+          ip_address?: string | null
+          justification?: string | null
+          organization_id: string
+          resource_type: string
+          row_count?: number | null
+          user_agent?: string | null
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          access_request_id?: string | null
+          accessed_at?: string
+          action?: string
+          id?: string
+          ip_address?: string | null
+          justification?: string | null
+          organization_id?: string
+          resource_type?: string
+          row_count?: number | null
+          user_agent?: string | null
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_access_audit_access_request_id_fkey"
+            columns: ["access_request_id"]
+            isOneToOne: false
+            referencedRelation: "data_access_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_access_audit_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_access_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          justification: string
+          organization_id: string
+          requested_at: string
+          resource_type: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          justification: string
+          organization_id: string
+          requested_at?: string
+          resource_type: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          justification?: string
+          organization_id?: string
+          requested_at?: string
+          resource_type?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_access_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_ingestion_ledger: {
         Row: {
           account_guid_verified: boolean | null
@@ -4730,6 +4840,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       current_user_team: { Args: never; Returns: string }
+      expire_data_access_requests: { Args: never; Returns: number }
       get_onboarding_metrics: {
         Args: { org_id: string }
         Returns: {
@@ -4761,6 +4872,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["user_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      has_valid_data_access: {
+        Args: { _org_id: string; _resource_type: string; _user_id: string }
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
