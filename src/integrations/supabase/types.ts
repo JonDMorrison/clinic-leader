@@ -2991,6 +2991,7 @@ export type Database = {
           price: number | null
           raw_row: Json | null
           staff_member_guid: string | null
+          staff_member_name: string | null
           start_at: string | null
           treatment_guid: string | null
           treatment_name: string | null
@@ -3018,6 +3019,7 @@ export type Database = {
           price?: number | null
           raw_row?: Json | null
           staff_member_guid?: string | null
+          staff_member_name?: string | null
           start_at?: string | null
           treatment_guid?: string | null
           treatment_name?: string | null
@@ -3045,6 +3047,7 @@ export type Database = {
           price?: number | null
           raw_row?: Json | null
           staff_member_guid?: string | null
+          staff_member_name?: string | null
           start_at?: string | null
           treatment_guid?: string | null
           treatment_name?: string | null
@@ -3101,6 +3104,7 @@ export type Database = {
           raw_row: Json | null
           sale_map_coordinates: string | null
           staff_member_guid: string | null
+          staff_member_name: string | null
           subtotal: number | null
           updated_at: string
         }
@@ -3125,6 +3129,7 @@ export type Database = {
           raw_row?: Json | null
           sale_map_coordinates?: string | null
           staff_member_guid?: string | null
+          staff_member_name?: string | null
           subtotal?: number | null
           updated_at?: string
         }
@@ -3149,6 +3154,7 @@ export type Database = {
           raw_row?: Json | null
           sale_map_coordinates?: string | null
           staff_member_guid?: string | null
+          staff_member_name?: string | null
           subtotal?: number | null
           updated_at?: string
         }
@@ -3368,6 +3374,7 @@ export type Database = {
           room_guid: string | null
           shift_guid: string
           staff_member_guid: string | null
+          staff_member_name: string | null
           start_at: string | null
           updated_at: string
         }
@@ -3386,6 +3393,7 @@ export type Database = {
           room_guid?: string | null
           shift_guid: string
           staff_member_guid?: string | null
+          staff_member_name?: string | null
           start_at?: string | null
           updated_at?: string
         }
@@ -3404,6 +3412,7 @@ export type Database = {
           room_guid?: string | null
           shift_guid?: string
           staff_member_guid?: string | null
+          staff_member_name?: string | null
           start_at?: string | null
           updated_at?: string
         }
@@ -3811,6 +3820,7 @@ export type Database = {
           gwc_wants_it: boolean | null
           hire_date: string | null
           id: string
+          jane_staff_member_guid: string | null
           manager_notes: string | null
           role: Database["public"]["Enums"]["user_role"]
           team_id: string | null
@@ -3828,6 +3838,7 @@ export type Database = {
           gwc_wants_it?: boolean | null
           hire_date?: string | null
           id?: string
+          jane_staff_member_guid?: string | null
           manager_notes?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           team_id?: string | null
@@ -3845,6 +3856,7 @@ export type Database = {
           gwc_wants_it?: boolean | null
           hire_date?: string | null
           id?: string
+          jane_staff_member_guid?: string | null
           manager_notes?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           team_id?: string | null
