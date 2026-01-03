@@ -908,6 +908,9 @@ Deno.serve(async (req) => {
       ? "rejected" 
       : (allQuarantinedFields.length > 0 ? "partial" : "accepted");
     
+    // Determine environment from connector's sandbox flag
+    const environment = connector.is_sandbox ? "staging" : "production";
+    
     await supabase
       .from("data_ingestion_ledger")
       .insert({
@@ -926,9 +929,10 @@ Deno.serve(async (req) => {
         processing_duration_ms: processingDurationMs,
         account_guid_verified: !!connector.locked_account_guid || isFirstSuccessfulIngest,
         data_minimization_applied: true,
+        environment: environment,
       });
     
-    console.log(`[LEDGER] Recorded ${ledgerStatus} ingestion: ${resource}, ${processedRows}/${csv_data.length} rows`);
+    console.log(`[LEDGER] Recorded ${ledgerStatus} ingestion (${environment}): ${resource}, ${processedRows}/${csv_data.length} rows`);
 
     return new Response(
       JSON.stringify({

@@ -392,6 +392,7 @@ export type Database = {
           expected_schema_version: string
           id: string
           ingestion_mode: string | null
+          is_sandbox: boolean
           last_error: string | null
           last_processed_at: string | null
           last_received_at: string | null
@@ -418,6 +419,7 @@ export type Database = {
           expected_schema_version?: string
           id?: string
           ingestion_mode?: string | null
+          is_sandbox?: boolean
           last_error?: string | null
           last_processed_at?: string | null
           last_received_at?: string | null
@@ -444,6 +446,7 @@ export type Database = {
           expected_schema_version?: string
           id?: string
           ingestion_mode?: string | null
+          is_sandbox?: boolean
           last_error?: string | null
           last_processed_at?: string | null
           last_received_at?: string | null
@@ -710,6 +713,7 @@ export type Database = {
           connector_id: string | null
           created_at: string
           data_minimization_applied: boolean | null
+          environment: string
           fields_quarantined: number
           file_date: string | null
           file_name: string | null
@@ -731,6 +735,7 @@ export type Database = {
           connector_id?: string | null
           created_at?: string
           data_minimization_applied?: boolean | null
+          environment?: string
           fields_quarantined?: number
           file_date?: string | null
           file_name?: string | null
@@ -752,6 +757,7 @@ export type Database = {
           connector_id?: string | null
           created_at?: string
           data_minimization_applied?: boolean | null
+          environment?: string
           fields_quarantined?: number
           file_date?: string | null
           file_name?: string | null

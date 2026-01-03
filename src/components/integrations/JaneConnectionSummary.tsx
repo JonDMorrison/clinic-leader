@@ -34,6 +34,7 @@ import {
   Clock,
   Lock,
   Info,
+  FlaskConical,
 } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +57,7 @@ interface Connector {
   expected_schema_version: string;
   delivery_mode: string | null;
   created_at?: string;
+  is_sandbox?: boolean;
 }
 
 interface IngestLog {
@@ -252,12 +254,21 @@ export default function JaneConnectionSummary({ connector, recentIngests }: Jane
           <CardTitle className="flex items-center gap-2">
             <Shield className={`w-5 h-5 ${hasSuccessIngest ? "text-green-600" : "text-muted-foreground"}`} />
             {hasSuccessIngest ? "Jane Data Connection Active" : "Jane Data Connection Pending"}
+            {connector.is_sandbox && (
+              <Badge variant="outline" className="gap-1 text-xs font-normal">
+                <FlaskConical className="h-3 w-3" />
+                Sandbox
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription>
-            {hasSuccessIngest 
-              ? "Your scorecards update automatically from Jane data."
-              : "Connection configured, awaiting first successful data delivery."
-            }
+            {connector.is_sandbox ? (
+              "This is a sandbox connector for testing purposes. No production data is connected."
+            ) : hasSuccessIngest ? (
+              "Your scorecards update automatically from Jane data."
+            ) : (
+              "Connection configured, awaiting first successful data delivery."
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
