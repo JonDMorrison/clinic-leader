@@ -703,6 +703,87 @@ export type Database = {
           },
         ]
       }
+      data_ingestion_ledger: {
+        Row: {
+          account_guid_verified: boolean | null
+          checksum: string | null
+          connector_id: string | null
+          created_at: string
+          data_minimization_applied: boolean | null
+          fields_quarantined: number
+          file_date: string | null
+          file_name: string | null
+          id: string
+          organization_id: string
+          processing_duration_ms: number | null
+          rejection_reason: string | null
+          resource_type: string
+          rows_dropped: number | null
+          rows_ingested: number
+          rows_received: number
+          source_system: string
+          status: string
+          timestamp: string
+        }
+        Insert: {
+          account_guid_verified?: boolean | null
+          checksum?: string | null
+          connector_id?: string | null
+          created_at?: string
+          data_minimization_applied?: boolean | null
+          fields_quarantined?: number
+          file_date?: string | null
+          file_name?: string | null
+          id?: string
+          organization_id: string
+          processing_duration_ms?: number | null
+          rejection_reason?: string | null
+          resource_type: string
+          rows_dropped?: number | null
+          rows_ingested?: number
+          rows_received?: number
+          source_system?: string
+          status: string
+          timestamp?: string
+        }
+        Update: {
+          account_guid_verified?: boolean | null
+          checksum?: string | null
+          connector_id?: string | null
+          created_at?: string
+          data_minimization_applied?: boolean | null
+          fields_quarantined?: number
+          file_date?: string | null
+          file_name?: string | null
+          id?: string
+          organization_id?: string
+          processing_duration_ms?: number | null
+          rejection_reason?: string | null
+          resource_type?: string
+          rows_dropped?: number | null
+          rows_ingested?: number
+          rows_received?: number
+          source_system?: string
+          status?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_ledger_connector"
+            columns: ["connector_id"]
+            isOneToOne: false
+            referencedRelation: "bulk_analytics_connectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_ledger_org"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       demo_provision: {
         Row: {
           created_at: string
