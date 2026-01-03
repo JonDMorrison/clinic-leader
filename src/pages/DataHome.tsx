@@ -148,7 +148,7 @@ export default function DataHome() {
     enabled: !!currentUser?.team_id,
   });
 
-  const isConnected = janeConnector?.status === "receiving_data" || janeConnector?.status === "awaiting_first_file";
+  const isConnected = janeConnector?.status === "receiving_data" || janeConnector?.status === "awaiting_first_file" || janeConnector?.status === "active" || janeConnector?.status === "awaiting_jane_setup";
   const hasData = (recentIngests?.length || 0) > 0;
   const lastSync = recentIngests?.[0]?.created_at;
 
