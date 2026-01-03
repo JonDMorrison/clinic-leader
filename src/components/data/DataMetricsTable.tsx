@@ -301,7 +301,7 @@ function SortableMetricRow({
                 Add to Scorecard
               </DropdownMenuItem>
             )}
-            {metric.isTracked && metric.status === "off_track" && (
+            {metric.isTracked && (
               <DropdownMenuItem onClick={() => handleCreateIssue(metric)}>
                 <AlertTriangle className="w-4 h-4 mr-2" />
                 Create Issue
