@@ -20,7 +20,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Search,
   MoreHorizontal,
@@ -29,6 +28,7 @@ import {
   EyeOff,
   Eye,
   ChevronDown,
+  ChevronRight,
   CalendarClock,
   DollarSign,
   Receipt,
@@ -46,7 +46,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { AddJaneMetricModal } from "@/components/data/AddJaneMetricModal";
 import { CreateIssueFromMetricModal } from "@/components/scorecard/CreateIssueFromMetricModal";
-import { format, startOfWeek, startOfMonth, startOfYear, subWeeks, subMonths } from "date-fns";
+import { format, startOfWeek, startOfYear, subWeeks, subMonths } from "date-fns";
 import type { MetricStatus } from "@/lib/scorecard/metricStatus";
 
 // Template metrics for non-Jane users (and as additional options)
@@ -63,6 +63,39 @@ const TEMPLATE_METRICS = [
   { name: "Collections Rate %", category: "Revenue", unit: "%", direction: "up", source: "template" },
 ];
 
+// Dimensional metrics that can have multiple sub-rows
+const DIMENSIONAL_METRICS: Record<string, { 
+  dimensionKey: string; 
+  dimensionLabel: string;
+  table: string;
+  column: string;
+}> = {
+  "Revenue by Provider": { 
+    dimensionKey: "provider", 
+    dimensionLabel: "Provider",
+    table: "staging_invoices_jane",
+    column: "staff_member_name"
+  },
+  "Revenue by Location": { 
+    dimensionKey: "location", 
+    dimensionLabel: "Location",
+    table: "staging_payments_jane",
+    column: "location_guid"
+  },
+  "Referral Sources": { 
+    dimensionKey: "referral_source", 
+    dimensionLabel: "Source",
+    table: "staging_patients_jane",
+    column: "referral_source"
+  },
+  "Revenue by Discipline": {
+    dimensionKey: "discipline",
+    dimensionLabel: "Discipline",
+    table: "staging_invoices_jane",
+    column: "income_category"
+  },
+};
+
 // Jane resource definitions with metrics
 const JANE_METRICS = [
   { name: "Total Visits", category: "Appointments", resourceKey: "appointments", unit: "count", direction: "up" },
@@ -73,16 +106,16 @@ const JANE_METRICS = [
   { name: "Total Collected Revenue", category: "Payments", resourceKey: "payments", unit: "dollars", direction: "up" },
   { name: "Average Revenue Per Visit", category: "Payments", resourceKey: "payments", unit: "dollars", direction: "up" },
   { name: "Total Invoiced", category: "Invoices", resourceKey: "invoices", unit: "dollars", direction: "up" },
-  { name: "Revenue by Provider", category: "Invoices", resourceKey: "invoices", unit: "dollars", direction: "up" },
+  { name: "Revenue by Provider", category: "Invoices", resourceKey: "invoices", unit: "dollars", direction: "up", isDimensional: true },
   { name: "New Patients", category: "Patients", resourceKey: "patients", unit: "count", direction: "up" },
   { name: "Patient Retention", category: "Patients", resourceKey: "patients", unit: "%", direction: "up" },
-  { name: "Referral Sources", category: "Patients", resourceKey: "patients", unit: "count", direction: "up" },
+  { name: "Referral Sources", category: "Patients", resourceKey: "patients", unit: "count", direction: "up", isDimensional: true },
   { name: "Practitioner Utilization", category: "Shifts", resourceKey: "shifts", unit: "%", direction: "up" },
   { name: "Available Hours", category: "Shifts", resourceKey: "shifts", unit: "count", direction: "up" },
   { name: "Provider Scorecards", category: "Staff", resourceKey: "staff_members", unit: "count", direction: "up" },
-  { name: "Revenue by Location", category: "Locations", resourceKey: "locations", unit: "dollars", direction: "up" },
+  { name: "Revenue by Location", category: "Locations", resourceKey: "locations", unit: "dollars", direction: "up", isDimensional: true },
   { name: "Service Mix", category: "Treatments", resourceKey: "treatments", unit: "count", direction: "up" },
-  { name: "Revenue by Discipline", category: "Disciplines", resourceKey: "disciplines", unit: "dollars", direction: "up" },
+  { name: "Revenue by Discipline", category: "Disciplines", resourceKey: "disciplines", unit: "dollars", direction: "up", isDimensional: true },
   // Coming soon
   { name: "Product Sales", category: "Products", resourceKey: "products", unit: "dollars", direction: "up", comingSoon: true },
   { name: "Inventory Turnover", category: "Products", resourceKey: "products", unit: "count", direction: "up", comingSoon: true },
@@ -106,6 +139,11 @@ const CATEGORY_ICONS: Record<string, typeof CalendarClock> = {
   Operations: TrendingUp,
 };
 
+interface DimensionValue {
+  value: string;
+  label: string;
+}
+
 interface DataMetric {
   name: string;
   category: string;
@@ -121,6 +159,10 @@ interface DataMetric {
   ytdValue?: number | null;
   target?: number | null;
   status?: MetricStatus;
+  isDimensional?: boolean;
+  dimensions?: DimensionValue[];
+  dimensionValue?: string; // For child rows
+  parentName?: string; // For child rows
 }
 
 interface DataMetricsTableProps {
@@ -132,6 +174,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
   const { hiddenResources, hideResource, unhideResource } = useHiddenJaneResources();
   const [searchQuery, setSearchQuery] = useState("");
   const [showHidden, setShowHidden] = useState(false);
+  const [expandedMetrics, setExpandedMetrics] = useState<Set<string>>(new Set());
   const [addMetricModal, setAddMetricModal] = useState<{
     open: boolean;
     resourceKey: string;
@@ -157,6 +200,87 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     enabled: !!currentUser?.team_id,
   });
 
+  // Fetch dimension values from Jane staging tables
+  const { data: dimensionData } = useQuery({
+    queryKey: ["dimension-values", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return {};
+      
+      const results: Record<string, DimensionValue[]> = {};
+      
+      // Fetch providers from invoices
+      try {
+        const { data: providers } = await supabase
+          .from("staging_invoices_jane")
+          .select("staff_member_name")
+          .eq("organization_id", currentUser.team_id)
+          .not("staff_member_name", "is", null)
+          .limit(100);
+        
+        if (providers) {
+          const uniqueProviders = [...new Set(providers.map(p => p.staff_member_name).filter(Boolean))];
+          results["Revenue by Provider"] = uniqueProviders.map(p => ({ value: p!, label: p! }));
+        }
+      } catch (e) {
+        // Table may not be accessible
+      }
+
+      // Fetch locations from payments
+      try {
+        const { data: locations } = await supabase
+          .from("staging_payments_jane")
+          .select("location_guid")
+          .eq("organization_id", currentUser.team_id)
+          .not("location_guid", "is", null)
+          .limit(100);
+        
+        if (locations) {
+          const uniqueLocations = [...new Set(locations.map(l => l.location_guid).filter(Boolean))];
+          results["Revenue by Location"] = uniqueLocations.map(l => ({ value: l!, label: `Location ${l!.slice(-6)}` }));
+        }
+      } catch (e) {
+        // Table may not be accessible
+      }
+
+      // Fetch referral sources from patients
+      try {
+        const { data: sources } = await supabase
+          .from("staging_patients_jane")
+          .select("referral_source")
+          .eq("organization_id", currentUser.team_id)
+          .not("referral_source", "is", null)
+          .limit(100);
+        
+        if (sources) {
+          const uniqueSources = [...new Set(sources.map(s => s.referral_source).filter(Boolean))];
+          results["Referral Sources"] = uniqueSources.map(s => ({ value: s!, label: s! }));
+        }
+      } catch (e) {
+        // Table may not be accessible
+      }
+
+      // Fetch disciplines/income categories from invoices
+      try {
+        const { data: disciplines } = await supabase
+          .from("staging_invoices_jane")
+          .select("income_category")
+          .eq("organization_id", currentUser.team_id)
+          .not("income_category", "is", null)
+          .limit(100);
+        
+        if (disciplines) {
+          const uniqueDisciplines = [...new Set(disciplines.map(d => d.income_category).filter(Boolean))];
+          results["Revenue by Discipline"] = uniqueDisciplines.map(d => ({ value: d!, label: d! }));
+        }
+      } catch (e) {
+        // Table may not be accessible
+      }
+
+      return results;
+    },
+    enabled: !!currentUser?.team_id && isConnected,
+  });
+
   // Calculate date ranges
   const now = new Date();
   const currentWeekStart = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -173,7 +297,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
       
       const metricIds = trackedMetrics.map(m => m.id);
       
-      // Fetch weekly data (last 2 weeks)
       const { data: weeklyData } = await supabase
         .from("metric_results")
         .select("metric_id, value, week_start")
@@ -181,7 +304,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
         .in("week_start", [currentWeekStart, lastWeekStart])
         .eq("period_type", "weekly");
 
-      // Fetch monthly data (current and last month)
       const { data: monthlyData } = await supabase
         .from("metric_results")
         .select("metric_id, value, period_key")
@@ -189,7 +311,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
         .in("period_key", [currentMonthKey, lastMonthKey])
         .eq("period_type", "monthly");
 
-      // For YTD, we'll sum all monthly values for the current year
       const { data: ytdData } = await supabase
         .from("metric_results")
         .select("metric_id, value, period_key")
@@ -209,7 +330,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
   // Build the merged data list
   const dataMetrics = useMemo(() => {
     const metrics: DataMetric[] = [];
-    const trackedNames = new Set(trackedMetrics?.map(m => m.name.toLowerCase()) || []);
 
     // Add Jane metrics if connected
     if (isConnected) {
@@ -225,17 +345,14 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
         let ytdValue: number | null = null;
 
         if (tracked && metricResults) {
-          // Week value (prefer current week, fallback to last week)
           const weekResult = metricResults.weekly.find(r => r.metric_id === tracked.id && r.week_start === currentWeekStart)
             || metricResults.weekly.find(r => r.metric_id === tracked.id && r.week_start === lastWeekStart);
           weekValue = weekResult?.value ?? null;
 
-          // Month value (prefer current month, fallback to last month)
           const monthResult = metricResults.monthly.find(r => r.metric_id === tracked.id && r.period_key === currentMonthKey)
             || metricResults.monthly.find(r => r.metric_id === tracked.id && r.period_key === lastMonthKey);
           monthValue = monthResult?.value ?? null;
 
-          // YTD sum
           const ytdResults = metricResults.ytd.filter(r => r.metric_id === tracked.id);
           ytdValue = ytdResults.length > 0 
             ? ytdResults.reduce((sum, r) => sum + (r.value || 0), 0)
@@ -255,6 +372,11 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           status = "on_track";
         }
 
+        // Get dimensions if this is a dimensional metric
+        const dimensions = janeMetric.isDimensional && dimensionData 
+          ? dimensionData[janeMetric.name] || []
+          : undefined;
+
         metrics.push({
           name: janeMetric.name,
           category: janeMetric.category,
@@ -270,13 +392,14 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           ytdValue,
           target: tracked?.target,
           status,
+          isDimensional: janeMetric.isDimensional,
+          dimensions,
         });
       });
     }
 
     // Add template metrics that aren't already in Jane list
     TEMPLATE_METRICS.forEach(templateMetric => {
-      // Skip if already added from Jane
       const alreadyAdded = metrics.some(m => m.name.toLowerCase() === templateMetric.name.toLowerCase());
       if (alreadyAdded) return;
 
@@ -302,7 +425,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     }
 
     return metrics;
-  }, [isConnected, trackedMetrics, metricResults, hiddenResources, showHidden, searchQuery, currentWeekStart, lastWeekStart, currentMonthKey, lastMonthKey]);
+  }, [isConnected, trackedMetrics, metricResults, hiddenResources, showHidden, searchQuery, currentWeekStart, lastWeekStart, currentMonthKey, lastMonthKey, dimensionData]);
 
   // Count hidden
   const hiddenCount = isConnected 
@@ -316,9 +439,12 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     return value.toLocaleString();
   };
 
-  const getStatusBadge = (metric: DataMetric) => {
+  const getStatusBadge = (metric: DataMetric, isChild?: boolean) => {
     if (metric.comingSoon) {
       return <Badge variant="outline" className="text-xs">Coming Soon</Badge>;
+    }
+    if (metric.isDimensional && !isChild && metric.dimensions && metric.dimensions.length > 0) {
+      return <Badge variant="secondary" className="text-xs">{metric.dimensions.length} items</Badge>;
     }
     if (metric.isTracked) {
       if (metric.status === "off_track") {
@@ -329,11 +455,23 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     return <Badge variant="secondary" className="text-xs">Available</Badge>;
   };
 
+  const toggleExpanded = (metricName: string) => {
+    const newExpanded = new Set(expandedMetrics);
+    if (newExpanded.has(metricName)) {
+      newExpanded.delete(metricName);
+    } else {
+      newExpanded.add(metricName);
+    }
+    setExpandedMetrics(newExpanded);
+  };
+
   const handleAddToScorecard = (metric: DataMetric) => {
     setAddMetricModal({
       open: true,
       resourceKey: metric.resourceKey || "",
-      metricName: metric.name,
+      metricName: metric.dimensionValue 
+        ? `${metric.parentName} - ${metric.dimensionValue}` 
+        : metric.name,
     });
   };
 
@@ -347,6 +485,98 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
 
   const handleUnhide = (resourceKey: string) => {
     unhideResource(resourceKey);
+  };
+
+  const renderMetricRow = (metric: DataMetric, isChild = false) => {
+    const isHidden = metric.resourceKey && hiddenResources.includes(metric.resourceKey);
+    const CategoryIcon = CATEGORY_ICONS[metric.category] || FileSpreadsheet;
+    const isExpanded = expandedMetrics.has(metric.name);
+    const hasDimensions = metric.isDimensional && metric.dimensions && metric.dimensions.length > 0;
+    
+    return (
+      <motion.tr
+        key={`${metric.source}-${metric.name}${metric.dimensionValue ? `-${metric.dimensionValue}` : ''}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isHidden ? 0.5 : 1 }}
+        exit={{ opacity: 0 }}
+        className={`border-b transition-colors hover:bg-muted/50 ${isHidden ? 'bg-muted/20' : ''} ${isChild ? 'bg-muted/10' : ''}`}
+      >
+        <TableCell className="font-medium">
+          <div className={`flex items-center gap-2 ${isChild ? 'pl-6' : ''}`}>
+            {hasDimensions && !isChild && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-5 w-5 p-0"
+                onClick={() => toggleExpanded(metric.name)}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </Button>
+            )}
+            {!hasDimensions && !isChild && <div className="w-5" />}
+            {isChild && <div className="w-2" />}
+            <CategoryIcon className="w-4 h-4 text-muted-foreground" />
+            <span>{metric.dimensionValue || metric.name}</span>
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge variant="outline" className="text-xs capitalize">
+            {metric.source === "jane" ? "Jane App" : metric.source}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-muted-foreground">{metric.category}</TableCell>
+        <TableCell className="text-right font-mono">
+          {metric.isTracked ? formatValue(metric.weekValue, metric.unit) : "—"}
+        </TableCell>
+        <TableCell className="text-right font-mono">
+          {metric.isTracked ? formatValue(metric.monthValue, metric.unit) : "—"}
+        </TableCell>
+        <TableCell className="text-right font-mono">
+          {metric.isTracked ? formatValue(metric.ytdValue, metric.unit) : "—"}
+        </TableCell>
+        <TableCell>{getStatusBadge(metric, isChild)}</TableCell>
+        <TableCell>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {!metric.isTracked && !metric.comingSoon && (
+                <DropdownMenuItem onClick={() => handleAddToScorecard(metric)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add to Scorecard
+                </DropdownMenuItem>
+              )}
+              {metric.isTracked && metric.status === "off_track" && (
+                <DropdownMenuItem onClick={() => handleCreateIssue(metric)}>
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Create Issue
+                </DropdownMenuItem>
+              )}
+              {metric.source === "jane" && metric.resourceKey && !isChild && (
+                isHidden ? (
+                  <DropdownMenuItem onClick={() => handleUnhide(metric.resourceKey!)}>
+                    <Eye className="w-4 h-4 mr-2" />
+                    Show
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => handleHide(metric.resourceKey!)}>
+                    <EyeOff className="w-4 h-4 mr-2" />
+                    Hide
+                  </DropdownMenuItem>
+                )
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+      </motion.tr>
+    );
   };
 
   return (
@@ -381,7 +611,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[280px]">Data Point</TableHead>
+              <TableHead className="w-[300px]">Data Point</TableHead>
               <TableHead>Source</TableHead>
               <TableHead>Category</TableHead>
               <TableHead className="text-right">This Week</TableHead>
@@ -394,76 +624,34 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           <TableBody>
             <AnimatePresence mode="popLayout">
               {dataMetrics.map((metric) => {
-                const isHidden = metric.resourceKey && hiddenResources.includes(metric.resourceKey);
-                const CategoryIcon = CATEGORY_ICONS[metric.category] || FileSpreadsheet;
-                
+                const isExpanded = expandedMetrics.has(metric.name);
+                const hasDimensions = metric.isDimensional && metric.dimensions && metric.dimensions.length > 0;
+
                 return (
-                  <motion.tr
-                    key={`${metric.source}-${metric.name}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: isHidden ? 0.5 : 1 }}
-                    exit={{ opacity: 0 }}
-                    className={`border-b transition-colors hover:bg-muted/50 ${isHidden ? 'bg-muted/20' : ''}`}
-                  >
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <CategoryIcon className="w-4 h-4 text-muted-foreground" />
-                        <span>{metric.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {metric.source === "jane" ? "Jane App" : metric.source}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{metric.category}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {metric.isTracked ? formatValue(metric.weekValue, metric.unit) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {metric.isTracked ? formatValue(metric.monthValue, metric.unit) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {metric.isTracked ? formatValue(metric.ytdValue, metric.unit) : "—"}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(metric)}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {!metric.isTracked && !metric.comingSoon && (
-                            <DropdownMenuItem onClick={() => handleAddToScorecard(metric)}>
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add to Scorecard
-                            </DropdownMenuItem>
-                          )}
-                          {metric.isTracked && metric.status === "off_track" && (
-                            <DropdownMenuItem onClick={() => handleCreateIssue(metric)}>
-                              <AlertTriangle className="w-4 h-4 mr-2" />
-                              Create Issue
-                            </DropdownMenuItem>
-                          )}
-                          {metric.source === "jane" && metric.resourceKey && (
-                            isHidden ? (
-                              <DropdownMenuItem onClick={() => handleUnhide(metric.resourceKey!)}>
-                                <Eye className="w-4 h-4 mr-2" />
-                                Show
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem onClick={() => handleHide(metric.resourceKey!)}>
-                                <EyeOff className="w-4 h-4 mr-2" />
-                                Hide
-                              </DropdownMenuItem>
-                            )
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </motion.tr>
+                  <>
+                    {renderMetricRow(metric)}
+                    {/* Render child rows if expanded */}
+                    {isExpanded && hasDimensions && metric.dimensions!.map((dim) => {
+                      // Check if this specific dimension is tracked
+                      const childMetricName = `${metric.name} - ${dim.label}`;
+                      const tracked = trackedMetrics?.find(m => 
+                        m.name.toLowerCase() === childMetricName.toLowerCase()
+                      );
+                      
+                      const childMetric: DataMetric = {
+                        ...metric,
+                        name: childMetricName,
+                        dimensionValue: dim.label,
+                        parentName: metric.name,
+                        isDimensional: false,
+                        dimensions: undefined,
+                        isTracked: !!tracked,
+                        metricId: tracked?.id,
+                      };
+                      
+                      return renderMetricRow(childMetric, true);
+                    })}
+                  </>
                 );
               })}
             </AnimatePresence>
