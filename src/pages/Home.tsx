@@ -20,6 +20,7 @@ import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 import { FocusWidget } from "@/components/dashboard/FocusWidget";
 import { AutomationHealthWidget } from "@/components/dashboard/AutomationHealthWidget";
 import { ConnectDataCard } from "@/components/dashboard/ConnectDataCard";
+import { IssueSuggestionsWidget } from "@/components/dashboard/IssueSuggestionsWidget";
 
 const Home = () => {
   const ref = useRef(null);
@@ -281,6 +282,9 @@ const Home = () => {
           href="/scorecard"
         />
       </motion.div>
+
+      {/* Issue Suggestions Widget */}
+      <IssueSuggestionsWidget />
 
       <motion.div
         initial={{ opacity: 0 }}

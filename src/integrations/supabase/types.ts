@@ -1151,6 +1151,92 @@ export type Database = {
           },
         ]
       }
+      issue_suggestions: {
+        Row: {
+          ai_analysis: Json | null
+          context: string | null
+          created_at: string
+          created_issue_id: string | null
+          dismissed_by: string | null
+          dismissed_reason: string | null
+          expires_at: string | null
+          id: string
+          metric_id: string
+          organization_id: string
+          priority: number
+          status: string
+          suggestion_type: string
+          title: string
+          updated_at: string
+          weeks_off_track: number
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          context?: string | null
+          created_at?: string
+          created_issue_id?: string | null
+          dismissed_by?: string | null
+          dismissed_reason?: string | null
+          expires_at?: string | null
+          id?: string
+          metric_id: string
+          organization_id: string
+          priority?: number
+          status?: string
+          suggestion_type?: string
+          title: string
+          updated_at?: string
+          weeks_off_track?: number
+        }
+        Update: {
+          ai_analysis?: Json | null
+          context?: string | null
+          created_at?: string
+          created_issue_id?: string | null
+          dismissed_by?: string | null
+          dismissed_reason?: string | null
+          expires_at?: string | null
+          id?: string
+          metric_id?: string
+          organization_id?: string
+          priority?: number
+          status?: string
+          suggestion_type?: string
+          title?: string
+          updated_at?: string
+          weeks_off_track?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issue_suggestions_created_issue_id_fkey"
+            columns: ["created_issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issue_suggestions_dismissed_by_fkey"
+            columns: ["dismissed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issue_suggestions_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issue_suggestions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issues: {
         Row: {
           context: string | null
