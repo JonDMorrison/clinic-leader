@@ -78,6 +78,7 @@ import Focus from "./pages/Focus";
 import ProfileSettings from "./pages/ProfileSettings";
 import DataSafety from "./pages/DataSafety";
 import DataHome from "./pages/DataHome";
+import JaneCompliance from "./pages/JaneCompliance";
 
 const queryClient = new QueryClient();
 
@@ -216,6 +217,7 @@ const App = () => {
             <Route path="/settings/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
             <Route path="/settings/integrations/bulk-analytics" element={<AppLayout><BulkAnalyticsConnector /></AppLayout>} />
             <Route path="/settings/integrations/data-safety" element={<AppLayout><DataSafety /></AppLayout>} />
+            <Route path="/integrations/jane/compliance" element={<AppLayout><JaneCompliance /></AppLayout>} />
             <Route path="/admin/onboarding-analytics" element={<AppLayout><OnboardingAnalytics /></AppLayout>} />
             <Route path="/admin" element={<AppLayout><AdminDashboard /></AppLayout>} />
             <Route path="/admin/upload-docs" element={<AppLayout><DocumentUploadAdmin /></AppLayout>} />
