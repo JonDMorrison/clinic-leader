@@ -27,14 +27,15 @@ export const ClinicLeaderIcon = ({ className, size = 40 }: ClinicLeaderIconProps
           <stop offset="100%" stopColor="hsl(172, 100%, 40%)" />
         </linearGradient>
       </defs>
-      {/* Clean abstract CL mark - no circular border */}
+      {/* Shield shape */}
       <path
-        d="M8 10C8 8.89543 8.89543 8 10 8H18C19.1046 8 20 8.89543 20 10V14C20 15.1046 19.1046 16 18 16H14V24C14 25.1046 14.8954 26 16 26H18C19.1046 26 20 26.8954 20 28V30C20 31.1046 19.1046 32 18 32H10C8.89543 32 8 31.1046 8 30V10Z"
+        d="M20 3L4 9V18C4 27.94 11.4 37.24 20 39C28.6 37.24 36 27.94 36 18V9L20 3Z"
         fill={`url(#${gradientId})`}
       />
+      {/* Medical cross - white */}
       <path
-        d="M22 10C22 8.89543 22.8954 8 24 8H26C27.1046 8 28 8.89543 28 10V24H30C31.1046 24 32 24.8954 32 26V30C32 31.1046 31.1046 32 30 32H24C22.8954 32 22 31.1046 22 30V10Z"
-        fill={`url(#${gradientId})`}
+        d="M17 13H23V18H28V24H23V29H17V24H12V18H17V13Z"
+        fill="white"
       />
     </svg>
   );
