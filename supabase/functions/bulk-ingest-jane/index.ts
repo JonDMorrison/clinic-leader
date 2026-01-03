@@ -650,26 +650,56 @@ Deno.serve(async (req) => {
       console.log(`[DATA-MIN] Unknown fields will be dropped: ${headerValidation.unknownFound.join(', ')}`);
     }
 
-    // 2. Account GUID lock check
+    // =========================================================================
+    // ACCOUNT LOCKING: Cross-Clinic Isolation (Security Boundary)
+    // =========================================================================
+    // Once locked_account_guid is set, it becomes IMMUTABLE (enforced by DB trigger)
+    // Any file with a mismatched account_guid is REJECTED ENTIRELY
+    
     if (connector.locked_account_guid) {
       if (account_guid !== connector.locked_account_guid) {
-        const errorMsg = `Account GUID mismatch. Expected: ${connector.locked_account_guid}, Got: ${account_guid}`;
-        console.error(`[bulk-ingest-jane] ${errorMsg}`);
+        const errorMsg = `Account GUID mismatch - file rejected entirely. Expected: ${connector.locked_account_guid}, Received: ${account_guid}`;
+        console.error(`[SECURITY] ${errorMsg}`);
         
+        // Log the rejection to file_rejection_log for audit trail
+        await supabase
+          .from("file_rejection_log")
+          .insert({
+            organization_id: orgId,
+            connector_id: connector_id,
+            file_name: s3_key,
+            rejection_reason: "Account GUID mismatch",
+            expected_account_guid: connector.locked_account_guid,
+            received_account_guid: account_guid,
+            file_checksum: generateChecksum(s3_key, file_date),
+          });
+        
+        // Update connector with error status
         await supabase
           .from("bulk_analytics_connectors")
           .update({ 
             status: "error",
-            last_error: errorMsg,
+            last_error: `SECURITY: Account GUID mismatch. File from different Jane account rejected.`,
             updated_at: new Date().toISOString()
           })
           .eq("id", connector_id);
 
+        // Return explicit rejection - DO NOT partially ingest
         return new Response(
-          JSON.stringify({ error: errorMsg }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ 
+            error: "ACCOUNT_GUID_MISMATCH",
+            message: "File rejected: Account GUID does not match locked account. This is a security boundary.",
+            expected_account_guid: connector.locked_account_guid.substring(0, 8) + '...',
+            received_account_guid: account_guid.substring(0, 8) + '...',
+            action: "file_rejected_entirely",
+            partial_ingest: false,
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      console.log(`[SECURITY] Account GUID verified: ${account_guid.substring(0, 8)}...`);
+    } else {
+      console.log(`[SECURITY] First ingest - will lock to account: ${account_guid.substring(0, 8)}...`);
     }
 
     // 3. Check for duplicate/quarantined file
@@ -843,6 +873,18 @@ Deno.serve(async (req) => {
     if (isFirstSuccessfulIngest) {
       connectorUpdate.locked_account_guid = account_guid;
       connectorUpdate.status = "receiving_data";
+      
+      // Log the account lock for audit trail
+      await supabase
+        .from("account_lock_audit")
+        .insert({
+          organization_id: orgId,
+          connector_id: connector_id,
+          locked_account_guid: account_guid,
+          locked_by: s3_key,
+        });
+      
+      console.log(`[SECURITY] Account LOCKED to: ${account_guid} (first successful ingest)`);
     } else if (shouldSetConnectorError) {
       connectorUpdate.status = "error";
       connectorUpdate.last_error = shouldQuarantine 
