@@ -529,17 +529,21 @@ async function seedJaneStagingData(supabase: SupabaseClient, teamId: string) {
 /**
  * Runs the KPI rollup logic for demo org to compute metric_results from staging data.
  * This mirrors the production jane-kpi-rollup edge function logic.
+ * 
+ * IMPORTANT: This is the ONLY place metric_results are computed for demo orgs.
+ * No random values, no hardcoded numbers - all derived from staging data.
+ * Uses 'jane_pipe' source to match production rollup exactly.
  */
 async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: string) {
   console.log('[demo-seed] Running KPI rollup for demo org...');
   
   const now = new Date();
   
-  // Generate periods to rollup: last 6 months (monthly) + last 12 weeks (weekly)
+  // Generate periods to rollup: last 9 months (monthly) + last 12 weeks (weekly)
   const periods: { type: 'weekly' | 'monthly'; start: Date; key: string }[] = [];
   
-  // Monthly periods (last 6 months)
-  for (let monthOffset = 5; monthOffset >= 0; monthOffset--) {
+  // Monthly periods (last 9 months to match staging data range)
+  for (let monthOffset = 8; monthOffset >= 0; monthOffset--) {
     const monthDate = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
     const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
     periods.push({ type: 'monthly', start: monthDate, key: monthKey });
@@ -558,7 +562,10 @@ async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: 
     periods.push({ type: 'weekly', start: weekStart, key: weekKey });
   }
   
-  console.log(`[demo-seed] Processing ${periods.length} periods (6 monthly + 12 weekly)`);
+  console.log(`[demo-seed] Processing ${periods.length} periods (9 monthly + 12 weekly)`);
+  
+  // First, normalize metrics for demo org (idempotent: matches by import_key OR name)
+  await normalizeJaneMetrics(supabase, organizationId);
   
   // Get all metrics for this org to map import_key -> metric_id
   const { data: metrics } = await supabase
@@ -571,71 +578,7 @@ async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: 
     if (m.import_key) {
       metricMap.set(m.import_key, { id: m.id, name: m.name });
     }
-    // Also map by lowercase name for fallback
-    metricMap.set(m.name.toLowerCase().replace(/[^a-z0-9]/g, '_'), { id: m.id, name: m.name });
   });
-  
-  // For demo orgs: create/update Jane metrics to ensure they are tracked and have import_keys
-  // These names MUST match JANE_METRICS in DataMetricsTable.tsx for UI tracking to work
-  const standardMetrics = [
-    { import_key: 'jane_total_visits', name: 'Total Visits', unit: 'count', direction: 'up', category: 'Appointments' },
-    { import_key: 'jane_new_patient_visits', name: 'New Patient Visits', unit: 'count', direction: 'up', category: 'Appointments' },
-    { import_key: 'jane_new_patients', name: 'New Patients', unit: 'count', direction: 'up', category: 'Patients' },
-    { import_key: 'jane_no_shows', name: 'No Shows', unit: 'count', direction: 'down', category: 'Appointments' },
-    { import_key: 'jane_show_rate', name: 'Show Rate %', unit: 'percentage', direction: 'up', category: 'Appointments' },
-    { import_key: 'jane_cancellation_rate', name: 'Cancellation Rate %', unit: 'percentage', direction: 'down', category: 'Appointments' },
-    { import_key: 'jane_total_collected', name: 'Total Collected Revenue', unit: 'dollars', direction: 'up', category: 'Payments' },
-    { import_key: 'jane_total_invoiced', name: 'Total Invoiced', unit: 'dollars', direction: 'up', category: 'Invoices' },
-  ];
-  
-  for (const metricDef of standardMetrics) {
-    // Check if metric exists by import_key OR by name (case-insensitive)
-    const existingByKey = metricMap.get(metricDef.import_key);
-    const nameKey = metricDef.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const existingByName = metricMap.get(nameKey);
-    
-    if (existingByKey) {
-      // Already exists with correct import_key, ensure it's in the map
-      continue;
-    }
-    
-    if (existingByName) {
-      // Exists by name but missing import_key - update it
-      await supabase
-        .from('metrics')
-        .update({ 
-          import_key: metricDef.import_key, 
-          sync_source: 'jane',
-          is_active: true,
-          category: metricDef.category,
-        })
-        .eq('id', existingByName.id);
-      
-      metricMap.set(metricDef.import_key, existingByName);
-    } else {
-      // Create new metric
-      const { data: newMetric, error } = await supabase
-        .from('metrics')
-        .insert({
-          organization_id: organizationId,
-          name: metricDef.name,
-          import_key: metricDef.import_key,
-          unit: metricDef.unit,
-          direction: metricDef.direction,
-          category: metricDef.category,
-          sync_source: 'jane',
-          is_active: true,
-        })
-        .select('id')
-        .single();
-      
-      if (newMetric) {
-        metricMap.set(metricDef.import_key, { id: newMetric.id, name: metricDef.name });
-      } else if (error) {
-        console.error(`[demo-seed] Failed to create metric ${metricDef.name}:`, error.message);
-      }
-    }
-  }
   
   const results: any[] = [];
   
@@ -689,11 +632,11 @@ async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: 
     
     const totalInvoiced = (invoicesData || []).reduce((sum, i) => sum + (Number(i.subtotal) || 0), 0);
     
-    // Calculate KPIs - keys must match standardMetrics import_keys above
+    // Calculate KPIs - keys must match JANE_METRICS in UI
     const rollups = [
       { import_key: 'jane_total_visits', value: nonCancelled.length },
       { import_key: 'jane_new_patient_visits', value: newPatients.length },
-      { import_key: 'jane_new_patients', value: newPatients.length }, // Alias for "New Patients" metric in UI
+      { import_key: 'jane_new_patients', value: newPatients.length },
       { import_key: 'jane_no_shows', value: noShows.length },
       { import_key: 'jane_show_rate', value: totalBooked > 0 ? Math.round((arrivedCount / totalBooked) * 10000) / 100 : 0 },
       { import_key: 'jane_cancellation_rate', value: totalBooked > 0 ? Math.round((cancelled.length / totalBooked) * 10000) / 100 : 0 },
@@ -711,13 +654,14 @@ async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: 
           period_type: period.type,
           period_key: period.key,
           value: rollup.value,
-          source: 'jane', // Must match source check constraint ('manual' | 'jane')
+          source: 'jane_pipe', // Match production rollup source exactly
+          raw_row: { rollup_type: rollup.import_key, computed_at: new Date().toISOString() },
         });
       }
     }
   }
   
-  // Batch upsert results
+  // Batch upsert results (idempotent via onConflict)
   const BATCH_SIZE = 100;
   let successCount = 0;
   
@@ -735,4 +679,108 @@ async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: 
   }
   
   console.log(`[demo-seed] Rollup complete: ${successCount}/${results.length} metric_results upserted`);
+}
+
+/**
+ * Normalizes Jane metrics for demo orgs - idempotent.
+ * - Matches existing metrics by import_key OR case-insensitive name
+ * - If name match exists and import_key is null, UPDATE to set correct import_key
+ * - Ensures sync_source = 'jane' and is_active = true
+ * - Does NOT create duplicates
+ */
+async function normalizeJaneMetrics(supabase: SupabaseClient, organizationId: string) {
+  console.log('[demo-seed] Normalizing Jane metrics...');
+  
+  // Standard Jane metrics that must exist for demo orgs
+  // Names MUST match JANE_METRICS in DataMetricsTable.tsx
+  const standardMetrics = [
+    { import_key: 'jane_total_visits', name: 'Total Visits', unit: 'count', direction: 'up', category: 'Appointments', target: 200 },
+    { import_key: 'jane_new_patient_visits', name: 'New Patient Visits', unit: 'count', direction: 'up', category: 'Appointments', target: 30 },
+    { import_key: 'jane_new_patients', name: 'New Patients', unit: 'count', direction: 'up', category: 'Patients', target: 25 },
+    { import_key: 'jane_no_shows', name: 'No Shows', unit: 'count', direction: 'down', category: 'Appointments', target: 5 },
+    { import_key: 'jane_show_rate', name: 'Show Rate %', unit: 'percentage', direction: 'up', category: 'Appointments', target: 95 },
+    { import_key: 'jane_cancellation_rate', name: 'Cancellation Rate %', unit: 'percentage', direction: 'down', category: 'Appointments', target: 5 },
+    { import_key: 'jane_total_collected', name: 'Total Collected Revenue', unit: 'dollars', direction: 'up', category: 'Payments', target: 50000 },
+    { import_key: 'jane_total_invoiced', name: 'Total Invoiced', unit: 'dollars', direction: 'up', category: 'Invoices', target: 55000 },
+  ];
+  
+  // Get all existing metrics for this org
+  const { data: existingMetrics } = await supabase
+    .from('metrics')
+    .select('id, name, import_key')
+    .eq('organization_id', organizationId);
+  
+  const existingByKey = new Map<string, { id: string; name: string }>();
+  const existingByName = new Map<string, { id: string; import_key: string | null }>();
+  
+  (existingMetrics || []).forEach(m => {
+    if (m.import_key) {
+      existingByKey.set(m.import_key, { id: m.id, name: m.name });
+    }
+    // Normalize name for matching: lowercase, remove non-alphanumeric
+    const normalizedName = m.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    existingByName.set(normalizedName, { id: m.id, import_key: m.import_key });
+  });
+  
+  let updatedCount = 0;
+  let createdCount = 0;
+  
+  for (const metricDef of standardMetrics) {
+    // Check 1: Already exists with correct import_key?
+    if (existingByKey.has(metricDef.import_key)) {
+      // Just ensure it's active and synced
+      await supabase
+        .from('metrics')
+        .update({ sync_source: 'jane', is_active: true })
+        .eq('id', existingByKey.get(metricDef.import_key)!.id);
+      continue;
+    }
+    
+    // Check 2: Exists by name but missing import_key?
+    const normalizedName = metricDef.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const existingMatch = existingByName.get(normalizedName);
+    
+    if (existingMatch && !existingMatch.import_key) {
+      // Update to set import_key
+      await supabase
+        .from('metrics')
+        .update({ 
+          import_key: metricDef.import_key,
+          sync_source: 'jane',
+          is_active: true,
+          category: metricDef.category,
+        })
+        .eq('id', existingMatch.id);
+      updatedCount++;
+      continue;
+    }
+    
+    if (existingMatch) {
+      // Exists with different import_key - don't create duplicate
+      continue;
+    }
+    
+    // Check 3: Create new metric
+    const { error } = await supabase
+      .from('metrics')
+      .insert({
+        organization_id: organizationId,
+        name: metricDef.name,
+        import_key: metricDef.import_key,
+        unit: metricDef.unit,
+        direction: metricDef.direction,
+        category: metricDef.category,
+        target: metricDef.target,
+        sync_source: 'jane',
+        is_active: true,
+      });
+    
+    if (error) {
+      console.error(`[demo-seed] Failed to create metric ${metricDef.name}:`, error.message);
+    } else {
+      createdCount++;
+    }
+  }
+  
+  console.log(`[demo-seed] Metrics normalized: ${updatedCount} updated, ${createdCount} created`);
 }
