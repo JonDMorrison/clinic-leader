@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Building2, Users, Palette, Copy, Save } from "lucide-react";
+import { Loader2, Building2, Users, Palette, Copy, Save, Settings } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -380,6 +381,64 @@ export default function OrganizationSettings() {
               </div>
             </div>
           )}
+        </Card>
+
+        {/* EOS Configuration */}
+        <Card className="glass p-6">
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Settings className="h-8 w-8 text-brand" />
+              <div>
+                <h2 className="text-2xl font-bold">EOS Configuration</h2>
+                <p className="text-sm text-muted-foreground">Entrepreneurial Operating System tools</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="flex items-center justify-between bg-surface/50 p-4 rounded-lg">
+              <div className="space-y-1">
+                <p className="font-semibold">Enable EOS</p>
+                <p className="text-sm text-muted-foreground">
+                  Turn on EOS tools like Rocks, V/TO, and L10 Meetings
+                </p>
+              </div>
+              <Switch
+                checked={editedTeam?.eos_enabled || false}
+                onCheckedChange={(checked) => {
+                  const updates = { ...editedTeam, eos_enabled: checked };
+                  setEditedTeam(updates);
+                  updateTeamMutation.mutate({ eos_enabled: checked });
+                }}
+              />
+            </div>
+
+            {editedTeam?.eos_enabled && (
+              <div className="bg-surface/50 p-4 rounded-lg">
+                <Label htmlFor="meeting_rhythm" className="text-sm font-semibold">Meeting Rhythm</Label>
+                <p className="text-sm text-muted-foreground mb-3">
+                  How often does your leadership team meet?
+                </p>
+                <Select
+                  value={editedTeam?.meeting_rhythm || "weekly"}
+                  onValueChange={(value) => {
+                    const updates = { ...editedTeam, meeting_rhythm: value };
+                    setEditedTeam(updates);
+                    updateTeamMutation.mutate({ meeting_rhythm: value });
+                  }}
+                >
+                  <SelectTrigger className="w-full max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Weekly L10</SelectItem>
+                    <SelectItem value="monthly">Monthly L10</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
         </Card>
 
         {/* Branding & License */}
