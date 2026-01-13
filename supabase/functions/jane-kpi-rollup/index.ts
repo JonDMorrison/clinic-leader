@@ -25,6 +25,20 @@ interface StaffMember {
   staff_member_name: string;
 }
 
+interface BreakdownEntry {
+  dimension_type: "clinician" | "location" | "discipline";
+  dimension_id: string;
+  dimension_label: string;
+  value: number;
+  import_key: string; // Which parent metric this breakdown belongs to
+}
+
+// Metrics that support breakdowns
+const BREAKDOWN_METRICS = {
+  jane_total_visits: ["clinician", "location", "discipline"],
+  jane_total_invoiced: ["clinician", "location"],
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -74,15 +88,16 @@ Deno.serve(async (req) => {
     console.log(`[jane-kpi-rollup] Period: ${periodStartStr} to ${periodEndStr}, key: ${periodKey}`);
 
     const rollups: RollupResult[] = [];
+    const breakdowns: BreakdownEntry[] = [];
 
     // ========================================
     // ORGANIZATION-LEVEL METRICS
     // ========================================
 
-    // Fetch all appointments for the period
+    // Fetch all appointments for the period (include discipline_name and location fields)
     const { data: allAppointments, error: apptError } = await supabase
       .from("staging_appointments_jane")
-      .select("id, staff_member_guid, staff_member_name, cancelled_at, no_show_at, arrived_at, first_visit")
+      .select("id, staff_member_guid, staff_member_name, cancelled_at, no_show_at, arrived_at, first_visit, discipline_name, location_guid, location_name")
       .eq("organization_id", organization_id)
       .gte("start_at", periodStartStr)
       .lte("start_at", periodEndStr);
@@ -107,6 +122,83 @@ Deno.serve(async (req) => {
       period_start: periodStartStr,
     });
     console.log(`[jane-kpi-rollup] Total Visits: ${nonCancelled.length}`);
+
+    // ========================================
+    // BREAKDOWNS: Total Visits
+    // ========================================
+    
+    // By Clinician
+    const visitsByClinician = new Map<string, { count: number; label: string }>();
+    for (const appt of nonCancelled) {
+      if (appt.staff_member_guid) {
+        const existing = visitsByClinician.get(appt.staff_member_guid);
+        if (existing) {
+          existing.count++;
+        } else {
+          visitsByClinician.set(appt.staff_member_guid, {
+            count: 1,
+            label: appt.staff_member_name || `Provider ${appt.staff_member_guid.slice(-6)}`,
+          });
+        }
+      }
+    }
+    for (const [id, data] of visitsByClinician) {
+      breakdowns.push({
+        dimension_type: "clinician",
+        dimension_id: id,
+        dimension_label: data.label,
+        value: data.count,
+        import_key: "jane_total_visits",
+      });
+    }
+
+    // By Location
+    const visitsByLocation = new Map<string, { count: number; label: string }>();
+    for (const appt of nonCancelled) {
+      const locationId = appt.location_guid || appt.location_name || "unknown";
+      if (locationId !== "unknown") {
+        const existing = visitsByLocation.get(locationId);
+        if (existing) {
+          existing.count++;
+        } else {
+          visitsByLocation.set(locationId, {
+            count: 1,
+            label: appt.location_name || `Location ${locationId.slice(-6)}`,
+          });
+        }
+      }
+    }
+    for (const [id, data] of visitsByLocation) {
+      breakdowns.push({
+        dimension_type: "location",
+        dimension_id: id,
+        dimension_label: data.label,
+        value: data.count,
+        import_key: "jane_total_visits",
+      });
+    }
+
+    // By Discipline
+    const visitsByDiscipline = new Map<string, number>();
+    for (const appt of nonCancelled) {
+      if (appt.discipline_name) {
+        visitsByDiscipline.set(
+          appt.discipline_name,
+          (visitsByDiscipline.get(appt.discipline_name) || 0) + 1
+        );
+      }
+    }
+    for (const [discipline, count] of visitsByDiscipline) {
+      breakdowns.push({
+        dimension_type: "discipline",
+        dimension_id: discipline,
+        dimension_label: discipline,
+        value: count,
+        import_key: "jane_total_visits",
+      });
+    }
+
+    console.log(`[jane-kpi-rollup] Total Visits breakdowns: ${visitsByClinician.size} clinicians, ${visitsByLocation.size} locations, ${visitsByDiscipline.size} disciplines`);
 
     // KPI 2: New Patient Visits
     rollups.push({
@@ -184,7 +276,7 @@ Deno.serve(async (req) => {
     // Fetch invoices for invoiced revenue and per-provider breakdown
     const { data: invoicesData, error: invoicesError } = await supabase
       .from("staging_invoices_jane")
-      .select("subtotal, amount_paid, staff_member_guid, staff_member_name")
+      .select("subtotal, amount_paid, staff_member_guid, staff_member_name, location_guid, location_name")
       .eq("organization_id", organization_id)
       .gte("invoiced_at", periodStartStr)
       .lte("invoiced_at", periodEndStr);
@@ -201,6 +293,65 @@ Deno.serve(async (req) => {
       period_start: periodStartStr,
     });
     console.log(`[jane-kpi-rollup] Total Invoiced: ${totalInvoiced}`);
+
+    // ========================================
+    // BREAKDOWNS: Total Invoiced
+    // ========================================
+    
+    // By Clinician
+    const invoicedByClinician = new Map<string, { amount: number; label: string }>();
+    for (const inv of invoices) {
+      if (inv.staff_member_guid) {
+        const existing = invoicedByClinician.get(inv.staff_member_guid);
+        const amount = Number(inv.subtotal) || 0;
+        if (existing) {
+          existing.amount += amount;
+        } else {
+          invoicedByClinician.set(inv.staff_member_guid, {
+            amount,
+            label: inv.staff_member_name || `Provider ${inv.staff_member_guid.slice(-6)}`,
+          });
+        }
+      }
+    }
+    for (const [id, data] of invoicedByClinician) {
+      breakdowns.push({
+        dimension_type: "clinician",
+        dimension_id: id,
+        dimension_label: data.label,
+        value: Math.round(data.amount * 100) / 100,
+        import_key: "jane_total_invoiced",
+      });
+    }
+
+    // By Location
+    const invoicedByLocation = new Map<string, { amount: number; label: string }>();
+    for (const inv of invoices) {
+      const locationId = inv.location_guid || inv.location_name || "unknown";
+      if (locationId !== "unknown") {
+        const existing = invoicedByLocation.get(locationId);
+        const amount = Number(inv.subtotal) || 0;
+        if (existing) {
+          existing.amount += amount;
+        } else {
+          invoicedByLocation.set(locationId, {
+            amount,
+            label: inv.location_name || `Location ${locationId.slice(-6)}`,
+          });
+        }
+      }
+    }
+    for (const [id, data] of invoicedByLocation) {
+      breakdowns.push({
+        dimension_type: "location",
+        dimension_id: id,
+        dimension_label: data.label,
+        value: Math.round(data.amount * 100) / 100,
+        import_key: "jane_total_invoiced",
+      });
+    }
+
+    console.log(`[jane-kpi-rollup] Total Invoiced breakdowns: ${invoicedByClinician.size} clinicians, ${invoicedByLocation.size} locations`);
 
     // KPI 9: Average Revenue Per Visit
     const avgRevenuePerVisit = nonCancelled.length > 0 ? totalCollected / nonCancelled.length : 0;
@@ -361,6 +512,7 @@ Deno.serve(async (req) => {
     // ========================================
     let upsertedCount = 0;
     const upsertErrors: string[] = [];
+    const metricIdCache = new Map<string, string>(); // import_key -> metric_id
 
     for (const rollup of rollups) {
       // Find or create metric by import_key
@@ -402,6 +554,9 @@ Deno.serve(async (req) => {
         console.log(`[jane-kpi-rollup] Created new metric: ${rollup.metric_name} (${metricId})`);
       }
 
+      // Cache metric ID for breakdown upserts
+      metricIdCache.set(rollup.import_key, metricId);
+
       // Upsert metric_result
       // Uses unique constraint: idx_metric_results_period_unique (metric_id, period_type, period_start)
       const weekStart = periodStartStr;
@@ -426,7 +581,42 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[jane-kpi-rollup] Rollup complete. Upserted ${upsertedCount}/${rollups.length} metrics, created ${createdProviders.length} new providers.`);
+    // ========================================
+    // UPSERT BREAKDOWNS
+    // ========================================
+    let breakdownUpsertCount = 0;
+
+    for (const breakdown of breakdowns) {
+      const metricId = metricIdCache.get(breakdown.import_key);
+      if (!metricId) {
+        console.warn(`[jane-kpi-rollup] No metric ID found for breakdown ${breakdown.import_key}`);
+        continue;
+      }
+
+      const { error: breakdownError } = await supabase
+        .from("metric_breakdowns")
+        .upsert({
+          organization_id,
+          metric_id: metricId,
+          period_type: period_type,
+          period_key: periodKey,
+          period_start: periodStartStr,
+          dimension_type: breakdown.dimension_type,
+          dimension_id: breakdown.dimension_id,
+          dimension_label: breakdown.dimension_label,
+          value: breakdown.value,
+          source: "jane_pipe",
+        }, { onConflict: "organization_id,metric_id,period_key,dimension_type,dimension_id" });
+
+      if (breakdownError) {
+        console.error(`[jane-kpi-rollup] Failed to upsert breakdown: ${breakdownError.message}`);
+        upsertErrors.push(`Failed to upsert breakdown: ${breakdown.import_key}/${breakdown.dimension_type}/${breakdown.dimension_id}`);
+      } else {
+        breakdownUpsertCount++;
+      }
+    }
+
+    console.log(`[jane-kpi-rollup] Rollup complete. Upserted ${upsertedCount}/${rollups.length} metrics, ${breakdownUpsertCount}/${breakdowns.length} breakdowns, created ${createdProviders.length} new providers.`);
 
     return new Response(
       JSON.stringify({
@@ -438,6 +628,8 @@ Deno.serve(async (req) => {
         period_end: periodEndStr,
         metrics_processed: rollups.length,
         metrics_upserted: upsertedCount,
+        breakdowns_processed: breakdowns.length,
+        breakdowns_upserted: breakdownUpsertCount,
         providers_found: uniqueStaff.length,
         providers_created: createdProviders,
         rollups: rollups.map(r => ({ name: r.metric_name, value: r.value, owner: r.owner })),
