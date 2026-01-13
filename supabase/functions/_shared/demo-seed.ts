@@ -14,7 +14,7 @@ export async function seedDemoData(supabase: SupabaseClient, teamId: string) {
   const owner = users?.find(u => u.role === 'owner');
 
   // 1. Seed KPIs
-  await seedKPIs(supabase, teamId, directorOps?.id, billingLead?.id);
+  await seedMetrics(supabase, teamId, directorOps?.id, billingLead?.id);
 
   // 2. Seed Rocks
   await seedRocks(supabase, teamId, directorOps?.id, billingLead?.id, owner?.id);
@@ -34,35 +34,110 @@ export async function seedDemoData(supabase: SupabaseClient, teamId: string) {
   console.log('Demo data seed completed');
 }
 
-async function seedKPIs(supabase: SupabaseClient, teamId: string, directorId?: string, billingId?: string) {
-  // direction enum values: '>=' (above/higher is better), '<=' (below/lower is better), '==' (exact target)
-  const kpis = [
+async function seedMetrics(supabase: SupabaseClient, organizationId: string, directorId?: string, billingId?: string) {
+  // direction: 'up' = higher is better, 'down' = lower is better
+  // unit: 'count', 'dollars', 'percentage'
+  const metrics = [
     // Production
-    { name: 'Total Visits', unit: 'count', direction: '>=', target: 250, category: 'Production', owner_id: directorId },
-    { name: 'New Patients', unit: 'count', direction: '>=', target: 30, category: 'Production', owner_id: directorId },
-    { name: 'No-Show %', unit: 'percentage', direction: '<=', target: 5, category: 'Production', owner_id: directorId },
+    { name: 'Total Visits', unit: 'count', direction: 'up', target: 250, category: 'Production', owner: directorId, organization_id: organizationId, is_active: true },
+    { name: 'New Patients', unit: 'count', direction: 'up', target: 30, category: 'Production', owner: directorId, organization_id: organizationId, is_active: true },
+    { name: 'No-Show Rate', unit: 'percentage', direction: 'down', target: 5, category: 'Production', owner: directorId, organization_id: organizationId, is_active: true },
     
     // Financial
-    { name: 'Collected Revenue', unit: 'currency', direction: '>=', target: 75000, category: 'Financial', owner_id: billingId },
-    { name: 'Collection Rate %', unit: 'percentage', direction: '>=', target: 95, category: 'Financial', owner_id: billingId },
-    { name: 'AR 90+ Days', unit: 'currency', direction: '<=', target: 5000, category: 'Financial', owner_id: billingId },
+    { name: 'Collected Revenue', unit: 'dollars', direction: 'up', target: 75000, category: 'Financial', owner: billingId, organization_id: organizationId, is_active: true },
+    { name: 'Collection Rate', unit: 'percentage', direction: 'up', target: 95, category: 'Financial', owner: billingId, organization_id: organizationId, is_active: true },
+    { name: 'AR 90+ Days', unit: 'dollars', direction: 'down', target: 5000, category: 'Financial', owner: billingId, organization_id: organizationId, is_active: true },
     
     // Access
-    { name: 'Time to Next Available (days)', unit: 'count', direction: '<=', target: 3, category: 'Access', owner_id: directorId },
-    { name: 'Provider Utilization %', unit: 'percentage', direction: '>=', target: 85, category: 'Access', owner_id: directorId },
+    { name: 'Days to Next Available', unit: 'count', direction: 'down', target: 3, category: 'Access', owner: directorId, organization_id: organizationId, is_active: true },
+    { name: 'Provider Utilization', unit: 'percentage', direction: 'up', target: 85, category: 'Access', owner: directorId, organization_id: organizationId, is_active: true },
   ];
 
   let successCount = 0;
-  for (const kpi of kpis) {
-    const { error } = await supabase.from('kpis').insert(kpi);
+  const insertedMetrics: string[] = [];
+  
+  for (const metric of metrics) {
+    const { data, error } = await supabase.from('metrics').insert(metric).select('id').single();
     if (error) {
-      console.error(`[seedKPIs] Failed to insert KPI "${kpi.name}":`, error.message);
+      console.error(`[seedMetrics] Failed to insert metric "${metric.name}":`, error.message);
     } else {
       successCount++;
+      insertedMetrics.push(data.id);
     }
   }
 
-  console.log(`Seeded ${successCount}/${kpis.length} KPIs`);
+  console.log(`Seeded ${successCount}/${metrics.length} metrics`);
+  
+  // Seed metric_results for the last 12 weeks
+  if (insertedMetrics.length > 0) {
+    await seedMetricResults(supabase, insertedMetrics, metrics);
+  }
+}
+
+async function seedMetricResults(supabase: SupabaseClient, metricIds: string[], metrics: any[]) {
+  const today = new Date();
+  const results = [];
+  
+  for (let i = 0; i < metricIds.length; i++) {
+    const metric = metrics[i];
+    const metricId = metricIds[i];
+    const target = metric.target;
+    
+    // Generate 12 weeks of data with slight variance and growth trend
+    for (let week = 11; week >= 0; week--) {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - (week * 7));
+      // Align to Monday
+      const day = weekStart.getDay();
+      const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
+      weekStart.setDate(diff);
+      
+      // Generate value with variance and slight improvement trend
+      const growthFactor = 1 + ((11 - week) * 0.01); // 1% improvement per week
+      const variance = 0.9 + (Math.random() * 0.2); // ±10% variance
+      let value: number;
+      
+      if (metric.direction === 'up') {
+        // For "up" metrics, trend toward hitting target
+        value = target * growthFactor * variance * 0.95;
+      } else {
+        // For "down" metrics, trend toward being under target
+        value = target * (1 / growthFactor) * variance * 1.1;
+      }
+      
+      // Round appropriately
+      value = metric.unit === 'percentage' 
+        ? Math.round(value * 10) / 10 
+        : Math.round(value);
+      
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const periodKey = `${weekStart.getFullYear()}-W${String(Math.ceil((weekStart.getDate() + 6) / 7)).padStart(2, '0')}`;
+      results.push({
+        metric_id: metricId,
+        week_start: weekStartStr,
+        period_start: weekStartStr,
+        period_type: 'weekly',
+        period_key: periodKey,
+        value,
+      });
+    }
+  }
+  
+  // Insert in batches
+  const batchSize = 50;
+  let successCount = 0;
+  
+  for (let i = 0; i < results.length; i += batchSize) {
+    const batch = results.slice(i, i + batchSize);
+    const { error } = await supabase.from('metric_results').insert(batch);
+    if (error) {
+      console.error(`[seedMetricResults] Batch insert failed:`, error.message);
+    } else {
+      successCount += batch.length;
+    }
+  }
+  
+  console.log(`Seeded ${successCount}/${results.length} metric results`);
 }
 
 async function seedRocks(supabase: SupabaseClient, organizationId: string, directorId?: string, billingId?: string, ownerId?: string) {
