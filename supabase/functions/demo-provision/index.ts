@@ -131,14 +131,14 @@ serve(async (req) => {
 
     console.log('Created demo users');
 
-    // 3. Set up Jane integration
+    // 3. Set up Jane integration (legacy table)
     const JANE_API_KEY = Deno.env.get('JANE_SANDBOX_API_KEY') || 'demo_key';
     const JANE_CLINIC_ID = Deno.env.get('JANE_SANDBOX_CLINIC_ID') || 'demo_clinic';
 
     const { data: janeIntegration, error: janeError } = await supabaseClient
       .from('jane_integrations')
       .insert({
-        team_id: org.id,
+        organization_id: org.id,
         api_key: JANE_API_KEY,
         clinic_id: JANE_CLINIC_ID,
         status: 'connected',
@@ -156,16 +156,46 @@ serve(async (req) => {
       console.log('Created Jane integration:', janeIntegration.id);
     }
 
-    // 4. Seed demo data
+    // 4. Set up Jane bulk analytics connector (new unified system)
+    const now = new Date();
+    const lastProcessed = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+    const nextSync = new Date(now.getTime() + 22 * 60 * 60 * 1000); // 22 hours from now
+
+    const { data: bulkConnector, error: bulkError } = await supabaseClient
+      .from('bulk_analytics_connectors')
+      .insert({
+        organization_id: org.id,
+        source_system: 'jane',
+        connector_type: 'bulk_analytics',
+        status: 'active',
+        cadence: 'daily',
+        delivery_method: 's3',
+        delivery_mode: 'partner_managed',
+        expected_schema_version: 'jane_v1',
+        clinic_identifier: JANE_CLINIC_ID,
+        is_sandbox: true,
+        last_received_at: lastProcessed.toISOString(),
+        last_processed_at: lastProcessed.toISOString(),
+      })
+      .select()
+      .single();
+
+    if (bulkError) {
+      console.error('Error creating bulk analytics connector:', bulkError);
+    } else {
+      console.log('Created bulk analytics connector:', bulkConnector.id);
+    }
+
+    // 5. Seed demo data
     console.log('Seeding demo data...');
     await seedDemoData(supabaseClient, org.id);
 
-    // 5. Record provision
+    // 6. Record provision
     const { error: provisionError } = await supabaseClient
       .from('demo_provision')
       .insert({
         user_id: user.id,
-        team_id: org.id,
+        organization_id: org.id,
         last_seed_at: new Date().toISOString(),
       });
 
