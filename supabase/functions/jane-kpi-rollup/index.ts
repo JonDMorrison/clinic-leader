@@ -403,6 +403,7 @@ Deno.serve(async (req) => {
       }
 
       // Upsert metric_result
+      // Uses unique constraint: idx_metric_results_period_unique (metric_id, period_type, period_start)
       const weekStart = periodStartStr;
       const { error: resultError } = await supabase
         .from("metric_results")
@@ -415,7 +416,7 @@ Deno.serve(async (req) => {
           value: rollup.value,
           source: "jane_pipe",
           raw_row: { rollup_type: rollup.import_key, computed_at: new Date().toISOString() },
-        }, { onConflict: "metric_id,period_key" });
+        }, { onConflict: "metric_id,period_type,period_start" });
 
       if (resultError) {
         console.error(`[jane-kpi-rollup] Failed to upsert result for ${rollup.import_key}: ${resultError.message}`);

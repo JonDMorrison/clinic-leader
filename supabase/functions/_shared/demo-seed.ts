@@ -662,6 +662,7 @@ async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: 
   }
   
   // Batch upsert results (idempotent via onConflict)
+  // Uses metric_id,period_type,period_start which has unique index: idx_metric_results_period_unique
   const BATCH_SIZE = 100;
   let successCount = 0;
   
@@ -669,7 +670,7 @@ async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: 
     const batch = results.slice(i, i + BATCH_SIZE);
     const { error } = await supabase
       .from('metric_results')
-      .upsert(batch, { onConflict: 'metric_id,period_key' });
+      .upsert(batch, { onConflict: 'metric_id,period_type,period_start' });
     
     if (error) {
       console.error('[demo-seed] Error upserting metric_results batch:', error.message);
