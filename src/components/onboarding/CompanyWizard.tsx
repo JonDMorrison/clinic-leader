@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { AccountHolder } from "./steps/AccountHolder";
 import { CompanyBasics } from "./steps/CompanyBasics";
 import { OperationalSetup } from "./steps/OperationalSetup";
+import { ValuesBuilder } from "./steps/ValuesBuilder";
 import { EosSetup } from "./steps/EosSetup";
 import { Branding } from "./steps/Branding";
 import { Review } from "./steps/Review";
@@ -17,9 +18,10 @@ const STEPS = [
   { id: 0, label: "Account", completed: false },
   { id: 1, label: "Company", completed: false },
   { id: 2, label: "Operations", completed: false },
-  { id: 3, label: "EOS", completed: false },
-  { id: 4, label: "Branding", completed: false },
-  { id: 5, label: "Review", completed: false },
+  { id: 3, label: "Values", completed: false },
+  { id: 4, label: "EOS", completed: false },
+  { id: 5, label: "Branding", completed: false },
+  { id: 6, label: "Review", completed: false },
 ];
 
 interface CompanyWizardProps {
@@ -96,6 +98,15 @@ export const CompanyWizard = ({
     // Validate current step
     setErrors({});
     
+    // Validate Values step (step 3) - require at least 3 values
+    if (currentStep === 3) {
+      const values = data.core_values || [];
+      if (values.length < 3) {
+        setErrors({ core_values: "Please add at least 3 core values to continue." });
+        return;
+      }
+    }
+    
     if (currentStep < STEPS.length - 1) {
       // Auto-save on step change (except last step)
       await saveDraft();
@@ -123,12 +134,23 @@ export const CompanyWizard = ({
       if (!data.company_name) missing.company_name = "Company name is required";
       if (!data.industry) missing.industry = "Industry is required";
       if (!data.team_size) missing.team_size = "Team size is required";
+      
+      // Validate core values
+      const values = data.core_values || [];
+      if (values.length < 3) {
+        missing.core_values = "At least 3 core values are required";
+      }
 
       if (Object.keys(missing).length > 0) {
         console.error("Validation failed:", missing);
         setErrors(missing);
-        setCurrentStep(1); // Jump to Company step
-        throw new Error("Please complete the required Company fields.");
+        // Jump to appropriate step
+        if (missing.company_name || missing.industry || missing.team_size) {
+          setCurrentStep(1);
+        } else if (missing.core_values) {
+          setCurrentStep(3);
+        }
+        throw new Error("Please complete all required fields.");
       }
 
       console.log("Validation passed, getting session...");
@@ -195,10 +217,12 @@ export const CompanyWizard = ({
           <OperationalSetup data={data} onChange={setData} errors={errors} />
         );
       case 3:
-        return <EosSetup data={data} onChange={setData} errors={errors} />;
+        return <ValuesBuilder data={data} onChange={setData} errors={errors} />;
       case 4:
-        return <Branding data={data} onChange={setData} errors={errors} />;
+        return <EosSetup data={data} onChange={setData} errors={errors} />;
       case 5:
+        return <Branding data={data} onChange={setData} errors={errors} />;
+      case 6:
         return <Review data={data} onEdit={setCurrentStep} />;
       default:
         return null;

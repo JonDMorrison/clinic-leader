@@ -11,6 +11,10 @@ function parseJwt(token: string) {
   }
 }
 
+interface CoreValueEntry {
+  title: string;
+  short_behavior?: string;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,7 +86,8 @@ serve(async (req) => {
     console.log("Validating required fields:", {
       company_name: data.company_name,
       industry: data.industry,
-      team_size: data.team_size
+      team_size: data.team_size,
+      core_values_count: data.core_values?.length
     });
 
     if (!data.company_name || !data.industry || !data.team_size) {
@@ -92,6 +97,12 @@ serve(async (req) => {
         team_size: !!data.team_size 
       });
       throw new Error("Missing required fields");
+    }
+
+    // Validate core values (at least 3 required)
+    if (!data.core_values || data.core_values.length < 3) {
+      console.error("Insufficient core values:", data.core_values?.length || 0);
+      throw new Error("At least 3 core values are required");
     }
 
     console.log("Validation passed, updating organization...");
@@ -148,23 +159,53 @@ serve(async (req) => {
       onboarding_status: updateResult[0].onboarding_status
     });
 
-    // Save core values
+    // Save core values with proper schema
     if (data.core_values && data.core_values.length > 0) {
       console.log("Saving core values:", data.core_values);
+      
       // Delete existing
       await supabaseAdmin
         .from("org_core_values")
         .delete()
         .eq("organization_id", organizationId);
 
-      // Insert new
-      const coreValuesInserts = data.core_values.map((value: string, index: number) => ({
+      // Insert new with proper column names (title, short_behavior, sort_order)
+      const coreValuesInserts = data.core_values.map((value: CoreValueEntry, index: number) => ({
         organization_id: organizationId,
-        value,
-        position: index,
+        title: value.title,
+        short_behavior: value.short_behavior || null,
+        sort_order: index,
+        is_active: true,
       }));
-      await supabaseAdmin.from("org_core_values").insert(coreValuesInserts);
-      console.log("Core values saved");
+      
+      const { error: cvError } = await supabaseAdmin
+        .from("org_core_values")
+        .insert(coreValuesInserts);
+      
+      if (cvError) {
+        console.error("Error saving core values:", cvError);
+        // Don't throw - core values are important but shouldn't block onboarding
+      } else {
+        console.log("Core values saved successfully");
+        
+        // Create spotlight with first value
+        const { data: insertedValues } = await supabaseAdmin
+          .from("org_core_values")
+          .select("id")
+          .eq("organization_id", organizationId)
+          .order("sort_order", { ascending: true })
+          .limit(1);
+        
+        if (insertedValues && insertedValues.length > 0) {
+          await supabaseAdmin.from("core_value_spotlight").upsert({
+            organization_id: organizationId,
+            current_core_value_id: insertedValues[0].id,
+            rotation_mode: "weekly",
+            rotates_on_weekday: 1,
+          });
+          console.log("Core value spotlight created");
+        }
+      }
     }
 
     // Provision based on settings
@@ -226,7 +267,7 @@ serve(async (req) => {
       entity_id: organizationId,
       actor_id: userId,
       action: "completed",
-      payload: { industry: data.industry, team_size: data.team_size },
+      payload: { industry: data.industry, team_size: data.team_size, core_values_count: data.core_values?.length },
     });
 
     console.log("Onboarding completed successfully, redirecting to dashboard");

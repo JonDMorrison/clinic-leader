@@ -24,12 +24,8 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
   const [showShoutout, setShowShoutout] = useState(false);
   const [shoutoutValue, setShoutoutValue] = useState<CoreValue | null>(null);
 
-  // Seed defaults if no values
-  useEffect(() => {
-    if (!isLoading && activeValues.length === 0) {
-      seedDefaults.mutate();
-    }
-  }, [isLoading, activeValues.length]);
+  // No auto-seeding - values must be created during onboarding
+
 
   if (isLoading) {
     return (

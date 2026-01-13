@@ -9,11 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { EosSetupData } from "@/lib/onboarding/validators";
-import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
-import { useState } from "react";
 import { DEFAULT_MODULES } from "@/lib/onboarding/defaults";
 
 interface EosSetupProps {
@@ -23,25 +19,6 @@ interface EosSetupProps {
 }
 
 export const EosSetup = ({ data, onChange, errors }: EosSetupProps) => {
-  const [coreValueInput, setCoreValueInput] = useState("");
-
-  const addCoreValue = () => {
-    if (coreValueInput.trim() && (data.core_values || []).length < 7) {
-      onChange({
-        ...data,
-        core_values: [...(data.core_values || []), coreValueInput.trim()],
-      });
-      setCoreValueInput("");
-    }
-  };
-
-  const removeCoreValue = (index: number) => {
-    onChange({
-      ...data,
-      core_values: data.core_values?.filter((_, i) => i !== index),
-    });
-  };
-
   const toggleModule = (module: string) => {
     const current = data.enable_modules || DEFAULT_MODULES;
     const updated = current.includes(module)
@@ -98,42 +75,6 @@ export const EosSetup = ({ data, onChange, errors }: EosSetupProps) => {
                 <SelectItem value="custom">Custom</SelectItem>
               </SelectContent>
             </Select>
-          </Field>
-
-          <Field
-            label="Core Values"
-            help="Add up to 7 core values that define your organization (optional)"
-            error={errors.core_values}
-          >
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  value={coreValueInput}
-                  onChange={(e) => setCoreValueInput(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && addCoreValue()}
-                  placeholder="e.g., Patient-Centered Care"
-                  disabled={(data.core_values || []).length >= 7}
-                />
-                <button
-                  onClick={addCoreValue}
-                  disabled={(data.core_values || []).length >= 7}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md disabled:opacity-50"
-                >
-                  Add
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {data.core_values?.map((value, index) => (
-                  <Badge key={index} variant="secondary" className="pr-1">
-                    {value}
-                    <X
-                      className="w-3 h-3 ml-1 cursor-pointer"
-                      onClick={() => removeCoreValue(index)}
-                    />
-                  </Badge>
-                ))}
-              </div>
-            </div>
           </Field>
 
           <Field
