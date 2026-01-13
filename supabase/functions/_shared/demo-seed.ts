@@ -35,141 +35,31 @@ export async function seedDemoData(supabase: SupabaseClient, teamId: string) {
 }
 
 async function seedMetrics(supabase: SupabaseClient, organizationId: string, directorId?: string, billingId?: string) {
-  // direction: 'up' = higher is better, 'down' = lower is better
-  // unit: 'count', 'dollars', 'percentage'
+  // These are org-level metrics that may NOT come from Jane staging data
+  // Jane-synced metrics will be auto-created by runKPIRollupForDemoOrg
   const metrics = [
-    // Production
-    { name: 'Total Visits', unit: 'count', direction: 'up', target: 250, category: 'Production', owner: directorId, organization_id: organizationId, is_active: true },
-    { name: 'New Patients', unit: 'count', direction: 'up', target: 30, category: 'Production', owner: directorId, organization_id: organizationId, is_active: true },
-    { name: 'No-Show Rate', unit: 'percentage', direction: 'down', target: 5, category: 'Production', owner: directorId, organization_id: organizationId, is_active: true },
-    
-    // Financial
-    { name: 'Collected Revenue', unit: 'dollars', direction: 'up', target: 75000, category: 'Financial', owner: billingId, organization_id: organizationId, is_active: true },
-    { name: 'Collection Rate', unit: 'percentage', direction: 'up', target: 95, category: 'Financial', owner: billingId, organization_id: organizationId, is_active: true },
-    { name: 'AR 90+ Days', unit: 'dollars', direction: 'down', target: 5000, category: 'Financial', owner: billingId, organization_id: organizationId, is_active: true },
-    
-    // Access
+    // Non-Jane metrics (manual entry)
     { name: 'Days to Next Available', unit: 'count', direction: 'down', target: 3, category: 'Access', owner: directorId, organization_id: organizationId, is_active: true },
     { name: 'Provider Utilization', unit: 'percentage', direction: 'up', target: 85, category: 'Access', owner: directorId, organization_id: organizationId, is_active: true },
+    { name: 'AR 90+ Days', unit: 'dollars', direction: 'down', target: 5000, category: 'Financial', owner: billingId, organization_id: organizationId, is_active: true },
   ];
 
   let successCount = 0;
-  const insertedMetrics: string[] = [];
   
   for (const metric of metrics) {
-    const { data, error } = await supabase.from('metrics').insert(metric).select('id').single();
+    const { error } = await supabase.from('metrics').insert(metric);
     if (error) {
       console.error(`[seedMetrics] Failed to insert metric "${metric.name}":`, error.message);
     } else {
       successCount++;
-      insertedMetrics.push(data.id);
     }
   }
 
-  console.log(`Seeded ${successCount}/${metrics.length} metrics`);
-  
-  // Seed metric_results for the last 12 weeks
-  if (insertedMetrics.length > 0) {
-    await seedMetricResults(supabase, insertedMetrics, metrics);
-  }
+  console.log(`Seeded ${successCount}/${metrics.length} manual metrics (Jane metrics created via rollup)`);
 }
 
-async function seedMetricResults(supabase: SupabaseClient, metricIds: string[], metrics: any[]) {
-  const today = new Date();
-  const results = [];
-  
-  for (let i = 0; i < metricIds.length; i++) {
-    const metric = metrics[i];
-    const metricId = metricIds[i];
-    const target = metric.target;
-    
-    // Generate 12 weeks of WEEKLY data with slight variance and growth trend
-    for (let week = 11; week >= 0; week--) {
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - (week * 7));
-      // Align to Monday
-      const day = weekStart.getDay();
-      const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
-      weekStart.setDate(diff);
-      
-      // Generate value with variance and slight improvement trend
-      const growthFactor = 1 + ((11 - week) * 0.01); // 1% improvement per week
-      const variance = 0.9 + (Math.random() * 0.2); // ±10% variance
-      let value: number;
-      
-      if (metric.direction === 'up') {
-        // For "up" metrics, trend toward hitting target
-        value = target * growthFactor * variance * 0.95;
-      } else {
-        // For "down" metrics, trend toward being under target
-        value = target * (1 / growthFactor) * variance * 1.1;
-      }
-      
-      // Round appropriately
-      value = metric.unit === 'percentage' 
-        ? Math.round(value * 10) / 10 
-        : Math.round(value);
-      
-      const weekStartStr = weekStart.toISOString().split('T')[0];
-      const periodKey = `${weekStart.getFullYear()}-W${String(Math.ceil((weekStart.getDate() + 6) / 7)).padStart(2, '0')}`;
-      results.push({
-        metric_id: metricId,
-        week_start: weekStartStr,
-        period_start: weekStartStr,
-        period_type: 'weekly',
-        period_key: periodKey,
-        value,
-      });
-    }
-    
-    // Generate 6 months of MONTHLY data for This Month and YTD columns
-    for (let monthOffset = 5; monthOffset >= 0; monthOffset--) {
-      const monthDate = new Date(today.getFullYear(), today.getMonth() - monthOffset, 1);
-      const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
-      const periodStart = monthDate.toISOString().split('T')[0];
-      
-      // Monthly values are roughly 4x weekly (4 weeks per month)
-      const growthFactor = 1 + ((5 - monthOffset) * 0.02);
-      const variance = 0.9 + (Math.random() * 0.2);
-      let value: number;
-      
-      if (metric.direction === 'up') {
-        value = target * 4 * growthFactor * variance * 0.95;
-      } else {
-        value = target * 4 * (1 / growthFactor) * variance * 1.1;
-      }
-      
-      value = metric.unit === 'percentage' 
-        ? Math.round(value * 10) / 10 
-        : Math.round(value);
-      
-      results.push({
-        metric_id: metricId,
-        week_start: periodStart,
-        period_start: periodStart,
-        period_type: 'monthly',
-        period_key: monthKey,
-        value,
-      });
-    }
-  }
-  
-  // Insert in batches
-  const batchSize = 50;
-  let successCount = 0;
-  
-  for (let i = 0; i < results.length; i += batchSize) {
-    const batch = results.slice(i, i + batchSize);
-    const { error } = await supabase.from('metric_results').insert(batch);
-    if (error) {
-      console.error(`[seedMetricResults] Batch insert failed:`, error.message);
-    } else {
-      successCount += batch.length;
-    }
-  }
-  
-  console.log(`Seeded ${successCount}/${results.length} metric results (weekly + monthly)`);
-}
+// Note: seedMetricResults removed - metric_results are now computed from staging data
+// via runKPIRollupForDemoOrg() which uses the same logic as production
 
 async function seedRocks(supabase: SupabaseClient, organizationId: string, directorId?: string, billingId?: string, ownerId?: string) {
   const currentQuarter = `Q${Math.floor(new Date().getMonth() / 3) + 1} ${new Date().getFullYear()}`;
@@ -629,5 +519,193 @@ async function seedJaneStagingData(supabase: SupabaseClient, teamId: string) {
   }
   console.log('Inserted payments');
   
+  // Run KPI rollup for both weekly and monthly periods (last 6 months)
+  // This uses the SAME logic as production to compute metric_results from staging data
+  await runKPIRollupForDemoOrg(supabase, teamId);
+  
   console.log('Jane staging data seed completed');
+}
+
+/**
+ * Runs the KPI rollup logic for demo org to compute metric_results from staging data.
+ * This mirrors the production jane-kpi-rollup edge function logic.
+ */
+async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: string) {
+  console.log('[demo-seed] Running KPI rollup for demo org...');
+  
+  const now = new Date();
+  
+  // Generate periods to rollup: last 6 months (monthly) + last 12 weeks (weekly)
+  const periods: { type: 'weekly' | 'monthly'; start: Date; key: string }[] = [];
+  
+  // Monthly periods (last 6 months)
+  for (let monthOffset = 5; monthOffset >= 0; monthOffset--) {
+    const monthDate = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+    const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
+    periods.push({ type: 'monthly', start: monthDate, key: monthKey });
+  }
+  
+  // Weekly periods (last 12 weeks)
+  for (let weekOffset = 11; weekOffset >= 0; weekOffset--) {
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - (weekOffset * 7));
+    // Align to Monday
+    const day = weekStart.getDay();
+    const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
+    weekStart.setDate(diff);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekKey = weekStart.toISOString().slice(0, 10);
+    periods.push({ type: 'weekly', start: weekStart, key: weekKey });
+  }
+  
+  console.log(`[demo-seed] Processing ${periods.length} periods (6 monthly + 12 weekly)`);
+  
+  // Get all metrics for this org to map import_key -> metric_id
+  const { data: metrics } = await supabase
+    .from('metrics')
+    .select('id, name, import_key')
+    .eq('organization_id', organizationId);
+  
+  const metricMap = new Map<string, { id: string; name: string }>();
+  (metrics || []).forEach(m => {
+    if (m.import_key) {
+      metricMap.set(m.import_key, { id: m.id, name: m.name });
+    }
+    // Also map by lowercase name for fallback
+    metricMap.set(m.name.toLowerCase().replace(/[^a-z0-9]/g, '_'), { id: m.id, name: m.name });
+  });
+  
+  // Also create metrics if they don't exist (for demo, create standard Jane metrics)
+  const standardMetrics = [
+    { import_key: 'jane_total_visits', name: 'Total Visits', unit: 'count', direction: 'up', category: 'Production' },
+    { import_key: 'jane_new_patient_visits', name: 'New Patient Visits', unit: 'count', direction: 'up', category: 'Production' },
+    { import_key: 'jane_cancelled_appointments', name: 'Cancelled Appointments', unit: 'count', direction: 'down', category: 'Production' },
+    { import_key: 'jane_no_shows', name: 'No Shows', unit: 'count', direction: 'down', category: 'Production' },
+    { import_key: 'jane_show_rate', name: 'Show Rate %', unit: 'percentage', direction: 'up', category: 'Production' },
+    { import_key: 'jane_cancellation_rate', name: 'Cancellation Rate %', unit: 'percentage', direction: 'down', category: 'Production' },
+    { import_key: 'jane_total_collected', name: 'Total Collected Revenue', unit: 'dollars', direction: 'up', category: 'Financial' },
+    { import_key: 'jane_total_invoiced', name: 'Total Invoiced', unit: 'dollars', direction: 'up', category: 'Financial' },
+  ];
+  
+  for (const metricDef of standardMetrics) {
+    if (!metricMap.has(metricDef.import_key)) {
+      const { data: newMetric, error } = await supabase
+        .from('metrics')
+        .insert({
+          organization_id: organizationId,
+          name: metricDef.name,
+          import_key: metricDef.import_key,
+          unit: metricDef.unit,
+          direction: metricDef.direction,
+          category: metricDef.category,
+          sync_source: 'jane',
+          is_active: true,
+        })
+        .select('id')
+        .single();
+      
+      if (newMetric) {
+        metricMap.set(metricDef.import_key, { id: newMetric.id, name: metricDef.name });
+      }
+    }
+  }
+  
+  const results: any[] = [];
+  
+  for (const period of periods) {
+    const periodStart = period.start;
+    let periodEnd: Date;
+    
+    if (period.type === 'monthly') {
+      periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
+    } else {
+      periodEnd = new Date(periodStart);
+      periodEnd.setDate(periodStart.getDate() + 6);
+    }
+    
+    const periodStartStr = periodStart.toISOString().slice(0, 10);
+    const periodEndStr = periodEnd.toISOString().slice(0, 10);
+    
+    // Query appointments for this period
+    const { data: appointments } = await supabase
+      .from('staging_appointments_jane')
+      .select('id, staff_member_guid, staff_member_name, cancelled_at, no_show_at, arrived_at, first_visit')
+      .eq('organization_id', organizationId)
+      .gte('start_at', periodStartStr)
+      .lte('start_at', periodEndStr + 'T23:59:59');
+    
+    const appts = appointments || [];
+    const nonCancelled = appts.filter(a => !a.cancelled_at);
+    const cancelled = appts.filter(a => a.cancelled_at);
+    const noShows = appts.filter(a => a.no_show_at);
+    const newPatients = nonCancelled.filter(a => a.first_visit);
+    const arrivedCount = nonCancelled.filter(a => a.arrived_at).length;
+    const totalBooked = appts.length;
+    
+    // Query payments for this period
+    const { data: paymentsData } = await supabase
+      .from('staging_payments_jane')
+      .select('amount')
+      .eq('organization_id', organizationId)
+      .gte('received_at', periodStartStr)
+      .lte('received_at', periodEndStr + 'T23:59:59');
+    
+    const totalCollected = (paymentsData || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    
+    // Query invoices for this period
+    const { data: invoicesData } = await supabase
+      .from('staging_invoices_jane')
+      .select('subtotal')
+      .eq('organization_id', organizationId)
+      .gte('invoiced_at', periodStartStr)
+      .lte('invoiced_at', periodEndStr + 'T23:59:59');
+    
+    const totalInvoiced = (invoicesData || []).reduce((sum, i) => sum + (Number(i.subtotal) || 0), 0);
+    
+    // Calculate KPIs
+    const rollups = [
+      { import_key: 'jane_total_visits', value: nonCancelled.length },
+      { import_key: 'jane_new_patient_visits', value: newPatients.length },
+      { import_key: 'jane_cancelled_appointments', value: cancelled.length },
+      { import_key: 'jane_no_shows', value: noShows.length },
+      { import_key: 'jane_show_rate', value: totalBooked > 0 ? Math.round((arrivedCount / totalBooked) * 10000) / 100 : 0 },
+      { import_key: 'jane_cancellation_rate', value: totalBooked > 0 ? Math.round((cancelled.length / totalBooked) * 10000) / 100 : 0 },
+      { import_key: 'jane_total_collected', value: Math.round(totalCollected * 100) / 100 },
+      { import_key: 'jane_total_invoiced', value: Math.round(totalInvoiced * 100) / 100 },
+    ];
+    
+    for (const rollup of rollups) {
+      const metric = metricMap.get(rollup.import_key);
+      if (metric) {
+        results.push({
+          metric_id: metric.id,
+          week_start: periodStartStr,
+          period_start: periodStartStr,
+          period_type: period.type,
+          period_key: period.key,
+          value: rollup.value,
+          source: 'demo_seed_rollup',
+        });
+      }
+    }
+  }
+  
+  // Batch upsert results
+  const BATCH_SIZE = 100;
+  let successCount = 0;
+  
+  for (let i = 0; i < results.length; i += BATCH_SIZE) {
+    const batch = results.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase
+      .from('metric_results')
+      .upsert(batch, { onConflict: 'metric_id,period_key' });
+    
+    if (error) {
+      console.error('[demo-seed] Error upserting metric_results batch:', error.message);
+    } else {
+      successCount += batch.length;
+    }
+  }
+  
+  console.log(`[demo-seed] Rollup complete: ${successCount}/${results.length} metric_results upserted`);
 }
