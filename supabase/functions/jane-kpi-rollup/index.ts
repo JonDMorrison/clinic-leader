@@ -30,13 +30,18 @@ interface BreakdownEntry {
   dimension_id: string;
   dimension_label: string;
   value: number;
-  import_key: string; // Which parent metric this breakdown belongs to
+  import_key: string;
+  period_type: "weekly" | "monthly" | "ytd";
+  period_key: string;
+  period_start: string;
+  period_end: string;
 }
 
 // Metrics that support breakdowns
 const BREAKDOWN_METRICS = {
   jane_total_visits: ["clinician", "location", "discipline"],
   jane_total_invoiced: ["clinician", "location"],
+  jane_total_collected: ["location"], // Clinician not reliably available in payments
 };
 
 Deno.serve(async (req) => {
@@ -85,7 +90,14 @@ Deno.serve(async (req) => {
     const periodStartStr = periodStart.toISOString().slice(0, 10);
     const periodEndStr = periodEnd.toISOString().slice(0, 10);
 
+    // YTD period (Jan 1 to now)
+    const ytdStart = new Date(now.getFullYear(), 0, 1);
+    const ytdStartStr = ytdStart.toISOString().slice(0, 10);
+    const ytdEndStr = now.toISOString().slice(0, 10);
+    const ytdKey = `${now.getFullYear()}-YTD`;
+
     console.log(`[jane-kpi-rollup] Period: ${periodStartStr} to ${periodEndStr}, key: ${periodKey}`);
+    console.log(`[jane-kpi-rollup] YTD: ${ytdStartStr} to ${ytdEndStr}`);
 
     const rollups: RollupResult[] = [];
     const breakdowns: BreakdownEntry[] = [];
@@ -106,12 +118,22 @@ Deno.serve(async (req) => {
       console.error(`[jane-kpi-rollup] Failed to fetch appointments: ${apptError.message}`);
     }
 
+    // Fetch YTD appointments
+    const { data: ytdAppointments } = await supabase
+      .from("staging_appointments_jane")
+      .select("id, staff_member_guid, staff_member_name, cancelled_at, no_show_at, arrived_at, first_visit, discipline_name, location_name")
+      .eq("organization_id", organization_id)
+      .gte("start_at", ytdStartStr)
+      .lte("start_at", ytdEndStr);
+
     const appointments = allAppointments || [];
     const nonCancelled = appointments.filter(a => !a.cancelled_at);
     const cancelled = appointments.filter(a => a.cancelled_at);
     const noShows = appointments.filter(a => a.no_show_at);
     const newPatients = nonCancelled.filter(a => a.first_visit);
     const arrivedCount = nonCancelled.filter(a => a.arrived_at).length;
+
+    const ytdNonCancelled = (ytdAppointments || []).filter(a => !a.cancelled_at);
 
     // KPI 1: Total Visits
     rollups.push({
@@ -127,78 +149,107 @@ Deno.serve(async (req) => {
     // BREAKDOWNS: Total Visits
     // ========================================
     
-    // By Clinician
-    const visitsByClinician = new Map<string, { count: number; label: string }>();
-    for (const appt of nonCancelled) {
-      if (appt.staff_member_guid) {
-        const existing = visitsByClinician.get(appt.staff_member_guid);
-        if (existing) {
-          existing.count++;
-        } else {
-          visitsByClinician.set(appt.staff_member_guid, {
-            count: 1,
-            label: appt.staff_member_name || `Provider ${appt.staff_member_guid.slice(-6)}`,
-          });
+    // Helper to compute visits breakdowns
+    const computeVisitsBreakdowns = (
+      appointmentList: typeof nonCancelled,
+      pType: "weekly" | "monthly" | "ytd",
+      pKey: string,
+      pStart: string,
+      pEnd: string
+    ) => {
+      // By Clinician
+      const visitsByClinician = new Map<string, { count: number; label: string }>();
+      for (const appt of appointmentList) {
+        if (appt.staff_member_guid) {
+          const existing = visitsByClinician.get(appt.staff_member_guid);
+          if (existing) {
+            existing.count++;
+          } else {
+            visitsByClinician.set(appt.staff_member_guid, {
+              count: 1,
+              label: appt.staff_member_name || `Provider ${appt.staff_member_guid.slice(-6)}`,
+            });
+          }
         }
       }
-    }
-    for (const [id, data] of visitsByClinician) {
-      breakdowns.push({
-        dimension_type: "clinician",
-        dimension_id: id,
-        dimension_label: data.label,
-        value: data.count,
-        import_key: "jane_total_visits",
-      });
-    }
+      for (const [id, data] of visitsByClinician) {
+        breakdowns.push({
+          dimension_type: "clinician",
+          dimension_id: id,
+          dimension_label: data.label,
+          value: data.count,
+          import_key: "jane_total_visits",
+          period_type: pType,
+          period_key: pKey,
+          period_start: pStart,
+          period_end: pEnd,
+        });
+      }
 
-    // By Location (use location_name as ID since location_guid may not exist)
-    const visitsByLocation = new Map<string, { count: number; label: string }>();
-    for (const appt of nonCancelled) {
-      const locationId = appt.location_name || "unknown";
-      if (locationId !== "unknown") {
-        const existing = visitsByLocation.get(locationId);
-        if (existing) {
-          existing.count++;
-        } else {
-          visitsByLocation.set(locationId, {
-            count: 1,
-            label: locationId,
-          });
+      // By Location
+      const visitsByLocation = new Map<string, { count: number; label: string }>();
+      for (const appt of appointmentList) {
+        const locationId = appt.location_name || "unknown";
+        if (locationId !== "unknown") {
+          const existing = visitsByLocation.get(locationId);
+          if (existing) {
+            existing.count++;
+          } else {
+            visitsByLocation.set(locationId, {
+              count: 1,
+              label: locationId,
+            });
+          }
         }
       }
-    }
-    for (const [id, data] of visitsByLocation) {
-      breakdowns.push({
-        dimension_type: "location",
-        dimension_id: id,
-        dimension_label: data.label,
-        value: data.count,
-        import_key: "jane_total_visits",
-      });
-    }
-
-    // By Discipline
-    const visitsByDiscipline = new Map<string, number>();
-    for (const appt of nonCancelled) {
-      if (appt.discipline_name) {
-        visitsByDiscipline.set(
-          appt.discipline_name,
-          (visitsByDiscipline.get(appt.discipline_name) || 0) + 1
-        );
+      for (const [id, data] of visitsByLocation) {
+        breakdowns.push({
+          dimension_type: "location",
+          dimension_id: id,
+          dimension_label: data.label,
+          value: data.count,
+          import_key: "jane_total_visits",
+          period_type: pType,
+          period_key: pKey,
+          period_start: pStart,
+          period_end: pEnd,
+        });
       }
-    }
-    for (const [discipline, count] of visitsByDiscipline) {
-      breakdowns.push({
-        dimension_type: "discipline",
-        dimension_id: discipline,
-        dimension_label: discipline,
-        value: count,
-        import_key: "jane_total_visits",
-      });
-    }
 
-    console.log(`[jane-kpi-rollup] Total Visits breakdowns: ${visitsByClinician.size} clinicians, ${visitsByLocation.size} locations, ${visitsByDiscipline.size} disciplines`);
+      // By Discipline
+      const visitsByDiscipline = new Map<string, number>();
+      for (const appt of appointmentList) {
+        if (appt.discipline_name) {
+          visitsByDiscipline.set(
+            appt.discipline_name,
+            (visitsByDiscipline.get(appt.discipline_name) || 0) + 1
+          );
+        }
+      }
+      for (const [discipline, count] of visitsByDiscipline) {
+        breakdowns.push({
+          dimension_type: "discipline",
+          dimension_id: discipline,
+          dimension_label: discipline,
+          value: count,
+          import_key: "jane_total_visits",
+          period_type: pType,
+          period_key: pKey,
+          period_start: pStart,
+          period_end: pEnd,
+        });
+      }
+
+      return { clinicians: visitsByClinician.size, locations: visitsByLocation.size, disciplines: visitsByDiscipline.size };
+    };
+
+    // Compute breakdowns for current period
+    const currentVisitsBreakdowns = computeVisitsBreakdowns(nonCancelled, period_type, periodKey, periodStartStr, periodEndStr);
+    console.log(`[jane-kpi-rollup] Total Visits breakdowns (${period_type}): ${currentVisitsBreakdowns.clinicians} clinicians, ${currentVisitsBreakdowns.locations} locations, ${currentVisitsBreakdowns.disciplines} disciplines`);
+
+    // Compute YTD breakdowns
+    const ytdVisitsBreakdowns = computeVisitsBreakdowns(ytdNonCancelled, "ytd", ytdKey, ytdStartStr, ytdEndStr);
+    console.log(`[jane-kpi-rollup] Total Visits breakdowns (YTD): ${ytdVisitsBreakdowns.clinicians} clinicians, ${ytdVisitsBreakdowns.locations} locations, ${ytdVisitsBreakdowns.disciplines} disciplines`);
 
     // KPI 2: New Patient Visits
     rollups.push({
@@ -256,12 +307,22 @@ Deno.serve(async (req) => {
     // Fetch payments for revenue metrics
     const { data: paymentsData, error: paymentsError } = await supabase
       .from("staging_payments_jane")
-      .select("amount")
+      .select("amount, location_guid, location_name")
       .eq("organization_id", organization_id)
       .gte("received_at", periodStartStr)
       .lte("received_at", periodEndStr);
 
-    const totalCollected = (paymentsData || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    // Fetch YTD payments
+    const { data: ytdPaymentsData } = await supabase
+      .from("staging_payments_jane")
+      .select("amount, location_guid, location_name")
+      .eq("organization_id", organization_id)
+      .gte("received_at", ytdStartStr)
+      .lte("received_at", ytdEndStr);
+
+    const payments = paymentsData || [];
+    const ytdPayments = ytdPaymentsData || [];
+    const totalCollected = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
     // KPI 7: Total Collected Revenue
     rollups.push({
@@ -273,6 +334,54 @@ Deno.serve(async (req) => {
     });
     console.log(`[jane-kpi-rollup] Total Collected Revenue: ${totalCollected}`);
 
+    // ========================================
+    // BREAKDOWNS: Total Collected (by location)
+    // ========================================
+    const computeCollectedBreakdowns = (
+      paymentList: typeof payments,
+      pType: "weekly" | "monthly" | "ytd",
+      pKey: string,
+      pStart: string,
+      pEnd: string
+    ) => {
+      const collectedByLocation = new Map<string, { amount: number; label: string }>();
+      for (const payment of paymentList) {
+        const locationId = payment.location_guid || payment.location_name || "unknown";
+        if (locationId !== "unknown") {
+          const amount = Number(payment.amount) || 0;
+          const existing = collectedByLocation.get(locationId);
+          if (existing) {
+            existing.amount += amount;
+          } else {
+            collectedByLocation.set(locationId, {
+              amount,
+              label: payment.location_name || `Location ${locationId.slice(-6)}`,
+            });
+          }
+        }
+      }
+      for (const [id, data] of collectedByLocation) {
+        breakdowns.push({
+          dimension_type: "location",
+          dimension_id: id,
+          dimension_label: data.label,
+          value: Math.round(data.amount * 100) / 100,
+          import_key: "jane_total_collected",
+          period_type: pType,
+          period_key: pKey,
+          period_start: pStart,
+          period_end: pEnd,
+        });
+      }
+      return collectedByLocation.size;
+    };
+
+    const currentCollectedBreakdowns = computeCollectedBreakdowns(payments, period_type, periodKey, periodStartStr, periodEndStr);
+    console.log(`[jane-kpi-rollup] Total Collected breakdowns (${period_type}): ${currentCollectedBreakdowns} locations`);
+
+    const ytdCollectedBreakdowns = computeCollectedBreakdowns(ytdPayments, "ytd", ytdKey, ytdStartStr, ytdEndStr);
+    console.log(`[jane-kpi-rollup] Total Collected breakdowns (YTD): ${ytdCollectedBreakdowns} locations`);
+
     // Fetch invoices for invoiced revenue and per-provider breakdown
     const { data: invoicesData, error: invoicesError } = await supabase
       .from("staging_invoices_jane")
@@ -281,7 +390,16 @@ Deno.serve(async (req) => {
       .gte("invoiced_at", periodStartStr)
       .lte("invoiced_at", periodEndStr);
 
+    // Fetch YTD invoices
+    const { data: ytdInvoicesData } = await supabase
+      .from("staging_invoices_jane")
+      .select("subtotal, amount_paid, staff_member_guid, staff_member_name, location_guid, location_name")
+      .eq("organization_id", organization_id)
+      .gte("invoiced_at", ytdStartStr)
+      .lte("invoiced_at", ytdEndStr);
+
     const invoices = invoicesData || [];
+    const ytdInvoices = ytdInvoicesData || [];
     const totalInvoiced = invoices.reduce((sum, i) => sum + (Number(i.subtotal) || 0), 0);
 
     // KPI 8: Total Invoiced
@@ -297,61 +415,82 @@ Deno.serve(async (req) => {
     // ========================================
     // BREAKDOWNS: Total Invoiced
     // ========================================
-    
-    // By Clinician
-    const invoicedByClinician = new Map<string, { amount: number; label: string }>();
-    for (const inv of invoices) {
-      if (inv.staff_member_guid) {
-        const existing = invoicedByClinician.get(inv.staff_member_guid);
-        const amount = Number(inv.subtotal) || 0;
-        if (existing) {
-          existing.amount += amount;
-        } else {
-          invoicedByClinician.set(inv.staff_member_guid, {
-            amount,
-            label: inv.staff_member_name || `Provider ${inv.staff_member_guid.slice(-6)}`,
-          });
+    const computeInvoicedBreakdowns = (
+      invoiceList: typeof invoices,
+      pType: "weekly" | "monthly" | "ytd",
+      pKey: string,
+      pStart: string,
+      pEnd: string
+    ) => {
+      // By Clinician
+      const invoicedByClinician = new Map<string, { amount: number; label: string }>();
+      for (const inv of invoiceList) {
+        if (inv.staff_member_guid) {
+          const existing = invoicedByClinician.get(inv.staff_member_guid);
+          const amount = Number(inv.subtotal) || 0;
+          if (existing) {
+            existing.amount += amount;
+          } else {
+            invoicedByClinician.set(inv.staff_member_guid, {
+              amount,
+              label: inv.staff_member_name || `Provider ${inv.staff_member_guid.slice(-6)}`,
+            });
+          }
         }
       }
-    }
-    for (const [id, data] of invoicedByClinician) {
-      breakdowns.push({
-        dimension_type: "clinician",
-        dimension_id: id,
-        dimension_label: data.label,
-        value: Math.round(data.amount * 100) / 100,
-        import_key: "jane_total_invoiced",
-      });
-    }
+      for (const [id, data] of invoicedByClinician) {
+        breakdowns.push({
+          dimension_type: "clinician",
+          dimension_id: id,
+          dimension_label: data.label,
+          value: Math.round(data.amount * 100) / 100,
+          import_key: "jane_total_invoiced",
+          period_type: pType,
+          period_key: pKey,
+          period_start: pStart,
+          period_end: pEnd,
+        });
+      }
 
-    // By Location
-    const invoicedByLocation = new Map<string, { amount: number; label: string }>();
-    for (const inv of invoices) {
-      const locationId = inv.location_guid || inv.location_name || "unknown";
-      if (locationId !== "unknown") {
-        const existing = invoicedByLocation.get(locationId);
-        const amount = Number(inv.subtotal) || 0;
-        if (existing) {
-          existing.amount += amount;
-        } else {
-          invoicedByLocation.set(locationId, {
-            amount,
-            label: inv.location_name || `Location ${locationId.slice(-6)}`,
-          });
+      // By Location
+      const invoicedByLocation = new Map<string, { amount: number; label: string }>();
+      for (const inv of invoiceList) {
+        const locationId = inv.location_guid || inv.location_name || "unknown";
+        if (locationId !== "unknown") {
+          const existing = invoicedByLocation.get(locationId);
+          const amount = Number(inv.subtotal) || 0;
+          if (existing) {
+            existing.amount += amount;
+          } else {
+            invoicedByLocation.set(locationId, {
+              amount,
+              label: inv.location_name || `Location ${locationId.slice(-6)}`,
+            });
+          }
         }
       }
-    }
-    for (const [id, data] of invoicedByLocation) {
-      breakdowns.push({
-        dimension_type: "location",
-        dimension_id: id,
-        dimension_label: data.label,
-        value: Math.round(data.amount * 100) / 100,
-        import_key: "jane_total_invoiced",
-      });
-    }
+      for (const [id, data] of invoicedByLocation) {
+        breakdowns.push({
+          dimension_type: "location",
+          dimension_id: id,
+          dimension_label: data.label,
+          value: Math.round(data.amount * 100) / 100,
+          import_key: "jane_total_invoiced",
+          period_type: pType,
+          period_key: pKey,
+          period_start: pStart,
+          period_end: pEnd,
+        });
+      }
 
-    console.log(`[jane-kpi-rollup] Total Invoiced breakdowns: ${invoicedByClinician.size} clinicians, ${invoicedByLocation.size} locations`);
+      return { clinicians: invoicedByClinician.size, locations: invoicedByLocation.size };
+    };
+
+    const currentInvoicedBreakdowns = computeInvoicedBreakdowns(invoices, period_type, periodKey, periodStartStr, periodEndStr);
+    console.log(`[jane-kpi-rollup] Total Invoiced breakdowns (${period_type}): ${currentInvoicedBreakdowns.clinicians} clinicians, ${currentInvoicedBreakdowns.locations} locations`);
+
+    const ytdInvoicedBreakdowns = computeInvoicedBreakdowns(ytdInvoices, "ytd", ytdKey, ytdStartStr, ytdEndStr);
+    console.log(`[jane-kpi-rollup] Total Invoiced breakdowns (YTD): ${ytdInvoicedBreakdowns.clinicians} clinicians, ${ytdInvoicedBreakdowns.locations} locations`);
 
     // KPI 9: Average Revenue Per Visit
     const avgRevenuePerVisit = nonCancelled.length > 0 ? totalCollected / nonCancelled.length : 0;
@@ -582,31 +721,29 @@ Deno.serve(async (req) => {
     }
 
     // ========================================
-    // UPSERT BREAKDOWNS
+    // UPSERT BREAKDOWNS (using import_key)
     // ========================================
     let breakdownUpsertCount = 0;
 
     for (const breakdown of breakdowns) {
-      const metricId = metricIdCache.get(breakdown.import_key);
-      if (!metricId) {
-        console.warn(`[jane-kpi-rollup] No metric ID found for breakdown ${breakdown.import_key}`);
-        continue;
-      }
-
       const { error: breakdownError } = await supabase
         .from("metric_breakdowns")
         .upsert({
           organization_id,
-          metric_id: metricId,
-          period_type: period_type,
-          period_key: periodKey,
-          period_start: periodStartStr,
+          import_key: breakdown.import_key,
+          period_type: breakdown.period_type,
+          period_key: breakdown.period_key,
+          period_start: breakdown.period_start,
+          period_end: breakdown.period_end,
           dimension_type: breakdown.dimension_type,
           dimension_id: breakdown.dimension_id,
           dimension_label: breakdown.dimension_label,
           value: breakdown.value,
           source: "jane_pipe",
-        }, { onConflict: "organization_id,metric_id,period_key,dimension_type,dimension_id" });
+        }, { 
+          onConflict: "organization_id,import_key,period_type,period_key,dimension_type,dimension_id",
+          ignoreDuplicates: false 
+        });
 
       if (breakdownError) {
         console.error(`[jane-kpi-rollup] Failed to upsert breakdown: ${breakdownError.message}`);
@@ -626,6 +763,7 @@ Deno.serve(async (req) => {
         period_key: periodKey,
         period_start: periodStartStr,
         period_end: periodEndStr,
+        ytd_key: ytdKey,
         metrics_processed: rollups.length,
         metrics_upserted: upsertedCount,
         breakdowns_processed: breakdowns.length,

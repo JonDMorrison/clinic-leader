@@ -71,7 +71,7 @@ import { format, startOfWeek, startOfYear, subWeeks, subMonths } from "date-fns"
 import type { MetricStatus } from "@/lib/scorecard/metricStatus";
 
 // Metrics that have breakdowns available
-const BREAKDOWN_IMPORT_KEYS = ["jane_total_visits", "jane_total_invoiced"];
+const BREAKDOWN_IMPORT_KEYS = ["jane_total_visits", "jane_total_invoiced", "jane_total_collected"];
 
 const STORAGE_KEY = "data-metrics-order";
 
@@ -857,11 +857,9 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
         <MetricBreakdownModal
           open={breakdownModal.open}
           onOpenChange={(open) => setBreakdownModal({ open, metric: open ? breakdownModal.metric : null })}
-          metricId={breakdownModal.metric.metricId}
           metricName={breakdownModal.metric.name}
           importKey={breakdownModal.metric.importKey || ""}
           organizationId={currentUser.team_id}
-          periodKey={currentMonthKey}
           unit={breakdownModal.metric.unit}
         />
       )}
