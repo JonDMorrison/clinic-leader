@@ -804,6 +804,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
                             handleCreateIssue={handleCreateIssue}
                             handleHide={handleHide}
                             handleUnhide={handleUnhide}
+                            handleViewBreakdown={handleViewBreakdown}
                           />
                         );
                       })}
@@ -848,6 +849,20 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           }}
           periodKey={currentMonthKey}
           periodLabel={format(now, "MMMM yyyy")}
+        />
+      )}
+
+      {/* Metric Breakdown Modal */}
+      {breakdownModal.metric && currentUser?.team_id && (
+        <MetricBreakdownModal
+          open={breakdownModal.open}
+          onOpenChange={(open) => setBreakdownModal({ open, metric: open ? breakdownModal.metric : null })}
+          metricId={breakdownModal.metric.metricId}
+          metricName={breakdownModal.metric.name}
+          importKey={breakdownModal.metric.importKey || ""}
+          organizationId={currentUser.team_id}
+          periodKey={currentMonthKey}
+          unit={breakdownModal.metric.unit}
         />
       )}
     </div>

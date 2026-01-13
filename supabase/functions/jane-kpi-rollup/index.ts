@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
     // Fetch all appointments for the period (include discipline_name and location fields)
     const { data: allAppointments, error: apptError } = await supabase
       .from("staging_appointments_jane")
-      .select("id, staff_member_guid, staff_member_name, cancelled_at, no_show_at, arrived_at, first_visit, discipline_name, location_guid, location_name")
+      .select("id, staff_member_guid, staff_member_name, cancelled_at, no_show_at, arrived_at, first_visit, discipline_name, location_name")
       .eq("organization_id", organization_id)
       .gte("start_at", periodStartStr)
       .lte("start_at", periodEndStr);
@@ -152,10 +152,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // By Location
+    // By Location (use location_name as ID since location_guid may not exist)
     const visitsByLocation = new Map<string, { count: number; label: string }>();
     for (const appt of nonCancelled) {
-      const locationId = appt.location_guid || appt.location_name || "unknown";
+      const locationId = appt.location_name || "unknown";
       if (locationId !== "unknown") {
         const existing = visitsByLocation.get(locationId);
         if (existing) {
@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
         } else {
           visitsByLocation.set(locationId, {
             count: 1,
-            label: appt.location_name || `Location ${locationId.slice(-6)}`,
+            label: locationId,
           });
         }
       }
