@@ -36,6 +36,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Search,
@@ -60,12 +61,17 @@ import {
   FileSpreadsheet,
   TrendingUp,
   GripVertical,
+  BarChart3,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { AddJaneMetricModal } from "@/components/data/AddJaneMetricModal";
 import { CreateIssueFromMetricModal } from "@/components/scorecard/CreateIssueFromMetricModal";
+import { MetricBreakdownModal } from "@/components/data/MetricBreakdownModal";
 import { format, startOfWeek, startOfYear, subWeeks, subMonths } from "date-fns";
 import type { MetricStatus } from "@/lib/scorecard/metricStatus";
+
+// Metrics that have breakdowns available
+const BREAKDOWN_IMPORT_KEYS = ["jane_total_visits", "jane_total_invoiced"];
 
 const STORAGE_KEY = "data-metrics-order";
 
@@ -148,6 +154,7 @@ interface DataMetric {
   comingSoon?: boolean;
   isTracked?: boolean;
   metricId?: string;
+  importKey?: string; // For identifying breakdown-capable metrics
   weekValue?: number | null;
   monthValue?: number | null;
   ytdValue?: number | null;
@@ -157,6 +164,7 @@ interface DataMetric {
   dimensions?: DimensionValue[];
   dimensionValue?: string;
   parentName?: string;
+  hasBreakdown?: boolean; // Whether this metric has breakdown data available
 }
 
 interface DataMetricsTableProps {
@@ -177,6 +185,7 @@ function SortableMetricRow({
   handleCreateIssue,
   handleHide,
   handleUnhide,
+  handleViewBreakdown,
 }: {
   metric: DataMetric;
   isChild: boolean;
@@ -190,6 +199,7 @@ function SortableMetricRow({
   handleCreateIssue: (metric: DataMetric) => void;
   handleHide: (resourceKey: string) => void;
   handleUnhide: (resourceKey: string) => void;
+  handleViewBreakdown: (metric: DataMetric) => void;
 }) {
   const {
     attributes,
@@ -268,6 +278,15 @@ function SortableMetricRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {metric.hasBreakdown && metric.metricId && (
+              <>
+                <DropdownMenuItem onClick={() => handleViewBreakdown(metric)}>
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  View Breakdown
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             {!metric.isTracked && !metric.comingSoon && (
               <DropdownMenuItem onClick={() => handleAddToScorecard(metric)}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -312,6 +331,10 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     metricName: string;
   }>({ open: false, resourceKey: "", metricName: "" });
   const [createIssueModal, setCreateIssueModal] = useState<{
+    open: boolean;
+    metric: DataMetric | null;
+  }>({ open: false, metric: null });
+  const [breakdownModal, setBreakdownModal] = useState<{
     open: boolean;
     metric: DataMetric | null;
   }>({ open: false, metric: null });
@@ -524,6 +547,8 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           status = "on_track";
         }
 
+        const hasBreakdown = BREAKDOWN_IMPORT_KEYS.includes(janeMetric.import_key);
+
         metrics.push({
           id: `jane-${janeMetric.import_key}`,
           name: janeMetric.name,
@@ -533,6 +558,8 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           direction: janeMetric.direction,
           isTracked: !!tracked,
           metricId: tracked?.id,
+          importKey: janeMetric.import_key,
+          hasBreakdown,
           weekValue,
           monthValue,
           ytdValue,
@@ -659,6 +686,10 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     unhideResource(resourceKey);
   };
 
+  const handleViewBreakdown = (metric: DataMetric) => {
+    setBreakdownModal({ open: true, metric });
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -737,6 +768,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
                         handleCreateIssue={handleCreateIssue}
                         handleHide={handleHide}
                         handleUnhide={handleUnhide}
+                        handleViewBreakdown={handleViewBreakdown}
                       />
                       {/* Render child rows if expanded */}
                       {isExpanded && hasDimensions && metric.dimensions!.map((dim) => {

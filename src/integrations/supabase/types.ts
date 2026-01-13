@@ -2352,6 +2352,66 @@ export type Database = {
           },
         ]
       }
+      metric_breakdowns: {
+        Row: {
+          created_at: string
+          dimension_id: string
+          dimension_label: string
+          dimension_type: string
+          id: string
+          metric_id: string
+          organization_id: string
+          period_key: string
+          period_start: string
+          period_type: string
+          source: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          dimension_id: string
+          dimension_label: string
+          dimension_type: string
+          id?: string
+          metric_id: string
+          organization_id: string
+          period_key: string
+          period_start: string
+          period_type: string
+          source?: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          dimension_id?: string
+          dimension_label?: string
+          dimension_type?: string
+          id?: string
+          metric_id?: string
+          organization_id?: string
+          period_key?: string
+          period_start?: string
+          period_type?: string
+          source?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_breakdowns_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metric_breakdowns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metric_comments: {
         Row: {
           comment: string
