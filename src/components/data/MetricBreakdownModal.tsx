@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -18,23 +19,25 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UserCog, MapPin, Stethoscope } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { UserCog, MapPin, Stethoscope, Calendar, CalendarDays, TrendingUp } from "lucide-react";
+import { format, startOfWeek, startOfMonth } from "date-fns";
 
 interface BreakdownData {
   dimension_type: string;
   dimension_id: string;
   dimension_label: string;
   value: number;
+  period_type: string;
+  period_key: string;
 }
 
 interface MetricBreakdownModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  metricId: string | undefined;
   metricName: string;
   importKey: string;
   organizationId: string;
-  periodKey: string;
   unit: string;
 }
 
@@ -42,6 +45,7 @@ interface MetricBreakdownModalProps {
 const METRIC_DIMENSIONS: Record<string, string[]> = {
   jane_total_visits: ["clinician", "location", "discipline"],
   jane_total_invoiced: ["clinician", "location"],
+  jane_total_collected: ["location"], // Clinician not reliably available
 };
 
 const DIMENSION_CONFIG: Record<string, { label: string; icon: typeof UserCog }> = {
@@ -50,27 +54,58 @@ const DIMENSION_CONFIG: Record<string, { label: string; icon: typeof UserCog }> 
   discipline: { label: "Disciplines", icon: Stethoscope },
 };
 
+type PeriodType = "weekly" | "monthly" | "ytd";
+
+const PERIOD_OPTIONS: { value: PeriodType; label: string; icon: typeof Calendar }[] = [
+  { value: "weekly", label: "This Week", icon: Calendar },
+  { value: "monthly", label: "This Month", icon: CalendarDays },
+  { value: "ytd", label: "YTD", icon: TrendingUp },
+];
+
 export function MetricBreakdownModal({
   open,
   onOpenChange,
-  metricId,
   metricName,
   importKey,
   organizationId,
-  periodKey,
   unit,
 }: MetricBreakdownModalProps) {
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("monthly");
+  
   const dimensions = METRIC_DIMENSIONS[importKey] || [];
 
+  // Calculate period key based on selected period
+  const now = new Date();
+  const periodKey = (() => {
+    if (selectedPeriod === "weekly") {
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+      return weekStart.toISOString().slice(0, 10);
+    } else if (selectedPeriod === "monthly") {
+      return format(now, "yyyy-MM");
+    } else {
+      return `${now.getFullYear()}-YTD`;
+    }
+  })();
+
+  const periodLabel = (() => {
+    if (selectedPeriod === "weekly") {
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+      return `Week of ${format(weekStart, "MMM d, yyyy")}`;
+    } else if (selectedPeriod === "monthly") {
+      return format(startOfMonth(now), "MMMM yyyy");
+    } else {
+      return `Year to Date (${now.getFullYear()})`;
+    }
+  })();
+
   const { data: breakdowns, isLoading } = useQuery({
-    queryKey: ["metric-breakdowns", metricId, periodKey],
+    queryKey: ["metric-breakdowns", importKey, selectedPeriod, periodKey, organizationId],
     queryFn: async () => {
-      if (!metricId) return [];
-      
       const { data, error } = await supabase
         .from("metric_breakdowns")
-        .select("dimension_type, dimension_id, dimension_label, value")
-        .eq("metric_id", metricId)
+        .select("dimension_type, dimension_id, dimension_label, value, period_type, period_key")
+        .eq("import_key", importKey)
+        .eq("period_type", selectedPeriod)
         .eq("period_key", periodKey)
         .eq("organization_id", organizationId);
 
@@ -81,7 +116,7 @@ export function MetricBreakdownModal({
       
       return data as BreakdownData[];
     },
-    enabled: open && !!metricId,
+    enabled: open && !!importKey,
   });
 
   const formatValue = (value: number): string => {
@@ -112,9 +147,33 @@ export function MetricBreakdownModal({
         <DialogHeader>
           <DialogTitle>{metricName} Breakdown</DialogTitle>
           <DialogDescription>
-            Period: {periodKey}
+            {periodLabel}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Period Selector */}
+        <div className="flex justify-center mb-4">
+          <ToggleGroup 
+            type="single" 
+            value={selectedPeriod} 
+            onValueChange={(value) => value && setSelectedPeriod(value as PeriodType)}
+            className="bg-muted rounded-lg p-1"
+          >
+            {PERIOD_OPTIONS.map((option) => {
+              const Icon = option.icon;
+              return (
+                <ToggleGroupItem 
+                  key={option.value} 
+                  value={option.value}
+                  className="flex items-center gap-2 px-4 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                >
+                  <Icon className="w-4 h-4" />
+                  {option.label}
+                </ToggleGroupItem>
+              );
+            })}
+          </ToggleGroup>
+        </div>
 
         {dimensions.length === 0 ? (
           <div className="py-8 text-center text-muted-foreground">
@@ -149,7 +208,7 @@ export function MetricBreakdownModal({
                     </div>
                   ) : items.length === 0 ? (
                     <div className="py-8 text-center text-muted-foreground">
-                      No data available for this dimension.
+                      No data available for this dimension in the selected period.
                     </div>
                   ) : (
                     <div className="border rounded-lg">
