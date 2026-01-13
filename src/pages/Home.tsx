@@ -20,6 +20,7 @@ import { FocusWidget } from "@/components/dashboard/FocusWidget";
 import { ConnectDataCard } from "@/components/dashboard/ConnectDataCard";
 import { IssueSuggestionsWidget } from "@/components/dashboard/IssueSuggestionsWidget";
 import { ProgressPreviewCard } from "@/components/progress/ProgressPreviewCard";
+import { DemoBanner } from "@/components/dashboard/DemoBanner";
 
 const Home = () => {
   const ref = useRef(null);
@@ -234,6 +235,9 @@ const Home = () => {
           Welcome back! Here's your clinic overview.
         </p>
       </motion.div>
+
+      {/* Demo Account Banner */}
+      <DemoBanner />
 
       {/* Core Values Strip */}
       <CoreValuesStrip />
