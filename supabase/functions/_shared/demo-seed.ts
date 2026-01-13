@@ -17,13 +17,13 @@ export async function seedDemoData(supabase: SupabaseClient, teamId: string) {
   await seedKPIs(supabase, teamId, directorOps?.id, billingLead?.id);
 
   // 2. Seed Rocks
-  await seedRocks(supabase, directorOps?.id, billingLead?.id, owner?.id);
+  await seedRocks(supabase, teamId, directorOps?.id, billingLead?.id, owner?.id);
 
   // 3. Seed Issues
   await seedIssues(supabase, teamId);
 
   // 4. Seed Docs/SOPs
-  await seedDocs(supabase);
+  await seedDocs(supabase, teamId);
 
   // 5. Seed Recalls
   await seedRecalls(supabase, teamId);
@@ -35,30 +35,37 @@ export async function seedDemoData(supabase: SupabaseClient, teamId: string) {
 }
 
 async function seedKPIs(supabase: SupabaseClient, teamId: string, directorId?: string, billingId?: string) {
+  // direction enum values: '>=' (above/higher is better), '<=' (below/lower is better), '==' (exact target)
   const kpis = [
     // Production
-    { name: 'Total Visits', unit: 'count', direction: 'up', target: 250, category: 'Production', owner_id: directorId },
-    { name: 'New Patients', unit: 'count', direction: 'up', target: 30, category: 'Production', owner_id: directorId },
-    { name: 'No-Show %', unit: 'percentage', direction: 'down', target: 5, category: 'Production', owner_id: directorId },
+    { name: 'Total Visits', unit: 'count', direction: '>=', target: 250, category: 'Production', owner_id: directorId },
+    { name: 'New Patients', unit: 'count', direction: '>=', target: 30, category: 'Production', owner_id: directorId },
+    { name: 'No-Show %', unit: 'percentage', direction: '<=', target: 5, category: 'Production', owner_id: directorId },
     
     // Financial
-    { name: 'Collected Revenue', unit: 'currency', direction: 'up', target: 75000, category: 'Financial', owner_id: billingId },
-    { name: 'Collection Rate %', unit: 'percentage', direction: 'up', target: 95, category: 'Financial', owner_id: billingId },
-    { name: 'AR 90+ Days', unit: 'currency', direction: 'down', target: 5000, category: 'Financial', owner_id: billingId },
+    { name: 'Collected Revenue', unit: 'currency', direction: '>=', target: 75000, category: 'Financial', owner_id: billingId },
+    { name: 'Collection Rate %', unit: 'percentage', direction: '>=', target: 95, category: 'Financial', owner_id: billingId },
+    { name: 'AR 90+ Days', unit: 'currency', direction: '<=', target: 5000, category: 'Financial', owner_id: billingId },
     
     // Access
-    { name: 'Time to Next Available (days)', unit: 'count', direction: 'down', target: 3, category: 'Access', owner_id: directorId },
-    { name: 'Provider Utilization %', unit: 'percentage', direction: 'up', target: 85, category: 'Access', owner_id: directorId },
+    { name: 'Time to Next Available (days)', unit: 'count', direction: '<=', target: 3, category: 'Access', owner_id: directorId },
+    { name: 'Provider Utilization %', unit: 'percentage', direction: '>=', target: 85, category: 'Access', owner_id: directorId },
   ];
 
+  let successCount = 0;
   for (const kpi of kpis) {
-    await supabase.from('kpis').insert(kpi);
+    const { error } = await supabase.from('kpis').insert(kpi);
+    if (error) {
+      console.error(`[seedKPIs] Failed to insert KPI "${kpi.name}":`, error.message);
+    } else {
+      successCount++;
+    }
   }
 
-  console.log('Seeded', kpis.length, 'KPIs');
+  console.log(`Seeded ${successCount}/${kpis.length} KPIs`);
 }
 
-async function seedRocks(supabase: SupabaseClient, directorId?: string, billingId?: string, ownerId?: string) {
+async function seedRocks(supabase: SupabaseClient, organizationId: string, directorId?: string, billingId?: string, ownerId?: string) {
   const currentQuarter = `Q${Math.floor(new Date().getMonth() / 3) + 1} ${new Date().getFullYear()}`;
   const endOfQuarter = new Date();
   endOfQuarter.setMonth(Math.floor(new Date().getMonth() / 3) * 3 + 3, 0);
@@ -70,6 +77,7 @@ async function seedRocks(supabase: SupabaseClient, directorId?: string, billingI
       quarter: currentQuarter,
       status: 'on_track',
       owner_id: directorId,
+      organization_id: organizationId,
       due_date: endOfQuarter.toISOString().split('T')[0],
       confidence: 80,
       note: 'Implement automated recall system with daily reviews',
@@ -80,6 +88,7 @@ async function seedRocks(supabase: SupabaseClient, directorId?: string, billingI
       quarter: currentQuarter,
       status: 'on_track',
       owner_id: billingId,
+      organization_id: organizationId,
       due_date: endOfQuarter.toISOString().split('T')[0],
       confidence: 75,
       note: 'Focus on reducing AR aging and improving upfront collections',
@@ -90,61 +99,75 @@ async function seedRocks(supabase: SupabaseClient, directorId?: string, billingI
       quarter: currentQuarter,
       status: 'on_track',
       owner_id: ownerId,
+      organization_id: organizationId,
       due_date: endOfQuarter.toISOString().split('T')[0],
       confidence: 70,
       note: 'Optimize provider schedules to reduce time-to-next-available',
     },
   ];
 
+  let successCount = 0;
   for (const rock of rocks) {
-    await supabase.from('rocks').insert(rock);
+    const { error } = await supabase.from('rocks').insert(rock);
+    if (error) {
+      console.error(`[seedRocks] Failed to insert rock "${rock.title}":`, error.message);
+    } else {
+      successCount++;
+    }
   }
 
-  console.log('Seeded', rocks.length, 'rocks');
+  console.log(`Seeded ${successCount}/${rocks.length} rocks`);
 }
 
-async function seedIssues(supabase: SupabaseClient, teamId: string) {
+async function seedIssues(supabase: SupabaseClient, organizationId: string) {
   const issues = [
     {
       title: 'No-show spike on Mondays (trend?)',
       priority: 2,
       status: 'open',
-      team_id: teamId,
+      organization_id: organizationId,
       context: 'Monday no-shows are 3x higher than other weekdays. Need to investigate root cause.',
     },
     {
       title: 'AR 90+ creeping above target',
       priority: 1,
       status: 'open',
-      team_id: teamId,
+      organization_id: organizationId,
       context: 'Aging receivables over 90 days have increased 15% this month. Review collection processes.',
     },
     {
       title: 'Time-to-next-available > 5 days for PT',
       priority: 2,
       status: 'open',
-      team_id: teamId,
+      organization_id: organizationId,
       context: 'Physical therapy department showing longer wait times. May need additional capacity.',
     },
   ];
 
+  let successCount = 0;
   for (const issue of issues) {
-    await supabase.from('issues').insert(issue);
+    const { error } = await supabase.from('issues').insert(issue);
+    if (error) {
+      console.error(`[seedIssues] Failed to insert issue "${issue.title}":`, error.message);
+    } else {
+      successCount++;
+    }
   }
 
-  console.log('Seeded', issues.length, 'issues');
+  console.log(`Seeded ${successCount}/${issues.length} issues`);
 }
 
-async function seedDocs(supabase: SupabaseClient) {
+async function seedDocs(supabase: SupabaseClient, organizationId: string) {
   const docs = [
     {
       title: 'Employee Manual',
-      kind: 'handbook',
-      status: 'published',
+      kind: 'Handbook',
+      status: 'approved',
       requires_ack: true,
+      organization_id: organizationId,
       body: `# Employee Manual
 
-## Welcome to LeadClear Demo Clinic
+## Welcome to Clinic Leader Demo Practice
 
 This manual outlines our policies, procedures, and expectations for all team members.
 
@@ -162,9 +185,10 @@ We maintain the highest standards of professionalism in all interactions...`,
     },
     {
       title: 'Recall Review Process',
-      kind: 'sop',
-      status: 'published',
+      kind: 'SOP',
+      status: 'approved',
       requires_ack: true,
+      organization_id: organizationId,
       body: `# Recall Review Standard Operating Procedure
 
 ## Purpose
@@ -182,14 +206,20 @@ Recalls overdue by >30 days must be escalated to the practice manager...`,
     },
   ];
 
+  let successCount = 0;
   for (const doc of docs) {
-    await supabase.from('docs').insert(doc);
+    const { error } = await supabase.from('docs').insert(doc);
+    if (error) {
+      console.error(`[seedDocs] Failed to insert doc "${doc.title}":`, error.message);
+    } else {
+      successCount++;
+    }
   }
 
-  console.log('Seeded', docs.length, 'docs');
+  console.log(`Seeded ${successCount}/${docs.length} docs`);
 }
 
-async function seedRecalls(supabase: SupabaseClient, teamId: string) {
+async function seedRecalls(supabase: SupabaseClient, organizationId: string) {
   const today = new Date();
   const recalls = [];
 
@@ -200,10 +230,10 @@ async function seedRecalls(supabase: SupabaseClient, teamId: string) {
     dueDate.setDate(today.getDate() + daysOffset);
 
     const statuses = ['Open', 'Open', 'Open', 'Completed', 'Deferred'];
-    const kinds = ['Annual Physical', '6-Month Cleaning', 'Follow-up', 'Lab Review'];
+    const kinds = ['Appointment', 'Staff Follow Up'];
 
     recalls.push({
-      organization_id: teamId,
+      organization_id: organizationId,
       patient_hash: `DEMO${String(i).padStart(4, '0')}`, // PHI-safe identifier
       kind: kinds[Math.floor(Math.random() * kinds.length)],
       due_date: dueDate.toISOString().split('T')[0],
@@ -212,11 +242,17 @@ async function seedRecalls(supabase: SupabaseClient, teamId: string) {
     });
   }
 
+  let successCount = 0;
   for (const recall of recalls) {
-    await supabase.from('recalls').insert(recall);
+    const { error } = await supabase.from('recalls').insert(recall);
+    if (error) {
+      console.error(`[seedRecalls] Failed to insert recall "${recall.patient_hash}":`, error.message);
+    } else {
+      successCount++;
+    }
   }
 
-  console.log('Seeded', recalls.length, 'recalls');
+  console.log(`Seeded ${successCount}/${recalls.length} recalls`);
 }
 
 /**
