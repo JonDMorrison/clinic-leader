@@ -35,11 +35,12 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
         }
 
         // Get user's team and onboarding status
+        // Note: public.users.id is NOT the same as auth.users.id, so we query by email
         const { data: userData, error } = await supabase
           .from("users")
-          .select("team_id, teams(onboarding_status)")
-          .eq("id", user.id)
-          .single();
+          .select("id, team_id, teams(onboarding_status)")
+          .eq("email", user.email)
+          .maybeSingle();
 
         if (error) {
           console.error("Error fetching user data:", error);
@@ -68,10 +69,11 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
         }
 
         // Check if user has acknowledged core values
+        // Use userData.id (public.users.id) not user.id (auth.users.id)
         const { data: ack } = await supabase
           .from("core_values_ack")
           .select("id")
-          .eq("user_id", user.id)
+          .eq("user_id", userData.id)
           .eq("organization_id", userData.team_id)
           .maybeSingle();
 
