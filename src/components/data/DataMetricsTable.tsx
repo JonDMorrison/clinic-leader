@@ -69,7 +69,39 @@ import type { MetricStatus } from "@/lib/scorecard/metricStatus";
 
 const STORAGE_KEY = "data-metrics-order";
 
-// Template metrics for non-Jane users (and as additional options)
+// ===== JANE-SAFE SUPPORTED METRICS =====
+// These are the ONLY metrics currently supported by the Jane data pipeline.
+// Update this list as more import_keys become production-ready.
+export const JANE_SUPPORTED_IMPORT_KEYS = [
+  "jane_total_visits",
+  "jane_new_patient_visits",
+  "jane_no_shows",
+  "jane_cancellation_rate",
+  "jane_show_rate",
+  "jane_total_invoiced",
+  "jane_total_collected",
+  "jane_avg_revenue_per_visit",
+] as const;
+
+// Map import_key to display configuration for supported Jane metrics
+const JANE_SUPPORTED_METRICS: Array<{
+  import_key: string;
+  name: string;
+  category: string;
+  unit: string;
+  direction: string;
+}> = [
+  { import_key: "jane_total_visits", name: "Total Visits", category: "Appointments", unit: "count", direction: "up" },
+  { import_key: "jane_new_patient_visits", name: "New Patient Visits", category: "Appointments", unit: "count", direction: "up" },
+  { import_key: "jane_no_shows", name: "No Shows", category: "Appointments", unit: "count", direction: "down" },
+  { import_key: "jane_cancellation_rate", name: "Cancellation Rate %", category: "Appointments", unit: "%", direction: "down" },
+  { import_key: "jane_show_rate", name: "Show Rate %", category: "Appointments", unit: "%", direction: "up" },
+  { import_key: "jane_total_invoiced", name: "Total Invoiced", category: "Invoices", unit: "dollars", direction: "up" },
+  { import_key: "jane_total_collected", name: "Total Collected Revenue", category: "Payments", unit: "dollars", direction: "up" },
+  { import_key: "jane_avg_revenue_per_visit", name: "Average Revenue Per Visit", category: "Payments", unit: "dollars", direction: "up" },
+];
+
+// Template metrics for non-Jane users (hidden when Jane is connected)
 const TEMPLATE_METRICS = [
   { name: "Total Revenue", category: "Revenue", unit: "dollars", direction: "up", source: "template" },
   { name: "Total Visits", category: "Visits", unit: "count", direction: "up", source: "template" },
@@ -81,65 +113,6 @@ const TEMPLATE_METRICS = [
   { name: "Patient Retention %", category: "Patients", unit: "%", direction: "up", source: "template" },
   { name: "No Shows", category: "Operations", unit: "count", direction: "down", source: "template" },
   { name: "Collections Rate %", category: "Revenue", unit: "%", direction: "up", source: "template" },
-];
-
-// Dimensional metrics that can have multiple sub-rows
-const DIMENSIONAL_METRICS: Record<string, { 
-  dimensionKey: string; 
-  dimensionLabel: string;
-  table: string;
-  column: string;
-}> = {
-  "Revenue by Provider": { 
-    dimensionKey: "provider", 
-    dimensionLabel: "Provider",
-    table: "staging_invoices_jane",
-    column: "staff_member_name"
-  },
-  "Revenue by Location": { 
-    dimensionKey: "location", 
-    dimensionLabel: "Location",
-    table: "staging_payments_jane",
-    column: "location_guid"
-  },
-  "Referral Sources": { 
-    dimensionKey: "referral_source", 
-    dimensionLabel: "Source",
-    table: "staging_patients_jane",
-    column: "referral_source"
-  },
-  "Revenue by Discipline": {
-    dimensionKey: "discipline",
-    dimensionLabel: "Discipline",
-    table: "staging_invoices_jane",
-    column: "income_category"
-  },
-};
-
-// Jane resource definitions with metrics
-const JANE_METRICS = [
-  { name: "Total Visits", category: "Appointments", resourceKey: "appointments", unit: "count", direction: "up" },
-  { name: "New Patient Visits", category: "Appointments", resourceKey: "appointments", unit: "count", direction: "up" },
-  { name: "Show Rate %", category: "Appointments", resourceKey: "appointments", unit: "%", direction: "up" },
-  { name: "Cancellation Rate %", category: "Appointments", resourceKey: "appointments", unit: "%", direction: "down" },
-  { name: "No Shows", category: "Appointments", resourceKey: "appointments", unit: "count", direction: "down" },
-  { name: "Total Collected Revenue", category: "Payments", resourceKey: "payments", unit: "dollars", direction: "up" },
-  { name: "Average Revenue Per Visit", category: "Payments", resourceKey: "payments", unit: "dollars", direction: "up" },
-  { name: "Total Invoiced", category: "Invoices", resourceKey: "invoices", unit: "dollars", direction: "up" },
-  { name: "Revenue by Provider", category: "Invoices", resourceKey: "invoices", unit: "dollars", direction: "up", isDimensional: true },
-  { name: "New Patients", category: "Patients", resourceKey: "patients", unit: "count", direction: "up" },
-  { name: "Patient Retention", category: "Patients", resourceKey: "patients", unit: "%", direction: "up" },
-  { name: "Referral Sources", category: "Patients", resourceKey: "patients", unit: "count", direction: "up", isDimensional: true },
-  { name: "Practitioner Utilization", category: "Shifts", resourceKey: "shifts", unit: "%", direction: "up" },
-  { name: "Available Hours", category: "Shifts", resourceKey: "shifts", unit: "count", direction: "up" },
-  { name: "Provider Scorecards", category: "Staff", resourceKey: "staff_members", unit: "count", direction: "up" },
-  { name: "Revenue by Location", category: "Locations", resourceKey: "locations", unit: "dollars", direction: "up", isDimensional: true },
-  { name: "Service Mix", category: "Treatments", resourceKey: "treatments", unit: "count", direction: "up" },
-  { name: "Revenue by Discipline", category: "Disciplines", resourceKey: "disciplines", unit: "dollars", direction: "up", isDimensional: true },
-  // Coming soon
-  { name: "Product Sales", category: "Products", resourceKey: "products", unit: "dollars", direction: "up", comingSoon: true },
-  { name: "Inventory Turnover", category: "Products", resourceKey: "products", unit: "count", direction: "up", comingSoon: true },
-  { name: "Waitlist Conversion", category: "Waitlist", resourceKey: "waitlist", unit: "%", direction: "up", comingSoon: true },
 ];
 
 const CATEGORY_ICONS: Record<string, typeof CalendarClock> = {
@@ -331,7 +304,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
   const { data: currentUser } = useCurrentUser();
   const { hiddenResources, hideResource, unhideResource } = useHiddenJaneResources();
   const [searchQuery, setSearchQuery] = useState("");
-  const [showHidden, setShowHidden] = useState(false);
   const [expandedMetrics, setExpandedMetrics] = useState<Set<string>>(new Set());
   const [metricOrder, setMetricOrder] = useState<string[]>([]);
   const [addMetricModal, setAddMetricModal] = useState<{
@@ -503,16 +475,23 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     enabled: !!currentUser?.team_id && !!trackedMetrics?.length,
   });
 
-  // Build the merged data list
+  // Build the merged data list - JANE-SAFE: Only show supported metrics when Jane is connected
   const rawDataMetrics = useMemo(() => {
     const metrics: DataMetric[] = [];
 
     if (isConnected) {
-      JANE_METRICS.forEach(janeMetric => {
-        const isHidden = hiddenResources.includes(janeMetric.resourceKey || "");
-        if (isHidden && !showHidden) return;
-        
-        const tracked = trackedMetrics?.find(m => m.name.toLowerCase() === janeMetric.name.toLowerCase());
+      // When Jane is connected, show ONLY the 8 supported pipeline metrics
+      JANE_SUPPORTED_METRICS.forEach(janeMetric => {
+        // Match by import_key (source of truth) from tracked metrics
+        const tracked = trackedMetrics?.find(m => {
+          // First try to match by import_key if the metric has it
+          const metricWithImportKey = m as typeof m & { import_key?: string };
+          if (metricWithImportKey.import_key) {
+            return metricWithImportKey.import_key === janeMetric.import_key;
+          }
+          // Fallback to name matching for compatibility
+          return m.name.toLowerCase() === janeMetric.name.toLowerCase();
+        });
         
         let weekValue: number | null = null;
         let monthValue: number | null = null;
@@ -545,19 +524,13 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           status = "on_track";
         }
 
-        const dimensions = janeMetric.isDimensional && dimensionData 
-          ? dimensionData[janeMetric.name] || []
-          : undefined;
-
         metrics.push({
-          id: `jane-${janeMetric.name}`,
+          id: `jane-${janeMetric.import_key}`,
           name: janeMetric.name,
           category: janeMetric.category,
           source: "jane",
-          resourceKey: janeMetric.resourceKey,
           unit: janeMetric.unit,
           direction: janeMetric.direction,
-          comingSoon: janeMetric.comingSoon,
           isTracked: !!tracked,
           metricId: tracked?.id,
           weekValue,
@@ -565,32 +538,28 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           ytdValue,
           target: tracked?.target,
           status,
-          isDimensional: janeMetric.isDimensional,
-          dimensions,
+        });
+      });
+    } else {
+      // When Jane is NOT connected, show template metrics
+      TEMPLATE_METRICS.forEach(templateMetric => {
+        const tracked = trackedMetrics?.find(m => m.name.toLowerCase() === templateMetric.name.toLowerCase());
+        
+        metrics.push({
+          id: `template-${templateMetric.name}`,
+          name: templateMetric.name,
+          category: templateMetric.category,
+          source: "template",
+          unit: templateMetric.unit,
+          direction: templateMetric.direction,
+          isTracked: !!tracked,
+          metricId: tracked?.id,
         });
       });
     }
 
-    TEMPLATE_METRICS.forEach(templateMetric => {
-      const alreadyAdded = metrics.some(m => m.name.toLowerCase() === templateMetric.name.toLowerCase());
-      if (alreadyAdded) return;
-
-      const tracked = trackedMetrics?.find(m => m.name.toLowerCase() === templateMetric.name.toLowerCase());
-      
-      metrics.push({
-        id: `template-${templateMetric.name}`,
-        name: templateMetric.name,
-        category: templateMetric.category,
-        source: "template",
-        unit: templateMetric.unit,
-        direction: templateMetric.direction,
-        isTracked: !!tracked,
-        metricId: tracked?.id,
-      });
-    });
-
     return metrics;
-  }, [isConnected, trackedMetrics, metricResults, hiddenResources, showHidden, currentWeekStart, lastWeekStart, currentMonthKey, lastMonthKey, dimensionData]);
+  }, [isConnected, trackedMetrics, metricResults, currentWeekStart, lastWeekStart, currentMonthKey, lastMonthKey]);
 
   // Apply custom order and search filter
   const dataMetrics = useMemo(() => {
@@ -620,9 +589,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     return metrics;
   }, [rawDataMetrics, metricOrder, searchQuery]);
 
-  const hiddenCount = isConnected 
-    ? JANE_METRICS.filter(m => hiddenResources.includes(m.resourceKey || "")).length
-    : 0;
 
   const formatValue = (value: number | null | undefined, unit: string): string => {
     if (value === null || value === undefined) return "—";
@@ -637,6 +603,20 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     }
     if (metric.isDimensional && !isChild && metric.dimensions && metric.dimensions.length > 0) {
       return <Badge variant="secondary" className="text-xs">{metric.dimensions.length} items</Badge>;
+    }
+    // For Jane-connected orgs: all supported metrics show as "Tracked" 
+    // (they're in the pipeline, even if no data yet)
+    if (metric.source === "jane") {
+      if (metric.isTracked) {
+        if (metric.status === "off_track") {
+          return <Badge variant="destructive" className="text-xs">Off Track</Badge>;
+        }
+        if (metric.status === "on_track" && metric.monthValue !== null) {
+          return <Badge variant="default" className="text-xs bg-success text-success-foreground">Tracked</Badge>;
+        }
+      }
+      // Supported metric but no data yet
+      return <Badge variant="secondary" className="text-xs">Tracked</Badge>;
     }
     if (metric.isTracked) {
       if (metric.status === "off_track") {
@@ -693,6 +673,13 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
 
   return (
     <div className="space-y-4">
+      {/* Helper text for Jane-connected orgs */}
+      {isConnected && (
+        <p className="text-sm text-muted-foreground">
+          Showing currently supported Jane pipeline metrics.
+        </p>
+      )}
+
       {/* Search and filters */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
@@ -704,18 +691,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
             className="pl-9"
           />
         </div>
-        {hiddenCount > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowHidden(!showHidden)}
-            className="text-muted-foreground"
-          >
-            <EyeOff className="w-4 h-4 mr-1" />
-            {hiddenCount} hidden
-            <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${showHidden ? 'rotate-180' : ''}`} />
-          </Button>
-        )}
       </div>
 
       {/* Data Table */}
