@@ -18,13 +18,8 @@ export function CoreValuesOnboardingStep({ onComplete }: CoreValuesOnboardingSte
   const [submitting, setSubmitting] = useState(false);
   const seededRef = useRef(false);
 
-  // Seed defaults if needed - only once
-  useEffect(() => {
-    if (!valuesLoading && activeValues.length === 0 && !seededRef.current && !seedDefaults.isPending) {
-      seededRef.current = true;
-      seedDefaults.mutate();
-    }
-  }, [valuesLoading, activeValues.length, seedDefaults]);
+  // Values should already exist from onboarding - no auto-seeding
+
 
   const handleContinue = async () => {
     if (!agreed) return;
