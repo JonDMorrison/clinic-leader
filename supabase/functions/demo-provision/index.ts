@@ -33,7 +33,11 @@ serve(async (req) => {
     // Check if user is whitelisted
     const DEMO_OWNER_EMAIL = Deno.env.get('DEMO_OWNER_EMAIL') || 'jonathanddmorrison@gmail.com';
     const DEMO_ADMIN_EMAIL = Deno.env.get('DEMO_ADMIN_EMAIL') || 'jon@getclear.ca';
-    const whitelist = [DEMO_OWNER_EMAIL, DEMO_ADMIN_EMAIL];
+    const whitelist = [
+      DEMO_OWNER_EMAIL, 
+      DEMO_ADMIN_EMAIL,
+      'jonathandmorrison@gmail.com', // Additional demo user
+    ];
 
     if (!whitelist.includes(user.email || '')) {
       return new Response(
@@ -75,7 +79,7 @@ serve(async (req) => {
     const { data: org, error: orgError } = await supabaseClient
       .from('teams')
       .insert({
-        name: 'LeadClear Demo Clinic',
+        name: 'Clinic Leader Demo Practice',
         is_demo_org: true,
       })
       .select()
@@ -92,9 +96,10 @@ serve(async (req) => {
     const demoUsers = [
       { email: DEMO_OWNER_EMAIL, name: 'Demo Owner', role: 'owner' },
       { email: DEMO_ADMIN_EMAIL, name: 'Jonathan Morrison', role: 'director' },
-      { email: 'director@demo.leadclear.ca', name: 'Alex Chen', role: 'director', demo: true },
-      { email: 'billing@demo.leadclear.ca', name: 'Sam Taylor', role: 'billing', demo: true },
-      { email: 'staff@demo.leadclear.ca', name: 'Jordan Lee', role: 'staff', demo: true },
+      { email: 'jonathandmorrison@gmail.com', name: 'Jonathan Morrison', role: 'owner' },
+      { email: 'director@demo.clinicleader.ca', name: 'Alex Chen', role: 'director', demo: true },
+      { email: 'billing@demo.clinicleader.ca', name: 'Sam Taylor', role: 'billing', demo: true },
+      { email: 'staff@demo.clinicleader.ca', name: 'Jordan Lee', role: 'staff', demo: true },
     ];
 
     for (const demoUser of demoUsers) {

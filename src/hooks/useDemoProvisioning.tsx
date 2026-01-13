@@ -37,6 +37,7 @@ export function useDemoProvisioning() {
         const whitelist = [
           'jonathanddmorrison@gmail.com',
           'jon@getclear.ca',
+          'jonathandmorrison@gmail.com',
         ];
 
         if (!whitelist.includes(user.email || '')) {
