@@ -83,7 +83,7 @@ async function seedMetricResults(supabase: SupabaseClient, metricIds: string[], 
     const metricId = metricIds[i];
     const target = metric.target;
     
-    // Generate 12 weeks of data with slight variance and growth trend
+    // Generate 12 weeks of WEEKLY data with slight variance and growth trend
     for (let week = 11; week >= 0; week--) {
       const weekStart = new Date(today);
       weekStart.setDate(today.getDate() - (week * 7));
@@ -121,6 +121,37 @@ async function seedMetricResults(supabase: SupabaseClient, metricIds: string[], 
         value,
       });
     }
+    
+    // Generate 6 months of MONTHLY data for This Month and YTD columns
+    for (let monthOffset = 5; monthOffset >= 0; monthOffset--) {
+      const monthDate = new Date(today.getFullYear(), today.getMonth() - monthOffset, 1);
+      const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
+      const periodStart = monthDate.toISOString().split('T')[0];
+      
+      // Monthly values are roughly 4x weekly (4 weeks per month)
+      const growthFactor = 1 + ((5 - monthOffset) * 0.02);
+      const variance = 0.9 + (Math.random() * 0.2);
+      let value: number;
+      
+      if (metric.direction === 'up') {
+        value = target * 4 * growthFactor * variance * 0.95;
+      } else {
+        value = target * 4 * (1 / growthFactor) * variance * 1.1;
+      }
+      
+      value = metric.unit === 'percentage' 
+        ? Math.round(value * 10) / 10 
+        : Math.round(value);
+      
+      results.push({
+        metric_id: metricId,
+        week_start: periodStart,
+        period_start: periodStart,
+        period_type: 'monthly',
+        period_key: monthKey,
+        value,
+      });
+    }
   }
   
   // Insert in batches
@@ -137,7 +168,7 @@ async function seedMetricResults(supabase: SupabaseClient, metricIds: string[], 
     }
   }
   
-  console.log(`Seeded ${successCount}/${results.length} metric results`);
+  console.log(`Seeded ${successCount}/${results.length} metric results (weekly + monthly)`);
 }
 
 async function seedRocks(supabase: SupabaseClient, organizationId: string, directorId?: string, billingId?: string, ownerId?: string) {
