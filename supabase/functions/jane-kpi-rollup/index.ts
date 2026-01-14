@@ -304,18 +304,22 @@ Deno.serve(async (req) => {
     });
     console.log(`[jane-kpi-rollup] Cancellation Rate: ${cancellationRate}%`);
 
-    // Fetch payments for revenue metrics
+    // Fetch payments for revenue metrics (location_guid only, no location_name in payments table)
     const { data: paymentsData, error: paymentsError } = await supabase
       .from("staging_payments_jane")
-      .select("amount, location_guid, location_name")
+      .select("amount, location_guid")
       .eq("organization_id", organization_id)
       .gte("received_at", periodStartStr)
       .lte("received_at", periodEndStr);
 
+    if (paymentsError) {
+      console.error(`[jane-kpi-rollup] Failed to fetch payments: ${paymentsError.message}`);
+    }
+
     // Fetch YTD payments
     const { data: ytdPaymentsData } = await supabase
       .from("staging_payments_jane")
-      .select("amount, location_guid, location_name")
+      .select("amount, location_guid")
       .eq("organization_id", organization_id)
       .gte("received_at", ytdStartStr)
       .lte("received_at", ytdEndStr);
@@ -346,7 +350,7 @@ Deno.serve(async (req) => {
     ) => {
       const collectedByLocation = new Map<string, { amount: number; label: string }>();
       for (const payment of paymentList) {
-        const locationId = payment.location_guid || payment.location_name || "unknown";
+        const locationId = payment.location_guid || "unknown";
         if (locationId !== "unknown") {
           const amount = Number(payment.amount) || 0;
           const existing = collectedByLocation.get(locationId);
@@ -355,7 +359,7 @@ Deno.serve(async (req) => {
           } else {
             collectedByLocation.set(locationId, {
               amount,
-              label: payment.location_name || `Location ${locationId.slice(-6)}`,
+              label: `Location ${locationId.slice(-6)}`,
             });
           }
         }
@@ -382,18 +386,22 @@ Deno.serve(async (req) => {
     const ytdCollectedBreakdowns = computeCollectedBreakdowns(ytdPayments, "ytd", ytdKey, ytdStartStr, ytdEndStr);
     console.log(`[jane-kpi-rollup] Total Collected breakdowns (YTD): ${ytdCollectedBreakdowns} locations`);
 
-    // Fetch invoices for invoiced revenue and per-provider breakdown
+    // Fetch invoices for invoiced revenue and per-provider breakdown (no location_name in invoices table)
     const { data: invoicesData, error: invoicesError } = await supabase
       .from("staging_invoices_jane")
-      .select("subtotal, amount_paid, staff_member_guid, staff_member_name, location_guid, location_name")
+      .select("subtotal, amount_paid, staff_member_guid, staff_member_name, location_guid")
       .eq("organization_id", organization_id)
       .gte("invoiced_at", periodStartStr)
       .lte("invoiced_at", periodEndStr);
 
+    if (invoicesError) {
+      console.error(`[jane-kpi-rollup] Failed to fetch invoices: ${invoicesError.message}`);
+    }
+
     // Fetch YTD invoices
     const { data: ytdInvoicesData } = await supabase
       .from("staging_invoices_jane")
-      .select("subtotal, amount_paid, staff_member_guid, staff_member_name, location_guid, location_name")
+      .select("subtotal, amount_paid, staff_member_guid, staff_member_name, location_guid")
       .eq("organization_id", organization_id)
       .gte("invoiced_at", ytdStartStr)
       .lte("invoiced_at", ytdEndStr);
@@ -455,7 +463,7 @@ Deno.serve(async (req) => {
       // By Location
       const invoicedByLocation = new Map<string, { amount: number; label: string }>();
       for (const inv of invoiceList) {
-        const locationId = inv.location_guid || inv.location_name || "unknown";
+        const locationId = inv.location_guid || "unknown";
         if (locationId !== "unknown") {
           const existing = invoicedByLocation.get(locationId);
           const amount = Number(inv.subtotal) || 0;
@@ -464,7 +472,7 @@ Deno.serve(async (req) => {
           } else {
             invoicedByLocation.set(locationId, {
               amount,
-              label: inv.location_name || `Location ${locationId.slice(-6)}`,
+              label: `Location ${locationId.slice(-6)}`,
             });
           }
         }
