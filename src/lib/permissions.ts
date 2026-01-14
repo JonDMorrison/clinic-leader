@@ -59,3 +59,62 @@ export function canManageDocs(roleData: RoleData | undefined | null): boolean {
 export function canDeleteOthersItems(roleData: RoleData | undefined | null): boolean {
   return roleData?.isAdmin ?? false;
 }
+
+/**
+ * Navigation visibility permissions.
+ * Maps nav item role requirements to permission checks.
+ */
+export type NavPermissionKey = 
+  | "staff"      // All authenticated users
+  | "manager"    // Managers and above
+  | "admin"      // Admins only (owner, director)
+  | "owner";     // Owner only
+
+/**
+ * Check if user can see a nav item based on its required permission level.
+ * This replaces the old roles array check with permission-based logic.
+ */
+export function canSeeNavItem(
+  requiredLevel: NavPermissionKey,
+  roleData: RoleData | undefined | null
+): boolean {
+  if (!roleData) return false;
+  
+  switch (requiredLevel) {
+    case "staff":
+      // Everyone can see staff-level items
+      return true;
+    case "manager":
+      // Managers and admins can see
+      return roleData.isManager;
+    case "admin":
+      // Only admins (owner, director)
+      return roleData.isAdmin;
+    case "owner":
+      // Only owner
+      return roleData.role === "owner";
+    default:
+      return false;
+  }
+}
+
+/**
+ * Map old role array to new permission level.
+ * Used for backward compatibility with existing nav definitions.
+ */
+export function getNavPermissionLevel(roles: string[]): NavPermissionKey {
+  // If only owner, return owner
+  if (roles.length === 1 && roles[0] === "owner") {
+    return "owner";
+  }
+  // If includes owner and director (admin-level items)
+  if (roles.includes("owner") && roles.includes("director") && !roles.includes("manager") && !roles.includes("staff")) {
+    return "admin";
+  }
+  // If includes manager but not staff (manager-level items)
+  if (roles.includes("manager") && !roles.includes("staff")) {
+    return "manager";
+  }
+  // Default to staff (everyone)
+  return "staff";
+}
