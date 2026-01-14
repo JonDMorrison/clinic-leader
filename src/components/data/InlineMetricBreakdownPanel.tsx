@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -30,6 +31,9 @@ import { CreateIssueFromBreakdownModal } from "./CreateIssueFromBreakdownModal";
 import { AddBreakdownToScorecardModal } from "./AddBreakdownToScorecardModal";
 import { LinkBreakdownToPersonModal } from "./LinkBreakdownToPersonModal";
 import { LinkBreakdownToSeatModal } from "./LinkBreakdownToSeatModal";
+import { MapClinicianToUserModal } from "./MapClinicianToUserModal";
+import { ClinicianMappingIndicator } from "./ClinicianMappingIndicator";
+import { useClinicianMappings } from "@/hooks/useClinicianMappings";
 
 interface BreakdownData {
   dimension_type: string;
@@ -83,6 +87,7 @@ export function InlineMetricBreakdownPanel({
   organizationId,
   onClose,
 }: InlineMetricBreakdownPanelProps) {
+  const navigate = useNavigate();
   const dimensions = METRIC_DIMENSIONS[importKey] || [];
   const defaultDimension = dimensions.includes("clinician") ? "clinician" : dimensions[0] || "location";
   
@@ -104,6 +109,10 @@ export function InlineMetricBreakdownPanel({
     item: null,
   });
   const [seatModal, setSeatModal] = useState<{ open: boolean; item: BreakdownData | null }>({
+    open: false,
+    item: null,
+  });
+  const [mapClinicianModal, setMapClinicianModal] = useState<{ open: boolean; item: BreakdownData | null }>({
     open: false,
     item: null,
   });
@@ -190,6 +199,23 @@ export function InlineMetricBreakdownPanel({
   const displayItems = showAll ? items : items.slice(0, 10);
   const hasMore = items.length > 10;
 
+  // Get clinician dimension IDs for mapping lookup (only for clinician dimension)
+  const clinicianDimensionIds = useMemo(() => {
+    if (selectedDimension !== "clinician") return [];
+    return items.map((item) => item.dimension_id);
+  }, [selectedDimension, items]);
+
+  // Query clinician mappings
+  const { data: clinicianMappings } = useClinicianMappings(
+    organizationId,
+    clinicianDimensionIds
+  );
+
+  // Navigate to person in People Analyzer
+  const handleViewPerson = (userId: string) => {
+    navigate(`/people?userId=${userId}`);
+  };
+
   const getDimensionTypeLabel = (dimensionType: string): string => {
     return DIMENSION_CONFIG[dimensionType]?.label || dimensionType;
   };
@@ -260,6 +286,9 @@ export function InlineMetricBreakdownPanel({
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-[40px] text-xs h-8">#</TableHead>
                 <TableHead className="text-xs h-8">Name</TableHead>
+                {selectedDimension === "clinician" && (
+                  <TableHead className="text-xs h-8">Mapping</TableHead>
+                )}
                 <TableHead className="text-right text-xs h-8">Value</TableHead>
                 <TableHead className="text-right w-[80px] text-xs h-8">% of Total</TableHead>
                 <TableHead className="w-[50px] text-xs h-8">Actions</TableHead>
@@ -268,6 +297,10 @@ export function InlineMetricBreakdownPanel({
             <TableBody>
               {displayItems.map((item, index) => {
                 const percentage = total > 0 ? (item.value / total) * 100 : 0;
+                const mapping = selectedDimension === "clinician" 
+                  ? clinicianMappings?.get(item.dimension_id)
+                  : undefined;
+                
                 return (
                   <TableRow key={item.dimension_id} className="hover:bg-muted/50">
                     <TableCell className="font-mono text-muted-foreground text-xs py-2">
@@ -276,6 +309,15 @@ export function InlineMetricBreakdownPanel({
                     <TableCell className="font-medium text-sm py-2">
                       {item.dimension_label}
                     </TableCell>
+                    {selectedDimension === "clinician" && (
+                      <TableCell className="py-2">
+                        <ClinicianMappingIndicator
+                          mapping={mapping}
+                          onViewPerson={handleViewPerson}
+                          onMapClinician={() => setMapClinicianModal({ open: true, item })}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="text-right font-mono text-sm py-2">
                       {formatValue(item.value)}
                     </TableCell>
@@ -319,6 +361,7 @@ export function InlineMetricBreakdownPanel({
               <TableRow className="bg-muted/50 font-semibold hover:bg-muted/50">
                 <TableCell className="py-2"></TableCell>
                 <TableCell className="text-sm py-2">Total</TableCell>
+                {selectedDimension === "clinician" && <TableCell className="py-2"></TableCell>}
                 <TableCell className="text-right font-mono text-sm py-2">
                   {formatValue(total)}
                 </TableCell>
@@ -399,6 +442,16 @@ export function InlineMetricBreakdownPanel({
           dimensionType={selectedDimension}
           importKey={importKey}
           parentMetricName={metricName}
+        />
+      )}
+
+      {/* Map Clinician to User Modal */}
+      {mapClinicianModal.item && (
+        <MapClinicianToUserModal
+          open={mapClinicianModal.open}
+          onClose={() => setMapClinicianModal({ open: false, item: null })}
+          clinicianDimensionId={mapClinicianModal.item.dimension_id}
+          clinicianLabel={mapClinicianModal.item.dimension_label}
         />
       )}
     </div>

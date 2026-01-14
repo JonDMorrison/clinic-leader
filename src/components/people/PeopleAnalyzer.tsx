@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { PersonDetailModal } from "./PersonDetailModal";
@@ -34,9 +34,21 @@ interface PeopleAnalyzerProps {
   valueRatings: ValueRating[];
   isManager: boolean;
   onUpdate: () => void;
+  /** Optional: auto-open the modal for this user (deep link support) */
+  initialUserId?: string | null;
+  /** Callback when initial user handling is complete */
+  onInitialUserHandled?: () => void;
 }
 
-export function PeopleAnalyzer({ users, coreValues, valueRatings, isManager, onUpdate }: PeopleAnalyzerProps) {
+export function PeopleAnalyzer({ 
+  users, 
+  coreValues, 
+  valueRatings, 
+  isManager, 
+  onUpdate,
+  initialUserId,
+  onInitialUserHandled,
+}: PeopleAnalyzerProps) {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { data: currentUser } = useCurrentUser();
@@ -44,6 +56,20 @@ export function PeopleAnalyzer({ users, coreValues, valueRatings, isManager, onU
   // Fetch metrics for all users in bulk
   const userIds = users.map((u) => u.id);
   const { metricsMap } = useUsersMetrics(userIds, currentUser?.team_id);
+
+  // Handle initial user deep link
+  useEffect(() => {
+    if (initialUserId && users.length > 0) {
+      // Verify the user exists in the list
+      const userExists = users.some((u) => u.id === initialUserId);
+      if (userExists) {
+        setSelectedUserId(initialUserId);
+        setIsModalOpen(true);
+      }
+      // Notify parent that we've handled the initial user
+      onInitialUserHandled?.();
+    }
+  }, [initialUserId, users, onInitialUserHandled]);
 
   const handleOpenModal = (userId: string) => {
     setSelectedUserId(userId);
