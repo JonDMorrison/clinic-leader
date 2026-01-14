@@ -345,7 +345,7 @@ export function InlineMetricBreakdownPanel({
                           onViewPerson={handleViewPerson}
                           onMapClinician={() => setMapClinicianModal({ open: true, item })}
                           onUnmapClinician={handleUnmapClinician}
-                          isManager={isManager}
+                          canManageUsers={isManager}
                         />
                       </TableCell>
                     )}

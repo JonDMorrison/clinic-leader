@@ -14,7 +14,8 @@ interface ClinicianMappingIndicatorProps {
   onViewPerson: (userId: string) => void;
   onMapClinician: () => void;
   onUnmapClinician?: (userId: string) => void;
-  isManager?: boolean;
+  /** True if user can manage clinician mappings (managers & admins) */
+  canManageUsers?: boolean;
 }
 
 /**
@@ -27,7 +28,7 @@ export function ClinicianMappingIndicator({
   onViewPerson,
   onMapClinician,
   onUnmapClinician,
-  isManager = false,
+  canManageUsers = false,
 }: ClinicianMappingIndicatorProps) {
   const isMapped = mapping?.userId != null;
 
@@ -61,7 +62,7 @@ export function ClinicianMappingIndicator({
           <User className="w-3 h-3 mr-1" />
           View
         </Button>
-        {isManager && onUnmapClinician && (
+        {canManageUsers && onUnmapClinician && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
