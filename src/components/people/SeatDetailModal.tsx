@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trash2, Plus, X, Shield, ChevronUp, Users } from "lucide-react";
+import { SeatAccountableNumbers } from "./SeatAccountableNumbers";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface SeatUser {
@@ -421,6 +422,12 @@ export const SeatDetailModal = ({ seat, users, allSeats, open, onOpenChange, onU
                     <p className="text-sm text-muted-foreground">Unassigned</p>
                   )}
                 </div>
+
+                {/* Accountable Numbers Section */}
+                <SeatAccountableNumbers 
+                  seatId={seat.id} 
+                  organizationId={currentUser?.team_id} 
+                />
               </>
             )}
           </div>

@@ -53,12 +53,12 @@ export function LinkBreakdownToSeatModal({
     enabled: !!currentUser?.team_id && open,
   });
 
-  // Check for existing seat_metrics link
+  // Check for existing seat_metrics link using the new schema
   const { data: existingLink } = useQuery({
     queryKey: ["seat-metric-link", currentUser?.team_id, dimensionId, importKey],
     queryFn: async () => {
       if (!currentUser?.team_id) return null;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("seat_metrics")
         .select(`
           id,
@@ -66,9 +66,13 @@ export function LinkBreakdownToSeatModal({
           seats(title)
         `)
         .eq("organization_id", currentUser.team_id)
-        .eq("breakdown_dimension_id", dimensionId)
+        .eq("dimension_id", dimensionId)
         .eq("import_key", importKey)
         .maybeSingle();
+      if (error) {
+        console.error("Error fetching seat metric link:", error);
+        return null;
+      }
       return data;
     },
     enabled: !!currentUser?.team_id && open,
@@ -86,14 +90,17 @@ export function LinkBreakdownToSeatModal({
           .eq("id", existingLink.id);
         if (error) throw error;
       } else {
+        // Use new canonical schema: import_key + dimension fields only
         const { error } = await supabase
           .from("seat_metrics")
           .insert({
             seat_id: selectedSeatId,
             organization_id: currentUser.team_id,
-            breakdown_dimension_type: dimensionType,
-            breakdown_dimension_id: dimensionId,
+            dimension_type: dimensionType,
+            dimension_id: dimensionId,
+            dimension_label: dimensionLabel,
             import_key: importKey,
+            period_type: "weekly",
             created_by: currentUser.id,
           });
         if (error) throw error;

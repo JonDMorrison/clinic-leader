@@ -3540,40 +3540,40 @@ export type Database = {
       }
       seat_metrics: {
         Row: {
-          breakdown_dimension_id: string | null
-          breakdown_dimension_type: string | null
           created_at: string
           created_by: string | null
+          dimension_id: string | null
+          dimension_label: string | null
+          dimension_type: string | null
           id: string
-          import_key: string | null
-          metric_id: string | null
+          import_key: string
           organization_id: string
+          period_type: string | null
           seat_id: string
-          tracked_kpi_id: string | null
         }
         Insert: {
-          breakdown_dimension_id?: string | null
-          breakdown_dimension_type?: string | null
           created_at?: string
           created_by?: string | null
+          dimension_id?: string | null
+          dimension_label?: string | null
+          dimension_type?: string | null
           id?: string
-          import_key?: string | null
-          metric_id?: string | null
+          import_key: string
           organization_id: string
+          period_type?: string | null
           seat_id: string
-          tracked_kpi_id?: string | null
         }
         Update: {
-          breakdown_dimension_id?: string | null
-          breakdown_dimension_type?: string | null
           created_at?: string
           created_by?: string | null
+          dimension_id?: string | null
+          dimension_label?: string | null
+          dimension_type?: string | null
           id?: string
-          import_key?: string | null
-          metric_id?: string | null
+          import_key?: string
           organization_id?: string
+          period_type?: string | null
           seat_id?: string
-          tracked_kpi_id?: string | null
         }
         Relationships: [
           {
@@ -3581,13 +3581,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "seat_metrics_metric_id_fkey"
-            columns: ["metric_id"]
-            isOneToOne: false
-            referencedRelation: "metrics"
             referencedColumns: ["id"]
           },
           {
@@ -3602,13 +3595,6 @@ export type Database = {
             columns: ["seat_id"]
             isOneToOne: false
             referencedRelation: "seats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "seat_metrics_tracked_kpi_id_fkey"
-            columns: ["tracked_kpi_id"]
-            isOneToOne: false
-            referencedRelation: "tracked_kpis"
             referencedColumns: ["id"]
           },
         ]
