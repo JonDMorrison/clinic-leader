@@ -8,6 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Heart, Plus, Trash2, AlertCircle } from "lucide-react";
 import { ShoutoutDialog } from "./ShoutoutDialog";
 import { formatDistanceToNow } from "date-fns";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { canDeleteOthersItems } from "@/lib/permissions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +28,8 @@ interface ShoutoutSectionProps {
 export function ShoutoutSection({ meetingId }: ShoutoutSectionProps) {
   const { shoutouts, isLoading, deleteShoutout } = useCoreValueShoutouts(meetingId);
   const { data: user } = useCurrentUser();
-  const isAdmin = user?.role === "owner" || user?.role === "director";
+  const { data: roleData } = useIsAdmin();
+  const canDeleteOthers = canDeleteOthersItems(roleData);
   
   const [showDialog, setShowDialog] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -74,7 +77,7 @@ export function ShoutoutSection({ meetingId }: ShoutoutSectionProps) {
             <ScrollArea className="max-h-[250px]">
               <div className="space-y-2">
                 {shoutouts.map((shoutout) => {
-                  const canDelete = shoutout.created_by === user?.id || isAdmin;
+                  const canDelete = shoutout.created_by === user?.id || canDeleteOthers;
 
                   return (
                     <div

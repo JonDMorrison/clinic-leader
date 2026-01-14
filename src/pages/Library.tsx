@@ -10,6 +10,8 @@ import { Playbook, PLAYBOOK_CATEGORIES } from "@/types/playbook";
 import { Search, Upload, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { canAccessAdmin } from "@/lib/permissions";
 
 export default function Library() {
   const navigate = useNavigate();
@@ -158,7 +160,9 @@ export default function Library() {
     }
   };
 
-  const isAdmin = userProfile?.role === 'owner' || userProfile?.role === 'admin';
+  // Use authoritative user_roles for permission check
+  const { data: roleData } = useIsAdmin();
+  const isAdmin = canAccessAdmin(roleData);
 
   return (
     <div className="container mx-auto py-6 px-4 max-w-7xl">

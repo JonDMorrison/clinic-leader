@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RefreshCw, Save, CheckCircle2, History, Lock, ShieldAlert, Download, Upload, ArrowRight, AlertCircle } from "lucide-react";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { canAccessAdmin } from "@/lib/permissions";
 import { useToast } from "@/hooks/use-toast";
 import { startOfWeek, subWeeks, format } from "date-fns";
 import { BackfillButton } from "@/components/scorecard/BackfillButton";
@@ -86,7 +88,9 @@ const ScorecardUpdate = () => {
     },
   });
 
-  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "director";
+  // Use authoritative user_roles for permission check
+  const { data: roleData } = useIsAdmin();
+  const isAdmin = canAccessAdmin(roleData);
 
   // Check if org uses monthly cadence (aligned mode)
   const { data: orgSettings, isLoading: orgLoading } = useQuery({

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { canManageUsers } from "@/lib/permissions";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -190,7 +192,8 @@ export default function TeamManagement() {
     }
   };
 
-  const isOwnerOrManager = currentUser?.role === "owner" || currentUser?.role === "manager";
+  const { data: roleData } = useIsAdmin();
+  const isOwnerOrManager = canManageUsers(roleData);
 
   return (
     <div className="container mx-auto p-6 max-w-7xl space-y-6">

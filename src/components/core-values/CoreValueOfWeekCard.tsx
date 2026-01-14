@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useCoreValues } from "@/hooks/useCoreValues";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sparkles, Heart } from "lucide-react";
 import { ShoutoutDialog } from "./ShoutoutDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { canAccessAdmin } from "@/lib/permissions";
 
 interface CoreValueOfWeekCardProps {
   compact?: boolean;
@@ -21,8 +22,8 @@ export function CoreValueOfWeekCard({ compact = false }: CoreValueOfWeekCardProp
     setSpotlightValue,
     seedDefaults,
   } = useCoreValues();
-  const { data: user } = useCurrentUser();
-  const isAdmin = user?.role === "owner" || user?.role === "director";
+  const { data: roleData } = useIsAdmin();
+  const isAdmin = canAccessAdmin(roleData);
   
   const [showShoutout, setShowShoutout] = useState(false);
   const [showSelector, setShowSelector] = useState(false);

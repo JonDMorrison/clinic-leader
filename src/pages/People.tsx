@@ -34,6 +34,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { canManageUsers } from "@/lib/permissions";
 
 const VALID_ROLES = ["owner", "director", "manager", "provider", "staff", "billing"] as const;
 
@@ -251,10 +253,9 @@ const People = () => {
     createUserMutation.mutate(values);
   };
 
-  const isManager =
-    currentUser?.role === "manager" ||
-    currentUser?.role === "director" ||
-    currentUser?.role === "owner";
+  // Use authoritative user_roles for permission check
+  const { data: roleData } = useIsAdmin();
+  const isManager = canManageUsers(roleData);
 
   const selectedSeat = (seats || []).find((s) => s.id === selectedSeatId) ?? null;
   const seatOptions = seats || [];
