@@ -44,6 +44,15 @@ const BREAKDOWN_METRICS = {
   jane_total_collected: ["location"], // Clinician not reliably available in payments
 };
 
+// Label fallback helpers
+function getClinicianFallbackLabel(guid: string): string {
+  return `Clinician • ${guid.slice(-6)}`;
+}
+
+function getLocationFallbackLabel(guid: string): string {
+  return `Location • ${guid.slice(-6)}`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -135,6 +144,78 @@ Deno.serve(async (req) => {
 
     const ytdNonCancelled = (ytdAppointments || []).filter(a => !a.cancelled_at);
 
+    // ========================================
+    // BUILD LABEL LOOKUP MAPS
+    // ========================================
+    
+    // Staff label map: staff_guid → staff_name (from appointments)
+    const staffLabelMap = new Map<string, string>();
+    for (const appt of [...appointments, ...(ytdAppointments || [])]) {
+      if (appt.staff_member_guid && appt.staff_member_name) {
+        staffLabelMap.set(appt.staff_member_guid, appt.staff_member_name);
+      }
+    }
+    console.log(`[jane-kpi-rollup] Built staff label map with ${staffLabelMap.size} entries`);
+
+    // Location label map: try to build from appointments location_name
+    // Since appointments use location_name as the ID (no location_guid), we'll query
+    // a reference for location_guid → location_name by looking at invoice/payment patterns
+    // For demo data, we'll fetch distinct location info and build a mapping
+    const { data: locationRefData } = await supabase
+      .from("staging_invoices_jane")
+      .select("location_guid")
+      .eq("organization_id", organization_id)
+      .limit(100);
+    
+    // Get unique location_guids and try to resolve names from known patterns
+    const locationLabelMap = new Map<string, string>();
+    const uniqueLocationGuids = new Set((locationRefData || []).map(l => l.location_guid).filter(Boolean));
+    
+    // Try to match location_guids to appointment location_names by looking at co-occurrence
+    // For each appointment location_name, check if invoices for same staff have a location_guid
+    const { data: invoiceLocationMatch } = await supabase
+      .from("staging_invoices_jane")
+      .select("location_guid, staff_member_guid")
+      .eq("organization_id", organization_id)
+      .limit(500);
+    
+    // Build staff → location_guid map from invoices
+    const staffToLocationGuid = new Map<string, string>();
+    for (const inv of invoiceLocationMatch || []) {
+      if (inv.staff_member_guid && inv.location_guid) {
+        staffToLocationGuid.set(inv.staff_member_guid, inv.location_guid);
+      }
+    }
+    
+    // Now match location_guid to location_name through staff linkage
+    for (const appt of [...appointments, ...(ytdAppointments || [])]) {
+      if (appt.staff_member_guid && appt.location_name) {
+        const locationGuid = staffToLocationGuid.get(appt.staff_member_guid);
+        if (locationGuid && !locationLabelMap.has(locationGuid)) {
+          locationLabelMap.set(locationGuid, appt.location_name);
+        }
+      }
+    }
+    
+    // Also add any location_names directly (for appointments-based breakdowns)
+    for (const appt of [...appointments, ...(ytdAppointments || [])]) {
+      if (appt.location_name) {
+        locationLabelMap.set(appt.location_name, appt.location_name);
+      }
+    }
+    
+    console.log(`[jane-kpi-rollup] Built location label map with ${locationLabelMap.size} entries`);
+
+    // Helper to get location label with fallback
+    const getLocationLabel = (locationId: string): string => {
+      return locationLabelMap.get(locationId) || getLocationFallbackLabel(locationId);
+    };
+
+    // Helper to get staff label with fallback
+    const getStaffLabel = (staffGuid: string): string => {
+      return staffLabelMap.get(staffGuid) || getClinicianFallbackLabel(staffGuid);
+    };
+
     // KPI 1: Total Visits
     rollups.push({
       metric_name: "Total Visits",
@@ -167,7 +248,7 @@ Deno.serve(async (req) => {
           } else {
             visitsByClinician.set(appt.staff_member_guid, {
               count: 1,
-              label: appt.staff_member_name || `Provider ${appt.staff_member_guid.slice(-6)}`,
+              label: appt.staff_member_name || getStaffLabel(appt.staff_member_guid),
             });
           }
         }
@@ -359,7 +440,7 @@ Deno.serve(async (req) => {
           } else {
             collectedByLocation.set(locationId, {
               amount,
-              label: `Location ${locationId.slice(-6)}`,
+              label: getLocationLabel(locationId),
             });
           }
         }
@@ -441,7 +522,7 @@ Deno.serve(async (req) => {
           } else {
             invoicedByClinician.set(inv.staff_member_guid, {
               amount,
-              label: inv.staff_member_name || `Provider ${inv.staff_member_guid.slice(-6)}`,
+              label: inv.staff_member_name || getStaffLabel(inv.staff_member_guid),
             });
           }
         }
@@ -472,7 +553,7 @@ Deno.serve(async (req) => {
           } else {
             invoicedByLocation.set(locationId, {
               amount,
-              label: `Location ${locationId.slice(-6)}`,
+              label: getLocationLabel(locationId),
             });
           }
         }
