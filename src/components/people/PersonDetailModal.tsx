@@ -11,12 +11,14 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trash2, ChevronDown, Target, AlertCircle, CheckCircle2, Calendar, Plus } from "lucide-react";
+import { Trash2, ChevronDown, Target, AlertCircle, CheckCircle2, Calendar, Plus, Activity, DollarSign, TrendingUp, TrendingDown, Link2, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { GWCAssessmentForm } from "./GWCAssessmentForm";
 import { GWCAssessmentHistory } from "./GWCAssessmentHistory";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useUserMetrics } from "@/hooks/useUserMetrics";
+import { useNavigate } from "react-router-dom";
 
 interface PersonDetailModalProps {
   userId: string | null;
@@ -44,10 +46,17 @@ interface ValueRatingData {
 export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate }: PersonDetailModalProps) {
   const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser();
+  const navigate = useNavigate();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [localNotes, setLocalNotes] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [showAssessmentForm, setShowAssessmentForm] = useState(false);
+  
+  // Fetch user's linked metrics
+  const { summary: userMetrics, isLinked: hasLinkedMetrics } = useUserMetrics(
+    userId || undefined,
+    currentUser?.team_id
+  );
 
   // Fetch user data
   const { data: user, isLoading: userLoading } = useQuery({
@@ -377,6 +386,108 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
                 </div>
               </div>
             </div>
+
+            {/* Your Numbers - EOS Principle: Everyone Has a Number */}
+            {hasLinkedMetrics && (
+              <div className="p-4 border rounded-lg bg-card">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold">Your Numbers</h3>
+                  </div>
+                  {userMetrics.dimensionLabel && (
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <Link2 className="h-3 w-3" />
+                      {userMetrics.dimensionLabel}
+                    </Badge>
+                  )}
+                </div>
+                
+                {userMetrics.totalVisits !== null || userMetrics.totalInvoiced !== null ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    {userMetrics.totalVisits !== null && (
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Activity className="h-4 w-4 text-primary" />
+                          <span className="text-sm text-muted-foreground">Visits This Week</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold">{userMetrics.totalVisits}</span>
+                          {userMetrics.visitsTrend !== null && (
+                            <span className={`flex items-center gap-0.5 text-sm ${
+                              userMetrics.visitsTrend > 0 
+                                ? "text-emerald-600 dark:text-emerald-400" 
+                                : userMetrics.visitsTrend < 0 
+                                  ? "text-destructive" 
+                                  : "text-muted-foreground"
+                            }`}>
+                              {userMetrics.visitsTrend > 0 ? (
+                                <TrendingUp className="h-4 w-4" />
+                              ) : userMetrics.visitsTrend < 0 ? (
+                                <TrendingDown className="h-4 w-4" />
+                              ) : null}
+                              {userMetrics.visitsTrend !== 0 && `${Math.abs(userMetrics.visitsTrend)}%`}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">vs last week</div>
+                      </div>
+                    )}
+                    
+                    {userMetrics.totalInvoiced !== null && (
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <DollarSign className="h-4 w-4 text-primary" />
+                          <span className="text-sm text-muted-foreground">Invoiced This Week</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold">
+                            ${userMetrics.totalInvoiced >= 1000 
+                              ? `${(userMetrics.totalInvoiced / 1000).toFixed(1)}k`
+                              : userMetrics.totalInvoiced.toFixed(0)
+                            }
+                          </span>
+                          {userMetrics.invoicedTrend !== null && (
+                            <span className={`flex items-center gap-0.5 text-sm ${
+                              userMetrics.invoicedTrend > 0 
+                                ? "text-emerald-600 dark:text-emerald-400" 
+                                : userMetrics.invoicedTrend < 0 
+                                  ? "text-destructive" 
+                                  : "text-muted-foreground"
+                            }`}>
+                              {userMetrics.invoicedTrend > 0 ? (
+                                <TrendingUp className="h-4 w-4" />
+                              ) : userMetrics.invoicedTrend < 0 ? (
+                                <TrendingDown className="h-4 w-4" />
+                              ) : null}
+                              {userMetrics.invoicedTrend !== 0 && `${Math.abs(userMetrics.invoicedTrend)}%`}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">vs last week</div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    Linked to clinician data, but no metrics available for this week.
+                  </div>
+                )}
+                
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="mt-3 w-full"
+                  onClick={() => {
+                    onClose();
+                    navigate("/data");
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  View Full Data Breakdown
+                </Button>
+              </div>
+            )}
 
             {/* Seat Assignment */}
             {user.seats && Array.isArray(user.seats) && user.seats.length > 0 && (
