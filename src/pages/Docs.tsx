@@ -25,6 +25,8 @@ import { UploadPlaybookModal } from "@/components/playbooks/UploadPlaybookModal"
 import { Playbook, PLAYBOOK_CATEGORIES } from "@/types/playbook";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { canManageDocs } from "@/lib/permissions";
 import { useAutoOcr } from "@/hooks/useAutoOcr";
 import { seedDefaultSopsForOrg } from "@/lib/docs/seedDefaultSops";
 import { toast } from "sonner";
@@ -192,7 +194,9 @@ const Docs = () => {
     });
   }, [docs, kindFilter, ownerFilter]);
 
-  const isManager = currentUser?.role === "manager" || currentUser?.role === "director" || currentUser?.role === "owner";
+  // Use authoritative user_roles for permission check
+  const { data: roleData } = useIsAdmin();
+  const isManager = canManageDocs(roleData);
 
   const handleCreateDoc = () => {
     setSelectedDoc(null);
@@ -429,7 +433,7 @@ const Docs = () => {
     }
   };
 
-  const isAdmin = currentUser?.role === 'owner';
+  const isAdmin = roleData?.isAdmin ?? false;
 
   return (
     <div className="space-y-6">

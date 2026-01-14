@@ -16,6 +16,8 @@ import { Users, CheckCircle, Clock, TrendingUp, RefreshCw } from "lucide-react";
 import { userTourService } from "@/lib/userTourService";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { canAccessAdmin } from "@/lib/permissions";
 
 export default function OnboardingAnalytics() {
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -70,8 +72,9 @@ export default function OnboardingAnalytics() {
     setIsRefreshing(false);
   };
 
-  // Check if user is admin
-  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "director";
+  // Check if user is admin using authoritative user_roles
+  const { data: roleData } = useIsAdmin();
+  const isAdmin = canAccessAdmin(roleData);
 
   if (!isAdmin) {
     return (

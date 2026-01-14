@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { HelpHint } from "@/components/help/HelpHint";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { canGenerateReports } from "@/lib/permissions";
 
 const Reports = () => {
   const [periodFilter, setPeriodFilter] = useState<"all" | "weekly" | "monthly">("all");
@@ -92,7 +94,8 @@ const Reports = () => {
     }
   };
 
-  const canGenerate = currentUser?.role === "owner" || currentUser?.role === "director" || currentUser?.role === "manager";
+  const { data: roleData } = useIsAdmin();
+  const canGenerate = canGenerateReports(roleData);
 
   return (
     <div className="space-y-6">

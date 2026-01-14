@@ -3,30 +3,15 @@ import { Button } from "@/components/ui/button";
 import { RulesEnginePanel } from "@/components/settings/RulesEnginePanel";
 import { useNavigate } from "react-router-dom";
 import { Palette, Shield, Users, Building2, TrendingUp, FileText, GraduationCap, Plug, UserCircle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { canAccessAdmin } from "@/lib/permissions";
 
 const Settings = () => {
   const navigate = useNavigate();
 
-  // Fetch current user's role
-  const { data: currentUser } = useQuery({
-    queryKey: ["current-user"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
-
-      return data;
-    },
-  });
-
-  const isAdmin = currentUser?.role === "owner" || currentUser?.role === "director";
+  // Use authoritative user_roles via hook
+  const { data: roleData } = useIsAdmin();
+  const isAdmin = canAccessAdmin(roleData);
 
   return (
     <div className="space-y-6">

@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useCoreValues } from "@/hooks/useCoreValues";
 import type { CoreValue } from "@/lib/core-values/types";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Settings, Heart, Sparkles } from "lucide-react";
 import { CoreValueEditDialog } from "./CoreValueEditDialog";
 import { ShoutoutDialog } from "./ShoutoutDialog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { canAccessAdmin } from "@/lib/permissions";
 
 interface CoreValuesStripProps {
   showEditButton?: boolean;
@@ -16,8 +17,8 @@ interface CoreValuesStripProps {
 
 export function CoreValuesStrip({ showEditButton = true, compact = false }: CoreValuesStripProps) {
   const { activeValues, isLoading, seedDefaults } = useCoreValues();
-  const { data: user } = useCurrentUser();
-  const isAdmin = user?.role === "owner" || user?.role === "director";
+  const { data: roleData } = useIsAdmin();
+  const isAdmin = canAccessAdmin(roleData);
   
   const [selectedValue, setSelectedValue] = useState<CoreValue | null>(null);
   const [showEdit, setShowEdit] = useState(false);
