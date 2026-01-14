@@ -3538,6 +3538,81 @@ export type Database = {
           },
         ]
       }
+      seat_metrics: {
+        Row: {
+          breakdown_dimension_id: string | null
+          breakdown_dimension_type: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          import_key: string | null
+          metric_id: string | null
+          organization_id: string
+          seat_id: string
+          tracked_kpi_id: string | null
+        }
+        Insert: {
+          breakdown_dimension_id?: string | null
+          breakdown_dimension_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          import_key?: string | null
+          metric_id?: string | null
+          organization_id: string
+          seat_id: string
+          tracked_kpi_id?: string | null
+        }
+        Update: {
+          breakdown_dimension_id?: string | null
+          breakdown_dimension_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          import_key?: string | null
+          metric_id?: string | null
+          organization_id?: string
+          seat_id?: string
+          tracked_kpi_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seat_metrics_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seat_metrics_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seat_metrics_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seat_metrics_seat_id_fkey"
+            columns: ["seat_id"]
+            isOneToOne: false
+            referencedRelation: "seats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seat_metrics_tracked_kpi_id_fkey"
+            columns: ["tracked_kpi_id"]
+            isOneToOne: false
+            referencedRelation: "tracked_kpis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seat_users: {
         Row: {
           created_at: string

@@ -18,15 +18,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { 
   UserCog, MapPin, Stethoscope, Calendar, CalendarDays, TrendingUp, 
-  X, ChevronDown, MoreHorizontal, AlertTriangle, Plus 
+  X, ChevronDown, MoreHorizontal, AlertTriangle, Plus, User, Armchair 
 } from "lucide-react";
 import { format, startOfWeek } from "date-fns";
 import { CreateIssueFromBreakdownModal } from "./CreateIssueFromBreakdownModal";
 import { AddBreakdownToScorecardModal } from "./AddBreakdownToScorecardModal";
+import { LinkBreakdownToPersonModal } from "./LinkBreakdownToPersonModal";
+import { LinkBreakdownToSeatModal } from "./LinkBreakdownToSeatModal";
 
 interface BreakdownData {
   dimension_type: string;
@@ -93,6 +96,14 @@ export function InlineMetricBreakdownPanel({
     item: null,
   });
   const [scorecardModal, setScorecardModal] = useState<{ open: boolean; item: BreakdownData | null }>({
+    open: false,
+    item: null,
+  });
+  const [personModal, setPersonModal] = useState<{ open: boolean; item: BreakdownData | null }>({
+    open: false,
+    item: null,
+  });
+  const [seatModal, setSeatModal] = useState<{ open: boolean; item: BreakdownData | null }>({
     open: false,
     item: null,
   });
@@ -289,6 +300,15 @@ export function InlineMetricBreakdownPanel({
                             <AlertTriangle className="w-4 h-4 mr-2" />
                             Create Issue
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => setPersonModal({ open: true, item })}>
+                            <User className="w-4 h-4 mr-2" />
+                            Link to Person
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSeatModal({ open: true, item })}>
+                            <Armchair className="w-4 h-4 mr-2" />
+                            Link to Seat
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -354,6 +374,31 @@ export function InlineMetricBreakdownPanel({
           dimensionType={getDimensionTypeLabel(selectedDimension)}
           dimensionLabel={scorecardModal.item.dimension_label}
           unit={unit}
+        />
+      )}
+
+      {/* Link to Person Modal */}
+      {personModal.item && (
+        <LinkBreakdownToPersonModal
+          open={personModal.open}
+          onClose={() => setPersonModal({ open: false, item: null })}
+          dimensionId={personModal.item.dimension_id}
+          dimensionLabel={personModal.item.dimension_label}
+          dimensionType={selectedDimension}
+          importKey={importKey}
+        />
+      )}
+
+      {/* Link to Seat Modal */}
+      {seatModal.item && (
+        <LinkBreakdownToSeatModal
+          open={seatModal.open}
+          onClose={() => setSeatModal({ open: false, item: null })}
+          dimensionId={seatModal.item.dimension_id}
+          dimensionLabel={seatModal.item.dimension_label}
+          dimensionType={selectedDimension}
+          importKey={importKey}
+          parentMetricName={metricName}
         />
       )}
     </div>
