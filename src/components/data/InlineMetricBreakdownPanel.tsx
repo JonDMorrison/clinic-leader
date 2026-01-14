@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -14,8 +14,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { UserCog, MapPin, Stethoscope, Calendar, CalendarDays, TrendingUp, X, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { 
+  UserCog, MapPin, Stethoscope, Calendar, CalendarDays, TrendingUp, 
+  X, ChevronDown, MoreHorizontal, AlertTriangle, Plus 
+} from "lucide-react";
 import { format, startOfWeek } from "date-fns";
+import { CreateIssueFromBreakdownModal } from "./CreateIssueFromBreakdownModal";
+import { AddBreakdownToScorecardModal } from "./AddBreakdownToScorecardModal";
 
 interface BreakdownData {
   dimension_type: string;
@@ -75,6 +86,16 @@ export function InlineMetricBreakdownPanel({
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("weekly");
   const [selectedDimension, setSelectedDimension] = useState(defaultDimension);
   const [showAll, setShowAll] = useState(false);
+  
+  // Modal states for actions
+  const [issueModal, setIssueModal] = useState<{ open: boolean; item: BreakdownData | null }>({
+    open: false,
+    item: null,
+  });
+  const [scorecardModal, setScorecardModal] = useState<{ open: boolean; item: BreakdownData | null }>({
+    open: false,
+    item: null,
+  });
 
   // Calculate the period key that matches what jane-kpi-rollup writes
   const periodKey = useMemo(() => {
@@ -86,6 +107,18 @@ export function InlineMetricBreakdownPanel({
       return format(now, "yyyy-MM");
     } else {
       return `${now.getFullYear()}-YTD`;
+    }
+  }, [selectedPeriod]);
+
+  // Get period label for display
+  const periodLabel = useMemo(() => {
+    const now = new Date();
+    if (selectedPeriod === "weekly") {
+      return `Week of ${format(startOfWeek(now, { weekStartsOn: 1 }), "MMM d, yyyy")}`;
+    } else if (selectedPeriod === "monthly") {
+      return format(now, "MMMM yyyy");
+    } else {
+      return `${now.getFullYear()} YTD`;
     }
   }, [selectedPeriod]);
 
@@ -145,6 +178,10 @@ export function InlineMetricBreakdownPanel({
   const total = getTotalForDimension(selectedDimension);
   const displayItems = showAll ? items : items.slice(0, 10);
   const hasMore = items.length > 10;
+
+  const getDimensionTypeLabel = (dimensionType: string): string => {
+    return DIMENSION_CONFIG[dimensionType]?.label || dimensionType;
+  };
 
   return (
     <div className="bg-muted/30 border-x border-b rounded-b-lg p-4 -mt-px">
@@ -214,6 +251,7 @@ export function InlineMetricBreakdownPanel({
                 <TableHead className="text-xs h-8">Name</TableHead>
                 <TableHead className="text-right text-xs h-8">Value</TableHead>
                 <TableHead className="text-right w-[80px] text-xs h-8">% of Total</TableHead>
+                <TableHead className="w-[50px] text-xs h-8">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -235,6 +273,25 @@ export function InlineMetricBreakdownPanel({
                         {percentage.toFixed(1)}%
                       </Badge>
                     </TableCell>
+                    <TableCell className="py-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setScorecardModal({ open: true, item })}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add to Scorecard
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setIssueModal({ open: true, item })}>
+                            <AlertTriangle className="w-4 h-4 mr-2" />
+                            Create Issue
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -250,6 +307,7 @@ export function InlineMetricBreakdownPanel({
                     100%
                   </Badge>
                 </TableCell>
+                <TableCell className="py-2"></TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -269,6 +327,34 @@ export function InlineMetricBreakdownPanel({
             </div>
           )}
         </div>
+      )}
+
+      {/* Create Issue Modal */}
+      {issueModal.item && (
+        <CreateIssueFromBreakdownModal
+          open={issueModal.open}
+          onClose={() => setIssueModal({ open: false, item: null })}
+          organizationId={organizationId}
+          parentMetricName={metricName}
+          dimensionType={getDimensionTypeLabel(selectedDimension)}
+          dimensionLabel={issueModal.item.dimension_label}
+          dimensionValue={issueModal.item.value}
+          unit={unit}
+          periodLabel={periodLabel}
+          periodKey={periodKey}
+        />
+      )}
+
+      {/* Add to Scorecard Modal */}
+      {scorecardModal.item && (
+        <AddBreakdownToScorecardModal
+          open={scorecardModal.open}
+          onClose={() => setScorecardModal({ open: false, item: null })}
+          parentMetricName={metricName}
+          dimensionType={getDimensionTypeLabel(selectedDimension)}
+          dimensionLabel={scorecardModal.item.dimension_label}
+          unit={unit}
+        />
       )}
     </div>
   );
