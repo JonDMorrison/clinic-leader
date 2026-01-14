@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -48,12 +49,24 @@ const userSchema = z.object({
 type UserFormValues = z.infer<typeof userSchema>;
 
 const People = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [seatManagementOpen, setSeatManagementOpen] = useState(false);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
   const [seatDetailOpen, setSeatDetailOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Get userId from URL for deep linking
+  const initialUserId = searchParams.get("userId");
+  
+  const handleInitialUserHandled = useCallback(() => {
+    // Clear the URL param after handling
+    if (searchParams.has("userId")) {
+      searchParams.delete("userId");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
@@ -469,6 +482,8 @@ const People = () => {
                 refetchUsers();
               }}
               isManager={isManager}
+              initialUserId={initialUserId}
+              onInitialUserHandled={handleInitialUserHandled}
             />
           </div>
         </div>
