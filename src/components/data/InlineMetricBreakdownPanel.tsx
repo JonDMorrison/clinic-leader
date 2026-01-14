@@ -35,6 +35,7 @@ import { MapClinicianToUserModal } from "./MapClinicianToUserModal";
 import { ClinicianMappingIndicator } from "./ClinicianMappingIndicator";
 import { useClinicianMappings } from "@/hooks/useClinicianMappings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { toast } from "sonner";
 
 interface BreakdownData {
@@ -99,8 +100,9 @@ export function InlineMetricBreakdownPanel({
   const [selectedDimension, setSelectedDimension] = useState(defaultDimension);
   const [showAll, setShowAll] = useState(false);
   
-  // Check if current user is a manager
-  const isManager = currentUser?.role === "manager" || currentUser?.role === "director" || currentUser?.role === "owner";
+  // Check if current user can manage users (managers & admins) - uses authoritative user_roles table
+  const { data: roleData } = useIsAdmin();
+  const canManageUsers = roleData?.isManager ?? false;
   
   // Modal states for actions
   const [issueModal, setIssueModal] = useState<{ open: boolean; item: BreakdownData | null }>({
@@ -345,7 +347,7 @@ export function InlineMetricBreakdownPanel({
                           onViewPerson={handleViewPerson}
                           onMapClinician={() => setMapClinicianModal({ open: true, item })}
                           onUnmapClinician={handleUnmapClinician}
-                          canManageUsers={isManager}
+                          canManageUsers={canManageUsers}
                         />
                       </TableCell>
                     )}
