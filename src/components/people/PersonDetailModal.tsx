@@ -11,14 +11,16 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trash2, ChevronDown, Target, AlertCircle, CheckCircle2, Calendar, Plus, Activity, DollarSign, TrendingUp, TrendingDown, Link2, ExternalLink } from "lucide-react";
+import { Trash2, ChevronDown, Target, AlertCircle, CheckCircle2, Calendar, Plus, Activity, DollarSign, TrendingUp, TrendingDown, Link2, ExternalLink, User2, Armchair } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { GWCAssessmentForm } from "./GWCAssessmentForm";
 import { GWCAssessmentHistory } from "./GWCAssessmentHistory";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useUserMetrics } from "@/hooks/useUserMetrics";
+import { useUserSeatMetrics } from "@/hooks/useSeatMetrics";
 import { useNavigate } from "react-router-dom";
+import { LinkToJaneClinicianModal } from "./LinkToJaneClinicianModal";
 
 interface PersonDetailModalProps {
   userId: string | null;
@@ -51,6 +53,13 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
   const [localNotes, setLocalNotes] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [showAssessmentForm, setShowAssessmentForm] = useState(false);
+  const [showLinkClinicianModal, setShowLinkClinicianModal] = useState(false);
+  
+  // Fetch user's seat metrics (accountability)
+  const { metrics: seatMetrics, seats: userSeats, isLoading: loadingSeatMetrics } = useUserSeatMetrics(
+    userId || undefined,
+    currentUser?.team_id
+  );
   
   // Fetch user's linked metrics
   const { summary: userMetrics, isLinked: hasLinkedMetrics } = useUserMetrics(
@@ -387,20 +396,39 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
               </div>
             </div>
 
-            {/* Your Numbers - EOS Principle: Everyone Has a Number */}
+            {/* Identity Mapping: Link to Jane Clinician */}
+            <div className="p-4 border rounded-lg bg-card">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <User2 className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">Clinician Identity</h3>
+                </div>
+                {isManager && (
+                  <Button variant="outline" size="sm" onClick={() => setShowLinkClinicianModal(true)}>
+                    <Link2 className="h-3 w-3 mr-1" />
+                    {hasLinkedMetrics ? "Change" : "Link"}
+                  </Button>
+                )}
+              </div>
+              {hasLinkedMetrics ? (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Linked to: </span>
+                  <Badge variant="secondary">{userMetrics.dimensionLabel}</Badge>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Not linked to any Jane clinician data.</p>
+              )}
+            </div>
+
+            {/* My Clinician Numbers (Attribution) */}
             {hasLinkedMetrics && (
               <div className="p-4 border rounded-lg bg-card">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Activity className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Your Numbers</h3>
+                    <h3 className="font-semibold">My Clinician Numbers</h3>
                   </div>
-                  {userMetrics.dimensionLabel && (
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <Link2 className="h-3 w-3" />
-                      {userMetrics.dimensionLabel}
-                    </Badge>
-                  )}
+                  <Badge variant="outline" className="text-xs">Attribution</Badge>
                 </div>
                 
                 {userMetrics.totalVisits !== null || userMetrics.totalInvoiced !== null ? (
@@ -486,6 +514,37 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
                   <ExternalLink className="h-4 w-4 mr-2" />
                   View Full Data Breakdown
                 </Button>
+              </div>
+            )}
+
+            {/* My Seat Numbers (Accountability) */}
+            {seatMetrics.length > 0 && (
+              <div className="p-4 border rounded-lg bg-card">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Armchair className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold">My Seat Numbers</h3>
+                  </div>
+                  <Badge variant="outline" className="text-xs">Accountability</Badge>
+                </div>
+                <div className="space-y-2">
+                  {seatMetrics.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                      <div>
+                        <span className="text-sm font-medium">{m.dimension_label || m.import_key.replace(/^jane_/, "").replace(/_/g, " ")}</span>
+                        <span className="text-xs text-muted-foreground ml-2">({m.seatTitle})</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold">{m.currentValue ?? "—"}</span>
+                        {m.trend !== null && m.trend !== 0 && (
+                          <span className={m.trend > 0 ? "text-emerald-600" : "text-destructive"}>
+                            {m.trend > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -731,6 +790,15 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Link to Jane Clinician Modal */}
+      <LinkToJaneClinicianModal
+        open={showLinkClinicianModal}
+        onClose={() => setShowLinkClinicianModal(false)}
+        userId={userId}
+        userName={user.full_name}
+        currentJaneGuid={user.jane_staff_member_guid}
+      />
     </>
   );
 }
