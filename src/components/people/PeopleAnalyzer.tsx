@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { PersonDetailModal } from "./PersonDetailModal";
 import { UserMetricsBadge } from "./UserMetricsBadge";
 import { useUsersMetrics } from "@/hooks/useUserMetrics";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { toast } from "sonner";
 
 interface User {
   id: string;
@@ -52,24 +53,46 @@ export function PeopleAnalyzer({
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { data: currentUser } = useCurrentUser();
+  const handledUserIdRef = useRef<string | null>(null);
   
   // Fetch metrics for all users in bulk
   const userIds = users.map((u) => u.id);
   const { metricsMap } = useUsersMetrics(userIds, currentUser?.team_id);
 
-  // Handle initial user deep link
+  // Handle initial user deep link - reacts to URL param changes
   useEffect(() => {
-    if (initialUserId && users.length > 0) {
-      // Verify the user exists in the list
-      const userExists = users.some((u) => u.id === initialUserId);
-      if (userExists) {
-        setSelectedUserId(initialUserId);
-        setIsModalOpen(true);
-      }
-      // Notify parent that we've handled the initial user
-      onInitialUserHandled?.();
+    // Skip if no initialUserId or users haven't loaded yet
+    if (!initialUserId || users.length === 0) return;
+    
+    // Skip if we've already handled this exact userId
+    if (handledUserIdRef.current === initialUserId) return;
+    
+    // Mark as handled
+    handledUserIdRef.current = initialUserId;
+    
+    // Verify the user exists in the org's user list
+    const userExists = users.some((u) => u.id === initialUserId);
+    
+    if (userExists) {
+      setSelectedUserId(initialUserId);
+      setIsModalOpen(true);
+    } else {
+      // User not found in this org - show toast
+      toast.error("Person not found", {
+        description: "The requested team member could not be found in your organization.",
+      });
     }
+    
+    // Notify parent that we've handled the initial user
+    onInitialUserHandled?.();
   }, [initialUserId, users, onInitialUserHandled]);
+
+  // Reset handled ref when initialUserId changes to a new value (allows re-navigation)
+  useEffect(() => {
+    if (initialUserId !== handledUserIdRef.current) {
+      handledUserIdRef.current = null;
+    }
+  }, [initialUserId]);
 
   const handleOpenModal = (userId: string) => {
     setSelectedUserId(userId);
