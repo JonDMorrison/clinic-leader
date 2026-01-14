@@ -61,12 +61,11 @@ import {
   FileSpreadsheet,
   TrendingUp,
   GripVertical,
-  BarChart3,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { AddJaneMetricModal } from "@/components/data/AddJaneMetricModal";
 import { CreateIssueFromMetricModal } from "@/components/scorecard/CreateIssueFromMetricModal";
-import { MetricBreakdownModal } from "@/components/data/MetricBreakdownModal";
+import { InlineMetricBreakdownPanel } from "@/components/data/InlineMetricBreakdownPanel";
 import { format, startOfWeek, startOfYear, subWeeks, subMonths } from "date-fns";
 import type { MetricStatus } from "@/lib/scorecard/metricStatus";
 
@@ -178,28 +177,30 @@ function SortableMetricRow({
   isHidden,
   isExpanded,
   hasDimensions,
+  hasBreakdownExpanded,
   formatValue,
   getStatusBadge,
   toggleExpanded,
+  toggleBreakdownExpanded,
   handleAddToScorecard,
   handleCreateIssue,
   handleHide,
   handleUnhide,
-  handleViewBreakdown,
 }: {
   metric: DataMetric;
   isChild: boolean;
   isHidden: boolean;
   isExpanded: boolean;
   hasDimensions: boolean;
+  hasBreakdownExpanded: boolean;
   formatValue: (value: number | null | undefined, unit: string) => string;
   getStatusBadge: (metric: DataMetric, isChild?: boolean) => React.ReactNode;
   toggleExpanded: (name: string) => void;
+  toggleBreakdownExpanded: (importKey: string) => void;
   handleAddToScorecard: (metric: DataMetric) => void;
   handleCreateIssue: (metric: DataMetric) => void;
   handleHide: (resourceKey: string) => void;
   handleUnhide: (resourceKey: string) => void;
-  handleViewBreakdown: (metric: DataMetric) => void;
 }) {
   const {
     attributes,
@@ -217,12 +218,13 @@ function SortableMetricRow({
   };
 
   const CategoryIcon = CATEGORY_ICONS[metric.category] || FileSpreadsheet;
+  const hasBreakdown = metric.hasBreakdown && metric.importKey;
 
   return (
     <tr
       ref={setNodeRef}
       style={style}
-      className={`border-b transition-colors hover:bg-muted/50 ${isHidden ? 'bg-muted/20' : ''} ${isChild ? 'bg-muted/10' : ''} ${isDragging ? 'bg-muted' : ''}`}
+      className={`border-b transition-colors hover:bg-muted/50 ${isHidden ? 'bg-muted/20' : ''} ${isChild ? 'bg-muted/10' : ''} ${isDragging ? 'bg-muted' : ''} ${hasBreakdownExpanded ? 'border-b-0' : ''}`}
     >
       <TableCell className="font-medium">
         <div className={`flex items-center gap-2 ${isChild ? 'pl-8' : ''}`}>
@@ -236,7 +238,22 @@ function SortableMetricRow({
             </button>
           )}
           {isChild && <div className="w-6" />}
-          {hasDimensions && !isChild && (
+          
+          {/* Breakdown chevron - only for metrics with breakdowns */}
+          {hasBreakdown && !isChild ? (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-5 w-5 p-0"
+              onClick={() => toggleBreakdownExpanded(metric.importKey!)}
+            >
+              {hasBreakdownExpanded ? (
+                <ChevronDown className="w-4 h-4 text-primary" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+            </Button>
+          ) : hasDimensions && !isChild ? (
             <Button 
               variant="ghost" 
               size="icon" 
@@ -249,8 +266,10 @@ function SortableMetricRow({
                 <ChevronRight className="w-4 h-4" />
               )}
             </Button>
-          )}
-          {!hasDimensions && !isChild && <div className="w-5" />}
+          ) : !isChild ? (
+            <div className="w-5" />
+          ) : null}
+          
           <CategoryIcon className="w-4 h-4 text-muted-foreground" />
           <span>{metric.dimensionValue || metric.name}</span>
         </div>
@@ -278,15 +297,6 @@ function SortableMetricRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {metric.hasBreakdown && metric.metricId && (
-              <>
-                <DropdownMenuItem onClick={() => handleViewBreakdown(metric)}>
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  View Breakdown
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
             {!metric.isTracked && !metric.comingSoon && (
               <DropdownMenuItem onClick={() => handleAddToScorecard(metric)}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -324,6 +334,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
   const { hiddenResources, hideResource, unhideResource } = useHiddenJaneResources();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedMetrics, setExpandedMetrics] = useState<Set<string>>(new Set());
+  const [expandedBreakdowns, setExpandedBreakdowns] = useState<Set<string>>(new Set()); // NEW: for inline breakdowns
   const [metricOrder, setMetricOrder] = useState<string[]>([]);
   const [addMetricModal, setAddMetricModal] = useState<{
     open: boolean;
@@ -331,10 +342,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     metricName: string;
   }>({ open: false, resourceKey: "", metricName: "" });
   const [createIssueModal, setCreateIssueModal] = useState<{
-    open: boolean;
-    metric: DataMetric | null;
-  }>({ open: false, metric: null });
-  const [breakdownModal, setBreakdownModal] = useState<{
     open: boolean;
     metric: DataMetric | null;
   }>({ open: false, metric: null });
@@ -664,6 +671,17 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     setExpandedMetrics(newExpanded);
   };
 
+  // NEW: Toggle breakdown expansion for inline panels
+  const toggleBreakdownExpanded = (importKey: string) => {
+    const newExpanded = new Set(expandedBreakdowns);
+    if (newExpanded.has(importKey)) {
+      newExpanded.delete(importKey);
+    } else {
+      newExpanded.add(importKey);
+    }
+    setExpandedBreakdowns(newExpanded);
+  };
+
   const handleAddToScorecard = (metric: DataMetric) => {
     setAddMetricModal({
       open: true,
@@ -684,10 +702,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
 
   const handleUnhide = (resourceKey: string) => {
     unhideResource(resourceKey);
-  };
-
-  const handleViewBreakdown = (metric: DataMetric) => {
-    setBreakdownModal({ open: true, metric });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -752,6 +766,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
                   const isExpanded = expandedMetrics.has(metric.name);
                   const hasDimensions = metric.isDimensional && metric.dimensions && metric.dimensions.length > 0;
                   const isHidden = metric.resourceKey ? hiddenResources.includes(metric.resourceKey) : false;
+                  const isBreakdownExpanded = metric.importKey ? expandedBreakdowns.has(metric.importKey) : false;
 
                   return (
                     <AnimatePresence key={metric.id} mode="popLayout">
@@ -761,15 +776,30 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
                         isHidden={isHidden}
                         isExpanded={isExpanded}
                         hasDimensions={hasDimensions}
+                        hasBreakdownExpanded={isBreakdownExpanded}
                         formatValue={formatValue}
                         getStatusBadge={getStatusBadge}
                         toggleExpanded={toggleExpanded}
+                        toggleBreakdownExpanded={toggleBreakdownExpanded}
                         handleAddToScorecard={handleAddToScorecard}
                         handleCreateIssue={handleCreateIssue}
                         handleHide={handleHide}
                         handleUnhide={handleUnhide}
-                        handleViewBreakdown={handleViewBreakdown}
                       />
+                      {/* Render inline breakdown panel if expanded */}
+                      {isBreakdownExpanded && metric.importKey && currentUser?.team_id && (
+                        <tr>
+                          <td colSpan={7} className="p-0">
+                            <InlineMetricBreakdownPanel
+                              importKey={metric.importKey}
+                              metricName={metric.name}
+                              unit={metric.unit}
+                              organizationId={currentUser.team_id}
+                              onClose={() => toggleBreakdownExpanded(metric.importKey!)}
+                            />
+                          </td>
+                        </tr>
+                      )}
                       {/* Render child rows if expanded */}
                       {isExpanded && hasDimensions && metric.dimensions!.map((dim) => {
                         const childMetricName = `${metric.name} - ${dim.label}`;
@@ -797,14 +827,15 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
                             isHidden={false}
                             isExpanded={false}
                             hasDimensions={false}
+                            hasBreakdownExpanded={false}
                             formatValue={formatValue}
                             getStatusBadge={getStatusBadge}
                             toggleExpanded={toggleExpanded}
+                            toggleBreakdownExpanded={toggleBreakdownExpanded}
                             handleAddToScorecard={handleAddToScorecard}
                             handleCreateIssue={handleCreateIssue}
                             handleHide={handleHide}
                             handleUnhide={handleUnhide}
-                            handleViewBreakdown={handleViewBreakdown}
                           />
                         );
                       })}
@@ -852,17 +883,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
         />
       )}
 
-      {/* Metric Breakdown Modal */}
-      {breakdownModal.metric && currentUser?.team_id && (
-        <MetricBreakdownModal
-          open={breakdownModal.open}
-          onOpenChange={(open) => setBreakdownModal({ open, metric: open ? breakdownModal.metric : null })}
-          metricName={breakdownModal.metric.name}
-          importKey={breakdownModal.metric.importKey || ""}
-          organizationId={currentUser.team_id}
-          unit={breakdownModal.metric.unit}
-        />
-      )}
     </div>
   );
 }
