@@ -11,6 +11,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { getNavPermissionLevel, canSeeNavItem } from "@/lib/permissions";
 
 type NavChild = {
   title: string;
@@ -99,21 +101,16 @@ const navGroups: NavGroup[] = [
 
 export const Sidebar = () => {
   const location = useLocation();
+  // Fetch team_id only (role comes from useIsAdmin hook)
   const { data: currentUser } = useQuery({
-    queryKey: ["currentUser"],
+    queryKey: ["currentUser-teamId"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Use security-definer RPCs to avoid RLS issues
-      const { data: roleResult } = await supabase.rpc("get_user_role", { _user_id: user.id });
-      const role = (roleResult as string) || "staff";
-
       const { data: teamId } = await supabase.rpc("current_user_team");
 
       return {
-        ...user,
-        role,
         team_id: teamId as string | null,
       };
     },
@@ -135,15 +132,17 @@ export const Sidebar = () => {
     enabled: !!currentUser?.team_id,
   });
 
-  const userRole = currentUser?.role || "staff";
+  // Use authoritative user_roles via useIsAdmin hook
+  const { data: roleData } = useIsAdmin();
   const eosEnabled = team?.eos_enabled || false;
 
-  // Filter groups and items based on role and EOS status
+  // Filter groups and items based on role permissions and EOS status
   const filteredGroups = navGroups.map(group => ({
     ...group,
     items: group.items.filter(item => {
-      // Filter by role
-      if (!item.roles.includes(userRole)) return false;
+      // Filter by role using permission helpers
+      const permissionLevel = getNavPermissionLevel(item.roles);
+      if (!canSeeNavItem(permissionLevel, roleData)) return false;
       
       // Filter EOS-specific items if EOS is not enabled
       if (item.eosOnly && !eosEnabled) return false;
