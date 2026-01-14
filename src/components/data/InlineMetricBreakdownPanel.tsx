@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,6 +34,8 @@ import { LinkBreakdownToSeatModal } from "./LinkBreakdownToSeatModal";
 import { MapClinicianToUserModal } from "./MapClinicianToUserModal";
 import { ClinicianMappingIndicator } from "./ClinicianMappingIndicator";
 import { useClinicianMappings } from "@/hooks/useClinicianMappings";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { toast } from "sonner";
 
 interface BreakdownData {
   dimension_type: string;
@@ -88,12 +90,17 @@ export function InlineMetricBreakdownPanel({
   onClose,
 }: InlineMetricBreakdownPanelProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: currentUser } = useCurrentUser();
   const dimensions = METRIC_DIMENSIONS[importKey] || [];
   const defaultDimension = dimensions.includes("clinician") ? "clinician" : dimensions[0] || "location";
   
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("weekly");
   const [selectedDimension, setSelectedDimension] = useState(defaultDimension);
   const [showAll, setShowAll] = useState(false);
+  
+  // Check if current user is a manager
+  const isManager = currentUser?.role === "manager" || currentUser?.role === "director" || currentUser?.role === "owner";
   
   // Modal states for actions
   const [issueModal, setIssueModal] = useState<{ open: boolean; item: BreakdownData | null }>({
@@ -116,6 +123,28 @@ export function InlineMetricBreakdownPanel({
     open: false,
     item: null,
   });
+
+  // Mutation to unmap a clinician from a user
+  const unmapClinicianMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from("users")
+        .update({ jane_staff_member_guid: null })
+        .eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clinician-mappings"] });
+      toast.success("Clinician mapping removed");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to remove mapping");
+    },
+  });
+
+  const handleUnmapClinician = (userId: string) => {
+    unmapClinicianMutation.mutate(userId);
+  };
 
   // Calculate the period key that matches what jane-kpi-rollup writes
   const periodKey = useMemo(() => {
@@ -315,6 +344,8 @@ export function InlineMetricBreakdownPanel({
                           mapping={mapping}
                           onViewPerson={handleViewPerson}
                           onMapClinician={() => setMapClinicianModal({ open: true, item })}
+                          onUnmapClinician={handleUnmapClinician}
+                          isManager={isManager}
                         />
                       </TableCell>
                     )}

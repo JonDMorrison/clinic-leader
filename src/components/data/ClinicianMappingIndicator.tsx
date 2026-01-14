@@ -6,39 +6,43 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Link2, Link2Off, User, ExternalLink } from "lucide-react";
+import { Link2, Link2Off, User, ExternalLink, Unlink } from "lucide-react";
 import type { ClinicianMapping } from "@/hooks/useClinicianMappings";
 
 interface ClinicianMappingIndicatorProps {
   mapping: ClinicianMapping | undefined;
   onViewPerson: (userId: string) => void;
   onMapClinician: () => void;
+  onUnmapClinician?: (userId: string) => void;
+  isManager?: boolean;
 }
 
 /**
  * Shows mapping status for a clinician breakdown row.
- * - If mapped: shows "Mapped" badge with user name and "View Person" action
+ * - If mapped: shows "Mapped to: {name}" badge with "View" and "Unmap" actions
  * - If not mapped: shows "Not mapped" badge with "Map to User" action
  */
 export function ClinicianMappingIndicator({
   mapping,
   onViewPerson,
   onMapClinician,
+  onUnmapClinician,
+  isManager = false,
 }: ClinicianMappingIndicatorProps) {
   const isMapped = mapping?.userId != null;
 
   if (isMapped) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 flex-wrap">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Badge
                 variant="secondary"
-                className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-xs cursor-default"
+                className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-xs cursor-default max-w-[140px] truncate"
               >
-                <Link2 className="w-3 h-3 mr-1" />
-                Mapped
+                <Link2 className="w-3 h-3 mr-1 shrink-0" />
+                <span className="truncate">{mapping.userName || "Mapped"}</span>
               </Badge>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs">
@@ -57,6 +61,25 @@ export function ClinicianMappingIndicator({
           <User className="w-3 h-3 mr-1" />
           View
         </Button>
+        {isManager && onUnmapClinician && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-1.5 text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => onUnmapClinician(mapping.userId!)}
+                >
+                  <Unlink className="w-3 h-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="text-xs">Remove mapping</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
     );
   }
