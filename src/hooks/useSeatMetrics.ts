@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfWeek } from "date-fns";
+import { getPeriodKeys, PeriodType } from "@/lib/periodKeys";
 
 export interface SeatMetric {
   id: string;
@@ -20,14 +20,10 @@ export interface SeatMetric {
  * from either metric_results (aggregate) or metric_breakdowns (dimension-specific)
  */
 export function useSeatMetrics(seatId: string | undefined, organizationId: string | undefined) {
-  // Calculate current and previous period keys
-  const now = new Date();
-  const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const currentWeekKey = currentWeekStart.toISOString().slice(0, 10);
-  
-  const prevWeekStart = new Date(currentWeekStart);
-  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
-  const prevWeekKey = prevWeekStart.toISOString().slice(0, 10);
+  // Use canonical period key helper for consistency with /data
+  const weeklyKeys = getPeriodKeys("weekly");
+  const currentWeekKey = weeklyKeys.current;
+  const prevWeekKey = weeklyKeys.previous;
 
   // Fetch seat_metrics records for this seat
   const { data: seatMetrics, isLoading: loadingSeatMetrics } = useQuery({
@@ -171,14 +167,10 @@ export function useUserSeatMetrics(userId: string | undefined, organizationId: s
 
   const seatIds = userSeats?.map((su) => su.seat_id) || [];
 
-  // Calculate current and previous period keys
-  const now = new Date();
-  const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const currentWeekKey = currentWeekStart.toISOString().slice(0, 10);
-  
-  const prevWeekStart = new Date(currentWeekStart);
-  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
-  const prevWeekKey = prevWeekStart.toISOString().slice(0, 10);
+  // Use canonical period key helper for consistency with /data
+  const weeklyKeys = getPeriodKeys("weekly");
+  const currentWeekKey = weeklyKeys.current;
+  const prevWeekKey = weeklyKeys.previous;
 
   // Fetch all seat_metrics for those seats
   const { data: seatMetrics, isLoading: loadingMetrics } = useQuery({

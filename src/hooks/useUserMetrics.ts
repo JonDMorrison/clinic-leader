@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfWeek, format } from "date-fns";
+import { getPeriodKeys } from "@/lib/periodKeys";
 
 interface UserMetricBreakdown {
   import_key: string;
@@ -38,14 +38,10 @@ export function useUserMetrics(userId: string | undefined, organizationId: strin
 
   const janeGuid = user?.jane_staff_member_guid;
 
-  // Calculate current and previous period keys
-  const now = new Date();
-  const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const currentWeekKey = currentWeekStart.toISOString().slice(0, 10);
-  
-  const prevWeekStart = new Date(currentWeekStart);
-  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
-  const prevWeekKey = prevWeekStart.toISOString().slice(0, 10);
+  // Use canonical period key helper for consistency with /data
+  const weeklyKeys = getPeriodKeys("weekly");
+  const currentWeekKey = weeklyKeys.current;
+  const prevWeekKey = weeklyKeys.previous;
 
   // Fetch breakdown data for this user's linked clinician
   const { data: breakdowns, isLoading } = useQuery({
@@ -140,14 +136,10 @@ export function useUsersMetrics(userIds: string[], organizationId: string | unde
   const linkedGuids = users?.filter((u) => u.jane_staff_member_guid).map((u) => u.jane_staff_member_guid) || [];
   const guidToUserId = new Map(users?.map((u) => [u.jane_staff_member_guid, u.id]) || []);
 
-  // Calculate current week key
-  const now = new Date();
-  const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const currentWeekKey = currentWeekStart.toISOString().slice(0, 10);
-
-  const prevWeekStart = new Date(currentWeekStart);
-  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
-  const prevWeekKey = prevWeekStart.toISOString().slice(0, 10);
+  // Use canonical period key helper for consistency with /data
+  const weeklyKeys = getPeriodKeys("weekly");
+  const currentWeekKey = weeklyKeys.current;
+  const prevWeekKey = weeklyKeys.previous;
 
   // Fetch all breakdown data for linked users
   const { data: breakdowns, isLoading } = useQuery({
