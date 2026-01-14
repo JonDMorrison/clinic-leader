@@ -2359,7 +2359,7 @@ export type Database = {
           dimension_label: string
           dimension_type: string
           id: string
-          import_key: string | null
+          import_key: string
           metric_id: string | null
           organization_id: string
           period_end: string | null
@@ -2375,7 +2375,7 @@ export type Database = {
           dimension_label: string
           dimension_type: string
           id?: string
-          import_key?: string | null
+          import_key: string
           metric_id?: string | null
           organization_id: string
           period_end?: string | null
@@ -2391,7 +2391,7 @@ export type Database = {
           dimension_label?: string
           dimension_type?: string
           id?: string
-          import_key?: string | null
+          import_key?: string
           metric_id?: string | null
           organization_id?: string
           period_end?: string | null
