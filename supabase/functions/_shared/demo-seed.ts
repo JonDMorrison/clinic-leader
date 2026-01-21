@@ -539,7 +539,7 @@ async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: 
   
   const now = new Date();
   
-  // Generate periods to rollup: last 9 months (monthly) + last 12 weeks (weekly)
+  // Generate periods to rollup: last 9 months (monthly) + current week + last 12 weeks (weekly)
   const periods: { type: 'weekly' | 'monthly'; start: Date; key: string }[] = [];
   
   // Monthly periods (last 9 months to match staging data range)
@@ -549,8 +549,9 @@ async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: 
     periods.push({ type: 'monthly', start: monthDate, key: monthKey });
   }
   
-  // Weekly periods (last 12 weeks)
-  for (let weekOffset = 11; weekOffset >= 0; weekOffset--) {
+  // Weekly periods: ALWAYS include current week + last 12 weeks
+  // This ensures fresh data is always available regardless of when provisioning occurred
+  for (let weekOffset = 12; weekOffset >= 0; weekOffset--) {
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - (weekOffset * 7));
     // Align to Monday
@@ -562,7 +563,7 @@ async function runKPIRollupForDemoOrg(supabase: SupabaseClient, organizationId: 
     periods.push({ type: 'weekly', start: weekStart, key: weekKey });
   }
   
-  console.log(`[demo-seed] Processing ${periods.length} periods (9 monthly + 12 weekly)`);
+  console.log(`[demo-seed] Processing ${periods.length} periods (9 monthly + 13 weekly including current week)`);
   
   // First, normalize metrics for demo org (idempotent: matches by import_key OR name)
   await normalizeJaneMetrics(supabase, organizationId);
