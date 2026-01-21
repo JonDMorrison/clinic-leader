@@ -37,11 +37,11 @@ interface BreakdownEntry {
   period_end: string;
 }
 
-// Metrics that support breakdowns
+// Metrics that support breakdowns (all three dimension types)
 const BREAKDOWN_METRICS = {
   jane_total_visits: ["clinician", "location", "discipline"],
-  jane_total_invoiced: ["clinician", "location"],
-  jane_total_collected: ["location"], // Clinician not reliably available in payments
+  jane_total_invoiced: ["clinician", "location", "discipline"],
+  jane_total_collected: ["clinician", "location", "discipline"],
 };
 
 // Label fallback helpers
@@ -444,10 +444,10 @@ Deno.serve(async (req) => {
     });
     console.log(`[jane-kpi-rollup] Cancellation Rate: ${cancellationRate}%`);
 
-    // Fetch payments for revenue metrics (location_guid only, no location_name in payments table)
+    // Fetch payments for revenue metrics (now includes staff_member_guid for clinician/discipline breakdowns)
     const { data: paymentsData, error: paymentsError } = await supabase
       .from("staging_payments_jane")
-      .select("amount, location_guid")
+      .select("amount, location_guid, staff_member_guid, staff_member_name")
       .eq("organization_id", organization_id)
       .gte("received_at", periodStartStr)
       .lte("received_at", periodEndStr);
@@ -459,7 +459,7 @@ Deno.serve(async (req) => {
     // Fetch YTD payments
     const { data: ytdPaymentsData } = await supabase
       .from("staging_payments_jane")
-      .select("amount, location_guid")
+      .select("amount, location_guid, staff_member_guid, staff_member_name")
       .eq("organization_id", organization_id)
       .gte("received_at", ytdStartStr)
       .lte("received_at", ytdEndStr);
@@ -479,7 +479,7 @@ Deno.serve(async (req) => {
     console.log(`[jane-kpi-rollup] Total Collected Revenue: ${totalCollected}`);
 
     // ========================================
-    // BREAKDOWNS: Total Collected (by location)
+    // BREAKDOWNS: Total Collected (by clinician, location, discipline)
     // ========================================
     const computeCollectedBreakdowns = (
       paymentList: typeof payments,
@@ -488,10 +488,52 @@ Deno.serve(async (req) => {
       pStart: string,
       pEnd: string
     ) => {
+      // By Clinician
+      const collectedByClinician = new Map<string, { amount: number; label: string }>();
+      for (const payment of paymentList) {
+        if (payment.staff_member_guid) {
+          const amount = Number(payment.amount) || 0;
+          const existing = collectedByClinician.get(payment.staff_member_guid);
+          if (existing) {
+            existing.amount += amount;
+          } else {
+            collectedByClinician.set(payment.staff_member_guid, {
+              amount,
+              label: payment.staff_member_name || getStaffLabel(payment.staff_member_guid),
+            });
+          }
+        }
+      }
+      for (const [id, data] of collectedByClinician) {
+        breakdowns.push({
+          dimension_type: "clinician",
+          dimension_id: id,
+          dimension_label: data.label,
+          value: Math.round(data.amount * 100) / 100,
+          import_key: "jane_total_collected",
+          period_type: pType,
+          period_key: pKey,
+          period_start: pStart,
+          period_end: pEnd,
+        });
+      }
+
+      // By Location
       const collectedByLocation = new Map<string, { amount: number; label: string }>();
       for (const payment of paymentList) {
-        const locationId = payment.location_guid || "unknown";
-        if (locationId !== "unknown") {
+        // Try location_guid first, fall back to staff's primary location
+        let locationId = payment.location_guid;
+        let locationLabel = locationId ? getLocationLabel(locationId) : null;
+        
+        if (!locationId && payment.staff_member_guid) {
+          const inferredLocation = staffToLocation.get(payment.staff_member_guid);
+          if (inferredLocation) {
+            locationId = inferredLocation.toLowerCase().replace(/\s+/g, '_');
+            locationLabel = inferredLocation;
+          }
+        }
+        
+        if (locationId && locationId !== "unknown") {
           const amount = Number(payment.amount) || 0;
           const existing = collectedByLocation.get(locationId);
           if (existing) {
@@ -499,7 +541,7 @@ Deno.serve(async (req) => {
           } else {
             collectedByLocation.set(locationId, {
               amount,
-              label: getLocationLabel(locationId),
+              label: locationLabel || getLocationLabel(locationId),
             });
           }
         }
@@ -517,14 +559,49 @@ Deno.serve(async (req) => {
           period_end: pEnd,
         });
       }
-      return collectedByLocation.size;
+
+      // By Discipline (inferred from staff's primary discipline)
+      const collectedByDiscipline = new Map<string, { amount: number; label: string }>();
+      for (const payment of paymentList) {
+        if (payment.staff_member_guid) {
+          const discipline = staffToDiscipline.get(payment.staff_member_guid);
+          if (discipline) {
+            const disciplineId = discipline.toLowerCase().replace(/\s+/g, '_');
+            const amount = Number(payment.amount) || 0;
+            const existing = collectedByDiscipline.get(disciplineId);
+            if (existing) {
+              existing.amount += amount;
+            } else {
+              collectedByDiscipline.set(disciplineId, {
+                amount,
+                label: discipline,
+              });
+            }
+          }
+        }
+      }
+      for (const [id, data] of collectedByDiscipline) {
+        breakdowns.push({
+          dimension_type: "discipline",
+          dimension_id: id,
+          dimension_label: data.label,
+          value: Math.round(data.amount * 100) / 100,
+          import_key: "jane_total_collected",
+          period_type: pType,
+          period_key: pKey,
+          period_start: pStart,
+          period_end: pEnd,
+        });
+      }
+
+      return { clinicians: collectedByClinician.size, locations: collectedByLocation.size, disciplines: collectedByDiscipline.size };
     };
 
     const currentCollectedBreakdowns = computeCollectedBreakdowns(payments, period_type, periodKey, periodStartStr, periodEndStr);
-    console.log(`[jane-kpi-rollup] Total Collected breakdowns (${period_type}): ${currentCollectedBreakdowns} locations`);
+    console.log(`[jane-kpi-rollup] Total Collected breakdowns (${period_type}): ${currentCollectedBreakdowns.clinicians} clinicians, ${currentCollectedBreakdowns.locations} locations, ${currentCollectedBreakdowns.disciplines} disciplines`);
 
     const ytdCollectedBreakdowns = computeCollectedBreakdowns(ytdPayments, "ytd", ytdKey, ytdStartStr, ytdEndStr);
-    console.log(`[jane-kpi-rollup] Total Collected breakdowns (YTD): ${ytdCollectedBreakdowns} locations`);
+    console.log(`[jane-kpi-rollup] Total Collected breakdowns (YTD): ${ytdCollectedBreakdowns.clinicians} clinicians, ${ytdCollectedBreakdowns.locations} locations, ${ytdCollectedBreakdowns.disciplines} disciplines`);
 
     // Fetch invoices for invoiced revenue and per-provider breakdown (no location_name in invoices table)
     const { data: invoicesData, error: invoicesError } = await supabase

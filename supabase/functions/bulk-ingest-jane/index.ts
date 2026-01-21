@@ -934,6 +934,34 @@ Deno.serve(async (req) => {
     
     console.log(`[LEDGER] Recorded ${ledgerStatus} ingestion (${environment}): ${resource}, ${processedRows}/${csv_data.length} rows`);
 
+    // =========================================================================
+    // TRIGGER KPI ROLLUP: Compute metric_results and metric_breakdowns
+    // =========================================================================
+    if (!processingError && processedRows > 0) {
+      try {
+        // Trigger rollup for both weekly and monthly periods
+        // This ensures "This Week", "This Month", and "YTD" data is always fresh
+        const rollupPromises = ["weekly", "monthly"].map(periodType => 
+          supabase.functions.invoke("jane-kpi-rollup", {
+            body: { organization_id: orgId, period_type: periodType },
+          })
+        );
+        
+        const rollupResults = await Promise.allSettled(rollupPromises);
+        rollupResults.forEach((result, i) => {
+          const periodType = i === 0 ? "weekly" : "monthly";
+          if (result.status === "fulfilled") {
+            console.log(`[bulk-ingest-jane] Triggered ${periodType} rollup for org ${orgId}`);
+          } else {
+            console.error(`[bulk-ingest-jane] Failed to trigger ${periodType} rollup:`, result.reason);
+          }
+        });
+      } catch (rollupError) {
+        // Don't fail the ingestion if rollup fails - it will be retried by scheduled job
+        console.error(`[bulk-ingest-jane] Rollup trigger error (non-fatal):`, rollupError);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: !processingError,
