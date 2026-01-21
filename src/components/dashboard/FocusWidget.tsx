@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RadialGauge } from "@/components/ui/RadialGauge";
 import { Link } from "react-router-dom";
 import { Focus, TrendingDown, Target, RotateCcw, ArrowRight } from "lucide-react";
 
@@ -163,6 +164,10 @@ export function FocusWidget() {
   }
 
   const totalAttention = offTrackCount + rocksCount + recurringCount;
+  
+  // Focus health: 100% when nothing needs attention, decreasing as issues accumulate
+  const focusHealth = Math.max(0, 100 - (totalAttention * 10));
+  const focusStatus = focusHealth >= 80 ? "excellent" : focusHealth >= 60 ? "good" : focusHealth >= 40 ? "warning" : "critical";
 
   return (
     <Card className="glass hover-scale">
@@ -173,27 +178,41 @@ export function FocusWidget() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 mb-4">
+          {/* Focus Health Gauge */}
+          <div className="flex-shrink-0">
+            <RadialGauge 
+              value={focusHealth} 
+              size={80} 
+              strokeWidth={8}
+              status={focusStatus}
+              showLabel={false}
+              className="scale-90"
+            />
+          </div>
+          
+          {/* Breakdown counts */}
+          <div className="flex flex-col gap-2 flex-1">
             <div className="flex items-center gap-1.5">
-              <TrendingDown className="w-4 h-4 text-destructive" />
-              <span className="font-semibold">{offTrackCount}</span>
+              <TrendingDown className="w-3.5 h-3.5 text-destructive" />
+              <span className="font-semibold text-sm">{offTrackCount}</span>
               <span className="text-xs text-muted-foreground">off-track</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Target className="w-4 h-4 text-warning" />
-              <span className="font-semibold">{rocksCount}</span>
-              <span className="text-xs text-muted-foreground">rocks</span>
+              <Target className="w-3.5 h-3.5 text-warning" />
+              <span className="font-semibold text-sm">{rocksCount}</span>
+              <span className="text-xs text-muted-foreground">rocks at risk</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <RotateCcw className="w-4 h-4 text-primary" />
-              <span className="font-semibold">{recurringCount}</span>
+              <RotateCcw className="w-3.5 h-3.5 text-primary" />
+              <span className="font-semibold text-sm">{recurringCount}</span>
               <span className="text-xs text-muted-foreground">recurring</span>
             </div>
           </div>
+          
           {totalAttention > 0 && (
-            <Badge variant="destructive" className="text-xs">
-              {totalAttention} items
+            <Badge variant="destructive" className="text-xs self-start">
+              {totalAttention}
             </Badge>
           )}
         </div>
