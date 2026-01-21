@@ -284,6 +284,25 @@ serve(async (req) => {
       } else {
         console.log('Created prefilled onboarding session');
       }
+
+      // 8. Auto-acknowledge core values for demo users (skip the modal)
+      console.log('Auto-acknowledging core values for demo user...');
+      const { error: ackError } = await supabaseClient
+        .from('core_values_ack')
+        .upsert({
+          user_id: internalUser.id,
+          organization_id: org.id,
+          acknowledged_at: new Date().toISOString(),
+          version_hash: 'demo_auto_ack',
+        }, {
+          onConflict: 'user_id,organization_id',
+        });
+
+      if (ackError) {
+        console.error('Error acknowledging core values:', ackError);
+      } else {
+        console.log('Core values auto-acknowledged for demo user');
+      }
     }
 
     return new Response(
