@@ -4058,6 +4058,8 @@ export type Database = {
           payment_type: string | null
           raw_row: Json | null
           received_at: string | null
+          staff_member_guid: string | null
+          staff_member_name: string | null
           updated_at: string
           workflow: string | null
         }
@@ -4082,6 +4084,8 @@ export type Database = {
           payment_type?: string | null
           raw_row?: Json | null
           received_at?: string | null
+          staff_member_guid?: string | null
+          staff_member_name?: string | null
           updated_at?: string
           workflow?: string | null
         }
@@ -4106,6 +4110,8 @@ export type Database = {
           payment_type?: string | null
           raw_row?: Json | null
           received_at?: string | null
+          staff_member_guid?: string | null
+          staff_member_name?: string | null
           updated_at?: string
           workflow?: string | null
         }

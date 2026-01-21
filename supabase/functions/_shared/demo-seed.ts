@@ -454,6 +454,8 @@ async function seedJaneStagingData(supabase: SupabaseClient, teamId: string) {
                 file_date: fileDate,
                 payment_guid: `pay_${invoiceGuid}`,
                 patient_account_guid: patientGuid,
+                staff_member_guid: provider.guid,
+                staff_member_name: provider.name,
                 received_at: paymentDate.toISOString(),
                 amount: amountPaid,
                 payment_method: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
@@ -689,6 +691,80 @@ async function seedMetricBreakdowns(supabase: SupabaseClient, organizationId: st
       });
     }
     
+    // Get invoice breakdowns by discipline (inferred from staff's appointments)
+    // First fetch appointments with discipline/location info
+    const { data: appointmentsWithDetails } = await supabase
+      .from('staging_appointments_jane')
+      .select('staff_member_guid, discipline_name, location_name')
+      .eq('organization_id', organizationId)
+      .is('cancelled_at', null)
+      .gte('start_at', periodStartStr)
+      .lte('start_at', periodEndStr + 'T23:59:59');
+    
+    // Build staff → discipline map from appointments for this period
+    const staffDisciplineMap: Record<string, string> = {};
+    const staffLocationMap: Record<string, string> = {};
+    (appointmentsWithDetails || []).forEach((a: { staff_member_guid: string; discipline_name: string | null; location_name: string | null }) => {
+      if (a.staff_member_guid && a.discipline_name) {
+        staffDisciplineMap[a.staff_member_guid] = a.discipline_name;
+      }
+      if (a.staff_member_guid && a.location_name) {
+        staffLocationMap[a.staff_member_guid] = a.location_name;
+      }
+    });
+    
+    const disciplineInvoiceTotals: Record<string, { name: string; total: number }> = {};
+    (clinicianInvoices || []).forEach(i => {
+      const discipline = staffDisciplineMap[i.staff_member_guid];
+      if (discipline) {
+        if (!disciplineInvoiceTotals[discipline]) {
+          disciplineInvoiceTotals[discipline] = { name: discipline, total: 0 };
+        }
+        disciplineInvoiceTotals[discipline].total += Number(i.subtotal) || 0;
+      }
+    });
+    
+    for (const [discipline, data] of Object.entries(disciplineInvoiceTotals)) {
+      breakdowns.push({
+        organization_id: organizationId,
+        import_key: 'jane_total_invoiced',
+        period_type: period.type,
+        period_key: period.key,
+        period_start: periodStartStr,
+        dimension_type: 'discipline',
+        dimension_id: discipline.toLowerCase().replace(/\s+/g, '_'),
+        dimension_label: data.name,
+        value: Math.round(data.total * 100) / 100,
+        source: 'jane_pipe',
+      });
+    }
+    
+    // Get invoice breakdowns by location (using staffLocationMap built above)
+    const locationInvoiceTotals: Record<string, { name: string; total: number }> = {};
+    
+    (clinicianInvoices || []).forEach(i => {
+      const location = staffLocationMap[i.staff_member_guid] || 'Main Clinic';
+      if (!locationInvoiceTotals[location]) {
+        locationInvoiceTotals[location] = { name: location, total: 0 };
+      }
+      locationInvoiceTotals[location].total += Number(i.subtotal) || 0;
+    });
+    
+    for (const [location, data] of Object.entries(locationInvoiceTotals)) {
+      breakdowns.push({
+        organization_id: organizationId,
+        import_key: 'jane_total_invoiced',
+        period_type: period.type,
+        period_key: period.key,
+        period_start: periodStartStr,
+        dimension_type: 'location',
+        dimension_id: location.toLowerCase().replace(/\s+/g, '_'),
+        dimension_label: data.name,
+        value: Math.round(data.total * 100) / 100,
+        source: 'jane_pipe',
+      });
+    }
+    
     // Get payment breakdowns by clinician (Total Collected)
     const { data: clinicianPayments } = await supabase
       .from('staging_payments_jane')
@@ -716,6 +792,62 @@ async function seedMetricBreakdowns(supabase: SupabaseClient, organizationId: st
         period_start: periodStartStr,
         dimension_type: 'clinician',
         dimension_id: guid,
+        dimension_label: data.name,
+        value: Math.round(data.total * 100) / 100,
+        source: 'jane_pipe',
+      });
+    }
+    
+    // Get payment breakdowns by discipline (inferred from staff)
+    const disciplinePaymentTotals: Record<string, { name: string; total: number }> = {};
+    (clinicianPayments || []).forEach(p => {
+      if (p.staff_member_guid) {
+        const discipline = staffDisciplineMap[p.staff_member_guid];
+        if (discipline) {
+          if (!disciplinePaymentTotals[discipline]) {
+            disciplinePaymentTotals[discipline] = { name: discipline, total: 0 };
+          }
+          disciplinePaymentTotals[discipline].total += Number(p.amount) || 0;
+        }
+      }
+    });
+    
+    for (const [discipline, data] of Object.entries(disciplinePaymentTotals)) {
+      breakdowns.push({
+        organization_id: organizationId,
+        import_key: 'jane_total_collected',
+        period_type: period.type,
+        period_key: period.key,
+        period_start: periodStartStr,
+        dimension_type: 'discipline',
+        dimension_id: discipline.toLowerCase().replace(/\s+/g, '_'),
+        dimension_label: data.name,
+        value: Math.round(data.total * 100) / 100,
+        source: 'jane_pipe',
+      });
+    }
+    
+    // Get payment breakdowns by location
+    const locationPaymentTotals: Record<string, { name: string; total: number }> = {};
+    (clinicianPayments || []).forEach(p => {
+      if (p.staff_member_guid) {
+        const location = staffLocationMap[p.staff_member_guid] || 'Main Clinic';
+        if (!locationPaymentTotals[location]) {
+          locationPaymentTotals[location] = { name: location, total: 0 };
+        }
+        locationPaymentTotals[location].total += Number(p.amount) || 0;
+      }
+    });
+    
+    for (const [location, data] of Object.entries(locationPaymentTotals)) {
+      breakdowns.push({
+        organization_id: organizationId,
+        import_key: 'jane_total_collected',
+        period_type: period.type,
+        period_key: period.key,
+        period_start: periodStartStr,
+        dimension_type: 'location',
+        dimension_id: location.toLowerCase().replace(/\s+/g, '_'),
         dimension_label: data.name,
         value: Math.round(data.total * 100) / 100,
         source: 'jane_pipe',

@@ -156,6 +156,65 @@ Deno.serve(async (req) => {
       }
     }
     console.log(`[jane-kpi-rollup] Built staff label map with ${staffLabelMap.size} entries`);
+    
+    // Staff → Discipline map: infer primary discipline from appointment frequency
+    // This allows us to break down revenue by discipline even though invoices don't have discipline_name
+    const staffDisciplineCounts = new Map<string, Map<string, number>>();
+    for (const appt of [...appointments, ...(ytdAppointments || [])]) {
+      if (appt.staff_member_guid && appt.discipline_name) {
+        if (!staffDisciplineCounts.has(appt.staff_member_guid)) {
+          staffDisciplineCounts.set(appt.staff_member_guid, new Map());
+        }
+        const counts = staffDisciplineCounts.get(appt.staff_member_guid)!;
+        counts.set(appt.discipline_name, (counts.get(appt.discipline_name) || 0) + 1);
+      }
+    }
+    
+    // Pick the most frequent discipline for each staff member
+    const staffToDiscipline = new Map<string, string>();
+    for (const [staffGuid, disciplineCounts] of staffDisciplineCounts) {
+      let maxCount = 0;
+      let primaryDiscipline = "";
+      for (const [discipline, count] of disciplineCounts) {
+        if (count > maxCount) {
+          maxCount = count;
+          primaryDiscipline = discipline;
+        }
+      }
+      if (primaryDiscipline) {
+        staffToDiscipline.set(staffGuid, primaryDiscipline);
+      }
+    }
+    console.log(`[jane-kpi-rollup] Built staff→discipline map with ${staffToDiscipline.size} entries`);
+    
+    // Staff → Location map: infer primary location from appointment frequency
+    const staffLocationCounts = new Map<string, Map<string, number>>();
+    for (const appt of [...appointments, ...(ytdAppointments || [])]) {
+      if (appt.staff_member_guid && appt.location_name) {
+        if (!staffLocationCounts.has(appt.staff_member_guid)) {
+          staffLocationCounts.set(appt.staff_member_guid, new Map());
+        }
+        const counts = staffLocationCounts.get(appt.staff_member_guid)!;
+        counts.set(appt.location_name, (counts.get(appt.location_name) || 0) + 1);
+      }
+    }
+    
+    // Pick the most frequent location for each staff member
+    const staffToLocation = new Map<string, string>();
+    for (const [staffGuid, locationCounts] of staffLocationCounts) {
+      let maxCount = 0;
+      let primaryLocation = "";
+      for (const [location, count] of locationCounts) {
+        if (count > maxCount) {
+          maxCount = count;
+          primaryLocation = location;
+        }
+      }
+      if (primaryLocation) {
+        staffToLocation.set(staffGuid, primaryLocation);
+      }
+    }
+    console.log(`[jane-kpi-rollup] Built staff→location map with ${staffToLocation.size} entries`);
 
     // Location label map: try to build from appointments location_name
     // Since appointments use location_name as the ID (no location_guid), we'll query
@@ -541,19 +600,30 @@ Deno.serve(async (req) => {
         });
       }
 
-      // By Location
+      // By Location (inferred from staff primary location if location_guid missing)
       const invoicedByLocation = new Map<string, { amount: number; label: string }>();
       for (const inv of invoiceList) {
-        const locationId = inv.location_guid || "unknown";
-        if (locationId !== "unknown") {
-          const existing = invoicedByLocation.get(locationId);
+        // Try location_guid first, fall back to staff's primary location
+        let locationId = inv.location_guid;
+        let locationLabel = locationId ? getLocationLabel(locationId) : null;
+        
+        if (!locationId && inv.staff_member_guid) {
+          const inferredLocation = staffToLocation.get(inv.staff_member_guid);
+          if (inferredLocation) {
+            locationId = inferredLocation.toLowerCase().replace(/\s+/g, '_');
+            locationLabel = inferredLocation;
+          }
+        }
+        
+        if (locationId && locationId !== "unknown") {
           const amount = Number(inv.subtotal) || 0;
+          const existing = invoicedByLocation.get(locationId);
           if (existing) {
             existing.amount += amount;
           } else {
             invoicedByLocation.set(locationId, {
               amount,
-              label: getLocationLabel(locationId),
+              label: locationLabel || getLocationLabel(locationId),
             });
           }
         }
@@ -572,7 +642,41 @@ Deno.serve(async (req) => {
         });
       }
 
-      return { clinicians: invoicedByClinician.size, locations: invoicedByLocation.size };
+      // By Discipline (inferred from staff's primary discipline)
+      const invoicedByDiscipline = new Map<string, { amount: number; label: string }>();
+      for (const inv of invoiceList) {
+        if (inv.staff_member_guid) {
+          const discipline = staffToDiscipline.get(inv.staff_member_guid);
+          if (discipline) {
+            const disciplineId = discipline.toLowerCase().replace(/\s+/g, '_');
+            const amount = Number(inv.subtotal) || 0;
+            const existing = invoicedByDiscipline.get(disciplineId);
+            if (existing) {
+              existing.amount += amount;
+            } else {
+              invoicedByDiscipline.set(disciplineId, {
+                amount,
+                label: discipline,
+              });
+            }
+          }
+        }
+      }
+      for (const [id, data] of invoicedByDiscipline) {
+        breakdowns.push({
+          dimension_type: "discipline",
+          dimension_id: id,
+          dimension_label: data.label,
+          value: Math.round(data.amount * 100) / 100,
+          import_key: "jane_total_invoiced",
+          period_type: pType,
+          period_key: pKey,
+          period_start: pStart,
+          period_end: pEnd,
+        });
+      }
+
+      return { clinicians: invoicedByClinician.size, locations: invoicedByLocation.size, disciplines: invoicedByDiscipline.size };
     };
 
     const currentInvoicedBreakdowns = computeInvoicedBreakdowns(invoices, period_type, periodKey, periodStartStr, periodEndStr);
