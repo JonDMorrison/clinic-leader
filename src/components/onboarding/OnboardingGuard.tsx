@@ -70,25 +70,30 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
 
         // Check if user has acknowledged core values
         // Use userData.id (public.users.id) not user.id (auth.users.id)
-        const { data: ack } = await supabase
-          .from("core_values_ack")
-          .select("id")
-          .eq("user_id", userData.id)
-          .eq("organization_id", userData.team_id)
-          .maybeSingle();
-
-        if (!ack) {
-          // Check if org has core values set up
-          const { data: coreValues } = await supabase
-            .from("org_core_values")
+        try {
+          const { data: ack } = await supabase
+            .from("core_values_ack")
             .select("id")
+            .eq("user_id", userData.id)
             .eq("organization_id", userData.team_id)
-            .eq("is_active", true)
-            .limit(1);
+            .maybeSingle();
 
-          if (coreValues && coreValues.length > 0) {
-            setShowCoreValuesStep(true);
+          if (!ack) {
+            // Check if org has core values set up
+            const { data: coreValues } = await supabase
+              .from("org_core_values")
+              .select("id")
+              .eq("organization_id", userData.team_id)
+              .eq("is_active", true)
+              .limit(1);
+
+            if (coreValues && coreValues.length > 0) {
+              setShowCoreValuesStep(true);
+            }
           }
+        } catch (coreValuesError) {
+          console.error("Error checking core values:", coreValuesError);
+          // Continue without blocking - core values check is not critical
         }
 
         console.log("Onboarding complete, status:", teamData?.onboarding_status);
