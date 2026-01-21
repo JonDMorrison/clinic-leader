@@ -92,17 +92,28 @@ export function ClinicianMappingIndicator({
         className="text-muted-foreground border-muted-foreground/30 text-xs"
       >
         <Link2Off className="w-3 h-3 mr-1" />
-        Not mapped
+        Not connected
       </Badge>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 px-2 text-xs text-primary"
-        onClick={onMapClinician}
-      >
-        <ExternalLink className="w-3 h-3 mr-1" />
-        Map
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-primary"
+              onClick={onMapClinician}
+            >
+              <ExternalLink className="w-3 h-3 mr-1" />
+              Connect
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs">
+            <p className="text-xs">
+              Link this clinician to a team member so their metrics appear in the People Analyzer
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }
