@@ -79,8 +79,8 @@ const PERIOD_OPTIONS: { value: PeriodType; label: string; icon: typeof Calendar 
 // Cache for breakdown results
 const breakdownCache = new Map<string, BreakdownData[]>();
 
-function getCacheKey(importKey: string, periodType: string, organizationId: string): string {
-  return `${organizationId}-${importKey}-${periodType}`;
+function getCacheKey(importKey: string, periodType: string, periodKey: string, organizationId: string): string {
+  return `${organizationId}-${importKey}-${periodType}-${periodKey}`;
 }
 
 export function InlineMetricBreakdownPanel({
@@ -173,7 +173,7 @@ export function InlineMetricBreakdownPanel({
     }
   }, [selectedPeriod]);
 
-  const cacheKey = getCacheKey(importKey, selectedPeriod, organizationId);
+  const cacheKey = getCacheKey(importKey, selectedPeriod, periodKey, organizationId);
 
   const { data: breakdowns, isLoading } = useQuery({
     queryKey: ["inline-metric-breakdowns", importKey, selectedPeriod, periodKey, organizationId],
