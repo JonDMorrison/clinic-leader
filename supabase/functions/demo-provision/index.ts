@@ -75,12 +75,13 @@ serve(async (req) => {
 
     console.log('Creating demo organization...');
 
-    // 1. Create organization
+    // 1. Create organization with onboarding already completed
     const { data: org, error: orgError } = await supabaseClient
       .from('teams')
       .insert({
         name: 'Clinic Leader Demo Practice',
         is_demo_org: true,
+        onboarding_status: 'completed', // Skip onboarding for demo users
       })
       .select()
       .single();
