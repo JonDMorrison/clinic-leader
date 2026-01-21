@@ -523,7 +523,233 @@ async function seedJaneStagingData(supabase: SupabaseClient, teamId: string) {
   // This uses the SAME logic as production to compute metric_results from staging data
   await runKPIRollupForDemoOrg(supabase, teamId);
   
+  // Seed metric breakdowns (by clinician, discipline, location)
+  await seedMetricBreakdowns(supabase, teamId);
+  
   console.log('Jane staging data seed completed');
+}
+
+/**
+ * Seeds metric_breakdowns table with dimension breakdowns from staging data.
+ * This provides the data shown in the inline breakdown panel on /data page.
+ */
+async function seedMetricBreakdowns(supabase: SupabaseClient, organizationId: string) {
+  console.log('[demo-seed] Seeding metric breakdowns...');
+  
+  const now = new Date();
+  const breakdowns: any[] = [];
+  
+  // Generate breakdowns for current week, current month, and YTD
+  const periods = [
+    { 
+      type: 'weekly', 
+      key: getWeekStart(now).toISOString().slice(0, 10),
+      start: getWeekStart(now),
+      end: new Date(getWeekStart(now).getTime() + 6 * 24 * 60 * 60 * 1000)
+    },
+    { 
+      type: 'monthly', 
+      key: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+      start: new Date(now.getFullYear(), now.getMonth(), 1),
+      end: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    },
+    { 
+      type: 'ytd', 
+      key: `${now.getFullYear()}-YTD`,
+      start: new Date(now.getFullYear(), 0, 1),
+      end: now
+    },
+  ];
+  
+  for (const period of periods) {
+    const periodStartStr = period.start.toISOString().slice(0, 10);
+    const periodEndStr = period.end.toISOString().slice(0, 10);
+    
+    // Get appointment breakdowns by clinician
+    const { data: clinicianVisits } = await supabase
+      .from('staging_appointments_jane')
+      .select('staff_member_guid, staff_member_name')
+      .eq('organization_id', organizationId)
+      .is('cancelled_at', null)
+      .gte('start_at', periodStartStr)
+      .lte('start_at', periodEndStr + 'T23:59:59');
+    
+    const clinicianCounts: Record<string, { name: string; count: number }> = {};
+    (clinicianVisits || []).forEach(a => {
+      if (!clinicianCounts[a.staff_member_guid]) {
+        clinicianCounts[a.staff_member_guid] = { name: a.staff_member_name, count: 0 };
+      }
+      clinicianCounts[a.staff_member_guid].count++;
+    });
+    
+    for (const [guid, data] of Object.entries(clinicianCounts)) {
+      breakdowns.push({
+        organization_id: organizationId,
+        import_key: 'jane_total_visits',
+        period_type: period.type,
+        period_key: period.key,
+        period_start: periodStartStr,
+        dimension_type: 'clinician',
+        dimension_id: guid,
+        dimension_label: data.name,
+        value: data.count,
+        source: 'jane_pipe',
+      });
+    }
+    
+    // Get appointment breakdowns by discipline
+    const { data: disciplineVisits } = await supabase
+      .from('staging_appointments_jane')
+      .select('discipline_name')
+      .eq('organization_id', organizationId)
+      .is('cancelled_at', null)
+      .gte('start_at', periodStartStr)
+      .lte('start_at', periodEndStr + 'T23:59:59');
+    
+    const disciplineCounts: Record<string, number> = {};
+    (disciplineVisits || []).forEach(a => {
+      if (a.discipline_name) {
+        disciplineCounts[a.discipline_name] = (disciplineCounts[a.discipline_name] || 0) + 1;
+      }
+    });
+    
+    for (const [discipline, count] of Object.entries(disciplineCounts)) {
+      breakdowns.push({
+        organization_id: organizationId,
+        import_key: 'jane_total_visits',
+        period_type: period.type,
+        period_key: period.key,
+        period_start: periodStartStr,
+        dimension_type: 'discipline',
+        dimension_id: discipline.toLowerCase().replace(/\s+/g, '_'),
+        dimension_label: discipline,
+        value: count,
+        source: 'jane_pipe',
+      });
+    }
+    
+    // Get appointment breakdowns by location
+    const { data: locationVisits } = await supabase
+      .from('staging_appointments_jane')
+      .select('location_name')
+      .eq('organization_id', organizationId)
+      .is('cancelled_at', null)
+      .gte('start_at', periodStartStr)
+      .lte('start_at', periodEndStr + 'T23:59:59');
+    
+    const locationCounts: Record<string, number> = {};
+    (locationVisits || []).forEach(a => {
+      const loc = a.location_name || 'Main Clinic';
+      locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+    });
+    
+    for (const [location, count] of Object.entries(locationCounts)) {
+      breakdowns.push({
+        organization_id: organizationId,
+        import_key: 'jane_total_visits',
+        period_type: period.type,
+        period_key: period.key,
+        period_start: periodStartStr,
+        dimension_type: 'location',
+        dimension_id: location.toLowerCase().replace(/\s+/g, '_'),
+        dimension_label: location,
+        value: count,
+        source: 'jane_pipe',
+      });
+    }
+    
+    // Get invoice breakdowns by clinician (Total Invoiced)
+    const { data: clinicianInvoices } = await supabase
+      .from('staging_invoices_jane')
+      .select('staff_member_guid, staff_member_name, subtotal')
+      .eq('organization_id', organizationId)
+      .gte('invoiced_at', periodStartStr)
+      .lte('invoiced_at', periodEndStr + 'T23:59:59');
+    
+    const clinicianInvoiceTotals: Record<string, { name: string; total: number }> = {};
+    (clinicianInvoices || []).forEach(i => {
+      if (!clinicianInvoiceTotals[i.staff_member_guid]) {
+        clinicianInvoiceTotals[i.staff_member_guid] = { name: i.staff_member_name, total: 0 };
+      }
+      clinicianInvoiceTotals[i.staff_member_guid].total += Number(i.subtotal) || 0;
+    });
+    
+    for (const [guid, data] of Object.entries(clinicianInvoiceTotals)) {
+      breakdowns.push({
+        organization_id: organizationId,
+        import_key: 'jane_total_invoiced',
+        period_type: period.type,
+        period_key: period.key,
+        period_start: periodStartStr,
+        dimension_type: 'clinician',
+        dimension_id: guid,
+        dimension_label: data.name,
+        value: Math.round(data.total * 100) / 100,
+        source: 'jane_pipe',
+      });
+    }
+    
+    // Get payment breakdowns by clinician (Total Collected)
+    const { data: clinicianPayments } = await supabase
+      .from('staging_payments_jane')
+      .select('staff_member_guid, staff_member_name, amount')
+      .eq('organization_id', organizationId)
+      .gte('received_at', periodStartStr)
+      .lte('received_at', periodEndStr + 'T23:59:59');
+    
+    const clinicianPaymentTotals: Record<string, { name: string; total: number }> = {};
+    (clinicianPayments || []).forEach(p => {
+      if (p.staff_member_guid) {
+        if (!clinicianPaymentTotals[p.staff_member_guid]) {
+          clinicianPaymentTotals[p.staff_member_guid] = { name: p.staff_member_name || 'Unknown', total: 0 };
+        }
+        clinicianPaymentTotals[p.staff_member_guid].total += Number(p.amount) || 0;
+      }
+    });
+    
+    for (const [guid, data] of Object.entries(clinicianPaymentTotals)) {
+      breakdowns.push({
+        organization_id: organizationId,
+        import_key: 'jane_total_collected',
+        period_type: period.type,
+        period_key: period.key,
+        period_start: periodStartStr,
+        dimension_type: 'clinician',
+        dimension_id: guid,
+        dimension_label: data.name,
+        value: Math.round(data.total * 100) / 100,
+        source: 'jane_pipe',
+      });
+    }
+  }
+  
+  // Batch insert breakdowns
+  const BATCH_SIZE = 100;
+  let successCount = 0;
+  
+  for (let i = 0; i < breakdowns.length; i += BATCH_SIZE) {
+    const batch = breakdowns.slice(i, i + BATCH_SIZE);
+    const { error } = await supabase
+      .from('metric_breakdowns')
+      .upsert(batch, { onConflict: 'organization_id,import_key,period_type,period_key,dimension_type,dimension_id' });
+    
+    if (error) {
+      console.error('[demo-seed] Error upserting metric_breakdowns:', error.message);
+    } else {
+      successCount += batch.length;
+    }
+  }
+  
+  console.log(`[demo-seed] Seeded ${successCount}/${breakdowns.length} metric breakdowns`);
+}
+
+function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 /**
