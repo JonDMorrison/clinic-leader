@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, AlertTriangle, FileText, Compass, Target } from "lucide-react";
+import { RadialGauge, getStatusFromValue } from "@/components/ui/RadialGauge";
+import { TrendingUp, AlertTriangle, FileText, Compass } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
@@ -124,13 +125,15 @@ export const VtoCard = () => {
       <CardContent className="space-y-4">
         {progress && (
           <>
-            {/* Overall Score with celebration */}
-            <div className={`flex items-center justify-between p-3 rounded-lg bg-muted/50 transition-all duration-300 ${isComplete ? 'bg-primary/10 border border-primary/20' : ''}`}>
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-brand" />
-                <span className="text-sm font-medium">Overall Progress</span>
-              </div>
-              <span className="text-2xl font-bold text-brand">{overallScore}%</span>
+            {/* Overall Score with Radial Gauge */}
+            <div className={`flex flex-col items-center py-2 transition-all duration-300 ${isComplete ? 'bg-primary/5 rounded-xl' : ''}`}>
+              <RadialGauge 
+                value={overallScore} 
+                size={120} 
+                strokeWidth={12}
+                status={getStatusFromValue(overallScore)}
+                showLabel={true}
+              />
             </div>
 
             {/* Vision & Traction Scores */}

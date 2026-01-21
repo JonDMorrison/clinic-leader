@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { RadialGauge, getStatusFromValue } from "@/components/ui/RadialGauge";
 import { 
   CheckCircle2, 
   AlertTriangle, 
@@ -12,7 +12,7 @@ import {
   Zap
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { formatDistanceToNow, differenceInHours } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
 
 interface AutomationHealthWidgetProps {
@@ -165,13 +165,20 @@ export const AutomationHealthWidget = ({ organizationId, compact = false }: Auto
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Automation Coverage</span>
-            <span className="font-medium">{automationPercentage}%</span>
           </div>
-          <Progress value={automationPercentage} className="h-2" />
-          <p className="text-xs text-muted-foreground">
+          <div className="flex items-center justify-center">
+            <RadialGauge 
+              value={automationPercentage} 
+              size={100} 
+              strokeWidth={10}
+              status={getStatusFromValue(automationPercentage)}
+              showLabel={true}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
             {metricsData?.automated} of {metricsData?.total} metrics automated
           </p>
         </div>
