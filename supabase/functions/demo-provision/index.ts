@@ -208,6 +208,83 @@ serve(async (req) => {
       console.error('Error recording provision:', provisionError);
     }
 
+    // 7. Prefill onboarding session for demo users
+    console.log('Creating prefilled onboarding session...');
+    const demoOnboardingData = {
+      // Account holder (step 0)
+      first_name: 'Jonathan',
+      last_name: 'Morrison',
+      email: user.email,
+      role: 'owner',
+      phone: '+1 (604) 555-0123',
+      
+      // Company basics (step 1)
+      company_name: 'Clinic Leader Demo Practice',
+      industry: 'Multidisciplinary',
+      team_size: 12,
+      locations_count: 2,
+      location_city: 'Vancouver',
+      location_region: 'BC',
+      country: 'Canada',
+      timezone: 'America/Vancouver',
+      currency: 'CAD',
+      unit_system: 'metric',
+      
+      // Operational setup (step 2)
+      ehr_system: 'Jane',
+      integrations: ['jane', 'google_calendar'],
+      primary_metrics: ['patient_visits', 'revenue', 'new_patients', 'retention_rate'],
+      review_cadence: 'weekly',
+      
+      // Core values (step 3)
+      core_values: [
+        { title: 'Patient First', short_behavior: 'Every decision starts with what\'s best for our patients' },
+        { title: 'Continuous Growth', short_behavior: 'We embrace learning and strive to improve daily' },
+        { title: 'Team Collaboration', short_behavior: 'We succeed together through open communication' },
+        { title: 'Integrity', short_behavior: 'We do what\'s right, even when no one is watching' },
+        { title: 'Excellence', short_behavior: 'We deliver outstanding care and service consistently' },
+      ],
+      
+      // EOS setup (step 4)
+      eos_enabled: true,
+      meeting_rhythm: 'weekly_l10',
+      vision_statement: 'To be the most trusted and innovative healthcare provider in our community',
+      enable_modules: ['rocks', 'scorecard', 'issues', 'meetings', 'vto'],
+      
+      // Branding (step 5)
+      logo_url: null,
+      brand_color: '#0EA5E9',
+      website_url: 'https://clinicleader.app',
+      default_report_email: user.email,
+    };
+
+    // Get the user's internal ID from users table
+    const { data: internalUser } = await supabaseClient
+      .from('users')
+      .select('id')
+      .eq('email', user.email)
+      .single();
+
+    if (internalUser) {
+      const { error: sessionError } = await supabaseClient
+        .from('onboarding_sessions')
+        .upsert({
+          organization_id: org.id,
+          started_by: internalUser.id,
+          step: 6, // Set to Review step so they can see everything prefilled
+          data: demoOnboardingData,
+          completed: false,
+        }, {
+          onConflict: 'organization_id,started_by',
+        });
+
+      if (sessionError) {
+        console.error('Error creating onboarding session:', sessionError);
+      } else {
+        console.log('Created prefilled onboarding session');
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
