@@ -93,7 +93,7 @@ serve(async (req) => {
 
     console.log('Created org:', org.id);
 
-    // 2. Create/update demo users
+    // 2. Create/update demo users (admin/owner users + staff roles)
     const demoUsers = [
       { email: DEMO_OWNER_EMAIL, name: 'Demo Owner', role: 'owner' },
       { email: DEMO_ADMIN_EMAIL, name: 'Jonathan Morrison', role: 'director' },
@@ -101,6 +101,15 @@ serve(async (req) => {
       { email: 'director@demo.clinicleader.ca', name: 'Alex Chen', role: 'director', demo: true },
       { email: 'billing@demo.clinicleader.ca', name: 'Sam Taylor', role: 'billing', demo: true },
       { email: 'staff@demo.clinicleader.ca', name: 'Jordan Lee', role: 'staff', demo: true },
+    ];
+
+    // Jane clinician demo users (linked to staging data via jane_staff_member_guid)
+    const janeClinicians = [
+      { email: 'sarah.chen@demo.clinicleader.ca', name: 'Dr. Sarah Chen', role: 'staff', jane_guid: 'staff_001' },
+      { email: 'mike.rodriguez@demo.clinicleader.ca', name: 'Dr. Mike Rodriguez', role: 'staff', jane_guid: 'staff_002' },
+      { email: 'emily.watson@demo.clinicleader.ca', name: 'Dr. Emily Watson', role: 'staff', jane_guid: 'staff_003' },
+      { email: 'james.park@demo.clinicleader.ca', name: 'Dr. James Park', role: 'staff', jane_guid: 'staff_004' },
+      { email: 'lisa.thompson@demo.clinicleader.ca', name: 'Lisa Thompson, RMT', role: 'staff', jane_guid: 'staff_005' },
     ];
 
     for (const demoUser of demoUsers) {
@@ -135,7 +144,44 @@ serve(async (req) => {
       }
     }
 
-    console.log('Created demo users');
+    // Create Jane clinician demo users with their staff_member_guid mappings
+    for (const clinician of janeClinicians) {
+      const { data: existingClinician } = await supabaseClient
+        .from('users')
+        .select('id')
+        .eq('email', clinician.email)
+        .single();
+
+      if (!existingClinician) {
+        const { error: clinicianError } = await supabaseClient
+          .from('users')
+          .insert({
+            email: clinician.email,
+            full_name: clinician.name,
+            team_id: org.id,
+            role: clinician.role,
+            demo_user: true,
+            jane_staff_member_guid: clinician.jane_guid,
+          });
+        
+        if (clinicianError) {
+          console.error(`Error creating clinician ${clinician.name}:`, clinicianError);
+        }
+      } else {
+        // Update existing to link to org and set jane_guid
+        await supabaseClient
+          .from('users')
+          .update({
+            team_id: org.id,
+            role: clinician.role,
+            demo_user: true,
+            jane_staff_member_guid: clinician.jane_guid,
+          })
+          .eq('id', existingClinician.id);
+      }
+    }
+
+    console.log('Created demo users and Jane clinicians');
 
     // 3. Set up Jane integration (legacy table)
     const JANE_API_KEY = Deno.env.get('JANE_SANDBOX_API_KEY') || 'demo_key';
