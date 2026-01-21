@@ -169,7 +169,7 @@ const App = () => {
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
             <Route path="/security" element={<Security />} />
-            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/onboarding" element={<AppLayout><Onboarding /></AppLayout>} />
             <Route path="/dashboard" element={<AppLayout><Home /></AppLayout>} />
             <Route path="/scorecard/setup" element={<AppLayout><ScorecardSetup /></AppLayout>} />
             <Route path="/scorecard/update" element={<AppLayout><ScorecardUpdate /></AppLayout>} />
