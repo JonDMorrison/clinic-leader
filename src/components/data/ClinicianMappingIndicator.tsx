@@ -43,7 +43,7 @@ export function ClinicianMappingIndicator({
                 className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-xs cursor-default max-w-[140px] truncate"
               >
                 <Link2 className="w-3 h-3 mr-1 shrink-0" />
-                <span className="truncate">{mapping.userName || "Mapped"}</span>
+                <span className="truncate">Connected</span>
               </Badge>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs">
