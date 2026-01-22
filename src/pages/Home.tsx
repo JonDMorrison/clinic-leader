@@ -37,7 +37,7 @@ const Home = () => {
 
       const { data, error } = await supabase
         .from("metrics")
-        .select("*, metric_results(value, week_start)")
+        .select("id, name, target, direction, unit, category, metric_results(value, week_start)")
         .eq("organization_id", currentUser.team_id)
         .order("week_start", { foreignTable: "metric_results", ascending: false });
       
