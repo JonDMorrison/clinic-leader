@@ -32,6 +32,7 @@ export function useCoreValues() {
       return (data || []) as CoreValue[];
     },
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - values rarely change
   });
 
   // Fetch spotlight
@@ -54,6 +55,7 @@ export function useCoreValues() {
       return data as CoreValueSpotlight | null;
     },
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - spotlight rarely changes
   });
 
   // Seed default values if none exist

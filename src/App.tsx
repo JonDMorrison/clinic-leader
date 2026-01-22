@@ -80,7 +80,14 @@ import JaneCompliance from "./pages/JaneCompliance";
 import Security from "./pages/Security";
 import Progress from "./pages/Progress";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000, // 2 minutes default - reduces refetching
+      refetchOnWindowFocus: false, // Prevent refetch on tab switch
+    },
+  },
+});
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
