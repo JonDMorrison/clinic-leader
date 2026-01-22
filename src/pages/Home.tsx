@@ -165,19 +165,6 @@ const Home = () => {
         }}
       />
 
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        style={{ opacity, scale }}
-      >
-        <h1 className="text-3xl md:text-5xl font-bold mb-2 tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
-          Dashboard
-        </h1>
-        <p className="text-muted-foreground text-sm md:text-lg">
-          Welcome back! Here's your clinic overview.
-        </p>
-      </motion.div>
 
       {/* Demo Account Banner */}
       <DemoBanner />
