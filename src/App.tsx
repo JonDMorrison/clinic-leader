@@ -178,6 +178,7 @@ const App = () => {
             <Route path="/scorecard/cutover" element={<AppLayout><ScorecardCutover /></AppLayout>} />
             <Route path="/scorecard" element={<AppLayout><Scorecard /></AppLayout>} />
             <Route path="/rocks" element={<AppLayout><Rocks /></AppLayout>} />
+            <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
             <Route path="/rocks/monthly-review" element={<AppLayout><RocksMonthlyReview /></AppLayout>} />
             <Route path="/rocks/quarterly-close" element={<AppLayout><QuarterlyCloseReport /></AppLayout>} />
             <Route path="/focus" element={<AppLayout><Focus /></AppLayout>} />
