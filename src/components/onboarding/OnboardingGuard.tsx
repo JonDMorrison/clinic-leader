@@ -18,8 +18,9 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
-      // Skip check if already on onboarding or auth pages
-      if (location.pathname === "/onboarding" || location.pathname === "/auth" || location.pathname === "/") {
+      // Public routes that don't require authentication
+      const publicRoutes = ["/onboarding", "/auth", "/", "/security", "/data-safety", "/jane-compliance"];
+      if (publicRoutes.includes(location.pathname)) {
         setLoading(false);
         return;
       }
