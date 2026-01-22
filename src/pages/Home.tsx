@@ -185,10 +185,12 @@ const Home = () => {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="text-center py-2"
       >
-        <p className="text-lg md:text-xl font-medium text-foreground/80 italic">
-          "{inspirationalMessage}"
+        <p className="text-xl md:text-2xl font-semibold text-foreground mb-1">
+          Hey {currentUser?.full_name?.split(' ')[0] || 'there'} 👋
+        </p>
+        <p className="text-base md:text-lg text-muted-foreground italic">
+          {inspirationalMessage}
         </p>
       </motion.div>
 
