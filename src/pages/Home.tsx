@@ -189,8 +189,8 @@ const Home = () => {
         <p className="text-xl md:text-2xl font-semibold text-foreground mb-1">
           Hey {currentUser?.full_name?.includes(' ') ? currentUser.full_name.split(' ')[0] : 'there'} 👋
         </p>
-        <p className="text-base md:text-lg text-muted-foreground italic">
-          {inspirationalMessage}
+        <p className="text-base md:text-lg text-muted-foreground">
+          <span className="italic">{inspirationalMessage}</span> Here's your overview for today.
         </p>
       </motion.div>
 
