@@ -7,12 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { QuickActions } from "@/components/layout/QuickActions";
 import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
-import { PerformanceScore } from "@/components/dashboard/PerformanceScore";
 
 import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useRef, useMemo, useEffect, useState } from "react";
-import { HelpHint } from "@/components/help/HelpHint";
+import { useRef, useEffect, useState } from "react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
 import { CoreValuesStrip, CoreValueOfWeekCard } from "@/components/core-values";
@@ -37,7 +35,7 @@ const Home = () => {
 
       const { data, error } = await supabase
         .from("metrics")
-        .select("id, name, target, direction, unit, category, metric_results(value, week_start)")
+        .select("id, name, metric_results(value, week_start)")
         .eq("organization_id", currentUser.team_id)
         .order("week_start", { foreignTable: "metric_results", ascending: false });
       
@@ -114,61 +112,6 @@ const Home = () => {
   // Get New Patients metric latest value
   const newPatientsMetric = metrics?.find(m => m.name === "New Patients");
   const newPatientsValue = newPatientsMetric?.metric_results?.[0]?.value || 0;
-
-  // Calculate Team Performance Score - % of metrics hitting targets over last 8 weeks
-  const performanceScores = useMemo(() => {
-    if (!metrics || metrics.length === 0) return [];
-    
-    // Get last 8 weeks of data
-    const weekMap = new Map<string, { total: number; onTarget: number }>();
-    
-    metrics.forEach(metric => {
-      // Skip metrics without targets
-      if (metric.target === null) return;
-      
-      const results = metric.metric_results?.slice(0, 8) || [];
-      
-      results.forEach(result => {
-        const week = result.week_start;
-        const value = parseFloat(String(result.value));
-        
-        if (!weekMap.has(week)) {
-          weekMap.set(week, { total: 0, onTarget: 0 });
-        }
-        
-        const weekData = weekMap.get(week)!;
-        weekData.total += 1;
-        
-        // Check if metric hit target based on direction
-        const hitTarget = metric.direction === 'up' 
-          ? value >= metric.target 
-          : metric.direction === 'down'
-          ? value <= metric.target
-          : value === metric.target;
-        
-        if (hitTarget) {
-          weekData.onTarget += 1;
-        }
-      });
-    });
-    
-    // Convert to array of percentages, sorted by week
-    return Array.from(weekMap.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([week, data]) => ({
-        week,
-        percentage: data.total > 0 ? Math.round((data.onTarget / data.total) * 100) : 0,
-        onTarget: data.onTarget,
-        total: data.total
-      }))
-      .slice(-8); // Last 8 weeks
-  }, [metrics]);
-
-  const currentScore = performanceScores[performanceScores.length - 1];
-  const previousScore = performanceScores[performanceScores.length - 2];
-  const trend = currentScore && previousScore 
-    ? currentScore.percentage - previousScore.percentage 
-    : 0;
 
   const isLoading = userLoading || metricsLoading || rocksLoading || issuesLoading;
 
@@ -295,23 +238,6 @@ const Home = () => {
         transition={{ delay: 0.4, duration: 0.6 }}
         className="grid grid-cols-1 lg:grid-cols-2 gap-6"
       >
-        <Card className="glass hover-scale">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-brand" />
-              Team Performance Score
-              <HelpHint term="Performance Score" context="dashboard_performance" size="sm" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PerformanceScore
-              currentScore={currentScore}
-              scoreHistory={performanceScores.map(s => s.percentage)}
-              trend={trend}
-            />
-          </CardContent>
-        </Card>
-
         <Card className="relative overflow-hidden">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
