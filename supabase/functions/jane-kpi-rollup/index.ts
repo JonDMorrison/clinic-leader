@@ -356,22 +356,28 @@ Deno.serve(async (req) => {
         });
       }
 
-      // By Discipline
-      const visitsByDiscipline = new Map<string, number>();
+      // By Discipline (normalize dimension_id to snake_case for uniqueness)
+      const visitsByDiscipline = new Map<string, { count: number; label: string }>();
       for (const appt of appointmentList) {
         if (appt.discipline_name) {
-          visitsByDiscipline.set(
-            appt.discipline_name,
-            (visitsByDiscipline.get(appt.discipline_name) || 0) + 1
-          );
+          const disciplineId = appt.discipline_name.toLowerCase().replace(/\s+/g, '_');
+          const existing = visitsByDiscipline.get(disciplineId);
+          if (existing) {
+            existing.count++;
+          } else {
+            visitsByDiscipline.set(disciplineId, {
+              count: 1,
+              label: appt.discipline_name,
+            });
+          }
         }
       }
-      for (const [discipline, count] of visitsByDiscipline) {
+      for (const [disciplineId, data] of visitsByDiscipline) {
         breakdowns.push({
           dimension_type: "discipline",
-          dimension_id: discipline,
-          dimension_label: discipline,
-          value: count,
+          dimension_id: disciplineId,
+          dimension_label: data.label,
+          value: data.count,
           import_key: "jane_total_visits",
           period_type: pType,
           period_key: pKey,
