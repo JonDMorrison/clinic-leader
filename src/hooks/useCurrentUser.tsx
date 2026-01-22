@@ -16,6 +16,7 @@ export const useCurrentUser = () => {
 
   return useQuery({
     queryKey: ["current-user", isImpersonating, impersonationData?.targetUserId],
+    staleTime: 10 * 60 * 1000, // 10 minutes - user data rarely changes mid-session
     queryFn: async () => {
       // If impersonating, fetch the target user's data by ID
       if (isImpersonating && impersonationData?.targetUserId) {

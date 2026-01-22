@@ -30,9 +30,15 @@ export function CoreValuesStrip({ showEditButton = true, compact = false }: Core
 
   if (isLoading) {
     return (
-      <div className="flex gap-2">
+      <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "glass py-3 px-4 rounded-xl border border-border/20"}`}>
+        {!compact && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-3">
+            <Heart className="h-3.5 w-3.5 text-primary/70" />
+            <span className="font-medium">Our Values</span>
+          </div>
+        )}
         {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-8 w-24 bg-muted/50 rounded-full animate-pulse" />
+          <div key={i} className="h-8 w-28 bg-muted/30 rounded-full animate-pulse" />
         ))}
       </div>
     );
