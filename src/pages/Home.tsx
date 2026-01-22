@@ -10,7 +10,7 @@ import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
 
 import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
 import { CoreValuesStrip, CoreValueOfWeekCard } from "@/components/core-values";
@@ -20,10 +20,27 @@ import { IssueSuggestionsWidget } from "@/components/dashboard/IssueSuggestionsW
 import { ProgressPreviewCard } from "@/components/progress/ProgressPreviewCard";
 import { DemoBanner } from "@/components/dashboard/DemoBanner";
 
+const INSPIRATIONAL_MESSAGES = [
+  "Lead your clinic. Not just manage it.",
+  "Clarity creates momentum.",
+  "Great teams are built on shared purpose.",
+  "Every decision shapes your culture.",
+  "Progress over perfection.",
+  "Your people are watching. Lead well.",
+  "Small wins compound into big results.",
+  "Discipline creates freedom.",
+];
+
 const Home = () => {
   const ref = useRef(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // Pick a message based on the day of the year for consistency
+  const inspirationalMessage = useMemo(() => {
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+    return INSPIRATIONAL_MESSAGES[dayOfYear % INSPIRATIONAL_MESSAGES.length];
+  }, []);
 
   // Fetch current user first to get team_id
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
@@ -164,6 +181,16 @@ const Home = () => {
           delay: 2,
         }}
       />
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="text-center py-2"
+      >
+        <p className="text-lg md:text-xl font-medium text-foreground/80 italic">
+          "{inspirationalMessage}"
+        </p>
+      </motion.div>
 
 
       {/* Demo Account Banner */}
