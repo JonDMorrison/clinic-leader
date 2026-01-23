@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LogOut, Building2, Settings, Plug } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { UserAvatar } from "@/components/ui/UserAvatar";
@@ -25,102 +25,63 @@ interface UserProfile {
 
 export const UserNav = () => {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [authUser, setAuthUser] = useState<any>(null);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    // Listen to auth state changes first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setAuthUser(session?.user ?? null);
-    });
+  // Use React Query with the same key as ProfileSettings for instant cache updates
+  const { data: profile } = useQuery({
+    queryKey: ["current-user-profile"],
+    queryFn: async (): Promise<UserProfile | null> => {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return null;
 
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setAuthUser(session?.user ?? null);
-    });
+      const { data: userData } = await supabase
+        .from("users")
+        .select("id, full_name, email, avatar_url, team_id")
+        .eq("id", authUser.id)
+        .single();
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+      if (userData) {
+        let teamName: string | undefined = undefined;
+        if (userData.team_id) {
+          const { data: team } = await supabase
+            .from("teams")
+            .select("name")
+            .eq("id", userData.team_id)
+            .single();
+          teamName = team?.name;
+        }
 
-  const fetchUserProfile = async () => {
-    if (!authUser) return;
-
-    const { data: userData } = await supabase
-      .from("users")
-      .select("id, full_name, email, avatar_url, team_id")
-      .eq("id", authUser.id)
-      .single();
-
-    if (userData) {
-      let teamName: string | undefined = undefined;
-      if (userData.team_id) {
-        const { data: team } = await supabase
-          .from("teams")
-          .select("name")
-          .eq("id", userData.team_id)
-          .single();
-        teamName = team?.name;
+        return {
+          id: userData.id,
+          full_name: userData.full_name ?? authUser.user_metadata?.full_name ?? authUser.email ?? "User",
+          email: userData.email ?? authUser.email ?? "",
+          avatar_url: userData.avatar_url,
+          team: teamName ? { name: teamName } : undefined,
+        };
       }
 
-      setProfile({
-        id: userData.id,
-        full_name: userData.full_name ?? authUser.user_metadata?.full_name ?? authUser.email ?? "User",
-        email: userData.email ?? authUser.email ?? "",
-        avatar_url: userData.avatar_url,
-        team: teamName ? { name: teamName } : undefined,
-      });
-    } else {
-      setProfile({
+      return {
         id: authUser.id,
         full_name: authUser.user_metadata?.full_name ?? authUser.email ?? "User",
         email: authUser.email ?? "",
         avatar_url: null,
-      });
-    }
-  };
-
-  useEffect(() => {
-    fetchUserProfile();
-  }, [authUser]);
-
-  // Subscribe to user updates to refresh avatar in real-time
-  useEffect(() => {
-    if (!authUser?.id) return;
-
-    const channel = supabase
-      .channel('user-avatar-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'users',
-          filter: `id=eq.${authUser.id}`,
-        },
-        () => {
-          fetchUserProfile();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [authUser?.id]);
+      };
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast.error("Failed to log out");
     } else {
+      queryClient.clear(); // Clear all queries on logout
       navigate("/auth");
     }
   };
 
   // Derive display name from available data
-  const displayName = profile?.full_name || authUser?.user_metadata?.full_name || authUser?.email || "User";
+  const displayName = profile?.full_name || "User";
 
   return (
     <DropdownMenu>
@@ -137,7 +98,7 @@ export const UserNav = () => {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-2">
             <p className="text-sm font-semibold leading-none">{displayName}</p>
-            <p className="text-xs leading-none text-muted-foreground">{profile?.email || authUser?.email || ""}</p>
+            <p className="text-xs leading-none text-muted-foreground">{profile?.email || ""}</p>
             {profile?.team && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
                 <Building2 className="h-3 w-3" />
