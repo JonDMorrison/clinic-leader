@@ -123,7 +123,9 @@ export const OnboardingWizard = ({ userId, onComplete }: OnboardingWizardProps) 
     if (currentStep < tourSteps.length - 1) {
       const nextStep = currentStep + 1;
       setCurrentStep(nextStep);
-      await userTourService.updateStep(userId, nextStep);
+      // Don't block the UI on network/database writes.
+      // If the write fails, we still want the tour to advance.
+      void userTourService.updateStep(userId, nextStep);
     } else {
       await handleComplete();
     }
@@ -133,7 +135,7 @@ export const OnboardingWizard = ({ userId, onComplete }: OnboardingWizardProps) 
     if (currentStep > 0) {
       const prevStep = currentStep - 1;
       setCurrentStep(prevStep);
-      await userTourService.updateStep(userId, prevStep);
+      void userTourService.updateStep(userId, prevStep);
     }
   };
 
@@ -142,7 +144,8 @@ export const OnboardingWizard = ({ userId, onComplete }: OnboardingWizardProps) 
   };
 
   const handleComplete = async () => {
-    await userTourService.completeTour(userId);
+    // Don't block completion UI on network/database writes.
+    void userTourService.completeTour(userId);
     
     // Confetti animation
     confetti({
