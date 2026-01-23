@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Phone, Compass, LucideIcon, ChevronDown, Settings, Database } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Phone, Compass, LucideIcon, ChevronDown, Settings, Database, Presentation } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/collapsible";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { getNavPermissionLevel, canSeeNavItem } from "@/lib/permissions";
+import { useDemoWalkthrough } from "@/components/demo";
 
 type NavChild = {
   title: string;
@@ -69,6 +70,7 @@ const navGroups: NavGroup[] = [
 
 export const Sidebar = () => {
   const location = useLocation();
+  const { start: startDemo, isActive: isDemoActive } = useDemoWalkthrough();
   // Fetch team_id only (role comes from useIsAdmin hook)
   const { data: currentUser } = useQuery({
     queryKey: ["currentUser-teamId"],
@@ -242,6 +244,19 @@ export const Sidebar = () => {
             </Collapsible>
           ))}
         </div>
+
+        {/* Demo Mode Button */}
+        {!isDemoActive && (
+          <div className="mt-auto pt-4 border-t border-white/10">
+            <button
+              onClick={startDemo}
+              className="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-muted-foreground hover:bg-white/50 hover:text-foreground transition-all duration-300 group"
+            >
+              <Presentation className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+              <span>Start Demo</span>
+            </button>
+          </div>
+        )}
       </nav>
     </aside>
   );
