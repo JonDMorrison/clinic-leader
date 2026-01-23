@@ -8,10 +8,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { UserNav } from "@/components/layout/UserNav";
 import { ImpersonationBanner } from "@/components/layout/ImpersonationBanner";
 import { AppFooter } from "@/components/layout/AppFooter";
-import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { OnboardingGuard } from "@/components/onboarding/OnboardingGuard";
 import { DemoWalkthroughProvider } from "@/components/demo";
-import { userTourService } from "@/lib/userTourService";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -110,55 +108,6 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 const App = () => {
   // Auto-provision demo for whitelisted users
   useDemoProvisioning();
-  
-  const [showWizard, setShowWizard] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const checkTourStatus = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        setUserId(user.id);
-        
-        // Check localStorage first to avoid showing wizard if already completed
-        const localStorageKey = `tour_completed_${user.id}`;
-        const completedInStorage = localStorage.getItem(localStorageKey);
-        
-        if (completedInStorage === "true") {
-          return; // Don't show wizard
-        }
-        
-        const tourStatus = await userTourService.getTourStatus(user.id);
-        
-        if (!tourStatus) {
-          // New user, start tour
-          const newTourStatus = await userTourService.startTour(user.id);
-          if (newTourStatus && !newTourStatus.completed) {
-            setShowWizard(true);
-          }
-        } else if (!tourStatus.completed) {
-          // Tour in progress
-          setShowWizard(true);
-        } else {
-          // Tour completed, store in localStorage
-          localStorage.setItem(localStorageKey, "true");
-        }
-      }
-    };
-
-    checkTourStatus();
-  }, []);
-
-  const handleWizardComplete = async () => {
-    setShowWizard(false);
-    
-    // Store completion in localStorage as backup
-    if (userId) {
-      const localStorageKey = `tour_completed_${userId}`;
-      localStorage.setItem(localStorageKey, "true");
-    }
-  };
 
   return (
     <HelmetProvider>
@@ -238,9 +187,6 @@ const App = () => {
           </OnboardingGuard>
           </DemoWalkthroughProvider>
           
-          {showWizard && userId && (
-            <OnboardingWizard userId={userId} onComplete={handleWizardComplete} />
-          )}
         </ErrorBoundary>
         </BrowserRouter>
         </TooltipProvider>
