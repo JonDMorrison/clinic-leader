@@ -28,77 +28,127 @@ serve(async (req) => {
     // Gather relevant data based on question keywords
     let contextData = "";
 
-    // Get KPI data filtered by team
-    const { data: kpis } = await supabase
-      .from("kpis")
+    // Get METRICS data (the actual scorecard data - not the empty kpis table)
+    const { data: metrics } = await supabase
+      .from("metrics")
       .select(`
         name,
         target,
         unit,
         direction,
-        users(full_name, team_id),
-        kpi_readings(value, week_start)
+        category,
+        owner:users!metrics_owner_fkey(full_name),
+        metric_results(value, week_start, period_key)
       `)
+      .eq("organization_id", team_id)
       .eq("active", true)
-      .eq("users.team_id", team_id)
-      .order("week_start", { foreignTable: "kpi_readings", ascending: false })
-      .limit(4, { foreignTable: "kpi_readings" });
+      .order("week_start", { foreignTable: "metric_results", ascending: false })
+      .limit(4, { foreignTable: "metric_results" });
 
-    if (kpis) {
-      contextData += "\n\nKPIs:\n" + kpis.map((kpi: any) => 
-        `${kpi.name} (Owner: ${kpi.users?.full_name}): Target ${kpi.target}${kpi.unit}, Recent: ${kpi.kpi_readings?.map((r: any) => `${r.week_start}: ${r.value}`).join(", ")}`
-      ).join("\n");
+    if (metrics && metrics.length > 0) {
+      contextData += "\n\nScorecard Metrics:\n" + metrics.map((metric: any) => {
+        const recentResults = metric.metric_results?.slice(0, 4) || [];
+        const latestValue = recentResults[0]?.value;
+        const target = metric.target;
+        const status = latestValue !== undefined && target !== undefined
+          ? (metric.direction === 'up' 
+              ? (latestValue >= target ? '✓ On Track' : '✗ Off Track')
+              : (latestValue <= target ? '✓ On Track' : '✗ Off Track'))
+          : 'No data';
+        
+        return `${metric.name} (${metric.category || 'General'}): Target ${target}${metric.unit || ''}, Latest: ${latestValue ?? 'N/A'} - ${status} - Owner: ${metric.owner?.full_name || 'Unassigned'}`;
+      }).join("\n");
     }
 
     // Get rocks data filtered by team
     const { data: rocks } = await supabase
       .from("rocks")
-      .select("title, status, due_date, users(full_name, team_id)")
-      .eq("level", "team")
-      .eq("users.team_id", team_id)
+      .select("title, status, due_date, owner:users!rocks_owner_id_fkey(full_name)")
+      .eq("organization_id", team_id)
       .order("due_date", { ascending: true });
 
-    if (rocks) {
-      contextData += "\n\nRocks:\n" + rocks.map((rock: any) =>
-        `${rock.title} (${rock.status}) - Due: ${rock.due_date} - Owner: ${rock.users?.full_name}`
+    if (rocks && rocks.length > 0) {
+      contextData += "\n\nRocks (Quarterly Priorities):\n" + rocks.map((rock: any) =>
+        `${rock.title} - Status: ${rock.status} - Due: ${rock.due_date} - Owner: ${rock.owner?.full_name || 'Unassigned'}`
       ).join("\n");
     }
 
     // Get issues data
     const { data: issues } = await supabase
       .from("issues")
-      .select("title, priority, status, users(full_name)")
+      .select("title, priority, status, owner:users!issues_owner_id_fkey(full_name)")
       .eq("team_id", team_id)
       .eq("status", "open")
       .order("priority", { ascending: true })
-      .limit(10);
+      .limit(15);
 
-    if (issues) {
+    if (issues && issues.length > 0) {
       contextData += "\n\nOpen Issues:\n" + issues.map((issue: any) =>
-        `${issue.title} (Priority: ${issue.priority}) - Owner: ${issue.users?.full_name}`
+        `${issue.title} (Priority: ${issue.priority}) - Owner: ${issue.owner?.full_name || 'Unassigned'}`
       ).join("\n");
     }
 
     // Get todos data
     const { data: todos } = await supabase
       .from("todos")
-      .select("title, due_date, done_at, users(full_name)")
+      .select("title, due_date, done_at, owner:users!todos_owner_id_fkey(full_name)")
       .eq("team_id", team_id)
       .is("done_at", null)
       .order("due_date", { ascending: true })
-      .limit(10);
+      .limit(15);
 
-    if (todos) {
+    if (todos && todos.length > 0) {
       contextData += "\n\nUpcoming Todos:\n" + todos.map((todo: any) =>
-        `${todo.title} - Due: ${todo.due_date} - Owner: ${todo.users?.full_name}`
+        `${todo.title} - Due: ${todo.due_date} - Owner: ${todo.owner?.full_name || 'Unassigned'}`
       ).join("\n");
     }
 
-    const prompt = `Answer this question about the clinic's EOS data: "${question}"
+    // Get VTO data (Vision/Traction Organizer)
+    const { data: vto } = await supabase
+      .from("vto")
+      .select("long_term_targets, three_year_picture, one_year_plan")
+      .eq("organization_id", team_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-Context:${contextData}
+    if (vto) {
+      contextData += "\n\nVision & Goals:\n";
+      if (vto.long_term_targets) {
+        contextData += `Long-term Targets: ${JSON.stringify(vto.long_term_targets)}\n`;
+      }
+      if (vto.three_year_picture) {
+        contextData += `3-Year Picture: ${JSON.stringify(vto.three_year_picture)}\n`;
+      }
+      if (vto.one_year_plan) {
+        contextData += `1-Year Plan: ${JSON.stringify(vto.one_year_plan)}\n`;
+      }
+    }
 
-Provide a clear, concise answer based only on the data provided. If you don't have enough information, say so.`;
+    // Get Core Values
+    const { data: coreValues } = await supabase
+      .from("org_core_values")
+      .select("title, short_behavior")
+      .eq("organization_id", team_id)
+      .order("display_order", { ascending: true });
+
+    if (coreValues && coreValues.length > 0) {
+      contextData += "\n\nCore Values:\n" + coreValues.map((cv: any) =>
+        `• ${cv.title}${cv.short_behavior ? `: ${cv.short_behavior}` : ''}`
+      ).join("\n");
+    }
+
+    // Build the prompt with all context
+    const prompt = `Answer this question about the organization's EOS/business data: "${question}"
+
+Context Data:${contextData}
+
+Instructions:
+- Provide a clear, concise answer based on the data provided
+- If metrics are off track, explain which ones and by how much
+- If asking about rocks, mention their status and due dates
+- If you don't have enough specific information to answer, explain what data is available and what's missing
+- Be helpful and actionable in your response`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -109,7 +159,7 @@ Provide a clear, concise answer based only on the data provided. If you don't ha
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are an EOS consultant helping clinic owners understand their data. Be concise and specific." },
+          { role: "system", content: "You are an EOS (Entrepreneurial Operating System) consultant helping business owners understand their data. Be concise, specific, and actionable. Focus on what matters most for running a successful organization." },
           { role: "user", content: prompt }
         ],
       }),
