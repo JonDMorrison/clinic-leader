@@ -173,49 +173,56 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
   return (
     <div onClick={onClick} className="cursor-pointer">
       <Card className={`p-6 hover:border-primary/40 transition-all border-2 ${categoryColors.border} ${categoryColors.bg}`}>
-        <div className="space-y-5">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-4 pt-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-4 mb-2">
-                <h3 className="font-semibold text-foreground truncate">{metric.name}</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 shrink-0"
-                  onClick={handleFavoriteClick}
-                >
-                  <Star
-                    className={`h-4 w-4 ${
-                      metric.is_favorite
-                        ? "fill-amber-400 text-amber-400"
-                        : "text-muted-foreground"
-                    }`}
-                  />
-                </Button>
-              </div>
-              <div className="flex items-center gap-4 flex-wrap">
-                <Badge variant="muted" className={`text-xs ${categoryColors.badgeBg} ${categoryColors.text} border-0`}>
-                  {metric.category}
-                </Badge>
-                {metric.owner_name && (
-                  <span className="text-xs text-muted-foreground truncate">
-                    {metric.owner_name}
-                  </span>
-                )}
-                <VTOGoalBadge linkType="kpi" linkId={metric.id} />
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <SourceBadge
-                source={metric.latest_result_source}
-                syncSource={metric.sync_source}
-                cadence={metric.cadence}
-                lastUpdated={metric.latest_result_updated_at}
-                janeLastSync={janeLastSync}
+        <div className="space-y-4">
+          {/* Tier 1: Title Row - Full width, prominent */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 shrink-0 -ml-1"
+              onClick={handleFavoriteClick}
+            >
+              <Star
+                className={`h-4 w-4 ${
+                  metric.is_favorite
+                    ? "fill-amber-400 text-amber-400"
+                    : "text-muted-foreground/50 hover:text-muted-foreground"
+                }`}
               />
-              <LastUpdatedText lastUpdated={metric.latest_result_updated_at} />
-            </div>
+            </Button>
+            <h3 className="text-lg font-semibold text-foreground leading-tight">
+              {metric.name}
+            </h3>
+          </div>
+
+          {/* Tier 2: Category, Owner, VTO link */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="muted" className={`text-xs ${categoryColors.badgeBg} ${categoryColors.text} border-0`}>
+              {metric.category}
+            </Badge>
+            {metric.owner_name && (
+              <>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="text-xs text-muted-foreground">
+                  {metric.owner_name}
+                </span>
+              </>
+            )}
+            <VTOGoalBadge linkType="kpi" linkId={metric.id} />
+          </div>
+
+          {/* Tier 3: Source info - Subdued */}
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground/70">
+            <SourceBadge
+              source={metric.latest_result_source}
+              syncSource={metric.sync_source}
+              cadence={metric.cadence}
+              lastUpdated={metric.latest_result_updated_at}
+              janeLastSync={janeLastSync}
+              compact
+            />
+            <span className="text-muted-foreground/40">•</span>
+            <LastUpdatedText lastUpdated={metric.latest_result_updated_at} />
           </div>
 
           {/* Target & Trend */}
