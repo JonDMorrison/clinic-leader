@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Upload, FileBarChart, Phone, Plug, Compass, LucideIcon, ChevronDown, Settings, Palette, CreditCard, TestTube, UserCog, Cpu, FileSpreadsheet, History, FileUp, Database } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Phone, Compass, LucideIcon, ChevronDown, Settings, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { useQuery } from "@tanstack/react-query";
@@ -59,29 +59,11 @@ const navGroups: NavGroup[] = [
     alwaysOpen: true,
   },
   {
-    label: "Admin",
+    label: null,
     items: [
-      { title: "Admin Dashboard", path: "/admin", icon: UserCog, roles: ["owner", "director"] },
-      { title: "Settings", path: "/settings", icon: Settings, roles: ["owner", "director"] },
-      { title: "Organization", path: "/organization-settings", icon: UserCog, roles: ["owner", "director"] },
-      { title: "Branding", path: "/branding", icon: Palette, roles: ["owner", "director"] },
-      { title: "Integrations", path: "/integrations", icon: Plug, roles: ["owner", "director"] },
-      { 
-        title: "Imports", 
-        path: "/imports", 
-        icon: Upload, 
-        roles: ["manager", "director", "owner"],
-        children: [
-          { title: "Monthly Report", path: "/imports/monthly-report", icon: FileSpreadsheet },
-          { title: "PDF Report", path: "/imports/pdf-report", icon: FileUp },
-          { title: "Reports", path: "/reports", icon: FileBarChart },
-        ]
-      },
-      { title: "Licensing", path: "/licensing", icon: CreditCard, roles: ["owner"] },
-      { title: "AI Settings", path: "/ai-settings", icon: Cpu, roles: ["owner", "director"] },
-      { title: "System Health", path: "/system/health", icon: TestTube, roles: ["owner"] },
+      { title: "Settings", path: "/settings", icon: Settings, roles: ["staff", "manager", "director", "owner"] },
     ],
-    alwaysOpen: false,
+    alwaysOpen: true,
   },
 ];
 
