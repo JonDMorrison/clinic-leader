@@ -228,7 +228,10 @@ export default function Meetings() {
   };
 
   const MeetingRow = ({ meeting, showDuplicate = false }: { meeting: MeetingWithCounts; showDuplicate?: boolean }) => (
-    <div className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+    <div 
+      className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
+      onClick={() => navigate(`/meetings/${meeting.id}`)}
+    >
       <div className="flex items-center gap-4 flex-1 min-w-0">
         <Calendar className="w-5 h-5 text-muted-foreground flex-shrink-0" />
         <div className="min-w-0 flex-1">
@@ -258,15 +261,7 @@ export default function Meetings() {
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate(`/meetings/${meeting.id}`)}
-        >
-          <Eye className="w-4 h-4 mr-1" />
-          {meeting.status === "completed" ? "Review" : "Preview"}
-        </Button>
+      <div className="flex items-center gap-2 flex-shrink-0 ml-4" onClick={(e) => e.stopPropagation()}>
         {(meeting.status === "draft" || meeting.status === "scheduled") && (
           <Button
             size="sm"
