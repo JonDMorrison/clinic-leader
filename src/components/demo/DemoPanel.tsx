@@ -66,10 +66,10 @@ export const DemoPanel = () => {
                 {step.title}
               </h3>
 
-              {/* Talking Points */}
+              {/* What You Need To Know */}
               <div className="space-y-2">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Talking Points
+                  What You Need To Know
                 </span>
                 <ul className="space-y-2">
                   {step.talkingPoints.map((point, idx) => (
