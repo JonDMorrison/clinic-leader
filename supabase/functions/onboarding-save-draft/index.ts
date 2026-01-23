@@ -22,6 +22,12 @@ serve(async (req) => {
   }
 
   try {
+    // Use service role key to create organizations for new users
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -36,6 +42,7 @@ serve(async (req) => {
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
     const claims = token ? parseJwt(token) : null;
     const userId = (claims?.sub as string) || undefined;
+    const userEmail = (claims?.email as string) || undefined;
 
     if (!userId) {
       return new Response(
@@ -47,20 +54,67 @@ serve(async (req) => {
     const { step, data } = await req.json();
 
     // Get user's organization
-    const { data: userData } = await supabaseClient
+    const { data: userData } = await supabaseAdmin
       .from("users")
       .select("team_id")
       .eq("id", userId)
       .single();
 
-    if (!userData?.team_id) {
-      throw new Error("User has no organization");
+    let organizationId = userData?.team_id;
+
+    // If user has no organization, create one during onboarding
+    if (!organizationId) {
+      console.log("Creating new organization for user:", userId);
+      
+      // Create a new organization with default or provided name
+      const orgName = data.company_name || "New Clinic";
+      
+      const { data: newOrg, error: orgError } = await supabaseAdmin
+        .from("teams")
+        .insert({
+          name: orgName,
+          timezone: data.timezone || "America/New_York",
+          currency: data.currency || "USD",
+          onboarding_status: "in_progress",
+        })
+        .select("id")
+        .single();
+
+      if (orgError || !newOrg) {
+        console.error("Failed to create organization:", orgError);
+        throw new Error("Failed to create organization");
+      }
+
+      organizationId = newOrg.id;
+      console.log("Created organization:", organizationId);
+
+      // Assign user to the new organization with owner role
+      const { error: updateUserError } = await supabaseAdmin
+        .from("users")
+        .update({ 
+          team_id: organizationId,
+          role: "owner"
+        })
+        .eq("id", userId);
+
+      if (updateUserError) {
+        console.error("Failed to assign user to organization:", updateUserError);
+        throw new Error("Failed to assign user to organization");
+      }
+
+      // Create owner role in user_roles table
+      await supabaseAdmin
+        .from("user_roles")
+        .upsert({
+          user_id: userId,
+          role: "owner",
+        }, { onConflict: "user_id,role" });
+
+      console.log("User assigned to organization as owner");
     }
 
-    const organizationId = userData.team_id;
-
     // Update or create onboarding session
-    const { data: existingSession } = await supabaseClient
+    const { data: existingSession } = await supabaseAdmin
       .from("onboarding_sessions")
       .select("*")
       .eq("organization_id", organizationId)
@@ -68,7 +122,7 @@ serve(async (req) => {
       .single();
 
     if (existingSession) {
-      await supabaseClient
+      await supabaseAdmin
         .from("onboarding_sessions")
         .update({
           step,
@@ -77,7 +131,7 @@ serve(async (req) => {
         })
         .eq("id", existingSession.id);
     } else {
-      await supabaseClient
+      await supabaseAdmin
         .from("onboarding_sessions")
         .insert({
           organization_id: organizationId,
@@ -89,7 +143,7 @@ serve(async (req) => {
 
     // Update organization with live data if provided
     if (data.company_name || data.timezone || data.currency) {
-      const updates: any = {};
+      const updates: Record<string, unknown> = {};
       if (data.company_name) updates.name = data.company_name;
       if (data.timezone) updates.timezone = data.timezone;
       if (data.currency) updates.currency = data.currency;
@@ -97,14 +151,14 @@ serve(async (req) => {
       if (data.logo_url) updates.logo_url = data.logo_url;
 
       if (Object.keys(updates).length > 0) {
-        await supabaseClient
+        await supabaseAdmin
           .from("teams")
           .update(updates)
           .eq("id", organizationId);
       }
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, organizationId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
