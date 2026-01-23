@@ -1,10 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RulesEnginePanel } from "@/components/settings/RulesEnginePanel";
 import { useNavigate } from "react-router-dom";
 import { 
-  Palette, Shield, Users, Building2, TrendingUp, FileText, 
-  GraduationCap, Plug, UserCircle, Cpu, TestTube, Upload, 
+  Palette, Users, Building2, 
+  GraduationCap, Plug, UserCircle, Cpu, TestTube, 
   LayoutDashboard, FileSpreadsheet, FileUp, FileBarChart 
 } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -115,23 +114,6 @@ const Settings = () => {
 
         {isAdmin && (
           <>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="w-5 h-5" />
-                  Licensing
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  View your plan, usage limits, and upgrade options
-                </p>
-                <Button variant="outline" onClick={() => navigate("/licensing")}>
-                  View License
-                </Button>
-              </CardContent>
-            </Card>
-
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -257,66 +239,28 @@ const Settings = () => {
               </Button>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <TrendingUp className="w-5 h-5" />
-                Import KPIs
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Upload scorecard metrics and targets
-              </p>
-              <Button variant="outline" size="sm" onClick={() => navigate("/imports/kpis")}>
-                Import
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FileText className="w-5 h-5" />
-                Import SOPs
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Upload documentation and procedures
-              </p>
-              <Button variant="outline" size="sm" onClick={() => navigate("/imports/sops")}>
-                Import
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       </div>
 
-      {/* Advanced Settings */}
+      {/* Team Management */}
       <div>
-        <h2 className="text-xl font-semibold text-foreground mb-4">Advanced</h2>
-        <div className="grid gap-6">
-          <RulesEnginePanel />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Team Management
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Manage team members, roles, and permissions
-              </p>
-              <Button variant="outline" onClick={() => navigate("/settings/team")}>
-                Manage Team
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        <h2 className="text-xl font-semibold text-foreground mb-4">Team</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Team Management
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Manage team members, roles, and permissions
+            </p>
+            <Button variant="outline" onClick={() => navigate("/settings/team")}>
+              Manage Team
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
