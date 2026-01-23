@@ -52,7 +52,7 @@ export const CompanyBasics = ({ data, onChange, errors }: CompanyBasicsProps) =>
         <Input
           value={data.company_name || ""}
           onChange={(e) => onChange({ ...data, company_name: e.target.value })}
-          placeholder="Northwest Injury Clinics"
+          placeholder="Your Clinic Name"
         />
       </Field>
 
