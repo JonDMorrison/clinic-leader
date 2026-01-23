@@ -73,13 +73,16 @@ export const UserNav = () => {
   });
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error("Failed to log out");
-    } else {
-      queryClient.clear(); // Clear all queries on logout
-      navigate("/auth");
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      // Ignore signOut errors - session may already be invalid
+      console.warn("SignOut error (continuing anyway):", error);
     }
+    // Always clear queries and navigate to auth, even if signOut failed
+    // (user is effectively logged out if session was already invalid)
+    queryClient.clear();
+    navigate("/auth");
   };
 
   // Derive display name from available data
