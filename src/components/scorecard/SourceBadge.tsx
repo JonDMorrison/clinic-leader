@@ -15,6 +15,8 @@ interface SourceBadgeProps {
   cadence: string;
   lastUpdated: string | null;
   janeLastSync?: string | null;
+  /** Compact mode renders a smaller, inline text style instead of badges */
+  compact?: boolean;
 }
 
 const getSourceLabel = (source: string | null, syncSource: string): string => {
@@ -57,6 +59,7 @@ export function SourceBadge({
   cadence,
   lastUpdated,
   janeLastSync,
+  compact = false,
 }: SourceBadgeProps) {
   const navigate = useNavigate();
   const isAutoSync = syncSource !== "manual";
@@ -85,6 +88,62 @@ export function SourceBadge({
   const handleViewImportDetails = () => {
     navigate("/settings/integrations/jane");
   };
+
+  // Compact mode: simple inline text
+  if (compact) {
+    return (
+      <TooltipProvider>
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            <span className="inline-flex items-center gap-1 cursor-help text-[11px] text-muted-foreground/70 hover:text-muted-foreground transition-colors">
+              <RefreshCw className="h-3 w-3" />
+              <span>{sourceLabel}</span>
+              {isAutoSync && (
+                <span className="text-primary/70">• Auto</span>
+              )}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent 
+            side="bottom" 
+            align="start"
+            className="w-72 p-3 bg-popover/95 backdrop-blur-sm border shadow-lg"
+          >
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2 text-sm">
+                <Database className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Source:</span>
+                <span className="font-medium text-foreground">{sourceLabel}</span>
+              </div>
+              
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Cadence:</span>
+                <span className="font-medium text-foreground capitalize">{cadence}</span>
+              </div>
+              
+              <div className="flex items-center gap-2 text-sm">
+                <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Sync Mode:</span>
+                <span className="font-medium text-foreground">
+                  {isAutoSync ? "Automatic" : "Manual"}
+                </span>
+              </div>
+              
+              <div className="flex items-start gap-2 text-sm">
+                <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground">Last Updated:</span>
+                  <span className="font-medium text-foreground">
+                    {lastUpdated ? formatFullTimestamp(lastUpdated) : "No data yet"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   return (
     <TooltipProvider>
