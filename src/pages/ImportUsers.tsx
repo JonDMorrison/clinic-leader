@@ -207,7 +207,7 @@ export default function ImportUsers() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="john.doe@northwest.com" {...field} />
+                        <Input type="email" placeholder="john.doe@yourclinic.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -366,9 +366,9 @@ export default function ImportUsers() {
             <h3 className="text-lg font-semibold mb-4">Example CSV</h3>
             <pre className="bg-surface/50 p-4 rounded-lg text-xs overflow-x-auto">
 {`email,full_name,role,department
-john.doe@northwest.com,John Doe,director,Management
-jane.smith@northwest.com,Jane Smith,provider,Clinical – Chiropractic
-admin@northwest.com,Admin User,owner,Management`}
+john.doe@yourclinic.com,John Doe,director,Management
+jane.smith@yourclinic.com,Jane Smith,provider,Clinical – Chiropractic
+admin@yourclinic.com,Admin User,owner,Management`}
             </pre>
           </Card>
         </TabsContent>
