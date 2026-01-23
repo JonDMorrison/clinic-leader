@@ -27,7 +27,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { startOfWeek, subWeeks, format } from "date-fns";
 import { AlertsPanel } from "@/components/scorecard/AlertsPanel";
-import { PerformanceScoreCard } from "@/components/scorecard/PerformanceScoreCard";
 import { MilestoneCelebration } from "@/components/scorecard/MilestoneCelebration";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
@@ -486,11 +485,6 @@ const Scorecard = () => {
         />
       ) : (
         <div className="space-y-6">
-          {/* Performance Score Card - only show when there's meaningful data */}
-          {(metricsData || []).some(m => m.current_value !== null && m.target !== null) && (
-            <PerformanceScoreCard metrics={metricsData || []} />
-          )}
-
           {/* Alerts Panel */}
           <AlertsPanel 
             organizationId={currentUser?.team_id}
