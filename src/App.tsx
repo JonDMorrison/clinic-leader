@@ -35,10 +35,7 @@ import AISettings from "./pages/AISettings";
 import Reports from "./pages/Reports";
 import ReportView from "./pages/ReportView";
 import Branding from "./pages/Branding";
-import Licensing from "./pages/Licensing";
 import ImportUsers from "./pages/ImportUsers";
-import ImportKpis from "./pages/ImportKpis";
-import ImportSops from "./pages/ImportSops";
 import ImportMonthlyReport from "./pages/ImportMonthlyReport";
 import OrganizationSettings from "./pages/OrganizationSettings";
 
@@ -210,10 +207,7 @@ const App = () => {
             <Route path="/ai-settings" element={<AppLayout><AISettings /></AppLayout>} />
             <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
             <Route path="/branding" element={<AppLayout><Branding /></AppLayout>} />
-            <Route path="/licensing" element={<AppLayout><Licensing /></AppLayout>} />
             <Route path="/imports/users" element={<AppLayout><ImportUsers /></AppLayout>} />
-            <Route path="/imports/kpis" element={<AppLayout><ImportKpis /></AppLayout>} />
-            <Route path="/imports/sops" element={<AppLayout><ImportSops /></AppLayout>} />
             <Route path="/imports/monthly-report" element={<AppLayout><ImportMonthlyReport /></AppLayout>} />
             <Route path="/imports/pdf-report" element={<AppLayout><ImportPdfReport /></AppLayout>} />
             
