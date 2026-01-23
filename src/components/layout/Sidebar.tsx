@@ -154,7 +154,7 @@ export const Sidebar = () => {
         <div className="space-y-6">
           {filteredGroups.map((group, groupIndex) => (
             <Collapsible
-              key={group.label || 'core'}
+              key={group.label || `group-${groupIndex}`}
               defaultOpen={group.alwaysOpen || isGroupActive(group.items)}
               className="animate-fade-in"
               style={{ animationDelay: `${groupIndex * 50}ms` } as React.CSSProperties}
