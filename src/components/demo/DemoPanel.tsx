@@ -35,7 +35,7 @@ export const DemoPanel = () => {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Presentation className="w-5 h-5" />
-                <span className="font-semibold">Partner Demo</span>
+                <span className="font-semibold">Quick Tour</span>
               </div>
               <button
                 onClick={stop}
