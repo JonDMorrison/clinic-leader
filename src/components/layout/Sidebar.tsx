@@ -69,6 +69,8 @@ const navGroups: NavGroup[] = [
 
 export const Sidebar = () => {
   const location = useLocation();
+  const isOnboarding = location.pathname === "/onboarding";
+  
   // Fetch team_id only (role comes from useIsAdmin hook)
   const { data: currentUser } = useQuery({
     queryKey: ["currentUser-teamId"],
@@ -105,9 +107,17 @@ export const Sidebar = () => {
   const eosEnabled = team?.eos_enabled || false;
 
   // Filter groups and items based on role permissions and EOS status
+  // During onboarding, show all core navigation items to make the app feel complete
   const filteredGroups = navGroups.map(group => ({
     ...group,
     items: group.items.filter(item => {
+      // During onboarding, show all non-EOS items to make sidebar look complete
+      if (isOnboarding) {
+        // Show basic items during onboarding
+        if (item.eosOnly) return false;
+        return true;
+      }
+      
       // Filter by role using permission helpers
       const permissionLevel = getNavPermissionLevel(item.roles);
       if (!canSeeNavItem(permissionLevel, roleData)) return false;
