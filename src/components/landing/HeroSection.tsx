@@ -96,9 +96,9 @@ export const HeroSection = () => {
 
             {/* Headline with gradient */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-              Lead your clinic.{" "}
+              Lead Your Clinic.{" "}
               <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
-                Not just manage it.
+                Don't Just Manage It.
               </span>
             </h1>
 
