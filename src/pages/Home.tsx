@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Stat } from "@/components/ui/Stat";
 import { KpiSparkline } from "@/components/ui/KpiSparkline";
-import { TrendingUp, Users, Target, AlertCircle } from "lucide-react";
+import { TrendingUp, Users, Target, AlertCircle, DollarSign, Calendar, Clock, UserCheck, Activity, Percent } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,6 +18,8 @@ import { ConnectDataCard } from "@/components/dashboard/ConnectDataCard";
 import { IssueSuggestionsWidget } from "@/components/dashboard/IssueSuggestionsWidget";
 import { ProgressPreviewCard } from "@/components/progress/ProgressPreviewCard";
 import { DemoBanner } from "@/components/dashboard/DemoBanner";
+import { CustomizableStatCard, StatOption } from "@/components/dashboard/CustomizableStatCard";
+import { useDashboardPreferences } from "@/hooks/useDashboardPreferences";
 
 const INSPIRATIONAL_MESSAGES = [
   "Lead your clinic. Not just manage it.",
@@ -192,10 +193,102 @@ const Home = () => {
   const completedRocks = rocks?.filter(r => r.status === "done").length || 0;
   const totalRocks = rocks?.length || 0;
   const openIssues = issues?.filter(i => i.status === "open").length || 0;
+  const rocksAtRisk = rocks?.filter(r => r.status === "off_track").length || 0;
 
   // Get New Patients metric latest value
   const newPatientsMetric = metrics?.find(m => m.name === "New Patients");
   const newPatientsValue = newPatientsMetric?.metric_results?.[0]?.value || 0;
+
+  // Get other metric values for customizable stats
+  const visitsMetric = metrics?.find(m => m.name?.toLowerCase().includes("visit"));
+  const visitsValue = visitsMetric?.metric_results?.[0]?.value || 0;
+  
+  const revenueMetric = metrics?.find(m => m.name?.toLowerCase().includes("revenue") || m.name?.toLowerCase().includes("collected"));
+  const revenueValue = revenueMetric?.metric_results?.[0]?.value || 0;
+
+  const showRateMetric = metrics?.find(m => m.name?.toLowerCase().includes("show rate"));
+  const showRateValue = showRateMetric?.metric_results?.[0]?.value || 0;
+
+  // Dashboard preferences
+  const { preferences, updateStatSlot } = useDashboardPreferences();
+
+  // Build all available stat options
+  const allStatOptions: StatOption[] = useMemo(() => [
+    {
+      id: "new_patients",
+      label: "New Patients (This Week)",
+      value: newPatientsValue,
+      icon: <Users className="w-5 h-5 md:w-6 md:h-6 text-brand" />,
+      variant: "brand",
+      tooltip: "Total new patients registered this week",
+    },
+    {
+      id: "completed_rocks",
+      label: "Completed Rocks",
+      value: `${completedRocks}/${totalRocks}`,
+      icon: <Target className="w-5 h-5 md:w-6 md:h-6 text-success" />,
+      variant: "success",
+      tooltip: "Quarterly goals completed",
+      href: "/rocks",
+    },
+    {
+      id: "open_issues",
+      label: "Open Issues",
+      value: openIssues,
+      icon: <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-warning" />,
+      variant: "warning",
+      tooltip: "Issues requiring attention",
+      href: "/issues",
+    },
+    {
+      id: "active_kpis",
+      label: "Active KPIs",
+      value: metrics?.length || 0,
+      icon: <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-accent" />,
+      variant: "accent",
+      tooltip: "Key metrics being tracked",
+      href: "/scorecard",
+    },
+    {
+      id: "visits",
+      label: "Visits (This Week)",
+      value: visitsValue,
+      icon: <Calendar className="w-5 h-5 md:w-6 md:h-6 text-brand" />,
+      variant: "brand",
+      tooltip: "Total patient visits this week",
+    },
+    {
+      id: "revenue",
+      label: "Revenue Collected",
+      value: revenueValue > 0 ? `$${revenueValue.toLocaleString()}` : "—",
+      icon: <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-success" />,
+      variant: "success",
+      tooltip: "Total revenue collected this period",
+    },
+    {
+      id: "rocks_at_risk",
+      label: "Rocks at Risk",
+      value: rocksAtRisk,
+      icon: <Target className="w-5 h-5 md:w-6 md:h-6 text-warning" />,
+      variant: "warning",
+      tooltip: "Quarterly goals that are off track",
+      href: "/rocks",
+    },
+    {
+      id: "show_rate",
+      label: "Show Rate",
+      value: showRateValue > 0 ? `${showRateValue}%` : "—",
+      icon: <Percent className="w-5 h-5 md:w-6 md:h-6 text-accent" />,
+      variant: "accent",
+      tooltip: "Percentage of patients who showed up",
+    },
+  ], [newPatientsValue, completedRocks, totalRocks, openIssues, metrics?.length, visitsValue, revenueValue, rocksAtRisk, showRateValue]);
+
+  // Get stats for current slots
+  const getStatForSlot = (slotIndex: number): StatOption => {
+    const statId = preferences.statSlots[slotIndex] || "new_patients";
+    return allStatOptions.find(s => s.id === statId) || allStatOptions[0];
+  };
 
   const isLoading = userLoading || metricsLoading || rocksLoading || issuesLoading;
 
@@ -280,36 +373,14 @@ const Home = () => {
         transition={{ delay: 0.2, duration: 0.6 }}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
-        <Stat
-          label="New Patients (This Week)"
-          value={newPatientsValue}
-          icon={<Users className="w-5 h-5 md:w-6 md:h-6 text-brand" />}
-          variant="brand"
-          tooltip="Total new patients registered this week"
-        />
-        <Stat
-          label="Completed Rocks"
-          value={`${completedRocks}/${totalRocks}`}
-          icon={<Target className="w-5 h-5 md:w-6 md:h-6 text-success" />}
-          variant="success"
-          tooltip="Quarterly goals completed"
-        />
-        <Stat
-          label="Open Issues"
-          value={openIssues}
-          icon={<AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-warning" />}
-          variant="warning"
-          tooltip="Issues requiring attention"
-          href="/issues"
-        />
-        <Stat
-          label="Active KPIs"
-          value={metrics?.length || 0}
-          icon={<TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-accent" />}
-          variant="accent"
-          tooltip="Key metrics being tracked"
-          href="/scorecard"
-        />
+        {[0, 1, 2, 3].map((slotIndex) => (
+          <CustomizableStatCard
+            key={slotIndex}
+            currentStat={getStatForSlot(slotIndex)}
+            availableStats={allStatOptions}
+            onSwap={(statId) => updateStatSlot(slotIndex, statId)}
+          />
+        ))}
       </motion.div>
 
       {/* Issue Suggestions Widget */}
