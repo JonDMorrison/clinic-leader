@@ -321,7 +321,7 @@ const Home = () => {
         transition={{ delay: 0.4, duration: 0.6 }}
         className="grid grid-cols-1 lg:grid-cols-2 gap-6"
       >
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden h-fit">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
