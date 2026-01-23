@@ -72,7 +72,7 @@ import ScorecardOffTrack from "./pages/ScorecardOffTrack";
 import ScorecardCutover from "./pages/ScorecardCutover";
 import RocksMonthlyReview from "./pages/RocksMonthlyReview";
 import QuarterlyCloseReport from "./pages/QuarterlyCloseReport";
-import Focus from "./pages/Focus";
+
 import ProfileSettings from "./pages/ProfileSettings";
 import DataSafety from "./pages/DataSafety";
 import DataHome from "./pages/DataHome";
@@ -188,7 +188,7 @@ const App = () => {
             <Route path="/issues" element={<AppLayout><Issues /></AppLayout>} />
             <Route path="/rocks/monthly-review" element={<AppLayout><RocksMonthlyReview /></AppLayout>} />
             <Route path="/rocks/quarterly-close" element={<AppLayout><QuarterlyCloseReport /></AppLayout>} />
-            <Route path="/focus" element={<AppLayout><Focus /></AppLayout>} />
+            
             <Route path="/progress" element={<AppLayout><Progress /></AppLayout>} />
             <Route path="/data" element={<AppLayout><DataHome /></AppLayout>} />
             <Route path="/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />

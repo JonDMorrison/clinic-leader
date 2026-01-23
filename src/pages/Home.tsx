@@ -14,7 +14,7 @@ import { useRef, useEffect, useState, useMemo } from "react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
 import { CoreValuesStrip, CoreValueOfWeekCard } from "@/components/core-values";
-import { FocusWidget } from "@/components/dashboard/FocusWidget";
+
 import { ConnectDataCard } from "@/components/dashboard/ConnectDataCard";
 import { IssueSuggestionsWidget } from "@/components/dashboard/IssueSuggestionsWidget";
 import { ProgressPreviewCard } from "@/components/progress/ProgressPreviewCard";
@@ -411,7 +411,7 @@ const Home = () => {
         
         <CopilotWidget />
 
-        <FocusWidget />
+        
 
         <CoreValueOfWeekCard />
       </motion.div>

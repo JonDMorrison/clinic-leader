@@ -454,12 +454,6 @@ export default function ScorecardCutover() {
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <Link to="/focus">
-                <ArrowRight className="w-4 h-4 mr-2" />
-                Manager Focus
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
               <Link to="/scorecard/off-track">
                 <ListChecks className="w-4 h-4 mr-2" />
                 Off-Track View
