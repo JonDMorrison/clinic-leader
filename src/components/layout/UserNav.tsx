@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LogOut, Building2, Settings, Plug } from "lucide-react";
+import { LogOut, Building2, Settings, Plug, Presentation } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import {
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { useDemoWalkthrough } from "@/components/demo";
 
 interface UserProfile {
   id: string;
@@ -26,6 +27,7 @@ interface UserProfile {
 export const UserNav = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { start: startDemo, isActive: isDemoActive } = useDemoWalkthrough();
 
   // Use React Query with the same key as ProfileSettings for instant cache updates
   const { data: profile } = useQuery({
@@ -108,6 +110,12 @@ export const UserNav = () => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {!isDemoActive && (
+          <DropdownMenuItem onClick={startDemo}>
+            <Presentation className="mr-2 h-4 w-4" />
+            <span>Start Demo</span>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={() => navigate("/settings/organization")}>
           <Building2 className="mr-2 h-4 w-4" />
           <span>Company Profile</span>
