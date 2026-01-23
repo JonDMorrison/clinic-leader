@@ -44,6 +44,7 @@ const navGroups: NavGroup[] = [
       { title: "V/TO", path: "/vto", icon: Compass, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Scorecard", path: "/scorecard", icon: BarChart3, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Rocks", path: "/rocks", icon: Target, roles: ["manager", "director", "owner"], eosOnly: true },
+      { title: "People", path: "/people", icon: Users, roles: ["manager", "director", "owner"], eosOnly: true },
     ],
     alwaysOpen: true,
   },
@@ -54,13 +55,6 @@ const navGroups: NavGroup[] = [
       { title: "Issues", path: "/issues", icon: AlertCircle, roles: ["staff", "manager", "director", "owner"] },
       { title: "Recalls", path: "/recalls", icon: Phone, roles: ["staff", "manager", "director", "owner"] },
       { title: "Docs", path: "/docs", icon: FileText, roles: ["staff", "manager", "director", "owner"] },
-    ],
-    alwaysOpen: true,
-  },
-  {
-    label: "Team",
-    items: [
-      { title: "People", path: "/people", icon: Users, roles: ["manager", "director", "owner"], eosOnly: true },
     ],
     alwaysOpen: true,
   },
