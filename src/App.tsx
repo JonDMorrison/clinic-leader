@@ -10,6 +10,7 @@ import { ImpersonationBanner } from "@/components/layout/ImpersonationBanner";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { OnboardingGuard } from "@/components/onboarding/OnboardingGuard";
+import { DemoWalkthroughProvider } from "@/components/demo";
 import { userTourService } from "@/lib/userTourService";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -168,6 +169,7 @@ const App = () => {
           <ImpersonationBanner />
           <BrowserRouter>
           <ErrorBoundary>
+          <DemoWalkthroughProvider>
           <OnboardingGuard>
           <Routes>
             <Route path="/auth" element={<Auth />} />
@@ -234,6 +236,7 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
           </OnboardingGuard>
+          </DemoWalkthroughProvider>
           
           {showWizard && userId && (
             <OnboardingWizard userId={userId} onComplete={handleWizardComplete} />
