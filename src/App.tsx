@@ -71,7 +71,7 @@ import QuarterlyCloseReport from "./pages/QuarterlyCloseReport";
 
 import ProfileSettings from "./pages/ProfileSettings";
 import DataSafety from "./pages/DataSafety";
-import DataHome from "./pages/DataHome";
+import DataHomeRouter from "./pages/DataHomeRouter";
 import JaneCompliance from "./pages/JaneCompliance";
 import Security from "./pages/Security";
 import Progress from "./pages/Progress";
@@ -138,7 +138,7 @@ const App = () => {
             <Route path="/rocks/quarterly-close" element={<AppLayout><QuarterlyCloseReport /></AppLayout>} />
             
             <Route path="/progress" element={<AppLayout><Progress /></AppLayout>} />
-            <Route path="/data" element={<AppLayout><DataHome /></AppLayout>} />
+            <Route path="/data" element={<AppLayout><DataHomeRouter /></AppLayout>} />
             <Route path="/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
             <Route path="/meeting" element={<AppLayout><L10 /></AppLayout>} />
             <Route path="/meetings" element={<AppLayout><Meetings /></AppLayout>} />
