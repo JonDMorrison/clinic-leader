@@ -13,19 +13,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { 
   Upload, Download, Loader2, CheckCircle, AlertTriangle, ArrowLeft, 
-  FileWarning, FileSpreadsheet, AlertCircle, RotateCcw, Copy, ExternalLink
+  FileWarning, FileSpreadsheet, AlertCircle, RotateCcw, Copy, ExternalLink,
+  Calendar, FileCheck
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { getWorkbookSheets, parseSheet, normalizeLabel } from "@/lib/importers/excelProfileParser";
 import { parseCSV } from "@/lib/importers/csvParser";
+import { isLoriWorkbook, parseLoriWorkbookSync, LoriMonthPayload, LoriParseResult } from "@/lib/importers/loriWorkbookImporter";
 import * as XLSX from 'xlsx';
 
 // Required columns for canonical import
 const REQUIRED_COLUMNS = ['metric_key', 'value', 'month'];
 const OPTIONAL_COLUMNS = ['metric_name'];
 
-type Step = 'upload' | 'sheet-select' | 'preview' | 'import' | 'done';
+type Step = 'upload' | 'sheet-select' | 'preview' | 'import' | 'done' | 'lori-preview' | 'lori-import';
 
 interface ParseDiagnostics {
   fileName: string;
@@ -87,6 +89,15 @@ const ImportMonthlyReport = () => {
   
   // Results
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  
+  // Lori workbook state
+  const [isLoriMode, setIsLoriMode] = useState(false);
+  const [loriResult, setLoriResult] = useState<LoriParseResult | null>(null);
+  const [loriImportProgress, setLoriImportProgress] = useState<{
+    total: number;
+    completed: number;
+    results: { period_key: string; status: 'success' | 'error'; message?: string }[];
+  } | null>(null);
 
   // Fetch metrics with import_key
   const { data: metrics } = useQuery({
@@ -178,10 +189,18 @@ const ImportMonthlyReport = () => {
         setSheets(sheetInfos);
         setWorkbook(result.workbook);
         
-        if (sheetInfos.length === 1) {
+        // Check if this is a Lori workbook (multi-month with Copy template)
+        if (isLoriWorkbook(result.workbook)) {
+          setIsLoriMode(true);
+          const loriParsed = parseLoriWorkbookSync(result.workbook);
+          setLoriResult(loriParsed);
+          setStep('lori-preview');
+        } else if (sheetInfos.length === 1) {
+          setIsLoriMode(false);
           setSelectedSheet(sheetInfos[0].name);
           loadSheet(result.workbook, sheetInfos[0].name, selectedFile.name);
         } else {
+          setIsLoriMode(false);
           // Find best sheet
           const best = findBestSheet(result.workbook, sheetInfos);
           setSelectedSheet(best);
@@ -498,6 +517,79 @@ const ImportMonthlyReport = () => {
     setPreviewRows([]);
     setParsedRows([]);
     setImportSummary(null);
+    setIsLoriMode(false);
+    setLoriResult(null);
+    setLoriImportProgress(null);
+  };
+
+  // Execute Lori workbook import
+  const executeLoriImport = async () => {
+    if (!currentUser?.team_id || !loriResult || loriResult.payloads.length === 0) return;
+    
+    setIsProcessing(true);
+    setStep('lori-import');
+    
+    const results: { period_key: string; status: 'success' | 'error'; message?: string }[] = [];
+    
+    setLoriImportProgress({
+      total: loriResult.payloads.length,
+      completed: 0,
+      results: [],
+    });
+    
+    for (let i = 0; i < loriResult.payloads.length; i++) {
+      const payload = loriResult.payloads[i];
+      
+      try {
+        // Upsert into legacy_monthly_reports
+        // Note: Table was just created, types may not be fully regenerated yet
+        const { error } = await supabase
+          .from('legacy_monthly_reports' as any)
+          .upsert({
+            organization_id: currentUser.team_id,
+            period_key: payload.period_key,
+            source_file_name: file?.name || null,
+            payload: {
+              sheet_name: payload.sheet_name,
+              provider_table: payload.provider_table,
+              referral_totals: payload.referral_totals,
+              referral_sources: payload.referral_sources,
+              extra_blocks: payload.extra_blocks,
+              warnings: payload.warnings,
+              imported_at: new Date().toISOString(),
+            },
+          } as any, {
+            onConflict: 'organization_id,period_key',
+          });
+        
+        if (error) throw error;
+        
+        results.push({ period_key: payload.period_key, status: 'success' });
+      } catch (err: any) {
+        results.push({ 
+          period_key: payload.period_key, 
+          status: 'error', 
+          message: err.message || 'Unknown error' 
+        });
+      }
+      
+      setLoriImportProgress({
+        total: loriResult.payloads.length,
+        completed: i + 1,
+        results: [...results],
+      });
+    }
+    
+    setIsProcessing(false);
+    
+    const successCount = results.filter(r => r.status === 'success').length;
+    if (successCount === results.length) {
+      toast.success(`Successfully imported ${successCount} months`);
+    } else if (successCount > 0) {
+      toast.warning(`Imported ${successCount}/${results.length} months`);
+    } else {
+      toast.error('Import failed for all months');
+    }
   };
 
   // Stats for import step
@@ -1011,6 +1103,212 @@ const ImportMonthlyReport = () => {
             </Button>
           </div>
         </>
+      )}
+
+      {/* Step: Lori Workbook Preview */}
+      {step === 'lori-preview' && loriResult && (
+        <>
+          <Alert className="border-brand bg-brand/5">
+            <FileSpreadsheet className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Multi-Month Workbook Detected:</strong> This file contains {loriResult.payloads.length} monthly reports 
+              that will be imported into the legacy data system.
+            </AlertDescription>
+          </Alert>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-brand" />
+                Months to Import ({loriResult.payloads.length})
+              </CardTitle>
+              <CardDescription>
+                Each month's data will be stored as a complete payload for the Default data view
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4">
+                {loriResult.payloads.map((payload) => (
+                  <div 
+                    key={payload.period_key} 
+                    className="p-4 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="font-mono">
+                          {payload.period_key}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          Sheet: {payload.sheet_name}
+                        </span>
+                      </div>
+                      {payload.warnings.length > 0 && (
+                        <Badge variant="secondary" className="text-warning">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          {payload.warnings.length} warning{payload.warnings.length > 1 ? 's' : ''}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="p-2 rounded bg-muted/50">
+                        <p className="text-muted-foreground text-xs">Provider Table</p>
+                        <p className="font-medium">
+                          {payload.provider_table.rows.length} rows
+                        </p>
+                      </div>
+                      <div className="p-2 rounded bg-muted/50">
+                        <p className="text-muted-foreground text-xs">Referral Totals</p>
+                        <p className="font-medium">
+                          {payload.referral_totals.rows.length} rows
+                        </p>
+                      </div>
+                      <div className="p-2 rounded bg-muted/50">
+                        <p className="text-muted-foreground text-xs">Referral Sources</p>
+                        <p className="font-medium">
+                          {payload.referral_sources.rows.length} sources
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {payload.extra_blocks.length > 0 && (
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        Extra blocks: {payload.extra_blocks.map(b => b.title).join(', ')}
+                      </div>
+                    )}
+                    
+                    {payload.warnings.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {payload.warnings.map((w, i) => (
+                          <p key={i} className="text-xs text-warning flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            {w}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {loriResult.skippedSheets.length > 0 && (
+            <Card className="border-muted">
+              <CardHeader>
+                <CardTitle className="text-sm text-muted-foreground">
+                  Skipped Sheets ({loriResult.skippedSheets.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {loriResult.skippedSheets.map((s, i) => (
+                    <Badge key={i} variant="muted">{s}</Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {loriResult.errors.length > 0 && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  {loriResult.errors.map((e, i) => (
+                    <p key={i}>{e}</p>
+                  ))}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={resetUpload}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={executeLoriImport}
+              disabled={loriResult.payloads.length === 0 || isProcessing}
+              className="gradient-brand"
+            >
+              <FileCheck className="w-4 h-4 mr-2" />
+              Import {loriResult.payloads.length} Month{loriResult.payloads.length > 1 ? 's' : ''}
+            </Button>
+          </div>
+        </>
+      )}
+
+      {/* Step: Lori Import Progress */}
+      {step === 'lori-import' && loriImportProgress && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin text-brand" />
+                  Importing Months...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5 text-success" />
+                  Import Complete
+                </>
+              )}
+            </CardTitle>
+            <CardDescription>
+              {loriImportProgress.completed} of {loriImportProgress.total} months processed
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Progress bar */}
+            <div className="w-full bg-muted rounded-full h-2">
+              <div 
+                className="bg-brand h-2 rounded-full transition-all duration-300"
+                style={{ 
+                  width: `${(loriImportProgress.completed / loriImportProgress.total) * 100}%` 
+                }}
+              />
+            </div>
+
+            {/* Results list */}
+            <div className="grid gap-2">
+              {loriImportProgress.results.map((r, i) => (
+                <div 
+                  key={i}
+                  className={`p-3 rounded-lg border flex items-center justify-between ${
+                    r.status === 'success' 
+                      ? 'bg-success/5 border-success/30' 
+                      : 'bg-destructive/5 border-destructive/30'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {r.status === 'success' ? (
+                      <CheckCircle className="w-4 h-4 text-success" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-destructive" />
+                    )}
+                    <span className="font-mono">{r.period_key}</span>
+                  </div>
+                  {r.message && (
+                    <span className="text-sm text-destructive">{r.message}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {!isProcessing && (
+              <div className="flex gap-3 pt-4">
+                <Button variant="outline" onClick={resetUpload}>
+                  Import Another File
+                </Button>
+                <Button onClick={() => navigate('/data')}>
+                  View Data
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Step: Done */}
