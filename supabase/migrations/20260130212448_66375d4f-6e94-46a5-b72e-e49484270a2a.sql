@@ -1,10 +1,3 @@
-# F) Migration SQL — EXECUTED
-
-**Status:** ✅ Migration executed successfully on 2026-01-30
-
-## Final SQL Used
-
-```sql
 -- Step 1: Add data_mode column to teams table
 ALTER TABLE public.teams 
 ADD COLUMN data_mode text NOT NULL DEFAULT 'default';
@@ -43,6 +36,16 @@ CREATE TABLE public.legacy_monthly_reports (
   CONSTRAINT legacy_monthly_reports_org_period_unique UNIQUE (organization_id, period_key)
 );
 
+-- Add comment for documentation
+COMMENT ON TABLE public.legacy_monthly_reports IS 
+'Stores raw payloads from Lori workbook Excel imports, one row per org per month';
+
+COMMENT ON COLUMN public.legacy_monthly_reports.period_key IS 
+'Month in YYYY-MM format';
+
+COMMENT ON COLUMN public.legacy_monthly_reports.payload IS 
+'Complete parsed workbook data as JSON, preserving original structure';
+
 -- Step 4: Enable RLS on legacy_monthly_reports
 ALTER TABLE public.legacy_monthly_reports ENABLE ROW LEVEL SECURITY;
 
@@ -76,85 +79,3 @@ EXECUTE FUNCTION public.update_updated_at_column();
 -- Step 7: Add index for common query patterns
 CREATE INDEX idx_legacy_monthly_reports_org_period 
 ON public.legacy_monthly_reports(organization_id, period_key DESC);
-```
-
-## Rollback SQL (if needed)
-
-```sql
--- Drop trigger
-DROP TRIGGER IF EXISTS update_legacy_monthly_reports_updated_at ON public.legacy_monthly_reports;
-
--- Drop table (cascades policies and index)
-DROP TABLE IF EXISTS public.legacy_monthly_reports;
-
--- Remove constraint from teams
-ALTER TABLE public.teams DROP CONSTRAINT IF EXISTS teams_data_mode_check;
-
--- Remove column from teams
-ALTER TABLE public.teams DROP COLUMN IF EXISTS data_mode;
-```
-
-## TypeScript Types (auto-generated after migration)
-
-After migration, `src/integrations/supabase/types.ts` will include:
-
-```typescript
-// teams table update
-teams: {
-  Row: {
-    created_at: string
-    data_mode: string  // 'default' | 'jane'
-    id: string
-    name: string
-    owner_id: string | null
-    scorecard_mode: string | null
-    updated_at: string
-  }
-  Insert: {
-    // ... data_mode defaults to 'default'
-  }
-  Update: {
-    data_mode?: string
-    // ...
-  }
-}
-
-// New table
-legacy_monthly_reports: {
-  Row: {
-    id: string
-    organization_id: string
-    period_key: string
-    source_file_name: string | null
-    payload: Json
-    created_at: string
-    updated_at: string
-  }
-  Insert: {
-    id?: string
-    organization_id: string
-    period_key: string
-    source_file_name?: string | null
-    payload: Json
-    created_at?: string
-    updated_at?: string
-  }
-  Update: {
-    id?: string
-    organization_id?: string
-    period_key?: string
-    source_file_name?: string | null
-    payload?: Json
-    created_at?: string
-    updated_at?: string
-  }
-  Relationships: [
-    {
-      foreignKeyName: "legacy_monthly_reports_organization_id_fkey"
-      columns: ["organization_id"]
-      referencedRelation: "teams"
-      referencedColumns: ["id"]
-    }
-  ]
-}
-```
