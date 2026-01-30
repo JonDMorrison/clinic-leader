@@ -2065,6 +2065,44 @@ export type Database = {
           },
         ]
       }
+      legacy_monthly_reports: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          payload: Json
+          period_key: string
+          source_file_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          payload: Json
+          period_key: string
+          source_file_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          payload?: Json
+          period_key?: string
+          source_file_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legacy_monthly_reports_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       licenses: {
         Row: {
           active: boolean
@@ -4199,6 +4237,7 @@ export type Database = {
           country: string | null
           created_at: string
           currency: string | null
+          data_mode: string
           default_report_email: string | null
           ehr_system: string | null
           eos_enabled: boolean | null
@@ -4229,6 +4268,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           currency?: string | null
+          data_mode?: string
           default_report_email?: string | null
           ehr_system?: string | null
           eos_enabled?: boolean | null
@@ -4259,6 +4299,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           currency?: string | null
+          data_mode?: string
           default_report_email?: string | null
           ehr_system?: string | null
           eos_enabled?: boolean | null
