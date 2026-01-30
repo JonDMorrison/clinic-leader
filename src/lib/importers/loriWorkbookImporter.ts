@@ -172,7 +172,44 @@ function findRowWithText(rows: any[][], colIdx: number, target: string, maxRows:
 }
 
 /**
+ * Check if a row has any meaningful data in the specified column range
+ */
+function rowHasData(rows: any[][], rowIdx: number, startCol: number, endCol: number): boolean {
+  for (let c = startCol; c <= endCol; c++) {
+    const val = getCellStr(rows, rowIdx, c);
+    if (val !== '' && val !== '#DIV/0!' && val !== '#REF!' && val !== '#VALUE!') {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Check if a row is a section header (single label in first column, rest empty)
+ * Examples: "Chiro", "Mid Levels", "Massage Therapist Kennewick"
+ */
+function isSectionHeaderRow(rows: any[][], rowIdx: number, startCol: number, endCol: number): boolean {
+  const firstCell = getCellStr(rows, rowIdx, startCol);
+  if (!firstCell) return false;
+  
+  // Section headers typically have text only in the first column
+  // and the text doesn't contain numbers (to differentiate from data rows like "Chiro Patient Total|121|...")
+  let hasOtherData = false;
+  for (let c = startCol + 1; c <= endCol; c++) {
+    const val = getCellStr(rows, rowIdx, c);
+    if (val !== '' && val !== '#DIV/0!' && val !== '#REF!' && val !== '#VALUE!') {
+      hasOtherData = true;
+      break;
+    }
+  }
+  
+  // If first cell has text but no other columns have data, it's a section header
+  return !hasOtherData;
+}
+
+/**
  * Extract rows from a block until blank row or TOTAL row
+ * Handles section headers and sparse data properly
  */
 function extractBlockRows(
   rows: any[][],
@@ -191,25 +228,35 @@ function extractBlockRows(
   
   // Extract data rows
   const dataRows: any[][] = [];
+  let consecutiveBlankRows = 0;
+  const MAX_CONSECUTIVE_BLANKS = 3; // Allow some blank rows within data
+  
   for (let r = headerRowIdx + 1; r < Math.min(rows.length, headerRowIdx + maxRows); r++) {
-    const row = rows[r] || [];
     const firstCell = getCellStr(rows, r, startCol);
     
-    // Stop conditions
-    if (!firstCell || firstCell === '') {
-      // Check if entire row is blank in this column range
-      let allBlank = true;
-      for (let c = startCol; c <= endCol; c++) {
-        if (getCellStr(rows, r, c) !== '') {
-          allBlank = false;
-          break;
-        }
+    // Check if entire row is blank in this column range
+    if (!rowHasData(rows, r, startCol, endCol)) {
+      consecutiveBlankRows++;
+      if (consecutiveBlankRows >= MAX_CONSECUTIVE_BLANKS) {
+        // Too many consecutive blank rows - stop extraction
+        break;
       }
-      if (allBlank) break;
+      continue; // Skip this blank row but keep looking
     }
     
-    // Include TOTAL row but stop after
-    const isTotal = firstCell.toLowerCase() === 'total' || firstCell.toLowerCase().includes('total');
+    // Reset blank row counter since we found data
+    consecutiveBlankRows = 0;
+    
+    // Skip section header rows (e.g., "Chiro", "Mid Levels")
+    // These have text in first column but no data in other columns
+    if (isSectionHeaderRow(rows, r, startCol, endCol)) {
+      continue;
+    }
+    
+    // Check for TOTAL row - include it but stop after
+    const isTotal = firstCell.toLowerCase() === 'total' || 
+                    firstCell.toLowerCase().includes('total patient') ||
+                    firstCell.toLowerCase().includes('patient total');
     
     // Extract row data
     const rowData: any[] = [];
@@ -218,7 +265,10 @@ function extractBlockRows(
     }
     dataRows.push(rowData);
     
-    if (stopOnTotal && isTotal) break;
+    // If this is a final total row, stop
+    if (stopOnTotal && firstCell.toLowerCase() === 'total patient visits') {
+      break;
+    }
   }
   
   return { headers, dataRows };
