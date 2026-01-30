@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Database, 
   FileSpreadsheet,
@@ -10,63 +12,73 @@ import {
   Loader2,
   ArrowRight,
   BarChart3,
+  Clock,
+  RefreshCw,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { motion } from "framer-motion";
 import { format, parseISO } from "date-fns";
+import LegacyMonthlyReportView, { LegacyMonthPayload } from "@/components/data/LegacyMonthlyReportView";
 
 export default function DataDefaultHome() {
   const navigate = useNavigate();
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
+  const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
 
-  // Fetch latest legacy_monthly_reports for current org
-  const { data: latestReport, isLoading: reportLoading } = useQuery({
-    queryKey: ["legacy-monthly-reports", currentUser?.team_id],
+  // Fetch all available months for current org
+  const { data: availableMonths, isLoading: monthsLoading } = useQuery({
+    queryKey: ["legacy-monthly-reports-months", currentUser?.team_id],
     queryFn: async () => {
-      if (!currentUser?.team_id) return null;
+      if (!currentUser?.team_id) return [];
       
       const { data, error } = await supabase
-        .from("legacy_monthly_reports")
-        .select("id, period_key, source_file_name, created_at, updated_at")
+        .from("legacy_monthly_reports" as any)
+        .select("period_key, updated_at")
         .eq("organization_id", currentUser.team_id)
-        .order("period_key", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order("period_key", { ascending: true });
       
       if (error) {
         console.error("Error fetching legacy reports:", error);
+        return [];
+      }
+      
+      return (data || []) as unknown as { period_key: string; updated_at: string }[];
+    },
+    enabled: !!currentUser?.team_id,
+  });
+
+  // Set default selected period to latest
+  const effectiveSelectedPeriod = selectedPeriod || 
+    (availableMonths && availableMonths.length > 0 
+      ? availableMonths[availableMonths.length - 1].period_key 
+      : null);
+
+  // Fetch selected month's payload
+  const { data: reportData, isLoading: reportLoading } = useQuery({
+    queryKey: ["legacy-monthly-report", currentUser?.team_id, effectiveSelectedPeriod],
+    queryFn: async () => {
+      if (!currentUser?.team_id || !effectiveSelectedPeriod) return null;
+      
+      const { data, error } = await supabase
+        .from("legacy_monthly_reports" as any)
+        .select("payload, updated_at, source_file_name")
+        .eq("organization_id", currentUser.team_id)
+        .eq("period_key", effectiveSelectedPeriod)
+        .maybeSingle();
+      
+      if (error) {
+        console.error("Error fetching report payload:", error);
         return null;
       }
       
-      return data;
+      return data as unknown as { payload: LegacyMonthPayload; updated_at: string; source_file_name: string | null } | null;
     },
-    enabled: !!currentUser?.team_id,
+    enabled: !!currentUser?.team_id && !!effectiveSelectedPeriod,
   });
 
-  // Fetch count of all reports for this org
-  const { data: reportCount } = useQuery({
-    queryKey: ["legacy-monthly-reports-count", currentUser?.team_id],
-    queryFn: async () => {
-      if (!currentUser?.team_id) return 0;
-      
-      const { count, error } = await supabase
-        .from("legacy_monthly_reports")
-        .select("*", { count: "exact", head: true })
-        .eq("organization_id", currentUser.team_id);
-      
-      if (error) {
-        console.error("Error fetching report count:", error);
-        return 0;
-      }
-      
-      return count || 0;
-    },
-    enabled: !!currentUser?.team_id,
-  });
-
-  const isLoading = userLoading || reportLoading;
+  const isLoading = userLoading || monthsLoading;
 
   if (isLoading) {
     return (
@@ -86,8 +98,18 @@ export default function DataDefaultHome() {
     }
   };
 
+  // Short month format for tabs
+  const formatPeriodShort = (periodKey: string) => {
+    try {
+      const date = parseISO(`${periodKey}-01`);
+      return format(date, "MMM ''yy");
+    } catch {
+      return periodKey;
+    }
+  };
+
   // Empty state - no reports uploaded yet
-  if (!latestReport) {
+  if (!availableMonths || availableMonths.length === 0) {
     return (
       <div className="container mx-auto py-8 space-y-6">
         {/* Header */}
@@ -132,7 +154,7 @@ export default function DataDefaultHome() {
     );
   }
 
-  // Has reports - show dashboard shell
+  // Has reports - show dashboard with month tabs
   return (
     <div className="container mx-auto py-8 space-y-6">
       {/* Header */}
@@ -151,15 +173,15 @@ export default function DataDefaultHome() {
           </div>
         </div>
 
-        {/* Status badges */}
-        <div className="flex items-center gap-3">
+        {/* Status badges & actions */}
+        <div className="flex items-center gap-3 flex-wrap">
           <Badge variant="outline" className="gap-1.5 py-1.5">
-            <Calendar className="w-3.5 h-3.5" />
-            Latest: {formatPeriodKey(latestReport.period_key)}
+            <RefreshCw className="w-3.5 h-3.5" />
+            Updated monthly
           </Badge>
           <Badge variant="outline" className="gap-1.5 py-1.5">
             <BarChart3 className="w-3.5 h-3.5" />
-            {reportCount} month{reportCount !== 1 ? "s" : ""} tracked
+            {availableMonths.length} month{availableMonths.length !== 1 ? "s" : ""} tracked
           </Badge>
           <Button variant="outline" size="sm" onClick={() => navigate("/imports/monthly-report")}>
             <Upload className="w-4 h-4 mr-2" />
@@ -168,37 +190,79 @@ export default function DataDefaultHome() {
         </div>
       </motion.div>
 
-      {/* Dashboard Shell - Placeholder for full implementation */}
+      {/* Month Tabs */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+      >
+        <Tabs 
+          value={effectiveSelectedPeriod || undefined} 
+          onValueChange={setSelectedPeriod}
+          className="w-full"
+        >
+          <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
+            {availableMonths.map((month) => (
+              <TabsTrigger 
+                key={month.period_key} 
+                value={month.period_key}
+                className="whitespace-nowrap"
+              >
+                {formatPeriodShort(month.period_key)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </motion.div>
+
+      {/* Report Content */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
-              {formatPeriodKey(latestReport.period_key)} Report
-            </CardTitle>
-            <CardDescription>
-              {latestReport.source_file_name 
-                ? `Imported from: ${latestReport.source_file_name}`
-                : "Monthly metrics data"
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-12 text-muted-foreground">
-              <p className="mb-4">
-                Dashboard rendering coming soon. Your data is stored and ready to display.
-              </p>
-              <Button variant="outline" onClick={() => navigate("/scorecard")}>
-                View Scorecard
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+        {reportLoading ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 animate-spin text-brand" />
+            </CardContent>
+          </Card>
+        ) : reportData?.payload ? (
+          <div className="space-y-4">
+            {/* Report header with metadata */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1">
+              <div>
+                <h2 className="text-xl font-semibold">
+                  {formatPeriodKey(effectiveSelectedPeriod!)}
+                </h2>
+                {reportData.source_file_name && (
+                  <p className="text-sm text-muted-foreground">
+                    Source: {reportData.source_file_name}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                Last updated: {format(parseISO(reportData.updated_at), "MMM d, yyyy 'at' h:mm a")}
+              </div>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* The actual report view */}
+            <LegacyMonthlyReportView
+              payload={reportData.payload}
+              periodKey={effectiveSelectedPeriod!}
+              updatedAt={reportData.updated_at}
+            />
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-muted-foreground">
+                No data found for {effectiveSelectedPeriod && formatPeriodKey(effectiveSelectedPeriod)}
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </motion.div>
 
       {/* Quick Actions */}
