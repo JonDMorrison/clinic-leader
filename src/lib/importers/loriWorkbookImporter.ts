@@ -22,9 +22,9 @@ import * as XLSX from 'xlsx';
 /** Row-level provenance for audit verification */
 export interface RowProvenance {
   sheet_name: string;
-  row_number_1: number; // 1-indexed Excel row
-  start_col_0: number; // 0-indexed column
-  end_col_0: number;
+  excel_row: number;    // 1-indexed Excel row
+  start_col: number;    // 1-indexed column
+  end_col: number;      // 1-indexed column
   raw_cells: any[];
 }
 
@@ -324,7 +324,7 @@ function isRowBlankAcrossSpan(rows: any[][], rowIdx: number, startCol: number, e
 interface ExtractedTable {
   headers: string[];
   dataRows: any[][];
-  rowProvenance: RowProvenance[]; // Added for audit
+  provenance: RowProvenance[];
   headerRowIdx: number;
   startCol: number;
   endCol: number;
@@ -340,11 +340,10 @@ function extractTableFromHeader(
   rows: any[][],
   headerPos: CellPos,
   headerLabel: string,
-  sheetName: string, // Added for provenance
+  sheetName: string,
   opts?: { maxScanRows?: number }
 ): ExtractedTable {
   const maxScanRows = opts?.maxScanRows ?? rows.length;
-
   const headerRowIdx = headerPos.r;
   const { startCol, endCol } = detectSpan(rows, headerRowIdx, headerPos.c);
   const colCount = endCol - startCol + 1;
@@ -354,19 +353,16 @@ function extractTableFromHeader(
     headers.push(normalizeText(getCell(rows, headerRowIdx, c)));
   }
 
-  // Rows between header and the first occurrence of 3 consecutive fully blank rows (across span)
   const dataRows: any[][] = [];
-  const rowProvenance: RowProvenance[] = [];
+  const provenance: RowProvenance[] = [];
   const blankBuffer: { row: any[]; prov: RowProvenance }[] = [];
   const STOP_AFTER = 3;
-  let endRow = headerRowIdx; // will track last included row
+  let endRow = headerRowIdx;
   let nonEmptyRowCount = 0;
 
   const maxRow = Math.min(rows.length, headerRowIdx + 1 + maxScanRows);
   for (let r = headerRowIdx + 1; r < maxRow; r++) {
     const rowIsBlank = isRowBlankAcrossSpan(rows, r, startCol, endCol);
-
-    // Build raw cells for provenance
     const rawCells: any[] = [];
     for (let c = startCol; c <= endCol; c++) {
       rawCells.push(getCell(rows, r, c));
@@ -374,38 +370,33 @@ function extractTableFromHeader(
 
     const prov: RowProvenance = {
       sheet_name: sheetName,
-      row_number_1: r + 1, // Convert to 1-indexed
-      start_col_0: startCol,
-      end_col_0: endCol,
+      excel_row: r + 1,
+      start_col: startCol + 1,
+      end_col: endCol + 1,
       raw_cells: rawCells,
     };
 
     if (rowIsBlank) {
       blankBuffer.push({ row: new Array(colCount).fill(null), prov });
-      if (blankBuffer.length >= STOP_AFTER) {
-        // Stop WITHOUT including the terminating blank run
-        break;
-      }
+      if (blankBuffer.length >= STOP_AFTER) break;
       continue;
     }
 
-    // Flush any buffered blank separators (1-2 consecutive blank rows)
     if (blankBuffer.length > 0) {
       for (const buf of blankBuffer) {
         dataRows.push(buf.row);
-        rowProvenance.push(buf.prov);
+        provenance.push(buf.prov);
       }
       blankBuffer.length = 0;
     }
 
     dataRows.push(rawCells);
-    rowProvenance.push(prov);
+    provenance.push(prov);
     nonEmptyRowCount++;
     endRow = r;
   }
 
   const headerCellA1 = XLSX.utils.encode_cell({ r: headerRowIdx, c: headerPos.c });
-  const startRow = headerRowIdx + 1;
   const rawRangeA1 = XLSX.utils.encode_range({
     s: { r: headerRowIdx, c: startCol },
     e: { r: Math.max(headerRowIdx, endRow), c: endCol },
@@ -414,12 +405,12 @@ function extractTableFromHeader(
   return {
     headers,
     dataRows,
-    rowProvenance,
+    provenance,
     headerRowIdx,
     startCol,
     endCol,
     colCount,
-    startRow,
+    startRow: headerRowIdx + 1,
     endRow,
     headerCellA1,
     rawRangeA1,
@@ -428,79 +419,20 @@ function extractTableFromHeader(
 }
 
 /**
- * Split a table at the first "Total" row - everything after becomes a separate block
- * This handles the case where Referral Totals contains two logical sections:
- * 1. Referral counts (ending with "Total X X")
- * 2. Revenue by Insurance type (WC, MVA, LEINS, etc.)
- */
-function splitTableAtTotal(
-  headers: string[],
-  dataRows: any[][],
-  splitBlockTitle: string
-): { mainRows: any[][]; splitBlock: ExtraBlock | null } {
-  // Find the first "Total" row (case-insensitive, must be in first column)
-  let totalRowIdx = -1;
-  for (let i = 0; i < dataRows.length; i++) {
-    const firstCell = normalizeTextLower(dataRows[i]?.[0]);
-    if (firstCell === 'total' || firstCell === 'totals') {
-      totalRowIdx = i;
-      break;
-    }
-  }
-  
-  // If no Total row found, or it's at the end, no split needed
-  if (totalRowIdx === -1 || totalRowIdx >= dataRows.length - 1) {
-    return { mainRows: dataRows, splitBlock: null };
-  }
-  
-  // Main rows include everything up to and including Total
-  const mainRows = dataRows.slice(0, totalRowIdx + 1);
-  
-  // Split rows are everything after Total (skip leading blank rows)
-  let splitStartIdx = totalRowIdx + 1;
-  while (splitStartIdx < dataRows.length) {
-    const row = dataRows[splitStartIdx];
-    const hasContent = row?.some(cell => !isBlankCell(cell));
-    if (hasContent) break;
-    splitStartIdx++;
-  }
-  
-  const splitRows = dataRows.slice(splitStartIdx);
-  
-  // Only create split block if there are meaningful rows
-  const nonEmptySplitRows = splitRows.filter(row => row?.some(cell => !isBlankCell(cell)));
-  if (nonEmptySplitRows.length < 2) {
-    return { mainRows: dataRows, splitBlock: null };
-  }
-  
-  return {
-    mainRows,
-    splitBlock: {
-      title: splitBlockTitle,
-      headers: headers, // Same headers as parent
-      rows: splitRows,
-    },
-  };
-}
-
-/**
- * Split a table at the first "Total" row - WITH PROVENANCE
+ * Split a table at the first "Total" row - works with ProvenanceRow[]
  */
 function splitTableAtTotalWithProvenance(
   headers: string[],
-  dataRows: any[][],
-  provenance: RowProvenance[],
+  rows: ProvenanceRow[],
   splitBlockTitle: string
 ): { 
-  mainRows: any[][]; 
-  mainProvenance: RowProvenance[];
-  splitBlock: ExtraBlock | null;
-  splitProvenance: RowProvenance[];
+  mainRows: ProvenanceRow[]; 
+  splitBlock: { title: string; headers: string[]; rows: ProvenanceRow[] } | null;
 } {
   // Find the first "Total" row (case-insensitive, must be in first column)
   let totalRowIdx = -1;
-  for (let i = 0; i < dataRows.length; i++) {
-    const firstCell = normalizeTextLower(dataRows[i]?.[0]);
+  for (let i = 0; i < rows.length; i++) {
+    const firstCell = normalizeTextLower(rows[i]?.cells?.[0]);
     if (firstCell === 'total' || firstCell === 'totals') {
       totalRowIdx = i;
       break;
@@ -508,41 +440,37 @@ function splitTableAtTotalWithProvenance(
   }
   
   // If no Total row found, or it's at the end, no split needed
-  if (totalRowIdx === -1 || totalRowIdx >= dataRows.length - 1) {
-    return { mainRows: dataRows, mainProvenance: provenance, splitBlock: null, splitProvenance: [] };
+  if (totalRowIdx === -1 || totalRowIdx >= rows.length - 1) {
+    return { mainRows: rows, splitBlock: null };
   }
   
   // Main rows include everything up to and including Total
-  const mainRows = dataRows.slice(0, totalRowIdx + 1);
-  const mainProvenance = provenance.slice(0, totalRowIdx + 1);
+  const mainRows = rows.slice(0, totalRowIdx + 1);
   
   // Split rows are everything after Total (skip leading blank rows)
   let splitStartIdx = totalRowIdx + 1;
-  while (splitStartIdx < dataRows.length) {
-    const row = dataRows[splitStartIdx];
-    const hasContent = row?.some(cell => !isBlankCell(cell));
+  while (splitStartIdx < rows.length) {
+    const row = rows[splitStartIdx];
+    const hasContent = row.cells?.some(cell => !isBlankCell(cell));
     if (hasContent) break;
     splitStartIdx++;
   }
   
-  const splitRows = dataRows.slice(splitStartIdx);
-  const splitProvenance = provenance.slice(splitStartIdx);
+  const splitRows = rows.slice(splitStartIdx);
   
   // Only create split block if there are meaningful rows
-  const nonEmptySplitRows = splitRows.filter(row => row?.some(cell => !isBlankCell(cell)));
+  const nonEmptySplitRows = splitRows.filter(row => row.cells?.some(cell => !isBlankCell(cell)));
   if (nonEmptySplitRows.length < 2) {
-    return { mainRows: dataRows, mainProvenance: provenance, splitBlock: null, splitProvenance: [] };
+    return { mainRows: rows, splitBlock: null };
   }
   
   return {
     mainRows,
-    mainProvenance,
     splitBlock: {
       title: splitBlockTitle,
       headers: headers,
       rows: splitRows,
     },
-    splitProvenance,
   };
 }
 
@@ -604,9 +532,9 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   
   if (providerHeaderCell) {
     const extracted = extractTableFromHeader(rows, providerHeaderCell, 'Provider Name', sheetName, { maxScanRows: 500 });
-    providerTable = { headers: extracted.headers, rows: extracted.dataRows, provenance: extracted.rowProvenance };
+    providerTable = { headers: extracted.headers, rows: extracted.rows };
     verification.provider_raw_range = extracted.rawRangeA1;
-    verification.provider_extracted = extracted.dataRows.length;
+    verification.provider_extracted = extracted.rows.length;
     verification.provider = {
       header_cell: extracted.headerCellA1,
       raw_range_a1: extracted.rawRangeA1,
@@ -617,7 +545,7 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
       end_col_index_0: extracted.endCol,
       col_count: extracted.colCount,
       rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
-      rows_extracted: extracted.dataRows.length,
+      rows_extracted: extracted.rows.length,
       non_empty_row_count: extracted.nonEmptyRowCount,
     };
     if (verification.provider.rows_in_range !== verification.provider.rows_extracted) {
@@ -637,16 +565,15 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     const extracted = extractTableFromHeader(rows, referralsHeaderCell, 'Referrals', sheetName, { maxScanRows: 200 });
     
     // Split the table at "Total" row - everything after is "Revenue by Insurance"
-    const { mainRows, splitBlock, mainProvenance, splitProvenance } = splitTableAtTotalWithProvenance(
+    const { mainRows, splitBlock } = splitTableAtTotalWithProvenance(
       extracted.headers, 
-      extracted.dataRows, 
-      extracted.rowProvenance,
+      extracted.rows,
       'Revenue by Insurance'
     );
     
-    referralTotals = { headers: extracted.headers, rows: mainRows, provenance: mainProvenance };
+    referralTotals = { headers: extracted.headers, rows: mainRows };
     if (splitBlock) {
-      revenueByInsurance = { ...splitBlock, provenance: splitProvenance };
+      revenueByInsurance = splitBlock;
     }
     
     verification.referral_totals_raw_range = extracted.rawRangeA1;
@@ -675,9 +602,9 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   
   if (referralSourcesHeaderCell) {
     const extracted = extractTableFromHeader(rows, referralSourcesHeaderCell, 'Referral Source', sheetName, { maxScanRows: 500 });
-    referralSources = { headers: extracted.headers, rows: extracted.dataRows, provenance: extracted.rowProvenance };
+    referralSources = { headers: extracted.headers, rows: extracted.rows };
     verification.referral_sources_raw_range = extracted.rawRangeA1;
-    verification.referral_sources_extracted = extracted.dataRows.length;
+    verification.referral_sources_extracted = extracted.rows.length;
     verification.referral_sources = {
       header_cell: extracted.headerCellA1,
       raw_range_a1: extracted.rawRangeA1,
@@ -688,7 +615,7 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
       end_col_index_0: extracted.endCol,
       col_count: extracted.colCount,
       rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
-      rows_extracted: extracted.dataRows.length,
+      rows_extracted: extracted.rows.length,
       non_empty_row_count: extracted.nonEmptyRowCount,
     };
     if (verification.referral_sources.rows_in_range !== verification.referral_sources.rows_extracted) {
@@ -777,10 +704,11 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
       
       // Minimum requirements: at least 2 columns AND at least 2 non-empty data rows
       if (extracted.colCount < 2 || extracted.nonEmptyRowCount < 2) continue;
-      if (extracted.dataRows.length === 0) continue;
+      if (extracted.rows.length === 0) continue;
 
-      // Deduplication check
-      const fingerprint = generateBlockFingerprint(text, extracted.headers, extracted.dataRows);
+      // Deduplication check - use cells for fingerprint
+      const rowsForFingerprint = extracted.rows.map(r => r.cells);
+      const fingerprint = generateBlockFingerprint(text, extracted.headers, rowsForFingerprint);
       if (extraBlockFingerprints.has(fingerprint)) continue;
       extraBlockFingerprints.add(fingerprint);
 
@@ -788,11 +716,10 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
       extraBlocks.push({
         title: text,
         headers: extracted.headers,
-        rows: extracted.dataRows,
-        provenance: extracted.rowProvenance,
+        rows: extracted.rows,
       });
 
-      verification.extra_blocks_counts.push({ title: text, extracted: extracted.dataRows.length });
+      verification.extra_blocks_counts.push({ title: text, extracted: extracted.rows.length });
       verification.extra_blocks!.push({
         title: text,
         title_cell: titleCellA1,
@@ -805,7 +732,7 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
         end_col_index_0: extracted.endCol,
         col_count: extracted.colCount,
         rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
-        rows_extracted: extracted.dataRows.length,
+        rows_extracted: extracted.rows.length,
         non_empty_row_count: extracted.nonEmptyRowCount,
       });
     }
@@ -919,9 +846,12 @@ export function parseLoriWorkbookSync(workbook: XLSX.WorkBook, fallbackYear: num
       
       if (payload) {
         // Score sheet based on provider block "meaningful" cell count
-        const providerScore = payload.provider_table.rows.reduce((acc, row) => {
-          return acc + row.reduce((rowAcc, cell) => rowAcc + (isMeaningfulCellForScoring(cell) ? 1 : 0), 0);
-        }, 0);
+        let providerScore = 0;
+        for (const provRow of payload.provider_table.rows) {
+          for (const cell of (provRow.cells || [])) {
+            if (isMeaningfulCellForScoring(cell)) providerScore++;
+          }
+        }
 
         const list = candidatesByPeriod.get(payload.period_key) ?? [];
         list.push({ payload, sheetScore: providerScore });
