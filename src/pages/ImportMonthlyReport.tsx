@@ -101,6 +101,10 @@ const ImportMonthlyReport = () => {
     results: { period_key: string; status: 'success' | 'error'; message?: string }[];
     bridgeResults?: BridgeResult[];
     auditReports?: DerivedMetricAuditReport[];
+    syncBlocked?: boolean;
+    syncBlockedReasons?: string[];
+    hasNeedsDefinition?: boolean;
+    needsDefinitionMetrics?: string[];
   } | null>(null);
 
   // Fetch metrics with import_key
@@ -585,60 +589,12 @@ const ImportMonthlyReport = () => {
       });
     }
     
-    // Phase 2: Bridge to metric_results (only for legacy/default data mode orgs)
-    let bridgeResults: BridgeResult[] = [];
-    try {
-      const isLegacy = await isLegacyDataMode(currentUser.team_id);
-      if (isLegacy) {
-        // Build payloads with period keys
-        const successfulPayloads = loriResult.payloads
-          .filter((_, i) => results[i]?.status === 'success')
-          .map(p => ({
-            period_key: p.period_key,
-            payload: {
-              sheet_name: p.sheet_name,
-              provider_table: p.provider_table,
-              referral_totals: p.referral_totals,
-              referral_sources: p.referral_sources,
-              extra_blocks: p.extra_blocks,
-              warnings: p.warnings,
-            },
-          }));
-        
-        if (successfulPayloads.length > 0) {
-          bridgeResults = await bridgeMultipleMonths(
-            currentUser.team_id,
-            successfulPayloads
-          );
-          
-          // Update verification in payload with derived metrics
-          for (const br of bridgeResults) {
-            // Find matching payload and update its verification
-            const idx = loriResult.payloads.findIndex(p => p.period_key === br.period_key);
-            if (idx >= 0 && results[idx]?.status === 'success') {
-              // Update the stored payload with derived metrics summary
-              await supabase
-                .from('legacy_monthly_reports' as any)
-                .update({
-                  payload: supabase.rpc as any, // This is a workaround - we need to merge
-                } as any)
-                .eq('organization_id', currentUser.team_id)
-                .eq('period_key', br.period_key);
-            }
-          }
-        }
-      }
-    } catch (bridgeError: any) {
-      console.error('[LoriImport] Bridge failed:', bridgeError);
-      // Don't fail the whole import - bridge is supplementary
-    }
-    
-    // Phase 3: Run audit on successfully imported payloads
+    // Phase 2: Run audit BEFORE bridging to metric_results
     const auditReports: DerivedMetricAuditReport[] = [];
+    const successfulPayloads = loriResult.payloads
+      .filter((_, i) => results[i]?.status === 'success');
+    
     try {
-      const successfulPayloads = loriResult.payloads
-        .filter((_, i) => results[i]?.status === 'success');
-      
       for (const payload of successfulPayloads) {
         const auditReport = auditDerivedMetrics(payload.period_key, {
           sheet_name: payload.sheet_name,
@@ -654,10 +610,67 @@ const ImportMonthlyReport = () => {
       console.error('[LoriImport] Audit failed:', auditError);
     }
     
+    // Check audit results - block sync if any FAIL exists
+    const failedMetrics: string[] = [];
+    const needsDefMetrics: string[] = [];
+    
+    for (const report of auditReports) {
+      for (const result of report.results) {
+        if (result.status === 'FAIL') {
+          failedMetrics.push(`${report.period_key}: ${result.display_name} (extracted=${result.extracted_value}, ref=${result.workbook_reference_value})`);
+        } else if (result.status === 'NEEDS_DEFINITION') {
+          const key = `${result.display_name}`;
+          if (!needsDefMetrics.includes(key)) {
+            needsDefMetrics.push(key);
+          }
+        }
+      }
+    }
+    
+    const syncBlocked = failedMetrics.length > 0;
+    const hasNeedsDefinition = needsDefMetrics.length > 0;
+    
+    // Phase 3: Bridge to metric_results ONLY if no FAIL (PASS or NEEDS_DEFINITION allowed)
+    let bridgeResults: BridgeResult[] = [];
+    
+    if (!syncBlocked) {
+      try {
+        const isLegacy = await isLegacyDataMode(currentUser.team_id);
+        if (isLegacy) {
+          const payloadsForBridge = successfulPayloads.map(p => ({
+            period_key: p.period_key,
+            payload: {
+              sheet_name: p.sheet_name,
+              provider_table: p.provider_table,
+              referral_totals: p.referral_totals,
+              referral_sources: p.referral_sources,
+              extra_blocks: p.extra_blocks,
+              warnings: p.warnings,
+            },
+          }));
+          
+          if (payloadsForBridge.length > 0) {
+            bridgeResults = await bridgeMultipleMonths(
+              currentUser.team_id,
+              payloadsForBridge
+            );
+          }
+        }
+      } catch (bridgeError: any) {
+        console.error('[LoriImport] Bridge failed:', bridgeError);
+      }
+    } else {
+      console.warn('[LoriImport] Scorecard sync blocked due to audit failures:', failedMetrics);
+    }
+    
     setLoriImportProgress(prev => prev ? {
       ...prev,
       bridgeResults,
       auditReports,
+      syncBlocked,
+      syncBlockedReasons: failedMetrics,
+      hasNeedsDefinition,
+      needsDefinitionMetrics: needsDefMetrics,
     } : null);
     
     setIsProcessing(false);
@@ -665,7 +678,9 @@ const ImportMonthlyReport = () => {
     const successCount = results.filter(r => r.status === 'success').length;
     const bridgeTotalInserted = bridgeResults.reduce((sum, br) => sum + br.total_inserted, 0);
     
-    if (successCount === results.length) {
+    if (syncBlocked) {
+      toast.error(`Imported ${successCount} months but Scorecard sync blocked (${failedMetrics.length} verification failures)`);
+    } else if (successCount === results.length) {
       if (bridgeTotalInserted > 0) {
         toast.success(`Imported ${successCount} months + ${bridgeTotalInserted} metrics to Scorecard`);
       } else {
@@ -1432,8 +1447,51 @@ const ImportMonthlyReport = () => {
               ))}
             </div>
 
-            {/* Derived Metrics Summary */}
-            {!isProcessing && loriImportProgress.bridgeResults && loriImportProgress.bridgeResults.length > 0 && (
+            {/* Sync Blocked Warning (FAIL) */}
+            {!isProcessing && loriImportProgress.syncBlocked && (
+              <Alert variant="destructive" className="border-destructive bg-destructive/10">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <p className="font-semibold">Derived metrics failed verification. Scorecard sync is blocked.</p>
+                    <p className="text-sm">
+                      The following metrics have mismatched values between extraction and workbook reference:
+                    </p>
+                    <ul className="text-xs list-disc list-inside space-y-0.5 max-h-32 overflow-y-auto">
+                      {loriImportProgress.syncBlockedReasons?.map((reason, i) => (
+                        <li key={i}>{reason}</li>
+                      ))}
+                    </ul>
+                    <p className="text-sm mt-2">
+                      Raw data was saved to legacy_monthly_reports. Fix the workbook or extraction logic before re-importing.
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Needs Definition Warning (NEEDS_DEFINITION without FAIL) */}
+            {!isProcessing && !loriImportProgress.syncBlocked && loriImportProgress.hasNeedsDefinition && (
+              <Alert className="border-amber-500 bg-amber-500/10">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800 dark:text-amber-200">
+                  <div className="space-y-1">
+                    <p className="font-semibold">Some metrics could not be verified (no workbook reference found):</p>
+                    <ul className="text-xs list-disc list-inside">
+                      {loriImportProgress.needsDefinitionMetrics?.map((metric, i) => (
+                        <li key={i}>{metric}</li>
+                      ))}
+                    </ul>
+                    <p className="text-sm mt-1">
+                      Scorecard sync proceeded for all verified metrics.
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Derived Metrics Summary - only show if NOT blocked */}
+            {!isProcessing && !loriImportProgress.syncBlocked && loriImportProgress.bridgeResults && loriImportProgress.bridgeResults.length > 0 && (
               <Card className="border-brand/30 bg-brand/5">
                 <CardHeader className="py-3">
                   <CardTitle className="text-sm flex items-center gap-2">
