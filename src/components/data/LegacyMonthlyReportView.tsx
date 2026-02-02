@@ -146,7 +146,7 @@ function DataTable({
                     key={idx} 
                     className={cn(
                       "font-medium text-xs py-1.5 px-1.5 truncate",
-                      idx === 0 ? "w-[30%]" : "w-auto"
+                      idx === 0 ? "w-[30%] text-left" : "w-auto text-center"
                     )}
                     title={header}
                   >
