@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import {
   Upload,
   Loader2,
   Clock,
+  TrendingUp,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +17,9 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { motion } from "framer-motion";
 import { format, parseISO } from "date-fns";
 import LegacyMonthlyReportView, { LegacyMonthPayload } from "@/components/data/LegacyMonthlyReportView";
+import YTDDataView from "@/components/data/YTDDataView";
+
+const YTD_TAB_VALUE = "ytd";
 
 export default function DataDefaultHome() {
   const navigate = useNavigate();
@@ -44,17 +48,28 @@ export default function DataDefaultHome() {
     enabled: !!currentUser?.team_id,
   });
 
-  // Set default selected period to latest
+  // Determine current year for YTD calculation
+  const currentYear = new Date().getFullYear();
+  
+  // Filter months for current year (for YTD)
+  const currentYearMonths = useMemo(() => {
+    if (!availableMonths) return [];
+    return availableMonths.filter(m => m.period_key.startsWith(String(currentYear)));
+  }, [availableMonths, currentYear]);
+
+  // Set default selected period to latest (or YTD if months exist)
   const effectiveSelectedPeriod = selectedPeriod || 
     (availableMonths && availableMonths.length > 0 
       ? availableMonths[availableMonths.length - 1].period_key 
       : null);
 
-  // Fetch selected month's payload
+  const isYTDSelected = effectiveSelectedPeriod === YTD_TAB_VALUE || selectedPeriod === YTD_TAB_VALUE;
+
+  // Fetch selected month's payload (single month)
   const { data: reportData, isLoading: reportLoading } = useQuery({
     queryKey: ["legacy-monthly-report", currentUser?.team_id, effectiveSelectedPeriod],
     queryFn: async () => {
-      if (!currentUser?.team_id || !effectiveSelectedPeriod) return null;
+      if (!currentUser?.team_id || !effectiveSelectedPeriod || isYTDSelected) return null;
       
       const { data, error } = await supabase
         .from("legacy_monthly_reports" as any)
@@ -70,11 +85,35 @@ export default function DataDefaultHome() {
       
       return data as unknown as { payload: LegacyMonthPayload; updated_at: string; source_file_name: string | null } | null;
     },
-    enabled: !!currentUser?.team_id && !!effectiveSelectedPeriod,
+    enabled: !!currentUser?.team_id && !!effectiveSelectedPeriod && !isYTDSelected,
+  });
+
+  // Fetch all months for YTD view
+  const { data: ytdPayloads, isLoading: ytdLoading } = useQuery({
+    queryKey: ["legacy-monthly-report-ytd", currentUser?.team_id, currentYear],
+    queryFn: async () => {
+      if (!currentUser?.team_id || currentYearMonths.length === 0) return [];
+      
+      const periodKeys = currentYearMonths.map(m => m.period_key);
+      
+      const { data, error } = await supabase
+        .from("legacy_monthly_reports" as any)
+        .select("period_key, payload")
+        .eq("organization_id", currentUser.team_id)
+        .in("period_key", periodKeys);
+      
+      if (error) {
+        console.error("Error fetching YTD payloads:", error);
+        return [];
+      }
+      
+      return (data || []) as unknown as { period_key: string; payload: LegacyMonthPayload }[];
+    },
+    enabled: !!currentUser?.team_id && isYTDSelected && currentYearMonths.length > 0,
   });
 
   const isLoading = userLoading || monthsLoading;
-
+  const contentLoading = isYTDSelected ? ytdLoading : reportLoading;
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -181,7 +220,7 @@ export default function DataDefaultHome() {
         transition={{ delay: 0.05 }}
       >
         <Tabs 
-          value={effectiveSelectedPeriod || undefined} 
+          value={isYTDSelected ? YTD_TAB_VALUE : (effectiveSelectedPeriod || undefined)} 
           onValueChange={setSelectedPeriod}
           className="w-full"
         >
@@ -195,6 +234,16 @@ export default function DataDefaultHome() {
                 {formatPeriodShort(month.period_key)}
               </TabsTrigger>
             ))}
+            {/* YTD Tab - only show if we have current year data */}
+            {currentYearMonths.length > 0 && (
+              <TabsTrigger 
+                value={YTD_TAB_VALUE}
+                className="whitespace-nowrap ml-2 bg-brand/5 data-[state=active]:bg-brand data-[state=active]:text-brand-foreground"
+              >
+                <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
+                {currentYear} YTD
+              </TabsTrigger>
+            )}
           </TabsList>
         </Tabs>
       </motion.div>
@@ -205,10 +254,17 @@ export default function DataDefaultHome() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        {reportLoading ? (
+        {contentLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-6 h-6 animate-spin text-brand" />
           </div>
+        ) : isYTDSelected ? (
+          // YTD View
+          <YTDDataView
+            payloads={ytdPayloads?.map(p => p.payload) || []}
+            periodKeys={ytdPayloads?.map(p => p.period_key) || []}
+            year={currentYear}
+          />
         ) : reportData?.payload ? (
           <div className="space-y-3">
             {/* Compact report header */}
