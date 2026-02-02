@@ -58,10 +58,15 @@ Only metrics with a **VERIFIABLE** truth reference are synced to the Scorecard.
 
 | metric_key | Display Name | Status | Truth Reference |
 |------------|--------------|--------|-----------------|
-| `pain_mgmt_new_patients` | Pain Management New Patients | **VERIFIABLE** | `extra_blocks[Pain Management]` → row where col[0] = "Total" → column containing "New" |
-| `pain_mgmt_total_visits` | Pain Management Total Visits | **VERIFIABLE** | `extra_blocks[Pain Management]` → row where col[0] = "Total" → column containing "Total" or "Visits" |
+| `pain_mgmt_new_patients` | Pain Management New Patients | **CONDITIONAL** | `extra_blocks[Pain Management]` → row where col[0] = "Total" → column containing "New" |
+| `pain_mgmt_total_visits` | Pain Management Total Visits | **CONDITIONAL** | `extra_blocks[Pain Management]` → row where col[0] = "Total" → column containing "Total" or "Visits" |
 
-**Note:** These are only verifiable IF the workbook contains a "Pain Management" extra block. If the block doesn't exist, the metric returns null (not a failure).
+**CRITICAL: Conditional Verifiability**
+- These metrics are **VERIFIABLE** only when the Pain Management block exists in the workbook AND contains the truth anchor (Total row with numeric values).
+- If the Pain Management block does NOT exist for a month, these metrics become **NEEDS_DEFINITION** and do NOT block sync.
+- If the block exists but the extraction fails to find the values, the audit will show evidence fields indicating `pain_block_found=false`.
+
+**Note:** Missing blocks are intentional for some months (e.g., if that clinic doesn't have pain management services). The audit handles this gracefully.
 
 ---
 
@@ -79,18 +84,35 @@ Only metrics with a **VERIFIABLE** truth reference are synced to the Scorecard.
 
 ## Verification Logic
 
-For **VERIFIABLE** metrics, the audit:
+For **VERIFIABLE** metrics with a truth anchor, the audit:
 1. Locates the exact row by label match (case-insensitive "Total")
 2. Locates the exact column by header match (partial, case-insensitive)
-3. Extracts the raw cell value
+3. Extracts the raw cell value (this becomes the "reference")
 4. Compares to extractor output
-5. Returns PASS if exact match (or ±1 for currency rounding)
+5. Returns **PASS** if exact match (or ±1 for currency rounding)
+6. Returns **FAIL** (blocks sync) if values mismatch or extractor returns null while reference exists
 
-For **UNVERIFIABLE** metrics, the audit:
+For **UNVERIFIABLE** metrics (computed values), the audit:
 1. Does NOT attempt verification
 2. Returns status = "UNVERIFIABLE" 
 3. Does NOT block import
 4. Does NOT sync to Scorecard
+
+For **NEEDS_DEFINITION** metrics (no truth anchor found), the audit:
+1. Checks if the expected block/row/column exists
+2. If not found, sets `has_reference=false`
+3. Returns status = "NEEDS_DEFINITION"
+4. Does NOT block import (even if extracted_value is also null)
+5. Shown as informational in the UI
+
+### Blocking Rules
+
+A metric **blocks sync** ONLY when ALL of these are true:
+- `is_verifiable=true` (metric is in the verifiable set)
+- `has_reference=true` (truth anchor exists in workbook)
+- `status=FAIL` (extracted value doesn't match reference, or extractor returned null)
+
+If `has_reference=false`, the metric becomes **NEEDS_DEFINITION** and cannot block.
 
 ---
 

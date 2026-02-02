@@ -17,7 +17,7 @@ import {
   Calendar, FileCheck, TrendingUp, Info
 } from "lucide-react";
 import { bridgeMultipleMonths, isLegacyDataMode, type BridgeResult, type DerivedMetricResult } from "@/lib/legacy/legacyMetricBridge";
-import { auditDerivedMetrics, type DerivedMetricAuditReport, type MetricAuditResult } from "@/lib/legacy/legacyDerivedMetricAudit";
+import { auditDerivedMetrics, hasBlockingFailures, getBlockingFailures, getInformationalMetrics, type DerivedMetricAuditReport, type MetricAuditResult } from "@/lib/legacy/legacyDerivedMetricAudit";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { getWorkbookSheets, parseSheet, normalizeLabel } from "@/lib/importers/excelProfileParser";
@@ -610,25 +610,29 @@ const ImportMonthlyReport = () => {
       console.error('[LoriImport] Audit failed:', auditError);
     }
     
-    // Check audit results - block sync if any FAIL exists
-    const failedMetrics: string[] = [];
-    const unverifiableMetrics: string[] = [];
+    // Check audit results - block sync ONLY if any metric has blocks_sync=true
+    const blockingFailures: string[] = [];
+    const informationalMetrics: string[] = [];
     
     for (const report of auditReports) {
-      for (const result of report.results) {
-        if (result.status === 'FAIL') {
-          failedMetrics.push(`${report.period_key}: ${result.display_name} (extracted=${result.extracted_value}, ref=${result.workbook_reference_value})`);
-        } else if (result.status === 'UNVERIFIABLE') {
-          const key = `${result.display_name}`;
-          if (!unverifiableMetrics.includes(key)) {
-            unverifiableMetrics.push(key);
-          }
+      // Get blocking failures (has_reference=true AND status=FAIL)
+      const blocking = getBlockingFailures(report);
+      for (const result of blocking) {
+        blockingFailures.push(`${report.period_key}: ${result.display_name} (extracted=${result.extracted_value ?? 'null'}, ref=${result.workbook_reference_value})`);
+      }
+      
+      // Get informational metrics (NEEDS_DEFINITION, UNVERIFIABLE)
+      const informational = getInformationalMetrics(report);
+      for (const result of informational) {
+        const key = result.display_name;
+        if (!informationalMetrics.includes(key)) {
+          informationalMetrics.push(key);
         }
       }
     }
     
-    const syncBlocked = failedMetrics.length > 0;
-    const hasUnverifiable = unverifiableMetrics.length > 0;
+    const syncBlocked = blockingFailures.length > 0;
+    const hasInformational = informationalMetrics.length > 0;
     
     // Phase 3: Bridge to metric_results ONLY if no FAIL (PASS or NEEDS_DEFINITION allowed)
     let bridgeResults: BridgeResult[] = [];
@@ -660,7 +664,7 @@ const ImportMonthlyReport = () => {
         console.error('[LoriImport] Bridge failed:', bridgeError);
       }
     } else {
-      console.warn('[LoriImport] Scorecard sync blocked due to audit failures:', failedMetrics);
+      console.warn('[LoriImport] Scorecard sync blocked due to verification failures:', blockingFailures);
     }
     
     setLoriImportProgress(prev => prev ? {
@@ -668,9 +672,9 @@ const ImportMonthlyReport = () => {
       bridgeResults,
       auditReports,
       syncBlocked,
-      syncBlockedReasons: failedMetrics,
-      hasUnverifiable,
-      unverifiableMetrics,
+      syncBlockedReasons: blockingFailures,
+      hasUnverifiable: hasInformational,
+      unverifiableMetrics: informationalMetrics,
     } : null);
     
     setIsProcessing(false);
@@ -679,7 +683,7 @@ const ImportMonthlyReport = () => {
     const bridgeTotalInserted = bridgeResults.reduce((sum, br) => sum + br.total_inserted, 0);
     
     if (syncBlocked) {
-      toast.error(`Imported ${successCount} months but Scorecard sync blocked (${failedMetrics.length} verification failures)`);
+      toast.error(`Imported ${successCount} months but Scorecard sync blocked (${blockingFailures.length} verification failures)`);
     } else if (successCount === results.length) {
       if (bridgeTotalInserted > 0) {
         toast.success(`Imported ${successCount} months + ${bridgeTotalInserted} metrics to Scorecard`);
@@ -1487,15 +1491,15 @@ const ImportMonthlyReport = () => {
               ))}
             </div>
 
-            {/* Sync Blocked Warning (FAIL) */}
+            {/* Sync Blocked Warning (FAIL with truth anchor) */}
             {!isProcessing && loriImportProgress.syncBlocked && (
               <Alert variant="destructive" className="border-destructive bg-destructive/10">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   <div className="space-y-2">
-                    <p className="font-semibold">Derived metrics failed verification. Scorecard sync is blocked.</p>
+                    <p className="font-semibold">Verification failed for anchored metrics. Sync blocked.</p>
                     <p className="text-sm">
-                      The following metrics have mismatched values between extraction and workbook reference:
+                      The following metrics have truth anchors in the workbook but extraction failed or values mismatched:
                     </p>
                     <ul className="text-xs list-disc list-inside space-y-0.5 max-h-32 overflow-y-auto">
                       {loriImportProgress.syncBlockedReasons?.map((reason, i) => (
@@ -1503,27 +1507,27 @@ const ImportMonthlyReport = () => {
                       ))}
                     </ul>
                     <p className="text-sm mt-2">
-                      Raw data was saved to legacy_monthly_reports. Fix the workbook or extraction logic before re-importing.
+                      Raw data was saved to legacy_monthly_reports. Fix the extraction logic or workbook before re-importing.
                     </p>
                   </div>
                 </AlertDescription>
               </Alert>
             )}
 
-            {/* Unverifiable Info (shown as informational only) */}
-            {!isProcessing && !loriImportProgress.syncBlocked && loriImportProgress.hasUnverifiable && (
+            {/* Informational metrics (NEEDS_DEFINITION, UNVERIFIABLE) - shown as non-blocking info */}
+            {!isProcessing && loriImportProgress.hasUnverifiable && (
               <Alert className="border-blue-500 bg-blue-500/10">
                 <Info className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-800 dark:text-blue-200">
                   <div className="space-y-1">
-                    <p className="font-semibold">Some metrics are computed values (shown as informational only):</p>
+                    <p className="font-semibold">Some metrics are informational only (no truth anchor):</p>
                     <ul className="text-xs list-disc list-inside">
                       {loriImportProgress.unverifiableMetrics?.map((metric, i) => (
                         <li key={i}>{metric}</li>
                       ))}
                     </ul>
                     <p className="text-sm mt-1">
-                      These are not synced to Scorecard. Only verified metrics with deterministic cell references are synced.
+                      These do not block sync. Only anchored metrics with deterministic cell references are synced.
                     </p>
                   </div>
                 </AlertDescription>
@@ -1621,7 +1625,9 @@ const ImportMonthlyReport = () => {
                   {loriImportProgress.auditReports.map((report, rIdx) => {
                     const passCount = report.passed;
                     const failCount = report.failed;
-                    const unverifiableCount = report.unverifiable;
+                    const needsDefCount = report.results.filter(r => r.status === 'NEEDS_DEFINITION').length;
+                    const unverifiableCount = report.unverifiable - needsDefCount;
+                    const blockingCount = report.results.filter(r => (r as any).blocks_sync === true).length;
                     
                     return (
                       <div key={rIdx} className="mb-6 last:mb-0">
@@ -1638,9 +1644,14 @@ const ImportMonthlyReport = () => {
                                 {passCount} PASS
                               </Badge>
                             )}
-                            {failCount > 0 && (
+                            {blockingCount > 0 && (
                               <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                {failCount} FAIL
+                                {blockingCount} BLOCKING
+                              </Badge>
+                            )}
+                            {needsDefCount > 0 && (
+                              <Badge variant="outline" className="border-amber-500 text-amber-600 text-[10px] px-1.5 py-0">
+                                {needsDefCount} NEEDS DEF
                               </Badge>
                             )}
                             {unverifiableCount > 0 && (
@@ -1664,69 +1675,84 @@ const ImportMonthlyReport = () => {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {report.results.map((result, mIdx) => (
-                                <TableRow 
-                                  key={mIdx} 
-                                  className={
-                                    result.status === 'FAIL' 
-                                      ? 'bg-destructive/5' 
-                                      : result.status === 'PASS' 
-                                      ? 'bg-success/5' 
-                                      : ''
-                                  }
-                                >
-                                  <TableCell className="py-1 px-2 font-medium">
-                                    {result.display_name}
-                                  </TableCell>
-                                  <TableCell className="py-1 px-2 text-right font-mono">
-                                    {result.extracted_value !== null 
-                                      ? result.extracted_value.toLocaleString() 
-                                      : <span className="text-muted-foreground">—</span>
+                              {report.results.map((result, mIdx) => {
+                                const blocksSync = (result as any).blocks_sync === true;
+                                const hasReference = (result as any).has_reference === true;
+                                const hasExtracted = (result as any).has_extracted === true;
+                                
+                                return (
+                                  <TableRow 
+                                    key={mIdx} 
+                                    className={
+                                      blocksSync
+                                        ? 'bg-destructive/10' 
+                                        : result.status === 'PASS' 
+                                        ? 'bg-success/5' 
+                                        : result.status === 'NEEDS_DEFINITION'
+                                        ? 'bg-amber-50 dark:bg-amber-900/10'
+                                        : ''
                                     }
-                                  </TableCell>
-                                  <TableCell className="py-1 px-2 text-right font-mono">
-                                    {result.workbook_reference_value !== null 
-                                      ? result.workbook_reference_value.toLocaleString() 
-                                      : <span className="text-muted-foreground">—</span>
-                                    }
-                                  </TableCell>
-                                  <TableCell className="py-1 px-2 text-right font-mono">
-                                    {result.delta !== null 
-                                      ? (result.delta === 0 ? '0' : result.delta.toLocaleString()) 
-                                      : <span className="text-muted-foreground">—</span>
-                                    }
-                                  </TableCell>
-                                  <TableCell className="py-1 px-2">
-                                    <Badge 
-                                      variant={
-                                        result.status === 'PASS' ? 'default' :
-                                        result.status === 'FAIL' ? 'destructive' :
-                                        'secondary'
+                                  >
+                                    <TableCell className="py-1 px-2 font-medium">
+                                      {result.display_name}
+                                    </TableCell>
+                                    <TableCell className="py-1 px-2 text-right font-mono">
+                                      {result.extracted_value !== null 
+                                        ? result.extracted_value.toLocaleString() 
+                                        : <span className="text-muted-foreground">—</span>
                                       }
-                                      className={`text-[10px] px-1.5 py-0 ${
-                                        result.status === 'PASS' ? 'bg-success text-success-foreground' : ''
-                                      }`}
-                                    >
-                                      {result.status}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="py-1 px-2 text-[10px] text-muted-foreground max-w-[250px]" title={result.notes}>
-                                    {result.status === 'FAIL' && result.extracted_value === null ? (
-                                      <span className="text-destructive font-medium">
-                                        ⚠ Extractor returned null
-                                      </span>
-                                    ) : result.evidence ? (
-                                      <span>
-                                        {result.evidence.source_block}
-                                        {result.evidence.excel_row && ` (row ${result.evidence.excel_row})`}
-                                        {result.evidence.column_name && ` / ${result.evidence.column_name}`}
-                                      </span>
-                                    ) : (
-                                      <span className="italic">{result.notes || 'No reference found'}</span>
-                                    )}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
+                                    </TableCell>
+                                    <TableCell className="py-1 px-2 text-right font-mono">
+                                      {result.workbook_reference_value !== null 
+                                        ? result.workbook_reference_value.toLocaleString() 
+                                        : <span className="text-muted-foreground italic text-[10px]">no anchor</span>
+                                      }
+                                    </TableCell>
+                                    <TableCell className="py-1 px-2 text-right font-mono">
+                                      {result.delta !== null 
+                                        ? (result.delta === 0 ? '0' : result.delta.toLocaleString()) 
+                                        : <span className="text-muted-foreground">—</span>
+                                      }
+                                    </TableCell>
+                                    <TableCell className="py-1 px-2">
+                                      <Badge 
+                                        variant={
+                                          result.status === 'PASS' ? 'default' :
+                                          blocksSync ? 'destructive' :
+                                          result.status === 'NEEDS_DEFINITION' ? 'outline' :
+                                          'secondary'
+                                        }
+                                        className={`text-[10px] px-1.5 py-0 ${
+                                          result.status === 'PASS' ? 'bg-success text-success-foreground' :
+                                          result.status === 'NEEDS_DEFINITION' ? 'border-amber-500 text-amber-700 dark:text-amber-400' :
+                                          ''
+                                        }`}
+                                      >
+                                        {blocksSync ? '✕ FAIL (blocks)' : result.status}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="py-1 px-2 text-[10px] text-muted-foreground max-w-[250px]" title={result.notes}>
+                                      {blocksSync ? (
+                                        <span className="text-destructive font-medium">
+                                          {!hasExtracted ? '⚠ Extractor null, ref exists' : '⚠ Value mismatch'}
+                                        </span>
+                                      ) : result.status === 'NEEDS_DEFINITION' && !hasReference ? (
+                                        <span className="text-amber-600 dark:text-amber-400">
+                                          No truth anchor • Does not block
+                                        </span>
+                                      ) : result.evidence ? (
+                                        <span>
+                                          {result.evidence.source_block}
+                                          {result.evidence.excel_row && ` (row ${result.evidence.excel_row})`}
+                                          {result.evidence.column_name && ` / ${result.evidence.column_name}`}
+                                        </span>
+                                      ) : (
+                                        <span className="italic">{result.notes || 'No reference found'}</span>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
                             </TableBody>
                           </Table>
                         </div>
