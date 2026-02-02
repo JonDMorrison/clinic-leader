@@ -251,21 +251,17 @@ export default function LegacyMonthlyReportView({
         </div>
       )}
 
-      {/* Main 3-column layout matching workbook */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Left: Provider Production (largest, spans more) */}
-        <div className="lg:col-span-2">
-          <DataTable
-            title="Provider Production"
-            headers={provider_table.headers}
-            rows={provider_table.rows}
-            periodKey={periodKey}
-            organizationId={organizationId}
-          />
-        </div>
+      {/* Single column layout for better spacing */}
+      <div className="space-y-6">
+        <DataTable
+          title="Provider Production"
+          headers={provider_table.headers}
+          rows={provider_table.rows}
+          periodKey={periodKey}
+          organizationId={organizationId}
+        />
 
-        {/* Right: Referral data stacked */}
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <DataTable
             title="Referral Totals"
             headers={referral_totals.headers}
