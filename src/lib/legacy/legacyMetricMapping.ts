@@ -1,6 +1,14 @@
 /**
  * Legacy Metric Mapping Configuration
  * 
+ * PHASE 2 SCOPE (LOCKED):
+ * - 12 canonical org-level KPIs only
+ * - No location/provider breakdown
+ * - Monthly cadence only
+ * - No auto issue creation/closing
+ * 
+ * @see docs/audits/phase2_scope.md for full scope definition
+ * 
  * Defines how to extract canonical KPIs from Lori's workbook JSONB payload
  * stored in legacy_monthly_reports.payload.
  * 
