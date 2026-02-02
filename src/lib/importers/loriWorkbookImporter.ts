@@ -91,6 +91,10 @@ export interface LoriMonthPayload {
     referral_totals?: BlockVerification;
     referral_sources?: BlockVerification;
     extra_blocks?: ExtraBlockVerification[];
+    
+    // v3 (numeric verification for data integrity)
+    numeric_cell_count?: number;
+    provider_numeric_count?: number;
   };
 }
 
@@ -246,6 +250,178 @@ function colLetterToIndex(letter: string): number {
     result = result * 26 + (letter.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
   }
   return result - 1;
+}
+
+/**
+ * Index to column letter (0=A, 1=B, ..., 25=Z, 26=AA, ...)
+ */
+function colIndexToLetter(index: number): string {
+  let result = '';
+  let i = index;
+  while (i >= 0) {
+    result = String.fromCharCode((i % 26) + 65) + result;
+    i = Math.floor(i / 26) - 1;
+  }
+  return result;
+}
+
+/**
+ * Extract a cell's value with proper numeric handling
+ * Priority: cell.v (raw value) when type is 'n' (number), otherwise parsed from cell.w (formatted)
+ */
+function extractCellValue(cell: XLSX.CellObject | undefined): any {
+  if (!cell) return null;
+  
+  // For numeric cells, use the raw value directly
+  if (cell.t === 'n') {
+    return cell.v;
+  }
+  
+  // For string cells that look like currency/percentages, try to parse
+  if (cell.t === 's') {
+    const strVal = String(cell.v ?? cell.w ?? '').trim();
+    // Check for currency format: $1,234.56 or ($1,234.56) for negative
+    const currencyMatch = strVal.match(/^\$?([\d,]+\.?\d*)$/);
+    if (currencyMatch) {
+      const num = parseFloat(currencyMatch[1].replace(/,/g, ''));
+      if (!isNaN(num)) return num;
+    }
+    // Check for negative currency: ($1,234.56) or -$1,234.56
+    const negCurrencyMatch = strVal.match(/^\(?\$?([\d,]+\.?\d*)\)?$/);
+    if (negCurrencyMatch && strVal.startsWith('(')) {
+      const num = parseFloat(negCurrencyMatch[1].replace(/,/g, ''));
+      if (!isNaN(num)) return -num;
+    }
+    // Check for percentage: 45.5%
+    const pctMatch = strVal.match(/^([\d.]+)%$/);
+    if (pctMatch) {
+      const num = parseFloat(pctMatch[1]);
+      if (!isNaN(num)) return num; // Keep as percentage value, not decimal
+    }
+    return strVal || null;
+  }
+  
+  // For boolean, error, etc. return formatted value
+  if (cell.w !== undefined) return cell.w;
+  if (cell.v !== undefined) return cell.v;
+  return null;
+}
+
+/**
+ * Build a full-fidelity grid from worksheet, preserving numeric values
+ * This replaces sheet_to_json to ensure numbers are not lost
+ */
+interface SheetGrid {
+  grid: any[][];
+  startRow: number;
+  endRow: number;
+  startCol: number;
+  endCol: number;
+  numericCellCount: number;
+}
+
+function getSheetGrid(ws: XLSX.WorkSheet): SheetGrid {
+  const ref = ws['!ref'];
+  if (!ref) {
+    return { grid: [], startRow: 0, endRow: 0, startCol: 0, endCol: 0, numericCellCount: 0 };
+  }
+  
+  const range = XLSX.utils.decode_range(ref);
+  const startRow = range.s.r;
+  const endRow = range.e.r;
+  const startCol = range.s.c;
+  const endCol = range.e.c;
+  
+  const rowCount = endRow - startRow + 1;
+  const colCount = endCol - startCol + 1;
+  
+  // Initialize grid with nulls
+  const grid: any[][] = Array.from({ length: rowCount }, () => Array(colCount).fill(null));
+  
+  let numericCellCount = 0;
+  
+  // Handle merged cells first - store the top-left value for all cells in merge
+  const merges = ws['!merges'] || [];
+  const mergeValueMap = new Map<string, any>();
+  
+  for (const merge of merges) {
+    const topLeftAddr = XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c });
+    const topLeftCell = ws[topLeftAddr] as XLSX.CellObject | undefined;
+    const value = extractCellValue(topLeftCell);
+    
+    for (let r = merge.s.r; r <= merge.e.r; r++) {
+      for (let c = merge.s.c; c <= merge.e.c; c++) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        mergeValueMap.set(addr, value);
+      }
+    }
+  }
+  
+  // Fill grid with cell values
+  for (let r = startRow; r <= endRow; r++) {
+    for (let c = startCol; c <= endCol; c++) {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      const gridR = r - startRow;
+      const gridC = c - startCol;
+      
+      // Check if this cell is part of a merge
+      if (mergeValueMap.has(addr)) {
+        grid[gridR][gridC] = mergeValueMap.get(addr);
+        continue;
+      }
+      
+      const cell = ws[addr] as XLSX.CellObject | undefined;
+      const value = extractCellValue(cell);
+      grid[gridR][gridC] = value;
+      
+      if (cell?.t === 'n') {
+        numericCellCount++;
+      }
+    }
+  }
+  
+  // Dev-only diagnostic logging
+  if (typeof window !== 'undefined' && (window as any).__LORI_IMPORTER_DEBUG__) {
+    console.log('[LoriImporter] Grid extraction:', {
+      ref,
+      range: { startRow, endRow, startCol, endCol },
+      rowCount,
+      colCount,
+      numericCellCount,
+      sampleCells: getSampleCells(ws, startRow, startCol, 10),
+    });
+  }
+  
+  return { grid, startRow, endRow, startCol, endCol, numericCellCount };
+}
+
+/**
+ * Get sample cells for debugging
+ */
+function getSampleCells(ws: XLSX.WorkSheet, startRow: number, startCol: number, count: number): any[] {
+  const samples: any[] = [];
+  const ref = ws['!ref'];
+  if (!ref) return samples;
+  
+  const range = XLSX.utils.decode_range(ref);
+  let collected = 0;
+  
+  for (let r = startRow; r <= range.e.r && collected < count; r++) {
+    for (let c = startCol; c <= range.e.c && collected < count; c++) {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      const cell = ws[addr] as XLSX.CellObject | undefined;
+      if (cell && cell.t === 'n') {
+        samples.push({
+          address: addr,
+          type: cell.t,
+          value: cell.v,
+          formatted: cell.w,
+        });
+        collected++;
+      }
+    }
+  }
+  return samples;
 }
 
 type CellPos = { r: number; c: number };
@@ -486,7 +662,7 @@ function splitTableAtTotal(
  */
 
 /**
- * Parse a single month sheet - PRESERVE ALL ROWS
+ * Parse a single month sheet - PRESERVE ALL ROWS using full-fidelity grid extraction
  */
 function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackYear: number): LoriMonthPayload | null {
   const periodKey = parseSheetNameToPeriodKey(sheetName, fallbackYear);
@@ -494,13 +670,20 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     return null;
   }
   
-  // Convert sheet to 2D array
-  const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, {
-    header: 1,
-    blankrows: true,
-    defval: null,
-    raw: false,
-  });
+  // Use full-fidelity grid extraction instead of sheet_to_json
+  // This preserves numeric values that would otherwise be lost
+  const sheetGrid = getSheetGrid(worksheet);
+  const rows = sheetGrid.grid;
+  
+  // Dev-only diagnostic logging
+  if (typeof window !== 'undefined' && (window as any).__LORI_IMPORTER_DEBUG__) {
+    console.log(`[LoriImporter] Sheet "${sheetName}" (${periodKey}):`, {
+      worksheetRef: worksheet['!ref'],
+      gridSize: `${rows.length} rows x ${rows[0]?.length ?? 0} cols`,
+      numericCellCount: sheetGrid.numericCellCount,
+      providerTablePreview: rows.slice(0, 5).map((r, i) => ({ row: i, data: r?.slice(0, 8) })),
+    });
+  }
   
   // Compute sheet fingerprint for duplicate detection
   const maxCols = getMaxColCount(rows);
@@ -529,6 +712,9 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     referral_sources_extracted: 0,
     extra_blocks_counts: [],
     extra_blocks: [],
+    // New v3 verification fields
+    numeric_cell_count: sheetGrid.numericCellCount,
+    provider_numeric_count: 0,
   };
   
   // ========== PROVIDER TABLE (dynamic) ==========
@@ -556,6 +742,39 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     };
     if (verification.provider.rows_in_range !== verification.provider.rows_extracted) {
       warnings.push(`Provider table row mismatch: range=${verification.provider.rows_in_range}, extracted=${verification.provider.rows_extracted}`);
+    }
+    
+    // Count numeric cells in provider table for verification
+    let providerNumericCount = 0;
+    for (const row of extracted.dataRows) {
+      for (const cell of row) {
+        if (typeof cell === 'number' && !isNaN(cell)) {
+          providerNumericCount++;
+        }
+      }
+    }
+    verification.provider_numeric_count = providerNumericCount;
+    
+    // Dev-only diagnostic: log provider table data
+    if (typeof window !== 'undefined' && (window as any).__LORI_IMPORTER_DEBUG__) {
+      // Find total/subtotal rows
+      const totalRows = extracted.dataRows.filter((row, idx) => {
+        const label = normalizeTextLower(row?.[0]);
+        return label.includes('total');
+      });
+      console.log(`[LoriImporter] Provider table "${sheetName}":`, {
+        headers: extracted.headers,
+        rowCount: extracted.dataRows.length,
+        numericCellCount: providerNumericCount,
+        totalRows: totalRows.map(r => ({ label: r?.[0], data: r })),
+        first5Rows: extracted.dataRows.slice(0, 5),
+        last5Rows: extracted.dataRows.slice(-5),
+      });
+    }
+    
+    // Critical warning if no numeric cells found
+    if (providerNumericCount === 0) {
+      warnings.push('CRITICAL: Provider table has zero numeric cells - data extraction may have failed');
     }
   } else {
     warnings.push('Provider table not found (no "Provider Name" cell found)');

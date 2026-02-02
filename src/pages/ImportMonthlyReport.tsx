@@ -1217,6 +1217,33 @@ const ImportMonthlyReport = () => {
             </AlertDescription>
           </Alert>
 
+          {/* Critical warning for zero numeric cells */}
+          {loriResult.payloads.some(p => p.verification?.provider_numeric_count === 0) && (
+            <Alert variant="destructive" className="border-destructive bg-destructive/10">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p className="font-semibold">CRITICAL: Parser produced zero numeric cells for some months.</p>
+                  <p className="text-sm">
+                    The following months have no numeric data extracted from the Provider table:
+                  </p>
+                  <ul className="text-xs list-disc list-inside">
+                    {loriResult.payloads
+                      .filter(p => p.verification?.provider_numeric_count === 0)
+                      .map(p => (
+                        <li key={p.period_key}>
+                          {p.period_key} (sheet: {p.sheet_name})
+                        </li>
+                      ))}
+                  </ul>
+                  <p className="text-sm mt-2">
+                    Import will proceed but scorecard metrics will not sync. Check the workbook format or contact support.
+                  </p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1252,7 +1279,11 @@ const ImportMonthlyReport = () => {
                     </div>
                     
                     <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div className="p-2 rounded bg-muted/50">
+                      <div className={`p-2 rounded ${
+                        payload.verification?.provider_numeric_count === 0 
+                          ? 'bg-destructive/10 border border-destructive/30' 
+                          : 'bg-muted/50'
+                      }`}>
                         <p className="text-muted-foreground text-xs">Provider Table</p>
                         <p className="font-medium">
                           {payload.provider_table.rows.length} rows
@@ -1262,6 +1293,15 @@ const ImportMonthlyReport = () => {
                             {payload.verification.provider.col_count} cols • 
                             {payload.verification.provider.non_empty_row_count} non-empty • 
                             {payload.verification.provider.raw_range_a1}
+                          </p>
+                        )}
+                        {payload.verification?.provider_numeric_count !== undefined && (
+                          <p className={`text-[10px] font-mono ${
+                            payload.verification.provider_numeric_count === 0 
+                              ? 'text-destructive font-bold' 
+                              : 'text-brand'
+                          }`}>
+                            {payload.verification.provider_numeric_count} numeric cells
                           </p>
                         )}
                       </div>
