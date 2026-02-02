@@ -7,9 +7,20 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-interface TableBlock {
+/** Row-level provenance for audit verification */
+export interface RowProvenance {
+  sheet_name: string;
+  excel_row: number;    // 1-indexed Excel row
+  start_col: number;    // 1-indexed column
+  end_col: number;      // 1-indexed column
+  raw_cells: any[];
+}
+
+export interface TableBlock {
   headers: string[];
   rows: any[][];
+  /** Row provenance for audit - parallel array to rows */
+  provenance?: RowProvenance[];
 }
 
 interface ExtraBlock extends TableBlock {

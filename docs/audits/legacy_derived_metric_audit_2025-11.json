@@ -1,48 +1,56 @@
 {
-  "audit_date": "2026-02-02T20:15:00Z",
+  "audit_date": "2026-02-02T21:00:00Z",
   "period_key": "2025-11",
   "sheet_name": "Nov",
   "auditor": "Lovable AI",
-  "status": "PARTIAL",
+  "status": "READY",
   
   "summary": {
     "total_metrics": 12,
-    "passed": 0,
-    "failed": 0,
-    "needs_definition": 12
+    "passed": "TBD after import",
+    "failed": "TBD after import",
+    "needs_definition": "TBD after import"
   },
 
-  "notes": "Initial audit framework created. Provenance tracking now added to Lori importer. Full verification requires re-import of workbook to populate provenance data. The audit compares extracted values against workbook reference values with cell-level evidence.",
+  "notes": "Derived metric audit system implemented. Run import on Lori workbook to generate actual PASS/FAIL results.",
 
-  "files_created": [
-    "src/lib/legacy/legacyMetricAudit.ts"
-  ],
+  "implementation": {
+    "audit_module": "src/lib/legacy/legacyDerivedMetricAudit.ts",
+    "ui_integration": "src/pages/ImportMonthlyReport.tsx (lori-import step)",
+    "provenance_support": "src/lib/importers/loriWorkbookImporter.ts (RowProvenance interface)"
+  },
   
-  "files_modified": [
-    "src/lib/importers/loriWorkbookImporter.ts - Added RowProvenance interface and tracking",
-    "src/components/data/LegacyMonthlyReportView.tsx - Updated types for provenance"
-  ],
-
   "provenance_structure": {
-    "description": "Each row in each block now includes provenance metadata",
+    "description": "Each row in each block includes provenance metadata via parallel array",
     "fields": {
       "sheet_name": "Name of the Excel sheet",
-      "row_number_1": "1-indexed Excel row number",
-      "start_col_0": "0-indexed starting column",
-      "end_col_0": "0-indexed ending column",
+      "excel_row": "1-indexed Excel row number",
+      "start_col": "1-indexed starting column",
+      "end_col": "1-indexed ending column",
       "raw_cells": "Array of raw cell values"
     }
   },
-
-  "next_steps": [
-    "Re-import workbook to populate provenance data",
-    "Run auditDerivedMetrics() after import to generate full PASS/FAIL report",
-    "Add audit UI panel to ImportMonthlyReport.tsx results section"
-  ],
 
   "tolerance_rules": {
     "integers": "Exact match required (delta = 0)",
     "currency": "Allow ±1 for rounding differences",
     "missing_reference": "Mark as NEEDS_DEFINITION"
-  }
+  },
+  
+  "metrics_audited": [
+    "total_new_patients",
+    "total_visits", 
+    "total_production",
+    "total_charges",
+    "total_referrals",
+    "new_referrals",
+    "reactivations",
+    "discharges",
+    "top_referral_source_count",
+    "referral_source_count",
+    "pain_mgmt_new_patients",
+    "pain_mgmt_total_visits"
+  ],
+
+  "how_to_run": "Upload Lori workbook via /imports/monthly-report. After import completes, the audit PASS/FAIL table is shown below the Scorecard Metrics Updated section."
 }

@@ -17,6 +17,7 @@ import {
   Calendar, FileCheck, TrendingUp
 } from "lucide-react";
 import { bridgeMultipleMonths, isLegacyDataMode, type BridgeResult, type DerivedMetricResult } from "@/lib/legacy/legacyMetricBridge";
+import { auditDerivedMetrics, type DerivedMetricAuditReport, type MetricAuditResult } from "@/lib/legacy/legacyDerivedMetricAudit";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { getWorkbookSheets, parseSheet, normalizeLabel } from "@/lib/importers/excelProfileParser";
@@ -99,6 +100,7 @@ const ImportMonthlyReport = () => {
     completed: number;
     results: { period_key: string; status: 'success' | 'error'; message?: string }[];
     bridgeResults?: BridgeResult[];
+    auditReports?: DerivedMetricAuditReport[];
   } | null>(null);
 
   // Fetch metrics with import_key
@@ -631,9 +633,31 @@ const ImportMonthlyReport = () => {
       // Don't fail the whole import - bridge is supplementary
     }
     
+    // Phase 3: Run audit on successfully imported payloads
+    const auditReports: DerivedMetricAuditReport[] = [];
+    try {
+      const successfulPayloads = loriResult.payloads
+        .filter((_, i) => results[i]?.status === 'success');
+      
+      for (const payload of successfulPayloads) {
+        const auditReport = auditDerivedMetrics(payload.period_key, {
+          sheet_name: payload.sheet_name,
+          provider_table: payload.provider_table,
+          referral_totals: payload.referral_totals,
+          referral_sources: payload.referral_sources,
+          extra_blocks: payload.extra_blocks,
+          warnings: payload.warnings,
+        });
+        auditReports.push(auditReport);
+      }
+    } catch (auditError: any) {
+      console.error('[LoriImport] Audit failed:', auditError);
+    }
+    
     setLoriImportProgress(prev => prev ? {
       ...prev,
       bridgeResults,
+      auditReports,
     } : null);
     
     setIsProcessing(false);
@@ -1476,6 +1500,133 @@ const ImportMonthlyReport = () => {
                             ))}
                           </TableBody>
                         </Table>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Audit Results - PASS/FAIL Table */}
+            {!isProcessing && loriImportProgress.auditReports && loriImportProgress.auditReports.length > 0 && (
+              <Card className="border-muted">
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileCheck className="w-4 h-4 text-muted-foreground" />
+                    Derived Metric Verification Audit
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Compares extracted values against workbook cell references
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {loriImportProgress.auditReports.map((report, rIdx) => {
+                    const passCount = report.passed;
+                    const failCount = report.failed;
+                    const needsDefCount = report.needs_definition;
+                    
+                    return (
+                      <div key={rIdx} className="mb-6 last:mb-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {report.period_key}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Sheet: {report.sheet_name}
+                          </span>
+                          <div className="flex gap-1.5 ml-auto">
+                            {passCount > 0 && (
+                              <Badge className="bg-success/20 text-success border-success/30 text-[10px] px-1.5 py-0">
+                                {passCount} PASS
+                              </Badge>
+                            )}
+                            {failCount > 0 && (
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                {failCount} FAIL
+                              </Badge>
+                            )}
+                            {needsDefCount > 0 && (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                {needsDefCount} NEEDS DEF
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="border rounded-lg overflow-hidden">
+                          <Table className="text-xs">
+                            <TableHeader>
+                              <TableRow className="bg-muted/50">
+                                <TableHead className="py-1.5 px-2 font-medium">Metric</TableHead>
+                                <TableHead className="py-1.5 px-2 text-right font-medium">Extracted</TableHead>
+                                <TableHead className="py-1.5 px-2 text-right font-medium">Reference</TableHead>
+                                <TableHead className="py-1.5 px-2 text-right font-medium">Δ</TableHead>
+                                <TableHead className="py-1.5 px-2 font-medium">Status</TableHead>
+                                <TableHead className="py-1.5 px-2 font-medium">Evidence</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {report.results.map((result, mIdx) => (
+                                <TableRow 
+                                  key={mIdx} 
+                                  className={
+                                    result.status === 'FAIL' 
+                                      ? 'bg-destructive/5' 
+                                      : result.status === 'PASS' 
+                                      ? 'bg-success/5' 
+                                      : ''
+                                  }
+                                >
+                                  <TableCell className="py-1 px-2 font-medium">
+                                    {result.display_name}
+                                  </TableCell>
+                                  <TableCell className="py-1 px-2 text-right font-mono">
+                                    {result.extracted_value !== null 
+                                      ? result.extracted_value.toLocaleString() 
+                                      : <span className="text-muted-foreground">—</span>
+                                    }
+                                  </TableCell>
+                                  <TableCell className="py-1 px-2 text-right font-mono">
+                                    {result.workbook_reference_value !== null 
+                                      ? result.workbook_reference_value.toLocaleString() 
+                                      : <span className="text-muted-foreground">—</span>
+                                    }
+                                  </TableCell>
+                                  <TableCell className="py-1 px-2 text-right font-mono">
+                                    {result.delta !== null 
+                                      ? (result.delta === 0 ? '0' : result.delta.toLocaleString()) 
+                                      : <span className="text-muted-foreground">—</span>
+                                    }
+                                  </TableCell>
+                                  <TableCell className="py-1 px-2">
+                                    <Badge 
+                                      variant={
+                                        result.status === 'PASS' ? 'default' :
+                                        result.status === 'FAIL' ? 'destructive' :
+                                        'secondary'
+                                      }
+                                      className={`text-[10px] px-1.5 py-0 ${
+                                        result.status === 'PASS' ? 'bg-success text-success-foreground' : ''
+                                      }`}
+                                    >
+                                      {result.status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="py-1 px-2 text-[10px] text-muted-foreground max-w-[200px] truncate" title={result.evidence?.computation || result.notes}>
+                                    {result.evidence ? (
+                                      <span>
+                                        {result.evidence.source_block}
+                                        {result.evidence.excel_row && ` (row ${result.evidence.excel_row})`}
+                                      </span>
+                                    ) : (
+                                      <span className="italic">{result.notes || 'No reference found'}</span>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
                       </div>
                     );
                   })}
