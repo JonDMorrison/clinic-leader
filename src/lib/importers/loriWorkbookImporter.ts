@@ -521,6 +521,7 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   
   // ========== EXTRA BLOCKS (dynamic) ==========
   const extraBlocks: ExtraBlock[] = [];
+  const extraBlockFingerprints = new Set<string>(); // For deduplication
 
   const mainHeaderRows = new Set<number>([
     verification.provider?.header_row_index_0,
@@ -528,6 +529,7 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     verification.referral_sources?.header_row_index_0,
   ].filter((v): v is number => typeof v === 'number'));
 
+  // Only recognize known extra block titles - stricter matching
   const knownTitles = ['Pain Management'];
   // maxCols already computed above for sheet_fingerprint
 
@@ -536,13 +538,18 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     if (!text) return false;
     if (text.length > 50) return false;
     const lower = text.toLowerCase();
+    
+    // Exclude common false positives
     if (lower.includes('provider name')) return false;
     if (lower.includes('referral source')) return false;
     if (lower.includes('referrals')) return false;
-
+    if (lower === 'total' || lower === 'totals') return false;
+    if (lower.includes('massage therapist')) return false;
+    if (lower.includes('northwest injury')) return false;
+    
     // Must look like a section title (letters/spaces mostly)
     const letters = text.replace(/[^a-zA-Z]/g, '');
-    if (letters.length < 4) return false;
+    if (letters.length < 8) return false; // Require longer names
 
     // Titles usually live on mostly-empty rows
     const row = rows[rowIdx] || [];
@@ -563,6 +570,14 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     return null;
   };
 
+  // Generate fingerprint for deduplication
+  const generateBlockFingerprint = (title: string, headers: string[], rows: any[][]): string => {
+    const headerPart = headers.slice(0, 3).join('|');
+    const row0 = rows[0] ? rows[0].slice(0, 3).map(v => normalizeText(v)).join(',') : '';
+    const row1 = rows[1] ? rows[1].slice(0, 3).map(v => normalizeText(v)).join(',') : '';
+    return `${title}::${headerPart}::${row0}::${row1}`;
+  };
+
   for (let r = 0; r < rows.length; r++) {
     for (let c = 0; c < maxCols; c++) {
       const cellVal = getCell(rows, r, c);
@@ -576,7 +591,15 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
       if (headerRow == null) continue;
 
       const extracted = extractTableFromHeader(rows, { r: headerRow, c }, `extra:${text}`, { maxScanRows: 200 });
+      
+      // Minimum requirements: at least 2 columns AND at least 2 non-empty data rows
+      if (extracted.colCount < 2 || extracted.nonEmptyRowCount < 2) continue;
       if (extracted.dataRows.length === 0) continue;
+
+      // Deduplication check
+      const fingerprint = generateBlockFingerprint(text, extracted.headers, extracted.dataRows);
+      if (extraBlockFingerprints.has(fingerprint)) continue;
+      extraBlockFingerprints.add(fingerprint);
 
       const titleCellA1 = XLSX.utils.encode_cell({ r, c });
       extraBlocks.push({
@@ -601,9 +624,6 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
         rows_extracted: extracted.dataRows.length,
         non_empty_row_count: extracted.nonEmptyRowCount,
       });
-      if (Math.max(0, extracted.endRow - extracted.headerRowIdx) !== extracted.dataRows.length) {
-        warnings.push(`Extra block "${text}" row mismatch: range=${Math.max(0, extracted.endRow - extracted.headerRowIdx)}, extracted=${extracted.dataRows.length}`);
-      }
     }
   }
   
