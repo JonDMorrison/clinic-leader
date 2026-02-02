@@ -94,6 +94,9 @@ async function ensureMetricsExist(
       ensured++;
     } else {
       // Create new metric
+      // Map direction values: DB expects 'up'/'down', mapping uses 'higher_is_better'/'lower_is_better'
+      const dbDirection = mapping.direction === 'higher_is_better' ? 'up' : 'down';
+      
       const { data: newMetric, error: insertError } = await supabase
         .from("metrics")
         .insert({
@@ -101,7 +104,7 @@ async function ensureMetricsExist(
           name: mapping.display_name,
           import_key: mapping.metric_key,
           unit: mapping.unit,
-          direction: mapping.direction,
+          direction: dbDirection,
           target: mapping.default_target,
           cadence: "monthly",
           is_active: true,
