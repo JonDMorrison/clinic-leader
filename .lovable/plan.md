@@ -1,160 +1,98 @@
 
-# Plan: Fix and Enhance AI Copilot
+# Plan: Incremental Import Workflow + Year-to-Date View
 
-## Problem Summary
+## Current Behavior (Good News!)
 
-The Copilot is completely broken and poorly positioned. Here's what's wrong:
+The import system **already supports adding new months without deleting existing data**:
 
-| Issue | Impact |
-|-------|--------|
-| **Wrong database tables** | The AI queries `kpis` (0 readings) instead of `metrics` (976 readings) |
-| **No data returned** | AI says "I don't have enough information" because it literally has none |
-| **Navigation clutter** | Copilot takes a dedicated nav slot when it could live inside the dashboard |
-| **Disconnected experience** | The full-page `/copilot` route feels separate from the app flow |
+- When you upload a new spreadsheet, only the months **present in that file** are upserted
+- Months not in the new file remain untouched in the database
+- If a month exists and is also in the new file, it gets **updated** (not duplicated)
 
----
-
-## Solution Overview
-
-Transform Copilot from a broken standalone page into an **embedded AI assistant** that actually works.
-
-### What Changes
-
-1. **Fix the data source** - Connect to the real `metrics`/`metric_results` tables
-2. **Remove from sidebar** - Eliminate the dedicated nav slot
-3. **Keep it on the dashboard** - The `CopilotWidget` already exists there; make it the primary experience
-4. **Add a slide-out drawer** - For longer conversations, open a drawer (not a new page)
-5. **Add more context** - Include VTO goals, core values, and recent activity
+**Example workflow:**
+1. You have Sep-Jan already imported
+2. You get February data, add a "Feb-26" sheet to your workbook
+3. Upload the workbook - February is added, Sep-Jan are updated if changed, nothing is deleted
 
 ---
 
-## Technical Changes
+## New Feature: Year-to-Date (YTD) Aggregation Tab
 
-### 1. Fix the Edge Function Data Queries
+Add a special "YTD" tab that aggregates data across all months in the current fiscal year.
 
-**File:** `supabase/functions/ai-query-data/index.ts`
+### How It Works
 
-Replace the broken queries with correct ones:
+1. User selects "YTD" tab (alongside individual month tabs)
+2. System loads all months from Jan 1 through the latest available month
+3. Provider Production: Sum numeric columns, show cumulative totals
+4. Referral Totals: Sum all referral counts across months
+5. Referral Sources: Sum referral counts by source across months
 
+### UI Changes
+
+**DataDefaultHome.tsx:**
+- Add "YTD" as a special tab option (appears first or last in the tab list)
+- When selected, fetch all months for the current fiscal year
+- Pass aggregated payload to `LegacyMonthlyReportView`
+
+**New Component - YTDDataView.tsx:**
+- Receives array of month payloads
+- Aggregates numeric columns across months
+- Shows "Year to Date (Jan - [Latest Month])" header
+- Same table layout as individual months, but with summed values
+
+---
+
+## Additional Ideas
+
+### 1. Fiscal Year Selector
+Allow choosing which fiscal year to view (2025, 2026) when you accumulate multiple years of data.
+
+### 2. Month-over-Month Trends
+Add sparkline trends showing how each metric changed across the visible months.
+
+### 3. Import History Panel
+Show a log of when each month was last imported/updated, with source file name.
+
+### 4. Export to Excel
+One-click export of the current view (single month or YTD) back to Excel format.
+
+### 5. Comparison Mode
+Select two months and show side-by-side comparison with variance calculations.
+
+---
+
+## Technical Implementation
+
+### Database
+No schema changes needed - `legacy_monthly_reports` already supports the structure.
+
+### Files to Create
+- `src/components/data/YTDDataView.tsx` - Aggregation logic and display
+
+### Files to Modify
+- `src/pages/DataDefaultHome.tsx` - Add YTD tab option and data fetching
+- `src/components/data/LegacyMonthlyReportView.tsx` - Optional: add "aggregated" mode indicator
+
+### Aggregation Logic
 ```text
-Before (line 32-45):
-- Queries "kpis" table → 0 results
-- Queries "kpi_readings" → 0 results
+For each Provider row:
+  - Sum "New Patient Visits", "Total Visits", etc.
+  - Calculate averages where appropriate (e.g., "Avg Visits/Patient")
 
-After:
-- Query "metrics" table → 575 metrics
-- Query "metric_results" → 976 readings
-```
+For Referral Totals:
+  - Sum all numeric cells by row label
 
-The fixed query will look like:
-```typescript
-const { data: metrics } = await supabase
-  .from("metrics")
-  .select(`
-    name, target, unit, direction, category,
-    owner:users!metrics_owner_fkey(full_name),
-    metric_results(value, week_start, period_key)
-  `)
-  .eq("organization_id", team_id)
-  .order("week_start", { foreignTable: "metric_results", ascending: false })
-  .limit(4, { foreignTable: "metric_results" });
-```
-
-Also add:
-- VTO context (long-term targets, current rocks)
-- Core values (for culture-aware responses)
-- Recent activity from `ai_logs` (for conversational memory)
-
-### 2. Remove Copilot from Navigation
-
-**File:** `src/components/layout/Sidebar.tsx`
-
-Remove the Copilot nav item from line 43:
-```typescript
-// DELETE this line:
-{ title: "Copilot", path: "/copilot", icon: Sparkles, roles: ["staff", "manager", "director", "owner"] },
-```
-
-This reduces sidebar clutter without removing functionality.
-
-### 3. Enhance the Dashboard Widget
-
-**File:** `src/components/dashboard/CopilotWidget.tsx`
-
-Current widget is already good, but add:
-- "Expand" button that opens a slide-out drawer for longer conversations
-- Show conversation history within the drawer
-- Persist last few messages in session state
-
-### 4. Create a Copilot Drawer Component
-
-**New File:** `src/components/ai/CopilotDrawer.tsx`
-
-A sheet/drawer component that:
-- Slides in from the right when expanded
-- Contains the full chat interface (currently in `/copilot` page)
-- Maintains conversation history during the session
-- Can be triggered from the widget or a floating action button
-
-### 5. Update the Copilot Page Route
-
-**File:** `src/pages/Copilot.tsx`
-
-Option A: Redirect `/copilot` to `/` (dashboard) with the drawer auto-opened  
-Option B: Keep the page but have it render the same drawer component full-width
-
-I recommend Option A for simplicity.
-
-### 6. Improve Suggested Questions
-
-**Files:** `src/pages/Copilot.tsx`, `src/components/dashboard/CopilotWidget.tsx`
-
-Update the example questions to match actual data:
-```typescript
-const exampleQuestions = [
-  "Which metrics are off track this month?",
-  "What rocks are due in the next 30 days?",
-  "Show me our team's open issues",
-  "How are we tracking on our long-term goals?",
-];
+For Referral Sources:
+  - Group by source name, sum totals across months
+  - Sort by total descending
 ```
 
 ---
 
-## Data Context Enhancement
+## Recommended Priority
 
-The AI prompt will now include:
-
-| Context | Source Table | Purpose |
-|---------|--------------|---------|
-| Metrics + Results | `metrics`, `metric_results` | "What's off track?" |
-| Rocks | `rocks` | "Who needs help on rocks?" |
-| Issues | `issues` | "What's blocking us?" |
-| Todos | `todos` | "What's due soon?" |
-| VTO Goals | `vto` | "Are we aligned to vision?" |
-| Core Values | `org_core_values` | Culture-aware responses |
-
----
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `supabase/functions/ai-query-data/index.ts` | Fix queries, add VTO/values context |
-| `src/components/layout/Sidebar.tsx` | Remove Copilot nav item |
-| `src/components/dashboard/CopilotWidget.tsx` | Add expand button, connect to drawer |
-| `src/components/ai/CopilotDrawer.tsx` | New - slide-out chat panel |
-| `src/pages/Copilot.tsx` | Redirect to dashboard or convert to drawer |
-| `src/App.tsx` | Update route handling |
-
----
-
-## User Experience After Implementation
-
-1. **Dashboard loads** → Copilot widget visible with smart suggested questions
-2. **Click a question** → Answer appears in the widget
-3. **Click "Expand"** → Full conversation drawer slides in
-4. **Continue chatting** → Full history, more space for responses
-5. **Close drawer** → Back to dashboard, no navigation needed
-
-The Copilot becomes a seamlessly integrated assistant rather than a disconnected feature.
+1. **YTD Tab** - Highest value, gives executive-level summary
+2. **Export to Excel** - Completes the round-trip workflow
+3. **Fiscal Year Selector** - Needed once you have 2+ years of data
+4. **Comparison Mode** - Nice-to-have for variance analysis
