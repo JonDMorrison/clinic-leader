@@ -84,6 +84,27 @@ async function ensureMetricsExist(
     throw fetchError;
   }
 
+  // Fetch an admin user as default metric owner (owner or director role)
+  const { data: adminUsers } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .in("role", ["owner", "director"])
+    .limit(1);
+  
+  // Verify the admin is from this org
+  let defaultOwnerId: string | null = null;
+  if (adminUsers && adminUsers.length > 0) {
+    const { data: userCheck } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", adminUsers[0].user_id)
+      .eq("team_id", organizationId)
+      .single();
+    if (userCheck) {
+      defaultOwnerId = userCheck.id;
+    }
+  }
+
   // Build lookup of existing import_keys
   const existingKeyMap = new Map<string, string>();
   for (const m of existingMetrics || []) {
@@ -118,6 +139,7 @@ async function ensureMetricsExist(
           cadence: "monthly",
           is_active: true,
           category: mapping.category,
+          owner: defaultOwnerId, // Set org owner as default metric owner
         })
         .select("id")
         .single();

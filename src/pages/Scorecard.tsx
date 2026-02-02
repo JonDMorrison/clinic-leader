@@ -25,12 +25,14 @@ import { MetricCard } from "@/components/scorecard/MetricCard";
 import { MetricDetailsDrawer } from "@/components/scorecard/MetricDetailsDrawer";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { startOfWeek, subWeeks, format } from "date-fns";
+import { startOfWeek, subWeeks, subMonths, startOfMonth, format } from "date-fns";
 import { AlertsPanel } from "@/components/scorecard/AlertsPanel";
 import { MilestoneCelebration } from "@/components/scorecard/MilestoneCelebration";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { MonthlyMetricsDebugPanel } from "@/components/scorecard/MonthlyMetricsDebugPanel";
+import { MissingTargetsBanner } from "@/components/scorecard/MissingTargetsBanner";
 
 
 const Scorecard = () => {
@@ -101,16 +103,22 @@ const Scorecard = () => {
     }
   };
 
-  // Fetch metrics with last 12 weeks of data
+  // Fetch metrics with last 12 periods of data (weekly or monthly based on metric cadence)
   const { data: metricsData, isLoading, isError, refetch } = useQuery({
     queryKey: ["scorecard-metrics", orgId],
     queryFn: async () => {
       if (!orgId) return []; // MULTI-TENANCY: Guard against missing org
 
-      // Get last 12 weeks
+      // Get last 12 weeks for weekly metrics
       const weeks = Array.from({ length: 12 }, (_, i) => {
         const date = subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), i);
         return format(date, "yyyy-MM-dd");
+      }).reverse();
+
+      // Get last 12 months for monthly metrics
+      const months = Array.from({ length: 12 }, (_, i) => {
+        const date = subMonths(startOfMonth(new Date()), i);
+        return format(date, "yyyy-MM-dd"); // period_start format
       }).reverse();
 
       const { data: metrics, error: metricsError } = await supabase
@@ -123,16 +131,40 @@ const Scorecard = () => {
 
       if (metricsError) throw metricsError;
 
-      // Fetch all metric results for last 12 weeks
       const metricIds = metrics?.map(m => m.id) || [];
-      const { data: results, error: resultsError } = await supabase
-        .from("metric_results")
-        .select("*")
-        .in("metric_id", metricIds)
-        .in("week_start", weeks)
-        .order("week_start", { ascending: true });
+      
+      // Separate metrics by cadence
+      const weeklyMetricIds = metrics?.filter(m => m.cadence !== 'monthly').map(m => m.id) || [];
+      const monthlyMetricIds = metrics?.filter(m => m.cadence === 'monthly').map(m => m.id) || [];
 
-      if (resultsError) throw resultsError;
+      // Fetch weekly results
+      let weeklyResults: any[] = [];
+      if (weeklyMetricIds.length > 0) {
+        const { data, error } = await supabase
+          .from("metric_results")
+          .select("*")
+          .in("metric_id", weeklyMetricIds)
+          .in("week_start", weeks)
+          .order("week_start", { ascending: true });
+        if (error) throw error;
+        weeklyResults = data || [];
+      }
+
+      // Fetch monthly results - query by period_type and period_start
+      let monthlyResults: any[] = [];
+      if (monthlyMetricIds.length > 0) {
+        const { data, error } = await supabase
+          .from("metric_results")
+          .select("*")
+          .in("metric_id", monthlyMetricIds)
+          .eq("period_type", "monthly")
+          .in("period_start", months)
+          .order("period_start", { ascending: true });
+        if (error) throw error;
+        monthlyResults = data || [];
+      }
+
+      const allResults = [...weeklyResults, ...monthlyResults];
 
       // Fetch owner names
       const ownerIds = Array.from(new Set(metrics?.map(m => m.owner).filter(Boolean) || []));
@@ -147,17 +179,23 @@ const Scorecard = () => {
       }, {} as Record<string, string>) || {};
 
       // Group results by metric
-      const resultsByMetric = results?.reduce((acc, r) => {
+      const resultsByMetric = allResults.reduce((acc, r) => {
         if (!acc[r.metric_id]) acc[r.metric_id] = [];
         acc[r.metric_id].push(r);
         return acc;
-      }, {} as Record<string, any[]>) || {};
+      }, {} as Record<string, any[]>);
 
       // Enrich metrics with computed data including provenance
       return metrics?.map(metric => {
         const metricResults = resultsByMetric[metric.id] || [];
-        const last8 = metricResults.slice(-8);
-        const current = metricResults[metricResults.length - 1];
+        // Sort by appropriate date field
+        const sortedResults = [...metricResults].sort((a, b) => {
+          const dateA = metric.cadence === 'monthly' ? a.period_start : a.week_start;
+          const dateB = metric.cadence === 'monthly' ? b.period_start : b.week_start;
+          return new Date(dateA).getTime() - new Date(dateB).getTime();
+        });
+        const last8 = sortedResults.slice(-8);
+        const current = sortedResults[sortedResults.length - 1];
 
         return {
           id: metric.id,
@@ -169,12 +207,14 @@ const Scorecard = () => {
           sync_source: metric.sync_source,
           cadence: metric.cadence || "weekly",
           owner_name: metric.owner ? userMap[metric.owner] : null,
-          current_value: current?.value || null,
+          owner_id: metric.owner,
+          current_value: current?.value ?? null,
           last_8_weeks: last8.map(r => r.value),
           is_favorite: metric.is_favorite || false,
           // Provenance fields
           latest_result_source: current?.source || null,
           latest_result_updated_at: current?.created_at || null,
+          latest_period_key: current?.period_key || null,
         };
       }) || [];
     },
@@ -396,6 +436,23 @@ const Scorecard = () => {
     }).length;
   }, [metricsData]);
 
+  // Find metrics missing targets for banner
+  const metricsWithoutTargets = useMemo(() => {
+    if (!metricsData) return [];
+    return metricsData
+      .filter(m => m.target === null || m.target === undefined)
+      .map(m => ({
+        id: m.id,
+        name: m.name,
+        category: m.category,
+      }));
+  }, [metricsData]);
+
+  // Handler to open metric details for target configuration
+  const handleConfigureTarget = (metricId: string) => {
+    setSelectedMetricId(metricId);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -485,11 +542,20 @@ const Scorecard = () => {
         />
       ) : (
         <div className="space-y-6">
+          {/* Missing Targets Banner */}
+          <MissingTargetsBanner 
+            metricsWithoutTargets={metricsWithoutTargets}
+            onConfigureTarget={handleConfigureTarget}
+          />
+
           {/* Alerts Panel */}
           <AlertsPanel 
             organizationId={currentUser?.team_id}
             currentUserId={currentUser?.id}
           />
+
+          {/* Dev Debug Panel */}
+          <MonthlyMetricsDebugPanel organizationId={currentUser?.team_id || null} />
 
           {/* Filters Section */}
           <div className="glass rounded-lg p-4">
