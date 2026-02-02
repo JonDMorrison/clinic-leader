@@ -27,6 +27,33 @@ export interface ExtraBlock extends TableBlock {
   title: string;
 }
 
+/** Detailed block verification for audit */
+export interface BlockVerification {
+  header_cell: string;
+  raw_range_a1: string;
+  header_row_index_0: number;
+  start_row_index_0: number;
+  end_row_index_0: number;
+  start_col_index_0: number;
+  end_col_index_0: number;
+  col_count: number;
+  rows_in_range: number;
+  rows_extracted: number;
+  non_empty_row_count: number;
+}
+
+export interface ExtraBlockVerification extends BlockVerification {
+  title: string;
+  title_cell: string;
+}
+
+export interface SheetFingerprint {
+  sheet_name: string;
+  non_empty_cell_count: number;
+  total_rows: number;
+  total_cols: number;
+}
+
 export interface LoriMonthPayload {
   sheet_name: string;
   period_key: string; // YYYY-MM
@@ -47,52 +74,11 @@ export interface LoriMonthPayload {
     extra_blocks_counts: { title: string; extracted: number }[];
 
     // v2 (more explicit, used for audits)
-    provider?: {
-      header_cell: string;
-      raw_range_a1: string;
-      header_row_index_0: number;
-      start_row_index_0: number;
-      end_row_index_0: number;
-      start_col_index_0: number;
-      end_col_index_0: number;
-      rows_in_range: number;
-      rows_extracted: number;
-    };
-    referral_totals?: {
-      header_cell: string;
-      raw_range_a1: string;
-      header_row_index_0: number;
-      start_row_index_0: number;
-      end_row_index_0: number;
-      start_col_index_0: number;
-      end_col_index_0: number;
-      rows_in_range: number;
-      rows_extracted: number;
-    };
-    referral_sources?: {
-      header_cell: string;
-      raw_range_a1: string;
-      header_row_index_0: number;
-      start_row_index_0: number;
-      end_row_index_0: number;
-      start_col_index_0: number;
-      end_col_index_0: number;
-      rows_in_range: number;
-      rows_extracted: number;
-    };
-    extra_blocks?: {
-      title: string;
-      title_cell: string;
-      header_cell: string;
-      raw_range_a1: string;
-      header_row_index_0: number;
-      start_row_index_0: number;
-      end_row_index_0: number;
-      start_col_index_0: number;
-      end_col_index_0: number;
-      rows_in_range: number;
-      rows_extracted: number;
-    }[];
+    sheet_fingerprint: SheetFingerprint;
+    provider?: BlockVerification;
+    referral_totals?: BlockVerification;
+    referral_sources?: BlockVerification;
+    extra_blocks?: ExtraBlockVerification[];
   };
 }
 
@@ -304,26 +290,31 @@ function isRowBlankAcrossSpan(rows: any[][], rowIdx: number, startCol: number, e
   return true;
 }
 
-function extractTableFromHeader(
-  rows: any[][],
-  headerPos: CellPos,
-  headerLabel: string,
-  opts?: { maxScanRows?: number }
-): {
+interface ExtractedTable {
   headers: string[];
   dataRows: any[][];
   headerRowIdx: number;
   startCol: number;
   endCol: number;
+  colCount: number;
   startRow: number;
   endRow: number;
   headerCellA1: string;
   rawRangeA1: string;
-} {
+  nonEmptyRowCount: number;
+}
+
+function extractTableFromHeader(
+  rows: any[][],
+  headerPos: CellPos,
+  headerLabel: string,
+  opts?: { maxScanRows?: number }
+): ExtractedTable {
   const maxScanRows = opts?.maxScanRows ?? rows.length;
 
   const headerRowIdx = headerPos.r;
   const { startCol, endCol } = detectSpan(rows, headerRowIdx, headerPos.c);
+  const colCount = endCol - startCol + 1;
 
   const headers: string[] = [];
   for (let c = startCol; c <= endCol; c++) {
@@ -335,13 +326,14 @@ function extractTableFromHeader(
   const blankBuffer: any[][] = [];
   const STOP_AFTER = 3;
   let endRow = headerRowIdx; // will track last included row
+  let nonEmptyRowCount = 0;
 
   const maxRow = Math.min(rows.length, headerRowIdx + 1 + maxScanRows);
   for (let r = headerRowIdx + 1; r < maxRow; r++) {
     const rowIsBlank = isRowBlankAcrossSpan(rows, r, startCol, endCol);
 
     if (rowIsBlank) {
-      blankBuffer.push(new Array(endCol - startCol + 1).fill(null));
+      blankBuffer.push(new Array(colCount).fill(null));
       if (blankBuffer.length >= STOP_AFTER) {
         // Stop WITHOUT including the terminating blank run
         break;
@@ -360,6 +352,7 @@ function extractTableFromHeader(
       rowData.push(getCell(rows, r, c));
     }
     dataRows.push(rowData);
+    nonEmptyRowCount++;
     endRow = r;
   }
 
@@ -376,10 +369,12 @@ function extractTableFromHeader(
     headerRowIdx,
     startCol,
     endCol,
+    colCount,
     startRow,
     endRow,
     headerCellA1,
     rawRangeA1,
+    nonEmptyRowCount,
   };
 }
 
@@ -405,8 +400,25 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     raw: false,
   });
   
+  // Compute sheet fingerprint for duplicate detection
+  const maxCols = getMaxColCount(rows);
+  let nonEmptyCellCount = 0;
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < (rows[r]?.length ?? 0); c++) {
+      if (!isBlankCell(getCell(rows, r, c))) nonEmptyCellCount++;
+    }
+  }
+  
+  const sheetFingerprint: SheetFingerprint = {
+    sheet_name: sheetName,
+    non_empty_cell_count: nonEmptyCellCount,
+    total_rows: rows.length,
+    total_cols: maxCols,
+  };
+  
   const warnings: string[] = [];
   const verification: LoriMonthPayload['verification'] = {
+    sheet_fingerprint: sheetFingerprint,
     provider_raw_range: '',
     provider_extracted: 0,
     referral_totals_raw_range: '',
@@ -435,8 +447,10 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
       end_row_index_0: extracted.endRow,
       start_col_index_0: extracted.startCol,
       end_col_index_0: extracted.endCol,
+      col_count: extracted.colCount,
       rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
       rows_extracted: extracted.dataRows.length,
+      non_empty_row_count: extracted.nonEmptyRowCount,
     };
     if (verification.provider.rows_in_range !== verification.provider.rows_extracted) {
       warnings.push(`Provider table row mismatch: range=${verification.provider.rows_in_range}, extracted=${verification.provider.rows_extracted}`);
@@ -463,8 +477,10 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
       end_row_index_0: extracted.endRow,
       start_col_index_0: extracted.startCol,
       end_col_index_0: extracted.endCol,
+      col_count: extracted.colCount,
       rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
       rows_extracted: extracted.dataRows.length,
+      non_empty_row_count: extracted.nonEmptyRowCount,
     };
     if (verification.referral_totals.rows_in_range !== verification.referral_totals.rows_extracted) {
       warnings.push(`Referral totals row mismatch: range=${verification.referral_totals.rows_in_range}, extracted=${verification.referral_totals.rows_extracted}`);
@@ -491,8 +507,10 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
       end_row_index_0: extracted.endRow,
       start_col_index_0: extracted.startCol,
       end_col_index_0: extracted.endCol,
+      col_count: extracted.colCount,
       rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
       rows_extracted: extracted.dataRows.length,
+      non_empty_row_count: extracted.nonEmptyRowCount,
     };
     if (verification.referral_sources.rows_in_range !== verification.referral_sources.rows_extracted) {
       warnings.push(`Referral sources row mismatch: range=${verification.referral_sources.rows_in_range}, extracted=${verification.referral_sources.rows_extracted}`);
@@ -511,7 +529,7 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   ].filter((v): v is number => typeof v === 'number'));
 
   const knownTitles = ['Pain Management'];
-  const maxCols = getMaxColCount(rows);
+  // maxCols already computed above for sheet_fingerprint
 
   const isTitleCandidate = (val: any, rowIdx: number): boolean => {
     const text = normalizeText(val);
@@ -578,8 +596,10 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
         end_row_index_0: extracted.endRow,
         start_col_index_0: extracted.startCol,
         end_col_index_0: extracted.endCol,
+        col_count: extracted.colCount,
         rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
         rows_extracted: extracted.dataRows.length,
+        non_empty_row_count: extracted.nonEmptyRowCount,
       });
       if (Math.max(0, extracted.endRow - extracted.headerRowIdx) !== extracted.dataRows.length) {
         warnings.push(`Extra block "${text}" row mismatch: range=${Math.max(0, extracted.endRow - extracted.headerRowIdx)}, extracted=${extracted.dataRows.length}`);
