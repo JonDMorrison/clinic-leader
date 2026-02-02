@@ -10,6 +10,8 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { LegacyRowActionsMenu } from "./LegacyRowActionsMenu";
 
 interface TableBlock {
   headers: string[];
@@ -114,12 +116,16 @@ function DataTable({
   title, 
   headers, 
   rows,
-  className
+  className,
+  periodKey,
+  organizationId,
 }: { 
   title: string;
   headers: string[];
   rows: any[][];
   className?: string;
+  periodKey?: string;
+  organizationId?: string;
 }) {
   const normalizedHeaders = normalizeHeaders(headers, rows);
   const normalizedRows = normalizeRows(rows, normalizedHeaders.length);
@@ -143,14 +149,17 @@ function DataTable({
                     {header}
                   </TableHead>
                 ))}
+                {/* Actions column */}
+                <TableHead className="w-8 py-1.5 px-1" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {normalizedRows.map((row, rowIdx) => {
                 const isTotal = String(row[0]).toLowerCase().includes('total');
+                const rowLabel = String(row[0] || '').trim();
                 return (
                   <TableRow key={rowIdx} className={cn(
-                    "hover:bg-muted/20",
+                    "hover:bg-muted/20 group",
                     isTotal && "bg-muted/40 font-medium"
                   )}>
                     {row.map((cell, cellIdx) => {
@@ -170,6 +179,16 @@ function DataTable({
                         </TableCell>
                       );
                     })}
+                    {/* Row actions */}
+                    <TableCell className="py-1 px-1">
+                      <LegacyRowActionsMenu
+                        rowLabel={rowLabel}
+                        rowData={row}
+                        sectionTitle={title}
+                        periodKey={periodKey || ''}
+                        organizationId={organizationId}
+                      />
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -186,7 +205,9 @@ export default function LegacyMonthlyReportView({
   periodKey,
   updatedAt 
 }: LegacyMonthlyReportViewProps) {
+  const { data: currentUser } = useCurrentUser();
   const { provider_table, referral_totals, referral_sources, extra_blocks, warnings } = payload;
+  const organizationId = currentUser?.team_id;
 
   // Filter out invalid extra blocks (must have real titles, not just random cells)
   const validExtraBlocks = (extra_blocks || []).filter(block => {
@@ -232,6 +253,8 @@ export default function LegacyMonthlyReportView({
             title="Provider Production"
             headers={provider_table.headers}
             rows={provider_table.rows}
+            periodKey={periodKey}
+            organizationId={organizationId}
           />
         </div>
 
@@ -241,12 +264,16 @@ export default function LegacyMonthlyReportView({
             title="Referral Totals"
             headers={referral_totals.headers}
             rows={referral_totals.rows}
+            periodKey={periodKey}
+            organizationId={organizationId}
           />
           
           <DataTable
             title="Referral Sources"
             headers={referral_sources.headers}
             rows={referral_sources.rows}
+            periodKey={periodKey}
+            organizationId={organizationId}
           />
         </div>
       </div>
@@ -260,6 +287,8 @@ export default function LegacyMonthlyReportView({
               title={block.title}
               headers={block.headers}
               rows={block.rows}
+              periodKey={periodKey}
+              organizationId={organizationId}
             />
           ))}
         </div>
