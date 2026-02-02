@@ -6,11 +6,9 @@
  */
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Users, Target, Handshake, LayoutGrid, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TableBlock {
@@ -58,18 +56,16 @@ function formatCellValue(value: any): string {
 }
 
 /**
- * Collapsible data table section
+ * Collapsible data table section - minimal design
  */
 function CollapsibleTableSection({ 
   title, 
-  icon: Icon, 
   headers, 
   rows,
   defaultOpen = false,
   emptyMessage = "No data"
 }: { 
   title: string;
-  icon: React.ComponentType<{ className?: string }>;
   headers: string[];
   rows: any[][];
   defaultOpen?: boolean;
@@ -80,87 +76,71 @@ function CollapsibleTableSection({
   
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card>
-        <CollapsibleTrigger className="w-full">
-          <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-brand/10">
-                <Icon className="w-5 h-5 text-brand" />
-              </div>
-              <div className="text-left">
-                <h3 className="font-semibold">{title}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {hasData ? `${rows.length} rows` : emptyMessage}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {hasData && (
-                <Badge variant="secondary" className="text-xs">
-                  {rows.length}
-                </Badge>
-              )}
-              <ChevronDown className={cn(
-                "w-5 h-5 text-muted-foreground transition-transform duration-200",
-                isOpen && "rotate-180"
-              )} />
-            </div>
+      <CollapsibleTrigger className="w-full group">
+        <div className="flex items-center justify-between py-3 px-1 hover:bg-muted/30 rounded-lg transition-colors cursor-pointer">
+          <div className="flex items-center gap-2">
+            <ChevronDown className={cn(
+              "w-4 h-4 text-muted-foreground transition-transform duration-200",
+              isOpen && "rotate-180"
+            )} />
+            <span className="font-medium text-sm">{title}</span>
+            <span className="text-xs text-muted-foreground">
+              ({hasData ? rows.length : 0})
+            </span>
           </div>
-        </CollapsibleTrigger>
+        </div>
+      </CollapsibleTrigger>
         
-        <CollapsibleContent>
-          <CardContent className="pt-0 pb-4">
-            {!hasData ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                {emptyMessage}
-              </div>
-            ) : (
-              <div className="overflow-x-auto -mx-2">
-                <Table className="text-sm">
-                  <TableHeader>
-                    <TableRow>
-                      {headers.map((header, idx) => (
-                        <TableHead 
-                          key={idx} 
-                          className="whitespace-nowrap font-medium text-xs bg-muted/50 first:rounded-tl last:rounded-tr"
-                        >
-                          {header || `Col ${idx + 1}`}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((row, rowIdx) => (
-                      <TableRow key={rowIdx} className="hover:bg-muted/30">
-                        {row.map((cell, cellIdx) => {
-                          const formatted = formatCellValue(cell);
-                          const isNumeric = typeof cell === 'number';
-                          const isTotal = rowIdx === rows.length - 1 && 
-                            String(row[0]).toLowerCase().includes('total');
-                          
-                          return (
-                            <TableCell 
-                              key={cellIdx}
-                              className={cn(
-                                "whitespace-nowrap py-2",
-                                isNumeric && "text-right font-mono",
-                                isTotal && "font-semibold bg-muted/30",
-                                formatted === '' && "text-muted-foreground"
-                              )}
-                            >
-                              {formatted || '—'}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
+      <CollapsibleContent>
+        <div className="pl-6 pt-2 pb-4">
+          {!hasData ? (
+            <p className="text-sm text-muted-foreground py-4">{emptyMessage}</p>
+          ) : (
+            <div className="overflow-x-auto border rounded-lg">
+              <Table className="text-sm">
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    {headers.map((header, idx) => (
+                      <TableHead 
+                        key={idx} 
+                        className="whitespace-nowrap font-medium text-xs"
+                      >
+                        {header || `Col ${idx + 1}`}
+                      </TableHead>
                     ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((row, rowIdx) => (
+                    <TableRow key={rowIdx} className="hover:bg-muted/20">
+                      {row.map((cell, cellIdx) => {
+                        const formatted = formatCellValue(cell);
+                        const isNumeric = typeof cell === 'number';
+                        const isTotal = rowIdx === rows.length - 1 && 
+                          String(row[0]).toLowerCase().includes('total');
+                        
+                        return (
+                          <TableCell 
+                            key={cellIdx}
+                            className={cn(
+                              "whitespace-nowrap py-1.5 text-xs",
+                              isNumeric && "text-right font-mono",
+                              isTotal && "font-semibold bg-muted/30",
+                              formatted === '' && "text-muted-foreground"
+                            )}
+                          >
+                            {formatted || '—'}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      </CollapsibleContent>
     </Collapsible>
   );
 }
@@ -186,11 +166,10 @@ export default function LegacyMonthlyReportView({
         </div>
       )}
 
-      {/* Main accordion sections */}
-      <div className="space-y-3">
+      {/* All sections in a clean list */}
+      <div className="space-y-1 bg-card rounded-lg border p-3">
         <CollapsibleTableSection
           title="Provider Production"
-          icon={Users}
           headers={provider_table.headers}
           rows={provider_table.rows}
           defaultOpen={true}
@@ -199,7 +178,6 @@ export default function LegacyMonthlyReportView({
 
         <CollapsibleTableSection
           title="Referral Totals"
-          icon={Target}
           headers={referral_totals.headers}
           rows={referral_totals.rows}
           defaultOpen={false}
@@ -208,34 +186,24 @@ export default function LegacyMonthlyReportView({
 
         <CollapsibleTableSection
           title="Referral Sources"
-          icon={Handshake}
           headers={referral_sources.headers}
           rows={referral_sources.rows}
           defaultOpen={false}
           emptyMessage="No referral sources"
         />
-      </div>
 
-      {/* Extra blocks */}
-      {extra_blocks && extra_blocks.length > 0 && (
-        <div className="space-y-3 pt-2">
-          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2 px-1">
-            <LayoutGrid className="w-4 h-4" />
-            Additional Sections
-          </h3>
-          {extra_blocks.map((block, idx) => (
-            <CollapsibleTableSection
-              key={idx}
-              title={block.title}
-              icon={LayoutGrid}
-              headers={block.headers}
-              rows={block.rows}
-              defaultOpen={false}
-              emptyMessage={`No ${block.title} data`}
-            />
-          ))}
-        </div>
-      )}
+        {/* Extra blocks inline */}
+        {extra_blocks && extra_blocks.length > 0 && extra_blocks.map((block, idx) => (
+          <CollapsibleTableSection
+            key={idx}
+            title={block.title}
+            headers={block.headers}
+            rows={block.rows}
+            defaultOpen={false}
+            emptyMessage={`No ${block.title} data`}
+          />
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,19 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Database, 
   FileSpreadsheet,
   Upload,
-  Calendar,
   Loader2,
-  ArrowRight,
-  BarChart3,
   Clock,
-  RefreshCw,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -157,37 +152,26 @@ export default function DataDefaultHome() {
   // Has reports - show dashboard with month tabs
   return (
     <div className="container mx-auto py-8 space-y-6">
-      {/* Header */}
+      {/* Simplified Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+        className="flex items-center justify-between"
       >
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-brand/10">
-            <Database className="w-8 h-8 text-brand" />
+          <div className="p-2.5 rounded-xl bg-brand/10">
+            <Database className="w-6 h-6 text-brand" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Data</h1>
-            <p className="text-muted-foreground">Monthly clinic metrics from your workbook</p>
+            <h1 className="text-2xl font-bold">Data</h1>
+            <p className="text-sm text-muted-foreground">Monthly metrics</p>
           </div>
         </div>
 
-        {/* Status badges & actions */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <Badge variant="outline" className="gap-1.5 py-1.5">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Updated monthly
-          </Badge>
-          <Badge variant="outline" className="gap-1.5 py-1.5">
-            <BarChart3 className="w-3.5 h-3.5" />
-            {availableMonths.length} month{availableMonths.length !== 1 ? "s" : ""} tracked
-          </Badge>
-          <Button variant="outline" size="sm" onClick={() => navigate("/imports/monthly-report")}>
-            <Upload className="w-4 h-4 mr-2" />
-            Import New
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={() => navigate("/imports/monthly-report")}>
+          <Upload className="w-4 h-4 mr-2" />
+          Import
+        </Button>
       </motion.div>
 
       {/* Month Tabs */}
@@ -222,29 +206,23 @@ export default function DataDefaultHome() {
         transition={{ delay: 0.1 }}
       >
         {reportLoading ? (
-          <Card>
-            <CardContent className="flex items-center justify-center py-16">
-              <Loader2 className="w-8 h-8 animate-spin text-brand" />
-            </CardContent>
-          </Card>
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 animate-spin text-brand" />
+          </div>
         ) : reportData?.payload ? (
-          <div className="space-y-4">
-            {/* Report header with metadata */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1">
-              <div>
-                <h2 className="text-xl font-semibold">
-                  {formatPeriodKey(effectiveSelectedPeriod!)}
-                </h2>
+          <div className="space-y-3">
+            {/* Compact report header */}
+            <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
+              <span>
+                {formatPeriodKey(effectiveSelectedPeriod!)}
                 {reportData.source_file_name && (
-                  <p className="text-sm text-muted-foreground">
-                    Source: {reportData.source_file_name}
-                  </p>
+                  <span className="ml-2">• {reportData.source_file_name}</span>
                 )}
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                Last updated: {format(parseISO(reportData.updated_at), "MMM d, yyyy 'at' h:mm a")}
-              </div>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                {format(parseISO(reportData.updated_at), "MMM d, h:mm a")}
+              </span>
             </div>
 
             {/* The actual report view */}
@@ -265,44 +243,6 @@ export default function DataDefaultHome() {
         )}
       </motion.div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="hover:border-brand/30 transition-colors cursor-pointer" onClick={() => navigate("/imports/monthly-report")}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="w-5 h-5 text-brand" />
-              Import Another Month
-            </CardTitle>
-            <CardDescription>
-              Upload a new monthly workbook to add more data
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              Go to Import
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:border-brand/30 transition-colors cursor-pointer" onClick={() => navigate("/scorecard")}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-brand" />
-              View Scorecard
-            </CardTitle>
-            <CardDescription>
-              See your metrics on the weekly scorecard
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              Open Scorecard
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
