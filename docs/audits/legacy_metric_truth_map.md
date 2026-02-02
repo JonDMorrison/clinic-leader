@@ -100,3 +100,17 @@ To make referral metrics verifiable:
 1. Add a "Grand Total" column to the workbook that sums all locations
 2. Update extractors to read that specific column
 3. Change status to VERIFIABLE in this document
+4. **See:** `docs/audits/lori_truth_anchor_upgrade.md` for detailed instructions
+
+---
+
+## Known Issues
+
+### Lori Workbook Parser (as of 2026-02-02)
+
+The current Lori workbook parser has issues extracting data from some workbook formats:
+- **Total Row Label**: Parser expects row[0] === "Total" but some workbooks have "Total Patient Visits"
+- **Null Values**: Some provider_table rows are coming through as all-null arrays
+- **Missing Production Column**: Some workbooks have "Revenue" instead of "Production"
+
+These issues cause the audit to fail and block scorecard sync. The parser needs updates to handle column header variations.
