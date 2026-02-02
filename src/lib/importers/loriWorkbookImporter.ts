@@ -35,6 +35,16 @@ export interface LoriMonthPayload {
   referral_sources: TableBlock;
   extra_blocks: ExtraBlock[];
   warnings: string[];
+  // Verification data
+  verification?: {
+    provider_raw_range: string;
+    provider_extracted: number;
+    referral_totals_raw_range: string;
+    referral_totals_extracted: number;
+    referral_sources_raw_range: string;
+    referral_sources_extracted: number;
+    extra_blocks_counts: { title: string; extracted: number }[];
+  };
 }
 
 export interface LoriParseResult {
@@ -185,42 +195,24 @@ function rowHasData(rows: any[][], rowIdx: number, startCol: number, endCol: num
 }
 
 /**
- * Check if a row is a section header (single label in first column, rest empty)
- * Examples: "Chiro", "Mid Levels", "Massage Therapist Kennewick"
+ * REMOVED: isSectionHeaderRow
+ * We now include ALL rows including category headers like "Chiro", "Mid Levels"
  */
-function isSectionHeaderRow(rows: any[][], rowIdx: number, startCol: number, endCol: number): boolean {
-  const firstCell = getCellStr(rows, rowIdx, startCol);
-  if (!firstCell) return false;
-  
-  // Section headers typically have text only in the first column
-  // and the text doesn't contain numbers (to differentiate from data rows like "Chiro Patient Total|121|...")
-  let hasOtherData = false;
-  for (let c = startCol + 1; c <= endCol; c++) {
-    const val = getCellStr(rows, rowIdx, c);
-    if (val !== '' && val !== '#DIV/0!' && val !== '#REF!' && val !== '#VALUE!') {
-      hasOtherData = true;
-      break;
-    }
-  }
-  
-  // If first cell has text but no other columns have data, it's a section header
-  return !hasOtherData;
-}
 
 /**
- * Extract rows from a block until blank row or TOTAL row
- * Handles section headers and sparse data properly
+ * Extract ALL rows from a block - NO FILTERING
+ * Preserves: category headers, totals, blank separators, partial data rows
+ * Stops ONLY on 3 consecutive completely blank rows
  */
-function extractBlockRows(
+function extractBlockRowsPreserveAll(
   rows: any[][],
   headerRowIdx: number,
   startCol: number,
   endCol: number,
-  stopOnTotal: boolean = true,
   maxRows: number = 100
-): { headers: string[]; dataRows: any[][]; debug?: string[] } {
+): { headers: string[]; dataRows: any[][]; rawRange: string; debug: string[] } {
   const debug: string[] = [];
-  debug.push(`extractBlockRows: headerRow=${headerRowIdx}, cols=${startCol}-${endCol}, stopOnTotal=${stopOnTotal}`);
+  debug.push(`extractBlockRowsPreserveAll: headerRow=${headerRowIdx}, cols=${startCol}-${endCol}`);
   
   // Extract headers
   const headerRow = rows[headerRowIdx] || [];
@@ -230,69 +222,73 @@ function extractBlockRows(
   }
   debug.push(`Headers: ${JSON.stringify(headers)}`);
   
-  // Extract data rows
+  // Extract ALL data rows - NO FILTERING
   const dataRows: any[][] = [];
   let consecutiveBlankRows = 0;
-  const MAX_CONSECUTIVE_BLANKS = 3; // Allow some blank rows within data
+  const STOP_AFTER_BLANKS = 3; // Stop only after 3 consecutive blank rows
+  let lastDataRowIdx = headerRowIdx;
   
   for (let r = headerRowIdx + 1; r < Math.min(rows.length, headerRowIdx + maxRows); r++) {
-    const firstCell = getCellStr(rows, r, startCol);
-    const hasData = rowHasData(rows, r, startCol, endCol);
-    const isSecHeader = isSectionHeaderRow(rows, r, startCol, endCol);
+    const hasAnyData = rowHasData(rows, r, startCol, endCol);
     
-    // Log first 20 rows for debugging
-    if (r - headerRowIdx <= 20) {
+    // Log first 30 rows for debugging
+    if (r - headerRowIdx <= 30) {
       const rowPreview = [];
-      for (let c = startCol; c <= Math.min(endCol, startCol + 3); c++) {
+      for (let c = startCol; c <= endCol; c++) {
         rowPreview.push(getCell(rows, r, c));
       }
-      debug.push(`Row ${r}: firstCell="${firstCell}", hasData=${hasData}, isSecHeader=${isSecHeader}, preview=${JSON.stringify(rowPreview)}`);
+      debug.push(`Row ${r}: hasData=${hasAnyData}, preview=${JSON.stringify(rowPreview)}`);
     }
     
-    // Check if entire row is blank in this column range
-    if (!hasData) {
+    if (!hasAnyData) {
       consecutiveBlankRows++;
-      if (consecutiveBlankRows >= MAX_CONSECUTIVE_BLANKS) {
-        debug.push(`Stopped: ${consecutiveBlankRows} consecutive blank rows`);
+      // Still include blank rows as separators (as empty arrays)
+      // But check if we should stop
+      if (consecutiveBlankRows >= STOP_AFTER_BLANKS) {
+        debug.push(`Stopped at row ${r}: ${consecutiveBlankRows} consecutive blank rows`);
         break;
       }
+      // Include blank row as separator if it's between data rows
+      // (We'll trim trailing blanks later)
+      const blankRow: any[] = [];
+      for (let c = startCol; c <= endCol; c++) {
+        blankRow.push(null);
+      }
+      dataRows.push(blankRow);
       continue;
     }
     
+    // Reset blank counter and mark last data row
     consecutiveBlankRows = 0;
+    lastDataRowIdx = r;
     
-    // Skip section header rows
-    if (isSecHeader) {
-      continue;
-    }
-    
-    // Check for TOTAL row
-    const isTotal = firstCell.toLowerCase() === 'total' || 
-                    firstCell.toLowerCase().includes('total patient') ||
-                    firstCell.toLowerCase().includes('patient total');
-    
-    // Extract row data
+    // Extract row data - ALL columns, including partial/blank cells
     const rowData: any[] = [];
     for (let c = startCol; c <= endCol; c++) {
       rowData.push(getCell(rows, r, c));
     }
     dataRows.push(rowData);
-    
-    // If this is a final total row, stop
-    if (stopOnTotal && firstCell.toLowerCase() === 'total patient visits') {
-      debug.push(`Stopped: found 'total patient visits'`);
-      break;
-    }
   }
   
-  debug.push(`Result: ${dataRows.length} rows extracted`);
+  // Trim trailing blank rows (keep only rows up to last data row)
+  // Count backwards from end to find last non-blank row
+  let trimmedRows = [...dataRows];
+  while (trimmedRows.length > 0) {
+    const lastRow = trimmedRows[trimmedRows.length - 1];
+    const lastRowHasData = lastRow.some(cell => cell != null && String(cell).trim() !== '');
+    if (lastRowHasData) break;
+    trimmedRows.pop();
+  }
+  
+  const rawRange = `Rows ${headerRowIdx + 2}-${lastDataRowIdx + 1} (${lastDataRowIdx - headerRowIdx} rows scanned)`;
+  debug.push(`Result: ${trimmedRows.length} rows extracted (after trimming trailing blanks)`);
   console.log('[LoriParser]', debug.join('\n'));
   
-  return { headers, dataRows, debug };
+  return { headers, dataRows: trimmedRows, rawRange, debug };
 }
 
 /**
- * Parse a single month sheet
+ * Parse a single month sheet - PRESERVE ALL ROWS
  */
 function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackYear: number): LoriMonthPayload | null {
   const periodKey = parseSheetNameToPeriodKey(sheetName, fallbackYear);
@@ -304,6 +300,15 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
   
   const warnings: string[] = [];
+  const verification: LoriMonthPayload['verification'] = {
+    provider_raw_range: '',
+    provider_extracted: 0,
+    referral_totals_raw_range: '',
+    referral_totals_extracted: 0,
+    referral_sources_raw_range: '',
+    referral_sources_extracted: 0,
+    extra_blocks_counts: [],
+  };
   
   // ========== PROVIDER TABLE (A-G) ==========
   // Find row where column A contains "Provider Name"
@@ -311,8 +316,10 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   let providerTable: TableBlock = { headers: [], rows: [] };
   
   if (providerHeaderRow >= 0) {
-    const extracted = extractBlockRows(rows, providerHeaderRow, COL_A, COL_G, true);
+    const extracted = extractBlockRowsPreserveAll(rows, providerHeaderRow, COL_A, COL_G, 100);
     providerTable = { headers: extracted.headers, rows: extracted.dataRows };
+    verification.provider_raw_range = extracted.rawRange;
+    verification.provider_extracted = extracted.dataRows.length;
   } else {
     warnings.push('Provider table not found (no "Provider Name" in column A)');
   }
@@ -323,8 +330,10 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   let referralTotals: TableBlock = { headers: [], rows: [] };
   
   if (referralHeaderRow >= 0) {
-    const extracted = extractBlockRows(rows, referralHeaderRow, COL_J, COL_M, false, 10);
+    const extracted = extractBlockRowsPreserveAll(rows, referralHeaderRow, COL_J, COL_M, 20);
     referralTotals = { headers: extracted.headers, rows: extracted.dataRows };
+    verification.referral_totals_raw_range = extracted.rawRange;
+    verification.referral_totals_extracted = extracted.dataRows.length;
   } else {
     warnings.push('Referral totals block not found (no "Referrals" in column J)');
   }
@@ -335,8 +344,10 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   let referralSources: TableBlock = { headers: [], rows: [] };
   
   if (sourceHeaderRow >= 0) {
-    const extracted = extractBlockRows(rows, sourceHeaderRow, COL_O, COL_P, false, 50);
+    const extracted = extractBlockRowsPreserveAll(rows, sourceHeaderRow, COL_O, COL_P, 100);
     referralSources = { headers: extracted.headers, rows: extracted.dataRows };
+    verification.referral_sources_raw_range = extracted.rawRange;
+    verification.referral_sources_extracted = extracted.dataRows.length;
   } else {
     warnings.push('Referral sources list not found (no "Referral Source" in column O)');
   }
@@ -354,14 +365,17 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
         // Check if this is actually a title (next row should be headers)
         const nextRowFirstCell = getCellStr(rows, foundRow + 1, c);
         if (nextRowFirstCell && !cellContains(nextRowFirstCell, title)) {
-          // Found an extra block - extract it
-          // Determine column range (assume 2-3 columns)
-          const extracted = extractBlockRows(rows, foundRow + 1, c, Math.min(c + 2, COL_P), false, 20);
-          if (extracted.dataRows.length >= 2) {
+          // Found an extra block - extract it preserving ALL rows
+          const extracted = extractBlockRowsPreserveAll(rows, foundRow + 1, c, Math.min(c + 2, COL_P), 30);
+          if (extracted.dataRows.length >= 1) {
             extraBlocks.push({
               title,
               headers: extracted.headers,
               rows: extracted.dataRows,
+            });
+            verification.extra_blocks_counts.push({
+              title,
+              extracted: extracted.dataRows.length,
             });
           }
         }
@@ -369,6 +383,14 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
       }
     }
   }
+  
+  // Log verification summary
+  console.log(`[LoriParser] ${sheetName} (${periodKey}) verification:`, {
+    provider: verification.provider_extracted,
+    referral_totals: verification.referral_totals_extracted,
+    referral_sources: verification.referral_sources_extracted,
+    extra_blocks: verification.extra_blocks_counts,
+  });
   
   return {
     sheet_name: sheetName,
@@ -378,6 +400,7 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     referral_sources: referralSources,
     extra_blocks: extraBlocks,
     warnings,
+    verification,
   };
 }
 
