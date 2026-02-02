@@ -52,15 +52,8 @@ function formatCellValue(value: any): string {
   if (value === null || value === undefined || value === '') {
     return '';
   }
-  if (typeof value === 'number') {
-    if (Number.isInteger(value)) {
-      return value.toLocaleString();
-    }
-    return value.toLocaleString(undefined, { 
-      minimumFractionDigits: 0, 
-      maximumFractionDigits: 2 
-    });
-  }
+  // Full-fidelity rendering: do not coerce formats.
+  // If XLSX provides "$12,345.00" keep it. If it provides a number, render raw number string.
   return String(value);
 }
 
@@ -138,7 +131,7 @@ function CollapsibleTableSection({
                               formatted === '' && "text-muted-foreground"
                             )}
                           >
-                            {formatted || '—'}
+                            {formatted}
                           </TableCell>
                         );
                       })}

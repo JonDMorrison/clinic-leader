@@ -556,6 +556,7 @@ const ImportMonthlyReport = () => {
               referral_sources: payload.referral_sources,
               extra_blocks: payload.extra_blocks,
               warnings: payload.warnings,
+              verification: payload.verification,
               imported_at: new Date().toISOString(),
             },
           } as any, {
