@@ -256,18 +256,37 @@ function findCell(
   return null;
 }
 
+// Known table boundary keywords - if we encounter these in the header row,
+// they indicate the start of a different table section
+const TABLE_BOUNDARY_KEYWORDS = ['referrals', 'referral source', 'referral totals', 'pain management'];
+
 function detectSpan(
   rows: any[][],
   headerRowIdx: number,
   startColIdx: number,
-  opts?: { maxCols?: number }
+  opts?: { maxCols?: number; excludeKeywords?: string[] }
 ): { startCol: number; endCol: number } {
   const maxCols = opts?.maxCols ?? getMaxColCount(rows);
   let endCol = Math.max(startColIdx, maxCols - 1);
+  const excludeKeywords = opts?.excludeKeywords ?? TABLE_BOUNDARY_KEYWORDS;
 
   let consecutiveBlankHeaders = 0;
   for (let c = startColIdx; c < maxCols; c++) {
     const headerVal = getCell(rows, headerRowIdx, c);
+    const headerText = normalizeTextLower(headerVal);
+    
+    // Stop if we hit another table's header keyword (but not for the first column)
+    if (c > startColIdx && excludeKeywords.some(kw => headerText.includes(kw))) {
+      // Found a boundary keyword - end at the column before this one
+      // But account for any blank columns between tables
+      let boundaryCol = c - 1;
+      while (boundaryCol > startColIdx && isBlankCell(getCell(rows, headerRowIdx, boundaryCol))) {
+        boundaryCol--;
+      }
+      endCol = Math.max(startColIdx, boundaryCol);
+      break;
+    }
+    
     if (isBlankCell(headerVal)) {
       consecutiveBlankHeaders++;
       if (consecutiveBlankHeaders >= 2) {
