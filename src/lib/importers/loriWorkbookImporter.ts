@@ -218,13 +218,17 @@ function extractBlockRows(
   endCol: number,
   stopOnTotal: boolean = true,
   maxRows: number = 100
-): { headers: string[]; dataRows: any[][] } {
+): { headers: string[]; dataRows: any[][]; debug?: string[] } {
+  const debug: string[] = [];
+  debug.push(`extractBlockRows: headerRow=${headerRowIdx}, cols=${startCol}-${endCol}, stopOnTotal=${stopOnTotal}`);
+  
   // Extract headers
   const headerRow = rows[headerRowIdx] || [];
   const headers: string[] = [];
   for (let c = startCol; c <= endCol; c++) {
     headers.push(headerRow[c] != null ? String(headerRow[c]).trim() : '');
   }
+  debug.push(`Headers: ${JSON.stringify(headers)}`);
   
   // Extract data rows
   const dataRows: any[][] = [];
@@ -233,27 +237,36 @@ function extractBlockRows(
   
   for (let r = headerRowIdx + 1; r < Math.min(rows.length, headerRowIdx + maxRows); r++) {
     const firstCell = getCellStr(rows, r, startCol);
+    const hasData = rowHasData(rows, r, startCol, endCol);
+    const isSecHeader = isSectionHeaderRow(rows, r, startCol, endCol);
     
-    // Check if entire row is blank in this column range
-    if (!rowHasData(rows, r, startCol, endCol)) {
-      consecutiveBlankRows++;
-      if (consecutiveBlankRows >= MAX_CONSECUTIVE_BLANKS) {
-        // Too many consecutive blank rows - stop extraction
-        break;
+    // Log first 20 rows for debugging
+    if (r - headerRowIdx <= 20) {
+      const rowPreview = [];
+      for (let c = startCol; c <= Math.min(endCol, startCol + 3); c++) {
+        rowPreview.push(getCell(rows, r, c));
       }
-      continue; // Skip this blank row but keep looking
+      debug.push(`Row ${r}: firstCell="${firstCell}", hasData=${hasData}, isSecHeader=${isSecHeader}, preview=${JSON.stringify(rowPreview)}`);
     }
     
-    // Reset blank row counter since we found data
-    consecutiveBlankRows = 0;
-    
-    // Skip section header rows (e.g., "Chiro", "Mid Levels")
-    // These have text in first column but no data in other columns
-    if (isSectionHeaderRow(rows, r, startCol, endCol)) {
+    // Check if entire row is blank in this column range
+    if (!hasData) {
+      consecutiveBlankRows++;
+      if (consecutiveBlankRows >= MAX_CONSECUTIVE_BLANKS) {
+        debug.push(`Stopped: ${consecutiveBlankRows} consecutive blank rows`);
+        break;
+      }
       continue;
     }
     
-    // Check for TOTAL row - include it but stop after
+    consecutiveBlankRows = 0;
+    
+    // Skip section header rows
+    if (isSecHeader) {
+      continue;
+    }
+    
+    // Check for TOTAL row
     const isTotal = firstCell.toLowerCase() === 'total' || 
                     firstCell.toLowerCase().includes('total patient') ||
                     firstCell.toLowerCase().includes('patient total');
@@ -267,11 +280,15 @@ function extractBlockRows(
     
     // If this is a final total row, stop
     if (stopOnTotal && firstCell.toLowerCase() === 'total patient visits') {
+      debug.push(`Stopped: found 'total patient visits'`);
       break;
     }
   }
   
-  return { headers, dataRows };
+  debug.push(`Result: ${dataRows.length} rows extracted`);
+  console.log('[LoriParser]', debug.join('\n'));
+  
+  return { headers, dataRows, debug };
 }
 
 /**
