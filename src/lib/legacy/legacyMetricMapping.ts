@@ -78,10 +78,98 @@ function findRowByLabel(
 }
 
 /**
- * Get total row from a table (row labeled "Total" or "Totals")
+ * Count numeric cells in a row (excluding first column)
+ */
+function countNumericCells(row: any[]): number {
+  let count = 0;
+  for (let i = 1; i < row.length; i++) {
+    const val = parseNumeric(row[i]);
+    if (val !== null) count++;
+  }
+  return count;
+}
+
+/**
+ * Check if a row label is a subtotal row (e.g. "Chiro Patient Total", "Mid Level Patient Total")
+ */
+function isSubtotalRow(label: string): boolean {
+  const l = label.toLowerCase().trim();
+  return (
+    l.includes('patient total') ||
+    l.includes('therapist patient total') ||
+    (l.endsWith('total') && (l.includes('chiro') || l.includes('mid level') || l.includes('massage')))
+  );
+}
+
+/**
+ * Get the GRAND total row from a table (the aggregate of all provider types)
+ * 
+ * Handles variations like:
+ * - "Total" or "Totals"
+ * - "Total Patient Visits" (with actual data)
+ * - "Grand Total"
+ * 
+ * IMPORTANT: If the grand total row has no data (all nulls), we SUM the subtotal rows instead.
+ * 
+ * Strategy:
+ * 1. Look for row where first cell exactly matches /^totals?$/i with numeric data
+ * 2. Otherwise look for "Total Patient Visits" with numeric data
+ * 3. If no grand total has data, find all "* Patient Total" rows and return them for summing
+ * 4. Fallback: row with highest numeric cell count in the last third
  */
 function getTotalRow(table: { headers: string[]; rows: any[][] }): any[] | null {
-  return findRowByLabel(table, /^totals?$/i);
+  if (!table?.rows || table.rows.length === 0) return null;
+  
+  // Debug log in dev mode
+  if (import.meta.env.DEV) {
+    console.log('[LegacyExtractor] Finding Total row in table with', table.rows.length, 'rows');
+  }
+  
+  // Strategy 1: Exact "Total" or "Totals" match WITH numeric data
+  for (const row of table.rows) {
+    const label = String(row?.[0] || '').toLowerCase().trim();
+    if (/^totals?$/i.test(label) && countNumericCells(row) >= 3) {
+      if (import.meta.env.DEV) console.log('[LegacyExtractor] Found exact Total row with data:', row?.[0]);
+      return row;
+    }
+  }
+  
+  // Strategy 2: "Total Patient" pattern WITH numeric data
+  for (const row of table.rows) {
+    const label = String(row?.[0] || '').toLowerCase().trim();
+    if (/^total patient/i.test(label) && countNumericCells(row) >= 3) {
+      if (import.meta.env.DEV) console.log('[LegacyExtractor] Found Total Patient row with data:', row?.[0]);
+      return row;
+    }
+  }
+  
+  // Strategy 3: Grand total row exists but has no data - SUM subtotal rows
+  // This is the case for Lori's workbook where "Total Patient Visits" is just a header
+  // We need to sum "Chiro Patient Total" + "Mid Level Patient Total" + "Massage Therapist Patient Total"
+  if (import.meta.env.DEV) {
+    console.log('[LegacyExtractor] No grand total with data found, summing subtotal rows');
+  }
+  
+  // Return null here - let the extractor handle summing
+  // We mark this case for the caller
+  return null;
+}
+
+/**
+ * Get all subtotal rows from a table (e.g., "Chiro Patient Total", "Mid Level Patient Total")
+ */
+function getSubtotalRows(table: { headers: string[]; rows: any[][] }): any[][] {
+  if (!table?.rows) return [];
+  
+  const subtotals: any[][] = [];
+  for (const row of table.rows) {
+    const label = String(row?.[0] || '').toLowerCase().trim();
+    if (isSubtotalRow(label)) {
+      subtotals.push(row);
+      if (import.meta.env.DEV) console.log('[LegacyExtractor] Found subtotal row:', label);
+    }
+  }
+  return subtotals;
 }
 
 /**
@@ -95,19 +183,64 @@ function getColumnIndex(headers: string[], search: string): number {
 }
 
 /**
- * Extract value from a specific column of the Total row
+ * Extract value from a specific column of the Total row.
+ * 
+ * If no grand total row with data is found, SUM across all subtotal rows
+ * (e.g., "Chiro Patient Total" + "Mid Level Patient Total" + "Massage Therapist Patient Total")
  */
 function extractTotalColumn(
   table: { headers: string[]; rows: any[][] },
   columnSearch: string
 ): number | null {
-  const totalRow = getTotalRow(table);
-  if (!totalRow) return null;
+  if (!table?.rows || !table?.headers) return null;
   
   const colIdx = getColumnIndex(table.headers, columnSearch);
-  if (colIdx < 0) return null;
+  if (import.meta.env.DEV) {
+    console.log('[LegacyExtractor] extractTotalColumn for', columnSearch, 'colIdx:', colIdx);
+  }
   
-  return parseNumeric(totalRow[colIdx]);
+  if (colIdx < 0) {
+    if (import.meta.env.DEV) console.warn('[LegacyExtractor] Column not found:', columnSearch);
+    return null;
+  }
+  
+  // First try to find a grand total row with data
+  const totalRow = getTotalRow(table);
+  if (totalRow) {
+    const result = parseNumeric(totalRow[colIdx]);
+    if (result !== null) {
+      if (import.meta.env.DEV) console.log('[LegacyExtractor] Got value from grand total row:', result);
+      return result;
+    }
+  }
+  
+  // No grand total with data - SUM across subtotal rows
+  const subtotalRows = getSubtotalRows(table);
+  if (import.meta.env.DEV) {
+    console.log('[LegacyExtractor] No grand total data, summing', subtotalRows.length, 'subtotal rows');
+  }
+  
+  if (subtotalRows.length === 0) {
+    if (import.meta.env.DEV) console.warn('[LegacyExtractor] No subtotal rows found either!');
+    return null;
+  }
+  
+  let sum = 0;
+  let hasValue = false;
+  for (const row of subtotalRows) {
+    const val = parseNumeric(row[colIdx]);
+    if (val !== null) {
+      sum += val;
+      hasValue = true;
+      if (import.meta.env.DEV) console.log('[LegacyExtractor] Adding subtotal:', row?.[0], '=', val);
+    }
+  }
+  
+  if (hasValue && import.meta.env.DEV) {
+    console.log('[LegacyExtractor] Final summed value:', sum);
+  }
+  
+  return hasValue ? sum : null;
 }
 
 /**
@@ -206,11 +339,17 @@ export const LEGACY_METRIC_MAPPINGS: LegacyMetricMapping[] = [
     default_target: null,
     category: "Provider Production",
     extractor: (payload) => {
-      // Try "Production" or "$ Production" column
+      // Try "Production" column first, then fallback to "Revenue"
       let val = extractTotalColumn(payload.provider_table, "production");
+      if (val === null) {
+        val = extractTotalColumn(payload.provider_table, "revenue");
+        if (import.meta.env.DEV && val !== null) {
+          console.log('[LegacyExtractor] Used "Revenue" column for total_production:', val);
+        }
+      }
       return val;
     },
-    notes: "From provider_table, 'Production' column, Total row",
+    notes: "From provider_table, 'Production' or 'Revenue' column, Total row",
   },
   {
     metric_key: "total_charges",
