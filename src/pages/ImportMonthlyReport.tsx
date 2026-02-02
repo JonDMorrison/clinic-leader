@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { 
   Upload, Download, Loader2, CheckCircle, AlertTriangle, ArrowLeft, 
   FileWarning, FileSpreadsheet, AlertCircle, RotateCcw, Copy, ExternalLink,
-  Calendar, FileCheck, TrendingUp
+  Calendar, FileCheck, TrendingUp, Info
 } from "lucide-react";
 import { bridgeMultipleMonths, isLegacyDataMode, type BridgeResult, type DerivedMetricResult } from "@/lib/legacy/legacyMetricBridge";
 import { auditDerivedMetrics, type DerivedMetricAuditReport, type MetricAuditResult } from "@/lib/legacy/legacyDerivedMetricAudit";
@@ -103,8 +103,8 @@ const ImportMonthlyReport = () => {
     auditReports?: DerivedMetricAuditReport[];
     syncBlocked?: boolean;
     syncBlockedReasons?: string[];
-    hasNeedsDefinition?: boolean;
-    needsDefinitionMetrics?: string[];
+    hasUnverifiable?: boolean;
+    unverifiableMetrics?: string[];
   } | null>(null);
 
   // Fetch metrics with import_key
@@ -612,23 +612,23 @@ const ImportMonthlyReport = () => {
     
     // Check audit results - block sync if any FAIL exists
     const failedMetrics: string[] = [];
-    const needsDefMetrics: string[] = [];
+    const unverifiableMetrics: string[] = [];
     
     for (const report of auditReports) {
       for (const result of report.results) {
         if (result.status === 'FAIL') {
           failedMetrics.push(`${report.period_key}: ${result.display_name} (extracted=${result.extracted_value}, ref=${result.workbook_reference_value})`);
-        } else if (result.status === 'NEEDS_DEFINITION') {
+        } else if (result.status === 'UNVERIFIABLE') {
           const key = `${result.display_name}`;
-          if (!needsDefMetrics.includes(key)) {
-            needsDefMetrics.push(key);
+          if (!unverifiableMetrics.includes(key)) {
+            unverifiableMetrics.push(key);
           }
         }
       }
     }
     
     const syncBlocked = failedMetrics.length > 0;
-    const hasNeedsDefinition = needsDefMetrics.length > 0;
+    const hasUnverifiable = unverifiableMetrics.length > 0;
     
     // Phase 3: Bridge to metric_results ONLY if no FAIL (PASS or NEEDS_DEFINITION allowed)
     let bridgeResults: BridgeResult[] = [];
@@ -669,8 +669,8 @@ const ImportMonthlyReport = () => {
       auditReports,
       syncBlocked,
       syncBlockedReasons: failedMetrics,
-      hasNeedsDefinition,
-      needsDefinitionMetrics: needsDefMetrics,
+      hasUnverifiable,
+      unverifiableMetrics,
     } : null);
     
     setIsProcessing(false);
@@ -1470,20 +1470,20 @@ const ImportMonthlyReport = () => {
               </Alert>
             )}
 
-            {/* Needs Definition Warning (NEEDS_DEFINITION without FAIL) */}
-            {!isProcessing && !loriImportProgress.syncBlocked && loriImportProgress.hasNeedsDefinition && (
-              <Alert className="border-amber-500 bg-amber-500/10">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-800 dark:text-amber-200">
+            {/* Unverifiable Info (shown as informational only) */}
+            {!isProcessing && !loriImportProgress.syncBlocked && loriImportProgress.hasUnverifiable && (
+              <Alert className="border-blue-500 bg-blue-500/10">
+                <Info className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800 dark:text-blue-200">
                   <div className="space-y-1">
-                    <p className="font-semibold">Some metrics could not be verified (no workbook reference found):</p>
+                    <p className="font-semibold">Some metrics are computed values (shown as informational only):</p>
                     <ul className="text-xs list-disc list-inside">
-                      {loriImportProgress.needsDefinitionMetrics?.map((metric, i) => (
+                      {loriImportProgress.unverifiableMetrics?.map((metric, i) => (
                         <li key={i}>{metric}</li>
                       ))}
                     </ul>
                     <p className="text-sm mt-1">
-                      Scorecard sync proceeded for all verified metrics.
+                      These are not synced to Scorecard. Only verified metrics with deterministic cell references are synced.
                     </p>
                   </div>
                 </AlertDescription>
@@ -1581,7 +1581,7 @@ const ImportMonthlyReport = () => {
                   {loriImportProgress.auditReports.map((report, rIdx) => {
                     const passCount = report.passed;
                     const failCount = report.failed;
-                    const needsDefCount = report.needs_definition;
+                    const unverifiableCount = report.unverifiable;
                     
                     return (
                       <div key={rIdx} className="mb-6 last:mb-0">
@@ -1603,9 +1603,9 @@ const ImportMonthlyReport = () => {
                                 {failCount} FAIL
                               </Badge>
                             )}
-                            {needsDefCount > 0 && (
+                            {unverifiableCount > 0 && (
                               <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                                {needsDefCount} NEEDS DEF
+                                {unverifiableCount} INFO
                               </Badge>
                             )}
                           </div>
