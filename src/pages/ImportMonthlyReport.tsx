@@ -1157,24 +1157,73 @@ const ImportMonthlyReport = () => {
                         <p className="font-medium">
                           {payload.provider_table.rows.length} rows
                         </p>
+                        {payload.verification?.provider && (
+                          <p className="text-[10px] text-muted-foreground font-mono">
+                            {payload.verification.provider.col_count} cols • 
+                            {payload.verification.provider.non_empty_row_count} non-empty • 
+                            {payload.verification.provider.raw_range_a1}
+                          </p>
+                        )}
                       </div>
                       <div className="p-2 rounded bg-muted/50">
                         <p className="text-muted-foreground text-xs">Referral Totals</p>
                         <p className="font-medium">
                           {payload.referral_totals.rows.length} rows
                         </p>
+                        {payload.verification?.referral_totals && (
+                          <p className="text-[10px] text-muted-foreground font-mono">
+                            {payload.verification.referral_totals.col_count} cols • 
+                            {payload.verification.referral_totals.non_empty_row_count} non-empty • 
+                            {payload.verification.referral_totals.raw_range_a1}
+                          </p>
+                        )}
                       </div>
                       <div className="p-2 rounded bg-muted/50">
                         <p className="text-muted-foreground text-xs">Referral Sources</p>
                         <p className="font-medium">
                           {payload.referral_sources.rows.length} sources
                         </p>
+                        {payload.verification?.referral_sources && (
+                          <p className="text-[10px] text-muted-foreground font-mono">
+                            {payload.verification.referral_sources.col_count} cols • 
+                            {payload.verification.referral_sources.non_empty_row_count} non-empty • 
+                            {payload.verification.referral_sources.raw_range_a1}
+                          </p>
+                        )}
                       </div>
                     </div>
                     
+                    {/* Sheet Fingerprint */}
+                    {payload.verification?.sheet_fingerprint && (
+                      <div className="mt-2 p-2 rounded bg-primary/5 border border-primary/20">
+                        <p className="text-[10px] font-mono text-muted-foreground">
+                          Sheet: {payload.verification.sheet_fingerprint.sheet_name} • 
+                          {payload.verification.sheet_fingerprint.non_empty_cell_count} non-empty cells • 
+                          {payload.verification.sheet_fingerprint.total_rows}×{payload.verification.sheet_fingerprint.total_cols} grid
+                        </p>
+                      </div>
+                    )}
+                    
                     {payload.extra_blocks.length > 0 && (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        Extra blocks: {payload.extra_blocks.map(b => b.title).join(', ')}
+                      <div className="mt-2 space-y-1">
+                        <p className="text-sm text-muted-foreground">
+                          Extra blocks: 
+                        </p>
+                        {payload.extra_blocks.map((block, bIdx) => {
+                          const blockVerif = payload.verification?.extra_blocks?.[bIdx];
+                          return (
+                            <div key={bIdx} className="text-xs flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {block.title}: {block.rows.length} rows
+                              </Badge>
+                              {blockVerif && (
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                  {blockVerif.col_count} cols • {blockVerif.raw_range_a1}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                     
