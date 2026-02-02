@@ -398,6 +398,62 @@ function extractTableFromHeader(
 }
 
 /**
+ * Split a table at the first "Total" row - everything after becomes a separate block
+ * This handles the case where Referral Totals contains two logical sections:
+ * 1. Referral counts (ending with "Total X X")
+ * 2. Revenue by Insurance type (WC, MVA, LEINS, etc.)
+ */
+function splitTableAtTotal(
+  headers: string[],
+  dataRows: any[][],
+  splitBlockTitle: string
+): { mainRows: any[][]; splitBlock: ExtraBlock | null } {
+  // Find the first "Total" row (case-insensitive, must be in first column)
+  let totalRowIdx = -1;
+  for (let i = 0; i < dataRows.length; i++) {
+    const firstCell = normalizeTextLower(dataRows[i]?.[0]);
+    if (firstCell === 'total' || firstCell === 'totals') {
+      totalRowIdx = i;
+      break;
+    }
+  }
+  
+  // If no Total row found, or it's at the end, no split needed
+  if (totalRowIdx === -1 || totalRowIdx >= dataRows.length - 1) {
+    return { mainRows: dataRows, splitBlock: null };
+  }
+  
+  // Main rows include everything up to and including Total
+  const mainRows = dataRows.slice(0, totalRowIdx + 1);
+  
+  // Split rows are everything after Total (skip leading blank rows)
+  let splitStartIdx = totalRowIdx + 1;
+  while (splitStartIdx < dataRows.length) {
+    const row = dataRows[splitStartIdx];
+    const hasContent = row?.some(cell => !isBlankCell(cell));
+    if (hasContent) break;
+    splitStartIdx++;
+  }
+  
+  const splitRows = dataRows.slice(splitStartIdx);
+  
+  // Only create split block if there are meaningful rows
+  const nonEmptySplitRows = splitRows.filter(row => row?.some(cell => !isBlankCell(cell)));
+  if (nonEmptySplitRows.length < 2) {
+    return { mainRows: dataRows, splitBlock: null };
+  }
+  
+  return {
+    mainRows,
+    splitBlock: {
+      title: splitBlockTitle,
+      headers: headers, // Same headers as parent
+      rows: splitRows,
+    },
+  };
+}
+
+/**
  * REMOVED: isSectionHeaderRow
  * We now include ALL rows including category headers like "Chiro", "Mid Levels"
  */
@@ -482,12 +538,21 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   // Find header cell containing "Referrals" anywhere on sheet
   const referralsHeaderCell = findCell(rows, (v) => cellContains(v, 'Referrals'));
   let referralTotals: TableBlock = { headers: [], rows: [] };
+  let revenueByInsurance: ExtraBlock | null = null;
   
   if (referralsHeaderCell) {
     const extracted = extractTableFromHeader(rows, referralsHeaderCell, 'Referrals', { maxScanRows: 200 });
-    referralTotals = { headers: extracted.headers, rows: extracted.dataRows };
+    
+    // Split the table at "Total" row - everything after is "Revenue by Insurance"
+    const { mainRows, splitBlock } = splitTableAtTotal(extracted.headers, extracted.dataRows, 'Revenue by Insurance');
+    
+    referralTotals = { headers: extracted.headers, rows: mainRows };
+    if (splitBlock) {
+      revenueByInsurance = splitBlock;
+    }
+    
     verification.referral_totals_raw_range = extracted.rawRangeA1;
-    verification.referral_totals_extracted = extracted.dataRows.length;
+    verification.referral_totals_extracted = mainRows.length;
     verification.referral_totals = {
       header_cell: extracted.headerCellA1,
       raw_range_a1: extracted.rawRangeA1,
@@ -498,12 +563,9 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
       end_col_index_0: extracted.endCol,
       col_count: extracted.colCount,
       rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
-      rows_extracted: extracted.dataRows.length,
+      rows_extracted: mainRows.length,
       non_empty_row_count: extracted.nonEmptyRowCount,
     };
-    if (verification.referral_totals.rows_in_range !== verification.referral_totals.rows_extracted) {
-      warnings.push(`Referral totals row mismatch: range=${verification.referral_totals.rows_in_range}, extracted=${verification.referral_totals.rows_extracted}`);
-    }
   } else {
     warnings.push('Referral totals block not found (no cell containing "Referrals" found)');
   }
@@ -650,6 +712,11 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     }
   }
   
+  // Add Revenue by Insurance block if it was split from Referral Totals
+  if (revenueByInsurance) {
+    extraBlocks.unshift(revenueByInsurance); // Add at the beginning so it appears first
+  }
+
   return {
     sheet_name: sheetName,
     period_key: periodKey,
