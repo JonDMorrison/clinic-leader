@@ -539,13 +539,17 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     if (text.length > 50) return false;
     const lower = text.toLowerCase();
     
-    // Exclude common false positives
+    // Exclude common false positives - these are NOT extra block titles
     if (lower.includes('provider name')) return false;
     if (lower.includes('referral source')) return false;
     if (lower.includes('referrals')) return false;
     if (lower === 'total' || lower === 'totals') return false;
     if (lower.includes('massage therapist')) return false;
     if (lower.includes('northwest injury')) return false;
+    if (lower.includes('sears injury')) return false;
+    if (lower.includes('injury law')) return false;
+    if (lower.includes('law')) return false; // Law firms are referral sources, not blocks
+    if (lower.includes('accident help')) return false;
     
     // Must look like a section title (letters/spaces mostly)
     const letters = text.replace(/[^a-zA-Z]/g, '');

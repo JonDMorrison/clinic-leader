@@ -199,6 +199,10 @@ export default function LegacyMonthlyReportView({
     if (lowerTitle.includes('massage therapist')) return false;
     if (lowerTitle.includes('northwest injury')) return false;
     if (lowerTitle.includes('swapp')) return false;
+    if (lowerTitle.includes('sears injury')) return false;
+    if (lowerTitle.includes('injury law')) return false;
+    if (lowerTitle.includes('law')) return false; // Law firms are referral sources
+    if (lowerTitle.includes('accident help')) return false;
     // Skip month names
     const months = ['january', 'february', 'march', 'april', 'may', 'june', 
                     'july', 'august', 'september', 'october', 'november', 'december'];
