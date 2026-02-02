@@ -1,6 +1,13 @@
 /**
  * Legacy Metric Bridge
  * 
+ * PHASE 2 SCOPE (LOCKED):
+ * - Org-level totals only (no location breakdown)
+ * - Monthly cadence only (period_type = 'monthly')
+ * - 12 canonical KPIs (see legacyMetricMapping.ts)
+ * - Manual issue creation only (no auto-create/close)
+ * - Source tagged as 'legacy_workbook'
+ * 
  * Bridges Lori workbook data (legacy_monthly_reports) to the metric_results table
  * so that Scorecard, off-track detection, and meeting agenda generation work for
  * organizations in "default" (Legacy) data_mode.
@@ -10,6 +17,8 @@
  * 2. Call bridgeLegacyToMetricResults()
  * 3. This ensures metrics exist (creates if missing)
  * 4. Upserts extracted values to metric_results
+ * 
+ * @see docs/audits/phase2_scope.md for full scope definition
  */
 
 import { supabase } from "@/integrations/supabase/client";
