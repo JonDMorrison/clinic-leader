@@ -13,7 +13,7 @@
 import type { LegacyMonthPayload, TableBlock, RowProvenance } from "@/components/data/LegacyMonthlyReportView";
 import { LEGACY_METRIC_MAPPINGS, extractMetricsFromPayload, type LegacyMetricMapping } from "./legacyMetricMapping";
 
-export type AuditStatus = "PASS" | "FAIL" | "UNVERIFIABLE";
+export type AuditStatus = "PASS" | "FAIL" | "UNVERIFIABLE" | "NEEDS_DEFINITION";
 
 export interface AuditEvidence {
   source_block: string;
@@ -36,6 +36,12 @@ export interface MetricAuditResult {
   delta: number | null;
   status: AuditStatus;
   is_verifiable: boolean;
+  /** True if workbook has a truth anchor we can compare against */
+  has_reference: boolean;
+  /** True if extractor returned a valid numeric value */
+  has_extracted: boolean;
+  /** Whether this metric can block sync (only when has_reference=true AND status=FAIL) */
+  blocks_sync: boolean;
   evidence: AuditEvidence | null;
   notes: string;
 }
@@ -300,6 +306,9 @@ function auditMetric(
       delta: null,
       status: "UNVERIFIABLE",
       is_verifiable: false,
+      has_reference: false,
+      has_extracted: extractedValue !== null && extractedValue !== undefined && !isNaN(extractedValue),
+      blocks_sync: false, // UNVERIFIABLE metrics never block
       evidence: {
         source_block: mapping.notes.split(',')[0] || 'derived',
         sheet_name: payload.sheet_name,
@@ -456,30 +465,47 @@ function auditMetric(
   }
 
   // ========== DETERMINE STATUS FOR VERIFIABLE METRICS ==========
-  // CRITICAL: For VERIFIABLE metrics, null extracted value is ALWAYS a FAIL
-  // We only PASS when we have a valid numeric extracted value that matches
+  // CRITICAL: A metric can only FAIL (and block sync) if it has a defined truth anchor
+  // If no truth anchor exists, the metric becomes NEEDS_DEFINITION (informational only)
+  
+  const hasReference = referenceValue !== null && referenceValue !== undefined && !isNaN(referenceValue);
+  const hasExtracted = extractedValue !== null && extractedValue !== undefined && !isNaN(extractedValue);
+  
   let status: AuditStatus;
   let delta: number | null = null;
   let notes = mapping.notes;
+  let blockSync = false;
 
-  if (extractedValue === null) {
-    // Extractor returned null - this is a FAIL for verifiable metrics
-    status = "FAIL";
-    notes = referenceValue === null 
-      ? "Extractor returned null (no Total row or column found)"
-      : "Extractor returned null but workbook has value " + referenceValue;
-  } else if (referenceValue === null) {
-    // Extractor found a value but audit couldn't find reference - still count as PASS
-    // since the extractor did its job
-    status = "PASS";
-    notes = "Extractor found value, audit reference lookup failed (provenance mismatch)";
+  if (!hasReference) {
+    // NO TRUTH ANCHOR DEFINED - cannot FAIL, cannot block sync
+    if (hasExtracted) {
+      // Extracted a value but no reference to compare against
+      status = "NEEDS_DEFINITION";
+      notes = `Extracted value ${extractedValue} but no truth anchor defined in workbook. Does not block sync.`;
+    } else {
+      // Neither extracted nor reference - completely undefined
+      status = "NEEDS_DEFINITION";
+      notes = "No truth anchor defined in workbook; extraction also returned null. Does not block sync.";
+    }
   } else {
-    delta = Math.abs(extractedValue - referenceValue);
-    // Tolerance: ±1 for currency (rounding), exact for everything else
-    const tolerance = mapping.unit === 'currency' ? 1 : 0;
-    status = delta <= tolerance ? "PASS" : "FAIL";
-    if (status === "FAIL") {
-      notes = `Value mismatch: extracted ${extractedValue}, workbook ${referenceValue}, delta ${delta}`;
+    // HAS TRUTH ANCHOR - can PASS or FAIL
+    if (!hasExtracted) {
+      // Reference exists but extractor failed - this IS a real failure
+      status = "FAIL";
+      blockSync = true;
+      notes = `Extractor returned null but workbook reference shows ${referenceValue}. Sync blocked.`;
+    } else {
+      // Both values exist - compare with tolerance
+      delta = Math.abs(extractedValue - referenceValue);
+      const tolerance = mapping.unit === 'currency' ? 1 : 0;
+      if (delta <= tolerance) {
+        status = "PASS";
+        notes = `Verified: extracted ${extractedValue} matches reference ${referenceValue}`;
+      } else {
+        status = "FAIL";
+        blockSync = true;
+        notes = `Value mismatch: extracted ${extractedValue}, workbook ${referenceValue}, delta ${delta}. Sync blocked.`;
+      }
     }
   }
 
@@ -491,6 +517,9 @@ function auditMetric(
     delta,
     status,
     is_verifiable: true,
+    has_reference: hasReference,
+    has_extracted: hasExtracted,
+    blocks_sync: blockSync,
     evidence,
     notes,
   };
@@ -543,15 +572,49 @@ export function auditMultipleMonths(
 /**
  * Check if any verifiable metric failed audit
  */
-export function hasVerifiableFailures(report: DerivedMetricAuditReport): boolean {
-  return report.results.some(r => r.is_verifiable && r.status === "FAIL");
+/**
+ * Check if any metric should block sync
+ * Only metrics with has_reference=true AND status=FAIL block sync
+ */
+export function hasBlockingFailures(report: DerivedMetricAuditReport): boolean {
+  return report.results.some(r => r.blocks_sync === true);
 }
 
 /**
- * Get only the metrics that should be synced to scorecard (verifiable + passed)
+ * @deprecated Use hasBlockingFailures instead
+ */
+export function hasVerifiableFailures(report: DerivedMetricAuditReport): boolean {
+  return hasBlockingFailures(report);
+}
+
+/**
+ * Get only the metrics that should be synced to scorecard
+ * Includes: PASS metrics with valid extracted values
+ * Excludes: FAIL, UNVERIFIABLE, NEEDS_DEFINITION without extracted values
  */
 export function getMetricsToSync(report: DerivedMetricAuditReport): MetricAuditResult[] {
-  return report.results.filter(r => r.is_verifiable && r.status === "PASS");
+  return report.results.filter(r => 
+    r.is_verifiable && 
+    r.status === "PASS" && 
+    r.has_extracted
+  );
+}
+
+/**
+ * Get blocking failures for display (only metrics that actually block sync)
+ */
+export function getBlockingFailures(report: DerivedMetricAuditReport): MetricAuditResult[] {
+  return report.results.filter(r => r.blocks_sync === true);
+}
+
+/**
+ * Get informational metrics that don't block (NEEDS_DEFINITION, UNVERIFIABLE)
+ */
+export function getInformationalMetrics(report: DerivedMetricAuditReport): MetricAuditResult[] {
+  return report.results.filter(r => 
+    r.status === "UNVERIFIABLE" || 
+    r.status === "NEEDS_DEFINITION"
+  );
 }
 
 /**
