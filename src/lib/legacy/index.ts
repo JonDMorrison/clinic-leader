@@ -8,3 +8,4 @@
 
 export * from './legacyMetricMapping';
 export * from './legacyMetricBridge';
+export * from './legacyMetricAudit';

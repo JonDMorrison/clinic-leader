@@ -1,0 +1,48 @@
+{
+  "audit_date": "2026-02-02T20:15:00Z",
+  "period_key": "2025-11",
+  "sheet_name": "Nov",
+  "auditor": "Lovable AI",
+  "status": "PARTIAL",
+  
+  "summary": {
+    "total_metrics": 12,
+    "passed": 0,
+    "failed": 0,
+    "needs_definition": 12
+  },
+
+  "notes": "Initial audit framework created. Provenance tracking now added to Lori importer. Full verification requires re-import of workbook to populate provenance data. The audit compares extracted values against workbook reference values with cell-level evidence.",
+
+  "files_created": [
+    "src/lib/legacy/legacyMetricAudit.ts"
+  ],
+  
+  "files_modified": [
+    "src/lib/importers/loriWorkbookImporter.ts - Added RowProvenance interface and tracking",
+    "src/components/data/LegacyMonthlyReportView.tsx - Updated types for provenance"
+  ],
+
+  "provenance_structure": {
+    "description": "Each row in each block now includes provenance metadata",
+    "fields": {
+      "sheet_name": "Name of the Excel sheet",
+      "row_number_1": "1-indexed Excel row number",
+      "start_col_0": "0-indexed starting column",
+      "end_col_0": "0-indexed ending column",
+      "raw_cells": "Array of raw cell values"
+    }
+  },
+
+  "next_steps": [
+    "Re-import workbook to populate provenance data",
+    "Run auditDerivedMetrics() after import to generate full PASS/FAIL report",
+    "Add audit UI panel to ImportMonthlyReport.tsx results section"
+  ],
+
+  "tolerance_rules": {
+    "integers": "Exact match required (delta = 0)",
+    "currency": "Allow ±1 for rounding differences",
+    "missing_reference": "Mark as NEEDS_DEFINITION"
+  }
+}
