@@ -1,14 +1,14 @@
 /**
  * LegacyMonthlyReportView
  * 
- * Renders Lori's monthly workbook data using collapsible accordions.
- * Shows provider table, referral totals, referral sources, and any extra blocks.
+ * Renders Lori's monthly workbook data with a 3-column layout matching the source Excel.
+ * - Left: Provider Production (A-G)
+ * - Middle: Referral Totals
+ * - Right: Referral Sources
+ * - Below: Extra blocks like Pain Management
  */
 
-import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TableBlock {
@@ -46,104 +46,138 @@ interface LegacyMonthlyReportViewProps {
 }
 
 /**
- * Format a cell value for display.
+ * Normalize headers - fill in blanks from data rows if needed
+ */
+function normalizeHeaders(headers: any[], rows: any[][]): string[] {
+  const maxWidth = Math.max(
+    headers.length,
+    ...rows.map(r => r?.length ?? 0)
+  );
+  
+  const result: string[] = [];
+  const nonEmptyCount = headers.filter(h => h != null && String(h).trim() !== '').length;
+  
+  // If headers are mostly blank, try to use first data row as headers
+  if (nonEmptyCount < 2 && rows.length > 0) {
+    const firstRow = rows[0] || [];
+    for (let i = 0; i < maxWidth; i++) {
+      const fromFirst = firstRow[i];
+      if (fromFirst != null && String(fromFirst).trim() !== '') {
+        result.push(String(fromFirst).trim());
+      } else {
+        result.push(`Col ${i + 1}`);
+      }
+    }
+    return result;
+  }
+  
+  // Normal case - use headers, fill blanks
+  for (let i = 0; i < maxWidth; i++) {
+    const h = headers[i];
+    if (h != null && String(h).trim() !== '') {
+      result.push(String(h).trim());
+    } else {
+      result.push(`Col ${i + 1}`);
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Normalize rows to match header width
+ */
+function normalizeRows(rows: any[][], headerCount: number): any[][] {
+  return rows.map(row => {
+    const normalized = new Array(headerCount).fill('');
+    for (let i = 0; i < Math.min(row?.length ?? 0, headerCount); i++) {
+      normalized[i] = row[i];
+    }
+    return normalized;
+  });
+}
+
+/**
+ * Format a cell value for display - preserve raw formatting
  */
 function formatCellValue(value: any): string {
   if (value === null || value === undefined || value === '') {
     return '';
   }
-  // Full-fidelity rendering: do not coerce formats.
-  // If XLSX provides "$12,345.00" keep it. If it provides a number, render raw number string.
   return String(value);
 }
 
 /**
- * Collapsible data table section - minimal design
+ * Compact data table component
  */
-function CollapsibleTableSection({ 
+function DataTable({ 
   title, 
   headers, 
   rows,
-  defaultOpen = false,
-  emptyMessage = "No data"
+  className
 }: { 
   title: string;
   headers: string[];
   rows: any[][];
-  defaultOpen?: boolean;
-  emptyMessage?: string;
+  className?: string;
 }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  const hasData = rows && rows.length > 0;
+  const normalizedHeaders = normalizeHeaders(headers, rows);
+  const normalizedRows = normalizeRows(rows, normalizedHeaders.length);
+  const hasData = normalizedRows.length > 0;
   
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger className="w-full group">
-        <div className="flex items-center justify-between py-3 px-1 hover:bg-muted/30 rounded-lg transition-colors cursor-pointer">
-          <div className="flex items-center gap-2">
-            <ChevronDown className={cn(
-              "w-4 h-4 text-muted-foreground transition-transform duration-200",
-              isOpen && "rotate-180"
-            )} />
-            <span className="font-medium text-sm">{title}</span>
-            <span className="text-xs text-muted-foreground">
-              ({hasData ? rows.length : 0})
-            </span>
-          </div>
-        </div>
-      </CollapsibleTrigger>
-        
-      <CollapsibleContent>
-        <div className="pl-6 pt-2 pb-4">
-          {!hasData ? (
-            <p className="text-sm text-muted-foreground py-4">{emptyMessage}</p>
-          ) : (
-            <div className="overflow-x-auto border rounded-lg">
-              <Table className="text-sm">
-                <TableHeader>
-                  <TableRow className="bg-muted/40">
-                    {headers.map((header, idx) => (
-                      <TableHead 
-                        key={idx} 
-                        className="whitespace-nowrap font-medium text-xs"
-                      >
-                        {header || `Col ${idx + 1}`}
-                      </TableHead>
-                    ))}
+    <div className={cn("space-y-2", className)}>
+      <h3 className="font-semibold text-sm text-foreground">{title}</h3>
+      {!hasData ? (
+        <p className="text-xs text-muted-foreground py-2">No data</p>
+      ) : (
+        <div className="overflow-x-auto border rounded-lg max-h-[500px] overflow-y-auto">
+          <Table className="text-xs">
+            <TableHeader className="sticky top-0 bg-muted/90 z-10">
+              <TableRow>
+                {normalizedHeaders.map((header, idx) => (
+                  <TableHead 
+                    key={idx} 
+                    className="whitespace-nowrap font-medium text-xs py-1.5 px-2"
+                  >
+                    {header}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {normalizedRows.map((row, rowIdx) => {
+                const isTotal = String(row[0]).toLowerCase().includes('total');
+                return (
+                  <TableRow key={rowIdx} className={cn(
+                    "hover:bg-muted/20",
+                    isTotal && "bg-muted/40 font-medium"
+                  )}>
+                    {row.map((cell, cellIdx) => {
+                      const formatted = formatCellValue(cell);
+                      const isNumeric = typeof cell === 'number' || /^[\$\-]?[\d,]+\.?\d*%?$/.test(formatted);
+                      
+                      return (
+                        <TableCell 
+                          key={cellIdx}
+                          className={cn(
+                            "whitespace-nowrap py-1 px-2 text-xs",
+                            isNumeric && "text-right font-mono",
+                            formatted === '' && "text-muted-foreground"
+                          )}
+                        >
+                          {formatted || '\u00A0'}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row, rowIdx) => (
-                    <TableRow key={rowIdx} className="hover:bg-muted/20">
-                      {row.map((cell, cellIdx) => {
-                        const formatted = formatCellValue(cell);
-                        const isNumeric = typeof cell === 'number';
-                        const isTotal = rowIdx === rows.length - 1 && 
-                          String(row[0]).toLowerCase().includes('total');
-                        
-                        return (
-                          <TableCell 
-                            key={cellIdx}
-                            className={cn(
-                              "whitespace-nowrap py-1.5 text-xs",
-                              isNumeric && "text-right font-mono",
-                              isTotal && "font-semibold bg-muted/30",
-                              formatted === '' && "text-muted-foreground"
-                            )}
-                          >
-                            {formatted}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+      )}
+    </div>
   );
 }
 
@@ -153,6 +187,24 @@ export default function LegacyMonthlyReportView({
   updatedAt 
 }: LegacyMonthlyReportViewProps) {
   const { provider_table, referral_totals, referral_sources, extra_blocks, warnings } = payload;
+
+  // Filter out invalid extra blocks (must have real titles, not just random cells)
+  const validExtraBlocks = (extra_blocks || []).filter(block => {
+    if (!block.title || block.title.length < 5) return false;
+    if (block.rows.length < 2) return false;
+    if (block.headers.length < 2) return false;
+    // Skip blocks that look like they came from the main data
+    const lowerTitle = block.title.toLowerCase();
+    if (lowerTitle === 'total' || lowerTitle === 'totals') return false;
+    if (lowerTitle.includes('massage therapist')) return false;
+    if (lowerTitle.includes('northwest injury')) return false;
+    if (lowerTitle.includes('swapp')) return false;
+    // Skip month names
+    const months = ['january', 'february', 'march', 'april', 'may', 'june', 
+                    'july', 'august', 'september', 'october', 'november', 'december'];
+    if (months.some(m => lowerTitle === m || lowerTitle.startsWith(m + ' '))) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-4">
@@ -168,44 +220,46 @@ export default function LegacyMonthlyReportView({
         </div>
       )}
 
-      {/* All sections in a clean list */}
-      <div className="space-y-1 bg-card rounded-lg border p-3">
-        <CollapsibleTableSection
-          title="Provider Production"
-          headers={provider_table.headers}
-          rows={provider_table.rows}
-          defaultOpen={true}
-          emptyMessage="No provider data"
-        />
-
-        <CollapsibleTableSection
-          title="Referral Totals"
-          headers={referral_totals.headers}
-          rows={referral_totals.rows}
-          defaultOpen={false}
-          emptyMessage="No referral totals"
-        />
-
-        <CollapsibleTableSection
-          title="Referral Sources"
-          headers={referral_sources.headers}
-          rows={referral_sources.rows}
-          defaultOpen={false}
-          emptyMessage="No referral sources"
-        />
-
-        {/* Extra blocks inline */}
-        {extra_blocks && extra_blocks.length > 0 && extra_blocks.map((block, idx) => (
-          <CollapsibleTableSection
-            key={idx}
-            title={block.title}
-            headers={block.headers}
-            rows={block.rows}
-            defaultOpen={false}
-            emptyMessage={`No ${block.title} data`}
+      {/* Main 3-column layout matching workbook */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Left: Provider Production (largest, spans more) */}
+        <div className="lg:col-span-2">
+          <DataTable
+            title="Provider Production"
+            headers={provider_table.headers}
+            rows={provider_table.rows}
           />
-        ))}
+        </div>
+
+        {/* Right: Referral data stacked */}
+        <div className="space-y-4">
+          <DataTable
+            title="Referral Totals"
+            headers={referral_totals.headers}
+            rows={referral_totals.rows}
+          />
+          
+          <DataTable
+            title="Referral Sources"
+            headers={referral_sources.headers}
+            rows={referral_sources.rows}
+          />
+        </div>
       </div>
+
+      {/* Extra blocks below (like Pain Management) */}
+      {validExtraBlocks.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          {validExtraBlocks.map((block, idx) => (
+            <DataTable
+              key={idx}
+              title={block.title}
+              headers={block.headers}
+              rows={block.rows}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
