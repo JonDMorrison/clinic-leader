@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Phone, Compass, LucideIcon, ChevronDown, Settings, Database } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Phone, Compass, LucideIcon, ChevronDown, Settings, Database, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { useQuery } from "@tanstack/react-query";
@@ -41,6 +41,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Home", path: "/", icon: Home, roles: ["staff", "manager", "director", "owner"] },
       { title: "Data", path: "/data", icon: Database, roles: ["manager", "director", "owner"] },
+      { title: "Import", path: "/imports/monthly-report", icon: FileSpreadsheet, roles: ["manager", "director", "owner"] },
       { title: "V/TO", path: "/vto", icon: Compass, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Scorecard", path: "/scorecard", icon: BarChart3, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Rocks", path: "/rocks", icon: Target, roles: ["manager", "director", "owner"], eosOnly: true },

@@ -37,6 +37,7 @@ export interface LoriMonthPayload {
   warnings: string[];
   // Verification data
   verification?: {
+    // v1 (kept for backwards compatibility)
     provider_raw_range: string;
     provider_extracted: number;
     referral_totals_raw_range: string;
@@ -44,6 +45,54 @@ export interface LoriMonthPayload {
     referral_sources_raw_range: string;
     referral_sources_extracted: number;
     extra_blocks_counts: { title: string; extracted: number }[];
+
+    // v2 (more explicit, used for audits)
+    provider?: {
+      header_cell: string;
+      raw_range_a1: string;
+      header_row_index_0: number;
+      start_row_index_0: number;
+      end_row_index_0: number;
+      start_col_index_0: number;
+      end_col_index_0: number;
+      rows_in_range: number;
+      rows_extracted: number;
+    };
+    referral_totals?: {
+      header_cell: string;
+      raw_range_a1: string;
+      header_row_index_0: number;
+      start_row_index_0: number;
+      end_row_index_0: number;
+      start_col_index_0: number;
+      end_col_index_0: number;
+      rows_in_range: number;
+      rows_extracted: number;
+    };
+    referral_sources?: {
+      header_cell: string;
+      raw_range_a1: string;
+      header_row_index_0: number;
+      start_row_index_0: number;
+      end_row_index_0: number;
+      start_col_index_0: number;
+      end_col_index_0: number;
+      rows_in_range: number;
+      rows_extracted: number;
+    };
+    extra_blocks?: {
+      title: string;
+      title_cell: string;
+      header_cell: string;
+      raw_range_a1: string;
+      header_row_index_0: number;
+      start_row_index_0: number;
+      end_row_index_0: number;
+      start_col_index_0: number;
+      end_col_index_0: number;
+      rows_in_range: number;
+      rows_extracted: number;
+    }[];
   };
 }
 
@@ -78,9 +127,19 @@ const SKIP_SHEETS = ['copy', 'template', 'instructions', 'example'];
  */
 export function parseSheetNameToPeriodKey(sheetName: string, fallbackYear: number = 2025): string | null {
   const cleaned = sheetName.toLowerCase().trim();
+
+  // Strip common suffixes like "(Page 2)" and normalize separators like "Dec/Sept"
+  // Examples:
+  // - "Sept (Page 2)" -> "sept"
+  // - "Oct (Page 3)" -> "oct"
+  // - "Dec/Sept (Page 5)" -> "dec"
+  const base = cleaned
+    .replace(/\(.*\)/g, "")
+    .split("/")[0]
+    .trim();
   
   // Pattern: "Jan-26" or "Feb-2026"
-  const withYearMatch = cleaned.match(/^([a-z]+)[-\s]?(\d{2,4})$/);
+  const withYearMatch = base.match(/^([a-z]+)[-\s]?(\d{2,4})$/);
   if (withYearMatch) {
     const monthStr = withYearMatch[1];
     let year = parseInt(withYearMatch[2], 10);
@@ -93,7 +152,7 @@ export function parseSheetNameToPeriodKey(sheetName: string, fallbackYear: numbe
   }
   
   // Pattern: "September 2025"
-  const fullMatch = cleaned.match(/^([a-z]+)\s+(\d{4})$/);
+  const fullMatch = base.match(/^([a-z]+)\s+(\d{4})$/);
   if (fullMatch) {
     const monthStr = fullMatch[1];
     const year = parseInt(fullMatch[2], 10);
@@ -104,7 +163,7 @@ export function parseSheetNameToPeriodKey(sheetName: string, fallbackYear: numbe
   }
   
   // Pattern: Just month name - "Sept", "Oct", etc.
-  const month = MONTH_NAMES[cleaned];
+  const month = MONTH_NAMES[base];
   if (month) {
     // Heuristic: if month is Sept-Dec, use fallbackYear; if Jan-Aug, use fallbackYear+1
     // This assumes data is typically Q4 of one year + Q1 of next
@@ -136,16 +195,48 @@ function getCell(rows: any[][], rowIdx: number, colIdx: number): any {
 /**
  * Get cell as trimmed string
  */
-function getCellStr(rows: any[][], rowIdx: number, colIdx: number): string {
-  const val = getCell(rows, rowIdx, colIdx);
-  return val != null ? String(val).trim() : '';
+function normalizeText(val: any): string {
+  return val == null ? '' : String(val).trim();
+}
+
+function normalizeTextLower(val: any): string {
+  return normalizeText(val).toLowerCase();
+}
+
+function isBlankCell(val: any): boolean {
+  return normalizeText(val) === '';
+}
+
+function cellEquals(val: any, expected: string): boolean {
+  return normalizeTextLower(val) === expected.trim().toLowerCase();
+}
+
+function cellContains(val: any, expected: string): boolean {
+  return normalizeTextLower(val).includes(expected.trim().toLowerCase());
+}
+
+function getMaxColCount(rows: any[][], fallback: number = 0): number {
+  return rows.reduce((max, r) => Math.max(max, r?.length ?? 0), fallback);
 }
 
 /**
  * Check if a string contains a target (case-insensitive)
  */
-function cellContains(cellValue: string, target: string): boolean {
-  return cellValue.toLowerCase().includes(target.toLowerCase());
+/**
+ * Consider which cells are "meaningful" for scoring duplicate sheets.
+ * We intentionally down-weight template-ish values like 0 and #DIV/0!.
+ */
+function isMeaningfulCellForScoring(val: any): boolean {
+  const t = normalizeText(val);
+  if (t === '') return false;
+  const lower = t.toLowerCase();
+  if (lower === '#div/0!' || lower === '#ref!' || lower === '#value!' || lower === '#n/a') return false;
+
+  // Treat pure zero-ish values as not meaningful (templates tend to be all zeros)
+  if (lower === '0' || lower === '0.0' || lower === '$0.00' || lower === '$0') return false;
+  if (typeof val === 'number' && val === 0) return false;
+
+  return true;
 }
 
 /**
@@ -159,133 +250,143 @@ function colLetterToIndex(letter: string): number {
   return result - 1;
 }
 
-// Column indices for each block
-const COL_A = colLetterToIndex('A'); // 0
-const COL_G = colLetterToIndex('G'); // 6
-const COL_I = colLetterToIndex('I'); // 8
-const COL_J = colLetterToIndex('J'); // 9
-const COL_M = colLetterToIndex('M'); // 12
-const COL_O = colLetterToIndex('O'); // 14
-const COL_P = colLetterToIndex('P'); // 15
+type CellPos = { r: number; c: number };
 
-/**
- * Find the row index where a column contains a target string
- */
-function findRowWithText(rows: any[][], colIdx: number, target: string, maxRows: number = 50): number {
-  for (let r = 0; r < Math.min(rows.length, maxRows); r++) {
-    const cell = getCellStr(rows, r, colIdx);
-    if (cellContains(cell, target)) {
-      return r;
+function findCell(
+  rows: any[][],
+  predicate: (value: any) => boolean,
+  opts?: { maxRows?: number; maxCols?: number }
+): CellPos | null {
+  const maxRows = Math.min(rows.length, opts?.maxRows ?? rows.length);
+  const maxCols = Math.min(getMaxColCount(rows), opts?.maxCols ?? getMaxColCount(rows));
+
+  for (let r = 0; r < maxRows; r++) {
+    for (let c = 0; c < maxCols; c++) {
+      if (predicate(getCell(rows, r, c))) {
+        return { r, c };
+      }
     }
   }
-  return -1;
+  return null;
 }
 
-/**
- * Check if a row has any meaningful data in the specified column range
- */
-function rowHasData(rows: any[][], rowIdx: number, startCol: number, endCol: number): boolean {
-  for (let c = startCol; c <= endCol; c++) {
-    const val = getCellStr(rows, rowIdx, c);
-    if (val !== '' && val !== '#DIV/0!' && val !== '#REF!' && val !== '#VALUE!') {
-      return true;
+function detectSpan(
+  rows: any[][],
+  headerRowIdx: number,
+  startColIdx: number,
+  opts?: { maxCols?: number }
+): { startCol: number; endCol: number } {
+  const maxCols = opts?.maxCols ?? getMaxColCount(rows);
+  let endCol = Math.max(startColIdx, maxCols - 1);
+
+  let consecutiveBlankHeaders = 0;
+  for (let c = startColIdx; c < maxCols; c++) {
+    const headerVal = getCell(rows, headerRowIdx, c);
+    if (isBlankCell(headerVal)) {
+      consecutiveBlankHeaders++;
+      if (consecutiveBlankHeaders >= 2) {
+        endCol = Math.max(startColIdx, c - 2);
+        break;
+      }
+    } else {
+      consecutiveBlankHeaders = 0;
+      endCol = c;
     }
   }
-  return false;
+
+  return { startCol: startColIdx, endCol };
+}
+
+function isRowBlankAcrossSpan(rows: any[][], rowIdx: number, startCol: number, endCol: number): boolean {
+  for (let c = startCol; c <= endCol; c++) {
+    if (!isBlankCell(getCell(rows, rowIdx, c))) return false;
+  }
+  return true;
+}
+
+function extractTableFromHeader(
+  rows: any[][],
+  headerPos: CellPos,
+  headerLabel: string,
+  opts?: { maxScanRows?: number }
+): {
+  headers: string[];
+  dataRows: any[][];
+  headerRowIdx: number;
+  startCol: number;
+  endCol: number;
+  startRow: number;
+  endRow: number;
+  headerCellA1: string;
+  rawRangeA1: string;
+} {
+  const maxScanRows = opts?.maxScanRows ?? rows.length;
+
+  const headerRowIdx = headerPos.r;
+  const { startCol, endCol } = detectSpan(rows, headerRowIdx, headerPos.c);
+
+  const headers: string[] = [];
+  for (let c = startCol; c <= endCol; c++) {
+    headers.push(normalizeText(getCell(rows, headerRowIdx, c)));
+  }
+
+  // Rows between header and the first occurrence of 3 consecutive fully blank rows (across span)
+  const dataRows: any[][] = [];
+  const blankBuffer: any[][] = [];
+  const STOP_AFTER = 3;
+  let endRow = headerRowIdx; // will track last included row
+
+  const maxRow = Math.min(rows.length, headerRowIdx + 1 + maxScanRows);
+  for (let r = headerRowIdx + 1; r < maxRow; r++) {
+    const rowIsBlank = isRowBlankAcrossSpan(rows, r, startCol, endCol);
+
+    if (rowIsBlank) {
+      blankBuffer.push(new Array(endCol - startCol + 1).fill(null));
+      if (blankBuffer.length >= STOP_AFTER) {
+        // Stop WITHOUT including the terminating blank run
+        break;
+      }
+      continue;
+    }
+
+    // Flush any buffered blank separators (1-2 consecutive blank rows)
+    if (blankBuffer.length > 0) {
+      dataRows.push(...blankBuffer);
+      blankBuffer.length = 0;
+    }
+
+    const rowData: any[] = [];
+    for (let c = startCol; c <= endCol; c++) {
+      rowData.push(getCell(rows, r, c));
+    }
+    dataRows.push(rowData);
+    endRow = r;
+  }
+
+  const headerCellA1 = XLSX.utils.encode_cell({ r: headerRowIdx, c: headerPos.c });
+  const startRow = headerRowIdx + 1;
+  const rawRangeA1 = XLSX.utils.encode_range({
+    s: { r: headerRowIdx, c: startCol },
+    e: { r: Math.max(headerRowIdx, endRow), c: endCol },
+  });
+
+  return {
+    headers,
+    dataRows,
+    headerRowIdx,
+    startCol,
+    endCol,
+    startRow,
+    endRow,
+    headerCellA1,
+    rawRangeA1,
+  };
 }
 
 /**
  * REMOVED: isSectionHeaderRow
  * We now include ALL rows including category headers like "Chiro", "Mid Levels"
  */
-
-/**
- * Extract ALL rows from a block - NO FILTERING
- * Preserves: category headers, totals, blank separators, partial data rows
- * Stops ONLY on 3 consecutive completely blank rows
- */
-function extractBlockRowsPreserveAll(
-  rows: any[][],
-  headerRowIdx: number,
-  startCol: number,
-  endCol: number,
-  maxRows: number = 100
-): { headers: string[]; dataRows: any[][]; rawRange: string; debug: string[] } {
-  const debug: string[] = [];
-  debug.push(`extractBlockRowsPreserveAll: headerRow=${headerRowIdx}, cols=${startCol}-${endCol}`);
-  
-  // Extract headers
-  const headerRow = rows[headerRowIdx] || [];
-  const headers: string[] = [];
-  for (let c = startCol; c <= endCol; c++) {
-    headers.push(headerRow[c] != null ? String(headerRow[c]).trim() : '');
-  }
-  debug.push(`Headers: ${JSON.stringify(headers)}`);
-  
-  // Extract ALL data rows - NO FILTERING
-  const dataRows: any[][] = [];
-  let consecutiveBlankRows = 0;
-  const STOP_AFTER_BLANKS = 3; // Stop only after 3 consecutive blank rows
-  let lastDataRowIdx = headerRowIdx;
-  
-  for (let r = headerRowIdx + 1; r < Math.min(rows.length, headerRowIdx + maxRows); r++) {
-    const hasAnyData = rowHasData(rows, r, startCol, endCol);
-    
-    // Log first 30 rows for debugging
-    if (r - headerRowIdx <= 30) {
-      const rowPreview = [];
-      for (let c = startCol; c <= endCol; c++) {
-        rowPreview.push(getCell(rows, r, c));
-      }
-      debug.push(`Row ${r}: hasData=${hasAnyData}, preview=${JSON.stringify(rowPreview)}`);
-    }
-    
-    if (!hasAnyData) {
-      consecutiveBlankRows++;
-      // Still include blank rows as separators (as empty arrays)
-      // But check if we should stop
-      if (consecutiveBlankRows >= STOP_AFTER_BLANKS) {
-        debug.push(`Stopped at row ${r}: ${consecutiveBlankRows} consecutive blank rows`);
-        break;
-      }
-      // Include blank row as separator if it's between data rows
-      // (We'll trim trailing blanks later)
-      const blankRow: any[] = [];
-      for (let c = startCol; c <= endCol; c++) {
-        blankRow.push(null);
-      }
-      dataRows.push(blankRow);
-      continue;
-    }
-    
-    // Reset blank counter and mark last data row
-    consecutiveBlankRows = 0;
-    lastDataRowIdx = r;
-    
-    // Extract row data - ALL columns, including partial/blank cells
-    const rowData: any[] = [];
-    for (let c = startCol; c <= endCol; c++) {
-      rowData.push(getCell(rows, r, c));
-    }
-    dataRows.push(rowData);
-  }
-  
-  // Trim trailing blank rows (keep only rows up to last data row)
-  // Count backwards from end to find last non-blank row
-  let trimmedRows = [...dataRows];
-  while (trimmedRows.length > 0) {
-    const lastRow = trimmedRows[trimmedRows.length - 1];
-    const lastRowHasData = lastRow.some(cell => cell != null && String(cell).trim() !== '');
-    if (lastRowHasData) break;
-    trimmedRows.pop();
-  }
-  
-  const rawRange = `Rows ${headerRowIdx + 2}-${lastDataRowIdx + 1} (${lastDataRowIdx - headerRowIdx} rows scanned)`;
-  debug.push(`Result: ${trimmedRows.length} rows extracted (after trimming trailing blanks)`);
-  console.log('[LoriParser]', debug.join('\n'));
-  
-  return { headers, dataRows: trimmedRows, rawRange, debug };
-}
 
 /**
  * Parse a single month sheet - PRESERVE ALL ROWS
@@ -297,7 +398,12 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   }
   
   // Convert sheet to 2D array
-  const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
+  const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, {
+    header: 1,
+    blankrows: true,
+    defval: null,
+    raw: false,
+  });
   
   const warnings: string[] = [];
   const verification: LoriMonthPayload['verification'] = {
@@ -308,89 +414,178 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
     referral_sources_raw_range: '',
     referral_sources_extracted: 0,
     extra_blocks_counts: [],
+    extra_blocks: [],
   };
   
-  // ========== PROVIDER TABLE (A-G) ==========
-  // Find row where column A contains "Provider Name"
-  const providerHeaderRow = findRowWithText(rows, COL_A, 'Provider Name');
+  // ========== PROVIDER TABLE (dynamic) ==========
+  // Find header cell equal to "Provider Name" (case/trim-insensitive) anywhere on sheet
+  const providerHeaderCell = findCell(rows, (v) => cellEquals(v, 'Provider Name'));
   let providerTable: TableBlock = { headers: [], rows: [] };
   
-  if (providerHeaderRow >= 0) {
-    const extracted = extractBlockRowsPreserveAll(rows, providerHeaderRow, COL_A, COL_G, 100);
+  if (providerHeaderCell) {
+    const extracted = extractTableFromHeader(rows, providerHeaderCell, 'Provider Name', { maxScanRows: 500 });
     providerTable = { headers: extracted.headers, rows: extracted.dataRows };
-    verification.provider_raw_range = extracted.rawRange;
+    verification.provider_raw_range = extracted.rawRangeA1;
     verification.provider_extracted = extracted.dataRows.length;
+    verification.provider = {
+      header_cell: extracted.headerCellA1,
+      raw_range_a1: extracted.rawRangeA1,
+      header_row_index_0: extracted.headerRowIdx,
+      start_row_index_0: extracted.startRow,
+      end_row_index_0: extracted.endRow,
+      start_col_index_0: extracted.startCol,
+      end_col_index_0: extracted.endCol,
+      rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
+      rows_extracted: extracted.dataRows.length,
+    };
+    if (verification.provider.rows_in_range !== verification.provider.rows_extracted) {
+      warnings.push(`Provider table row mismatch: range=${verification.provider.rows_in_range}, extracted=${verification.provider.rows_extracted}`);
+    }
   } else {
-    warnings.push('Provider table not found (no "Provider Name" in column A)');
+    warnings.push('Provider table not found (no "Provider Name" cell found)');
   }
   
-  // ========== REFERRAL TOTALS (J-M) ==========
-  // Find row where column J contains "Referrals"
-  const referralHeaderRow = findRowWithText(rows, COL_J, 'Referrals');
+  // ========== REFERRAL TOTALS (dynamic) ==========
+  // Find header cell containing "Referrals" anywhere on sheet
+  const referralsHeaderCell = findCell(rows, (v) => cellContains(v, 'Referrals'));
   let referralTotals: TableBlock = { headers: [], rows: [] };
   
-  if (referralHeaderRow >= 0) {
-    const extracted = extractBlockRowsPreserveAll(rows, referralHeaderRow, COL_J, COL_M, 20);
+  if (referralsHeaderCell) {
+    const extracted = extractTableFromHeader(rows, referralsHeaderCell, 'Referrals', { maxScanRows: 200 });
     referralTotals = { headers: extracted.headers, rows: extracted.dataRows };
-    verification.referral_totals_raw_range = extracted.rawRange;
+    verification.referral_totals_raw_range = extracted.rawRangeA1;
     verification.referral_totals_extracted = extracted.dataRows.length;
+    verification.referral_totals = {
+      header_cell: extracted.headerCellA1,
+      raw_range_a1: extracted.rawRangeA1,
+      header_row_index_0: extracted.headerRowIdx,
+      start_row_index_0: extracted.startRow,
+      end_row_index_0: extracted.endRow,
+      start_col_index_0: extracted.startCol,
+      end_col_index_0: extracted.endCol,
+      rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
+      rows_extracted: extracted.dataRows.length,
+    };
+    if (verification.referral_totals.rows_in_range !== verification.referral_totals.rows_extracted) {
+      warnings.push(`Referral totals row mismatch: range=${verification.referral_totals.rows_in_range}, extracted=${verification.referral_totals.rows_extracted}`);
+    }
   } else {
-    warnings.push('Referral totals block not found (no "Referrals" in column J)');
+    warnings.push('Referral totals block not found (no cell containing "Referrals" found)');
   }
   
-  // ========== REFERRAL SOURCES (O-P) ==========
-  // Find row where column O contains "Referral Source"
-  const sourceHeaderRow = findRowWithText(rows, COL_O, 'Referral Source');
+  // ========== REFERRAL SOURCES (dynamic) ==========
+  // Find header cell containing "Referral Source" anywhere on sheet
+  const referralSourcesHeaderCell = findCell(rows, (v) => cellContains(v, 'Referral Source'));
   let referralSources: TableBlock = { headers: [], rows: [] };
   
-  if (sourceHeaderRow >= 0) {
-    const extracted = extractBlockRowsPreserveAll(rows, sourceHeaderRow, COL_O, COL_P, 100);
+  if (referralSourcesHeaderCell) {
+    const extracted = extractTableFromHeader(rows, referralSourcesHeaderCell, 'Referral Source', { maxScanRows: 500 });
     referralSources = { headers: extracted.headers, rows: extracted.dataRows };
-    verification.referral_sources_raw_range = extracted.rawRange;
+    verification.referral_sources_raw_range = extracted.rawRangeA1;
     verification.referral_sources_extracted = extracted.dataRows.length;
+    verification.referral_sources = {
+      header_cell: extracted.headerCellA1,
+      raw_range_a1: extracted.rawRangeA1,
+      header_row_index_0: extracted.headerRowIdx,
+      start_row_index_0: extracted.startRow,
+      end_row_index_0: extracted.endRow,
+      start_col_index_0: extracted.startCol,
+      end_col_index_0: extracted.endCol,
+      rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
+      rows_extracted: extracted.dataRows.length,
+    };
+    if (verification.referral_sources.rows_in_range !== verification.referral_sources.rows_extracted) {
+      warnings.push(`Referral sources row mismatch: range=${verification.referral_sources.rows_in_range}, extracted=${verification.referral_sources.rows_extracted}`);
+    }
   } else {
-    warnings.push('Referral sources list not found (no "Referral Source" in column O)');
+    warnings.push('Referral sources list not found (no cell containing "Referral Source" found)');
   }
   
-  // ========== EXTRA BLOCKS ==========
-  // Scan for known extra blocks like "Pain Management"
+  // ========== EXTRA BLOCKS (dynamic) ==========
   const extraBlocks: ExtraBlock[] = [];
-  const knownExtraBlockTitles = ['Pain Management', 'Specialty', 'Other Services'];
-  
-  for (const title of knownExtraBlockTitles) {
-    // Search in columns I-P for the title
-    for (let c = COL_I; c <= COL_P; c++) {
-      const foundRow = findRowWithText(rows, c, title);
-      if (foundRow >= 0) {
-        // Check if this is actually a title (next row should be headers)
-        const nextRowFirstCell = getCellStr(rows, foundRow + 1, c);
-        if (nextRowFirstCell && !cellContains(nextRowFirstCell, title)) {
-          // Found an extra block - extract it preserving ALL rows
-          const extracted = extractBlockRowsPreserveAll(rows, foundRow + 1, c, Math.min(c + 2, COL_P), 30);
-          if (extracted.dataRows.length >= 1) {
-            extraBlocks.push({
-              title,
-              headers: extracted.headers,
-              rows: extracted.dataRows,
-            });
-            verification.extra_blocks_counts.push({
-              title,
-              extracted: extracted.dataRows.length,
-            });
-          }
-        }
-        break;
+
+  const mainHeaderRows = new Set<number>([
+    verification.provider?.header_row_index_0,
+    verification.referral_totals?.header_row_index_0,
+    verification.referral_sources?.header_row_index_0,
+  ].filter((v): v is number => typeof v === 'number'));
+
+  const knownTitles = ['Pain Management'];
+  const maxCols = getMaxColCount(rows);
+
+  const isTitleCandidate = (val: any, rowIdx: number): boolean => {
+    const text = normalizeText(val);
+    if (!text) return false;
+    if (text.length > 50) return false;
+    const lower = text.toLowerCase();
+    if (lower.includes('provider name')) return false;
+    if (lower.includes('referral source')) return false;
+    if (lower.includes('referrals')) return false;
+
+    // Must look like a section title (letters/spaces mostly)
+    const letters = text.replace(/[^a-zA-Z]/g, '');
+    if (letters.length < 4) return false;
+
+    // Titles usually live on mostly-empty rows
+    const row = rows[rowIdx] || [];
+    const nonBlankCount = row.filter((cell) => !isBlankCell(cell)).length;
+    return nonBlankCount <= 2;
+  };
+
+  const findHeaderRowBelow = (titleRow: number, startCol: number): number | null => {
+    for (let r = titleRow + 1; r <= Math.min(titleRow + 6, rows.length - 1); r++) {
+      if (mainHeaderRows.has(r)) continue;
+      // A header row should have at least 2 non-empty cells across the next ~12 columns
+      let nonBlank = 0;
+      for (let c = startCol; c < Math.min(maxCols, startCol + 20); c++) {
+        if (!isBlankCell(getCell(rows, r, c))) nonBlank++;
+      }
+      if (nonBlank >= 2) return r;
+    }
+    return null;
+  };
+
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < maxCols; c++) {
+      const cellVal = getCell(rows, r, c);
+      const text = normalizeText(cellVal);
+      if (!text) continue;
+
+      const isKnown = knownTitles.some((t) => cellEquals(text, t));
+      if (!isKnown && !isTitleCandidate(cellVal, r)) continue;
+
+      const headerRow = findHeaderRowBelow(r, c);
+      if (headerRow == null) continue;
+
+      const extracted = extractTableFromHeader(rows, { r: headerRow, c }, `extra:${text}`, { maxScanRows: 200 });
+      if (extracted.dataRows.length === 0) continue;
+
+      const titleCellA1 = XLSX.utils.encode_cell({ r, c });
+      extraBlocks.push({
+        title: text,
+        headers: extracted.headers,
+        rows: extracted.dataRows,
+      });
+
+      verification.extra_blocks_counts.push({ title: text, extracted: extracted.dataRows.length });
+      verification.extra_blocks!.push({
+        title: text,
+        title_cell: titleCellA1,
+        header_cell: extracted.headerCellA1,
+        raw_range_a1: extracted.rawRangeA1,
+        header_row_index_0: extracted.headerRowIdx,
+        start_row_index_0: extracted.startRow,
+        end_row_index_0: extracted.endRow,
+        start_col_index_0: extracted.startCol,
+        end_col_index_0: extracted.endCol,
+        rows_in_range: Math.max(0, extracted.endRow - extracted.headerRowIdx),
+        rows_extracted: extracted.dataRows.length,
+      });
+      if (Math.max(0, extracted.endRow - extracted.headerRowIdx) !== extracted.dataRows.length) {
+        warnings.push(`Extra block "${text}" row mismatch: range=${Math.max(0, extracted.endRow - extracted.headerRowIdx)}, extracted=${extracted.dataRows.length}`);
       }
     }
   }
-  
-  // Log verification summary
-  console.log(`[LoriParser] ${sheetName} (${periodKey}) verification:`, {
-    provider: verification.provider_extracted,
-    referral_totals: verification.referral_totals_extracted,
-    referral_sources: verification.referral_sources_extracted,
-    extra_blocks: verification.extra_blocks_counts,
-  });
   
   return {
     sheet_name: sheetName,
@@ -478,7 +673,7 @@ export async function parseLoriWorkbook(file: File, fallbackYear: number = 2025)
  * Parse a workbook from an already-loaded XLSX.WorkBook
  */
 export function parseLoriWorkbookSync(workbook: XLSX.WorkBook, fallbackYear: number = 2025): LoriParseResult {
-  const payloads: LoriMonthPayload[] = [];
+  const candidatesByPeriod = new Map<string, { payload: LoriMonthPayload; sheetScore: number }[]>();
   const skippedSheets: string[] = [];
   const errors: string[] = [];
   
@@ -494,7 +689,14 @@ export function parseLoriWorkbookSync(workbook: XLSX.WorkBook, fallbackYear: num
       const payload = parseMonthSheet(sheetName, worksheet, fallbackYear);
       
       if (payload) {
-        payloads.push(payload);
+        // Score sheet based on provider block "meaningful" cell count
+        const providerScore = payload.provider_table.rows.reduce((acc, row) => {
+          return acc + row.reduce((rowAcc, cell) => rowAcc + (isMeaningfulCellForScoring(cell) ? 1 : 0), 0);
+        }, 0);
+
+        const list = candidatesByPeriod.get(payload.period_key) ?? [];
+        list.push({ payload, sheetScore: providerScore });
+        candidatesByPeriod.set(payload.period_key, list);
       } else {
         skippedSheets.push(`${sheetName} (unrecognized month name)`);
       }
@@ -502,8 +704,24 @@ export function parseLoriWorkbookSync(workbook: XLSX.WorkBook, fallbackYear: num
       errors.push(`Error parsing sheet "${sheetName}": ${err.message}`);
     }
   }
-  
+
+  // Resolve duplicates: choose the best-scoring sheet per period_key
+  const payloads: LoriMonthPayload[] = [];
+  for (const [periodKey, candidates] of candidatesByPeriod.entries()) {
+    const sorted = [...candidates].sort((a, b) => b.sheetScore - a.sheetScore);
+    const chosen = sorted[0];
+    payloads.push(chosen.payload);
+
+    if (sorted.length > 1) {
+      for (const other of sorted.slice(1)) {
+        skippedSheets.push(
+          `${other.payload.sheet_name} (duplicate period ${periodKey} — chosen ${chosen.payload.sheet_name} score=${chosen.sheetScore} over score=${other.sheetScore})`
+        );
+      }
+    }
+  }
+
   payloads.sort((a, b) => a.period_key.localeCompare(b.period_key));
-  
+
   return { payloads, skippedSheets, errors };
 }
