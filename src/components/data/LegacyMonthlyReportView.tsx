@@ -137,14 +137,18 @@ function DataTable({
       {!hasData ? (
         <p className="text-xs text-muted-foreground py-2">No data</p>
       ) : (
-        <div className="overflow-x-auto border rounded-lg max-h-[500px] overflow-y-auto">
-          <Table className="text-xs">
+        <div className="border rounded-lg max-h-[500px] overflow-y-auto">
+          <Table className="text-xs w-full table-fixed">
             <TableHeader className="sticky top-0 bg-muted/90 z-10">
               <TableRow>
                 {normalizedHeaders.map((header, idx) => (
                   <TableHead 
                     key={idx} 
-                    className="whitespace-nowrap font-medium text-xs py-1.5 px-2"
+                    className={cn(
+                      "font-medium text-xs py-1.5 px-1.5 truncate",
+                      idx === 0 ? "w-[30%]" : "w-auto"
+                    )}
+                    title={header}
                   >
                     {header}
                   </TableHead>
@@ -170,10 +174,12 @@ function DataTable({
                         <TableCell 
                           key={cellIdx}
                           className={cn(
-                            "whitespace-nowrap py-1 px-2 text-xs",
+                            "py-1 px-1.5 text-xs truncate",
                             isNumeric && "text-right font-mono",
-                            formatted === '' && "text-muted-foreground"
+                            formatted === '' && "text-muted-foreground",
+                            cellIdx === 0 && "font-medium"
                           )}
+                          title={formatted}
                         >
                           {formatted || '\u00A0'}
                         </TableCell>
