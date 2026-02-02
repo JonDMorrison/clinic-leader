@@ -2,15 +2,18 @@
  * Legacy Derived Metric Audit
  * 
  * Verifies extracted derived metrics against workbook reference values using provenance.
- * Produces PASS/FAIL results for each metric with cell-level evidence.
+ * Produces PASS/FAIL/UNVERIFIABLE results for each metric with cell-level evidence.
  * 
- * @see docs/audits/phase2_scope.md for scope definition
+ * VERIFIABLE metrics have deterministic cell references in the workbook.
+ * UNVERIFIABLE metrics are computed/derived and shown as informational only.
+ * 
+ * @see docs/audits/legacy_metric_truth_map.md for truth reference definitions
  */
 
 import type { LegacyMonthPayload, TableBlock, RowProvenance } from "@/components/data/LegacyMonthlyReportView";
 import { LEGACY_METRIC_MAPPINGS, extractMetricsFromPayload, type LegacyMetricMapping } from "./legacyMetricMapping";
 
-export type AuditStatus = "PASS" | "FAIL" | "NEEDS_DEFINITION";
+export type AuditStatus = "PASS" | "FAIL" | "UNVERIFIABLE";
 
 export interface AuditEvidence {
   source_block: string;
@@ -32,6 +35,7 @@ export interface MetricAuditResult {
   workbook_reference_value: number | null;
   delta: number | null;
   status: AuditStatus;
+  is_verifiable: boolean;
   evidence: AuditEvidence | null;
   notes: string;
 }
@@ -43,8 +47,36 @@ export interface DerivedMetricAuditReport {
   total_metrics: number;
   passed: number;
   failed: number;
-  needs_definition: number;
+  unverifiable: number;
+  verifiable_count: number;
   results: MetricAuditResult[];
+}
+
+/**
+ * Metrics that have deterministic cell references (VERIFIABLE)
+ * All others are computed/derived (UNVERIFIABLE)
+ */
+const VERIFIABLE_METRICS = new Set([
+  'total_new_patients',
+  'total_visits',
+  'total_production',
+  'total_charges',
+  'pain_mgmt_new_patients',
+  'pain_mgmt_total_visits',
+]);
+
+/**
+ * Check if a metric is verifiable
+ */
+export function isMetricVerifiable(metricKey: string): boolean {
+  return VERIFIABLE_METRICS.has(metricKey);
+}
+
+/**
+ * Get list of verifiable metric keys
+ */
+export function getVerifiableMetricKeys(): string[] {
+  return Array.from(VERIFIABLE_METRICS);
 }
 
 /**
@@ -164,10 +196,38 @@ function auditMetric(
   extractedValue: number | null
 ): MetricAuditResult {
   const metric_key = mapping.metric_key;
+  const isVerifiable = isMetricVerifiable(metric_key);
+  
+  // For UNVERIFIABLE metrics, return immediately without verification attempt
+  if (!isVerifiable) {
+    return {
+      metric_key,
+      display_name: mapping.display_name,
+      extracted_value: extractedValue,
+      workbook_reference_value: null,
+      delta: null,
+      status: "UNVERIFIABLE",
+      is_verifiable: false,
+      evidence: {
+        source_block: mapping.notes.split(',')[0] || 'derived',
+        sheet_name: payload.sheet_name,
+        excel_row: null,
+        start_col: null,
+        end_col: null,
+        row_label: null,
+        column_name: null,
+        column_index: null,
+        raw_cells: null,
+        computation: 'Computed value - no single cell reference',
+      },
+      notes: mapping.notes,
+    };
+  }
+
   let referenceValue: number | null = null;
   let evidence: AuditEvidence | null = null;
 
-  // ========== PROVIDER TABLE METRICS ==========
+  // ========== PROVIDER TABLE METRICS (VERIFIABLE) ==========
   if (metric_key === 'total_new_patients') {
     const { row, provenance } = findTotalRow(payload.provider_table);
     if (row) {
@@ -257,151 +317,7 @@ function auditMetric(
     }
   }
   
-  // ========== REFERRAL METRICS ==========
-  else if (metric_key === 'total_referrals') {
-    const { row, provenance } = findTotalRow(payload.referral_totals);
-    if (row) {
-      const { sum, hasValue } = sumRowValues(row);
-      if (hasValue) {
-        referenceValue = sum;
-        evidence = {
-          source_block: 'referral_totals',
-          sheet_name: provenance?.sheet_name || payload.sheet_name,
-          excel_row: provenance?.excel_row || null,
-          start_col: provenance?.start_col || null,
-          end_col: provenance?.end_col || null,
-          row_label: String(row[0]),
-          column_name: 'SUM(all columns)',
-          column_index: null,
-          raw_cells: provenance?.raw_cells || row,
-          computation: 'SUM(row[1..n]) from Total row',
-        };
-      }
-    }
-  }
-  
-  else if (metric_key === 'new_referrals') {
-    const { row, provenance } = findRowByLabelWithProvenance(payload.referral_totals, /^new/i);
-    if (row) {
-      const { sum, hasValue } = sumRowValues(row);
-      if (hasValue) {
-        referenceValue = sum;
-        evidence = {
-          source_block: 'referral_totals',
-          sheet_name: provenance?.sheet_name || payload.sheet_name,
-          excel_row: provenance?.excel_row || null,
-          start_col: provenance?.start_col || null,
-          end_col: provenance?.end_col || null,
-          row_label: String(row[0]),
-          column_name: 'SUM(all columns)',
-          column_index: null,
-          raw_cells: provenance?.raw_cells || row,
-          computation: 'SUM(row[1..n]) from "New" row',
-        };
-      }
-    }
-  }
-  
-  else if (metric_key === 'reactivations') {
-    const { row, provenance } = findRowByLabelWithProvenance(payload.referral_totals, /reactivat/i);
-    if (row) {
-      const { sum, hasValue } = sumRowValues(row);
-      if (hasValue) {
-        referenceValue = sum;
-        evidence = {
-          source_block: 'referral_totals',
-          sheet_name: provenance?.sheet_name || payload.sheet_name,
-          excel_row: provenance?.excel_row || null,
-          start_col: provenance?.start_col || null,
-          end_col: provenance?.end_col || null,
-          row_label: String(row[0]),
-          column_name: 'SUM(all columns)',
-          column_index: null,
-          raw_cells: provenance?.raw_cells || row,
-          computation: 'SUM(row[1..n]) from "Reactivation" row',
-        };
-      }
-    }
-  }
-  
-  else if (metric_key === 'discharges') {
-    const { row, provenance } = findRowByLabelWithProvenance(payload.referral_totals, /discharge/i);
-    if (row) {
-      const { sum, hasValue } = sumRowValues(row);
-      if (hasValue) {
-        referenceValue = sum;
-        evidence = {
-          source_block: 'referral_totals',
-          sheet_name: provenance?.sheet_name || payload.sheet_name,
-          excel_row: provenance?.excel_row || null,
-          start_col: provenance?.start_col || null,
-          end_col: provenance?.end_col || null,
-          row_label: String(row[0]),
-          column_name: 'SUM(all columns)',
-          column_index: null,
-          raw_cells: provenance?.raw_cells || row,
-          computation: 'SUM(row[1..n]) from "Discharge" row',
-        };
-      }
-    }
-  }
-  
-  // ========== REFERRAL SOURCES ==========
-  else if (metric_key === 'top_referral_source_count') {
-    const table = payload.referral_sources;
-    if (table?.rows?.length) {
-      for (let i = 0; i < table.rows.length; i++) {
-        const row = table.rows[i];
-        const label = String(row?.[0] || '').toLowerCase().trim();
-        if (label && !/^totals?$/i.test(label)) {
-          referenceValue = parseNumeric(row[1]);
-          evidence = {
-            source_block: 'referral_sources',
-            sheet_name: table.provenance?.[i]?.sheet_name || payload.sheet_name,
-            excel_row: table.provenance?.[i]?.excel_row || null,
-            start_col: table.provenance?.[i]?.start_col || null,
-            end_col: table.provenance?.[i]?.end_col || null,
-            row_label: String(row[0]),
-            column_name: table.headers[1] || 'count',
-            column_index: 1,
-            raw_cells: table.provenance?.[i]?.raw_cells || row,
-            computation: 'cell[1] from first non-Total source row',
-          };
-          break;
-        }
-      }
-    }
-  }
-  
-  else if (metric_key === 'referral_source_count') {
-    const table = payload.referral_sources;
-    if (table?.rows) {
-      let count = 0;
-      for (const row of table.rows) {
-        const label = String(row?.[0] || '').trim();
-        if (label && !/^totals?$/i.test(label.toLowerCase())) {
-          count++;
-        }
-      }
-      if (count > 0) {
-        referenceValue = count;
-        evidence = {
-          source_block: 'referral_sources',
-          sheet_name: payload.sheet_name,
-          excel_row: null,
-          start_col: null,
-          end_col: null,
-          row_label: null,
-          column_name: null,
-          column_index: null,
-          raw_cells: null,
-          computation: `COUNT(non-Total rows) = ${count}`,
-        };
-      }
-    }
-  }
-  
-  // ========== PAIN MANAGEMENT ==========
+  // ========== PAIN MANAGEMENT (VERIFIABLE if block exists) ==========
   else if (metric_key === 'pain_mgmt_new_patients') {
     const block = findExtraBlockWithProvenance(payload, 'pain management');
     if (block) {
@@ -453,15 +369,19 @@ function auditMetric(
     }
   }
 
-  // ========== DETERMINE STATUS ==========
-  let status: AuditStatus = "NEEDS_DEFINITION";
+  // ========== DETERMINE STATUS FOR VERIFIABLE METRICS ==========
+  let status: AuditStatus;
   let delta: number | null = null;
 
   if (referenceValue === null && extractedValue === null) {
-    status = "NEEDS_DEFINITION";
+    // Both null - no data in workbook for this metric (Pain Mgmt block missing, etc.)
+    // This is OK - it means the workbook doesn't have this data
+    status = "PASS"; // Pass because extractor correctly returned null
   } else if (referenceValue === null) {
-    status = "NEEDS_DEFINITION";
+    // Reference not found but extractor returned a value - mismatch
+    status = "FAIL";
   } else if (extractedValue === null) {
+    // Reference exists but extractor returned null - mismatch
     status = "FAIL";
   } else {
     delta = Math.abs(extractedValue - referenceValue);
@@ -477,6 +397,7 @@ function auditMetric(
     workbook_reference_value: referenceValue,
     delta,
     status,
+    is_verifiable: true,
     evidence,
     notes: mapping.notes,
   };
@@ -484,7 +405,7 @@ function auditMetric(
 
 /**
  * Run full audit for a month's payload
- * Returns a complete audit report with PASS/FAIL for each metric
+ * Returns a complete audit report with PASS/FAIL/UNVERIFIABLE for each metric
  */
 export function auditDerivedMetrics(
   periodKey: string,
@@ -500,14 +421,17 @@ export function auditDerivedMetrics(
     results.push(result);
   }
 
+  const verifiableResults = results.filter(r => r.is_verifiable);
+
   return {
     period_key: periodKey,
     sheet_name: payload.sheet_name,
     audit_timestamp: new Date().toISOString(),
     total_metrics: results.length,
-    passed: results.filter(r => r.status === "PASS").length,
-    failed: results.filter(r => r.status === "FAIL").length,
-    needs_definition: results.filter(r => r.status === "NEEDS_DEFINITION").length,
+    passed: verifiableResults.filter(r => r.status === "PASS").length,
+    failed: verifiableResults.filter(r => r.status === "FAIL").length,
+    unverifiable: results.filter(r => r.status === "UNVERIFIABLE").length,
+    verifiable_count: verifiableResults.length,
     results,
   };
 }
@@ -521,6 +445,20 @@ export function auditMultipleMonths(
   return payloads.map(({ period_key, payload }) => 
     auditDerivedMetrics(period_key, payload)
   );
+}
+
+/**
+ * Check if any verifiable metric failed audit
+ */
+export function hasVerifiableFailures(report: DerivedMetricAuditReport): boolean {
+  return report.results.some(r => r.is_verifiable && r.status === "FAIL");
+}
+
+/**
+ * Get only the metrics that should be synced to scorecard (verifiable + passed)
+ */
+export function getMetricsToSync(report: DerivedMetricAuditReport): MetricAuditResult[] {
+  return report.results.filter(r => r.is_verifiable && r.status === "PASS");
 }
 
 /**

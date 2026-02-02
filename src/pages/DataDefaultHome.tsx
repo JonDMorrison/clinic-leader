@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { 
   Database, 
   FileSpreadsheet,
@@ -10,6 +10,8 @@ import {
   Loader2,
   Clock,
   TrendingUp,
+  BarChart3,
+  FileText,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,13 +20,17 @@ import { motion } from "framer-motion";
 import { format, parseISO } from "date-fns";
 import LegacyMonthlyReportView, { LegacyMonthPayload } from "@/components/data/LegacyMonthlyReportView";
 import YTDDataView from "@/components/data/YTDDataView";
+import ExecutiveSummaryCard from "@/components/data/ExecutiveSummaryCard";
 
 const YTD_TAB_VALUE = "ytd";
+
+type ViewTab = "summary" | "raw";
 
 export default function DataDefaultHome() {
   const navigate = useNavigate();
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+  const [viewTab, setViewTab] = useState<ViewTab>("summary");
 
   // Fetch all available months for current org
   const { data: availableMonths, isLoading: monthsLoading } = useQuery({
@@ -248,11 +254,49 @@ export default function DataDefaultHome() {
         </Tabs>
       </motion.div>
 
+      {/* View Toggle (Summary vs Raw) - only for single month view */}
+      {!isYTDSelected && reportData?.payload && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as ViewTab)} className="w-full">
+            <div className="flex items-center justify-between">
+              <TabsList>
+                <TabsTrigger value="summary" className="gap-1.5">
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  Executive Summary
+                </TabsTrigger>
+                <TabsTrigger value="raw" className="gap-1.5">
+                  <FileText className="w-3.5 h-3.5" />
+                  Raw Monthly Report
+                </TabsTrigger>
+              </TabsList>
+              
+              {/* Compact report header */}
+              <div className="text-sm text-muted-foreground flex items-center gap-3">
+                <span>
+                  {formatPeriodKey(effectiveSelectedPeriod!)}
+                  {reportData.source_file_name && (
+                    <span className="ml-2 text-xs">• {reportData.source_file_name}</span>
+                  )}
+                </span>
+                <span className="flex items-center gap-1.5 text-xs">
+                  <Clock className="w-3.5 h-3.5" />
+                  {format(parseISO(reportData.updated_at), "MMM d, h:mm a")}
+                </span>
+              </div>
+            </div>
+          </Tabs>
+        </motion.div>
+      )}
+
       {/* Report Content */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.15 }}
       >
         {contentLoading ? (
           <div className="flex items-center justify-center py-16">
@@ -266,28 +310,22 @@ export default function DataDefaultHome() {
             year={currentYear}
           />
         ) : reportData?.payload ? (
-          <div className="space-y-3">
-            {/* Compact report header */}
-            <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
-              <span>
-                {formatPeriodKey(effectiveSelectedPeriod!)}
-                {reportData.source_file_name && (
-                  <span className="ml-2">• {reportData.source_file_name}</span>
-                )}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                {format(parseISO(reportData.updated_at), "MMM d, h:mm a")}
-              </span>
-            </div>
-
-            {/* The actual report view */}
-            <LegacyMonthlyReportView
-              payload={reportData.payload}
-              periodKey={effectiveSelectedPeriod!}
-              updatedAt={reportData.updated_at}
-            />
-          </div>
+          <Card>
+            <CardContent className="pt-6">
+              {viewTab === "summary" ? (
+                <ExecutiveSummaryCard
+                  payload={reportData.payload}
+                  periodKey={effectiveSelectedPeriod!}
+                />
+              ) : (
+                <LegacyMonthlyReportView
+                  payload={reportData.payload}
+                  periodKey={effectiveSelectedPeriod!}
+                  updatedAt={reportData.updated_at}
+                />
+              )}
+            </CardContent>
+          </Card>
         ) : (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
@@ -298,7 +336,6 @@ export default function DataDefaultHome() {
           </Card>
         )}
       </motion.div>
-
     </div>
   );
 }

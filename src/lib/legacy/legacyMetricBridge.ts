@@ -4,7 +4,7 @@
  * PHASE 2 SCOPE (LOCKED):
  * - Org-level totals only (no location breakdown)
  * - Monthly cadence only (period_type = 'monthly')
- * - 12 canonical KPIs (see legacyMetricMapping.ts)
+ * - Only VERIFIABLE metrics synced (see truth map)
  * - Manual issue creation only (no auto-create/close)
  * - Source tagged as 'legacy_workbook'
  * 
@@ -14,11 +14,11 @@
  * 
  * Flow:
  * 1. After Lori payload is upserted to legacy_monthly_reports
- * 2. Call bridgeLegacyToMetricResults()
- * 3. This ensures metrics exist (creates if missing)
- * 4. Upserts extracted values to metric_results
+ * 2. Audit runs to verify PASS/FAIL for verifiable metrics
+ * 3. If all verifiable metrics PASS, call bridgeLegacyToMetricResults()
+ * 4. Only VERIFIABLE metrics are synced (UNVERIFIABLE are skipped)
  * 
- * @see docs/audits/phase2_scope.md for full scope definition
+ * @see docs/audits/legacy_metric_truth_map.md for verifiability definitions
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -28,12 +28,13 @@ import {
   extractMetricsFromPayload,
   type LegacyMetricMapping,
 } from "./legacyMetricMapping";
+import { isMetricVerifiable, getVerifiableMetricKeys } from "./legacyDerivedMetricAudit";
 
 export interface DerivedMetricResult {
   metric_key: string;
   display_name: string;
   value: number | null;
-  status: "inserted" | "updated" | "skipped_null" | "error";
+  status: "inserted" | "updated" | "skipped_null" | "skipped_unverifiable" | "error";
   error_message?: string;
 }
 
@@ -45,10 +46,18 @@ export interface BridgeResult {
   total_inserted: number;
   total_updated: number;
   total_skipped: number;
+  total_unverifiable_skipped: number;
 }
 
 /**
- * Ensure all legacy metrics exist for an organization.
+ * Get only verifiable mappings for bridge operations
+ */
+function getVerifiableMappings(): LegacyMetricMapping[] {
+  return LEGACY_METRIC_MAPPINGS.filter(m => isMetricVerifiable(m.metric_key));
+}
+
+/**
+ * Ensure all verifiable legacy metrics exist for an organization.
  * Creates metrics with reasonable defaults if they don't exist.
  */
 async function ensureMetricsExist(
@@ -83,7 +92,7 @@ async function ensureMetricsExist(
     }
   }
 
-  // Process each mapping
+  // Process each mapping (only verifiable ones)
   for (const mapping of mappings) {
     const keyLower = mapping.metric_key.toLowerCase();
     const existingId = existingKeyMap.get(keyLower);
@@ -93,7 +102,7 @@ async function ensureMetricsExist(
       metricIdMap.set(mapping.metric_key, existingId);
       ensured++;
     } else {
-      // Create new metric
+      // Create new metric with safe defaults
       // Map direction values: DB expects 'up'/'down', mapping uses 'higher_is_better'/'lower_is_better'
       const dbDirection = mapping.direction === 'higher_is_better' ? 'up' : 'down';
       
@@ -105,7 +114,7 @@ async function ensureMetricsExist(
           import_key: mapping.metric_key,
           unit: mapping.unit,
           direction: dbDirection,
-          target: mapping.default_target,
+          target: mapping.default_target, // null is OK - shows "Configure targets" CTA
           cadence: "monthly",
           is_active: true,
           category: mapping.category,
@@ -134,20 +143,33 @@ async function ensureMetricsExist(
 }
 
 /**
- * Upsert extracted metrics into metric_results
+ * Upsert extracted metrics into metric_results (only verifiable ones)
  */
 async function upsertMetricResults(
   organizationId: string,
   periodKey: string,
   metricIdMap: Map<string, string>,
   extractedMetrics: { metric_key: string; value: number | null; display_name: string }[]
-): Promise<DerivedMetricResult[]> {
+): Promise<{ results: DerivedMetricResult[]; unverifiableSkipped: number }> {
   const results: DerivedMetricResult[] = [];
+  let unverifiableSkipped = 0;
 
   // Prepare period fields
   const periodStart = `${periodKey}-01`;
 
   for (const extracted of extractedMetrics) {
+    // Skip unverifiable metrics
+    if (!isMetricVerifiable(extracted.metric_key)) {
+      results.push({
+        metric_key: extracted.metric_key,
+        display_name: extracted.display_name,
+        value: extracted.value,
+        status: "skipped_unverifiable",
+      });
+      unverifiableSkipped++;
+      continue;
+    }
+
     const metricId = metricIdMap.get(extracted.metric_key);
 
     if (!metricId) {
@@ -198,8 +220,6 @@ async function upsertMetricResults(
         error_message: upsertError.message,
       });
     } else {
-      // We don't know if it was insert or update, just mark as inserted
-      // (upsert doesn't tell us which)
       results.push({
         metric_key: extracted.metric_key,
         display_name: extracted.display_name,
@@ -209,11 +229,12 @@ async function upsertMetricResults(
     }
   }
 
-  return results;
+  return { results, unverifiableSkipped };
 }
 
 /**
  * Main bridge function: extract metrics from a Lori payload and upsert to metric_results.
+ * Only syncs VERIFIABLE metrics (see truth map).
  * 
  * @param organizationId - The organization's UUID
  * @param periodKey - The period in YYYY-MM format
@@ -228,14 +249,15 @@ export async function bridgeLegacyToMetricResults(
   // Step 1: Extract all metrics from payload
   const extractedMetrics = extractMetricsFromPayload(payload);
 
-  // Step 2: Ensure all metrics exist (create if missing)
+  // Step 2: Ensure only verifiable metrics exist (create if missing)
+  const verifiableMappings = getVerifiableMappings();
   const { metricIdMap, created, ensured } = await ensureMetricsExist(
     organizationId,
-    LEGACY_METRIC_MAPPINGS
+    verifiableMappings
   );
 
-  // Step 3: Upsert to metric_results
-  const results = await upsertMetricResults(
+  // Step 3: Upsert to metric_results (only verifiable)
+  const { results, unverifiableSkipped } = await upsertMetricResults(
     organizationId,
     periodKey,
     metricIdMap,
@@ -254,8 +276,9 @@ export async function bridgeLegacyToMetricResults(
     metrics_created: created,
     results,
     total_inserted: totalInserted,
-    total_updated: 0, // Can't distinguish from insert in upsert
+    total_updated: 0,
     total_skipped: totalSkipped,
+    total_unverifiable_skipped: unverifiableSkipped,
   };
 }
 
@@ -293,6 +316,7 @@ export async function bridgeMultipleMonths(
         total_inserted: 0,
         total_updated: 0,
         total_skipped: 0,
+        total_unverifiable_skipped: 0,
       });
       console.error(
         `[LegacyBridge] Failed to bridge ${item.period_key}:`,
