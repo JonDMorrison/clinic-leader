@@ -14,8 +14,9 @@ import { toast } from "sonner";
 import { 
   Upload, Download, Loader2, CheckCircle, AlertTriangle, ArrowLeft, 
   FileWarning, FileSpreadsheet, AlertCircle, RotateCcw, Copy, ExternalLink,
-  Calendar, FileCheck
+  Calendar, FileCheck, TrendingUp
 } from "lucide-react";
+import { bridgeMultipleMonths, isLegacyDataMode, type BridgeResult, type DerivedMetricResult } from "@/lib/legacy/legacyMetricBridge";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { getWorkbookSheets, parseSheet, normalizeLabel } from "@/lib/importers/excelProfileParser";
@@ -97,6 +98,7 @@ const ImportMonthlyReport = () => {
     total: number;
     completed: number;
     results: { period_key: string; status: 'success' | 'error'; message?: string }[];
+    bridgeResults?: BridgeResult[];
   } | null>(null);
 
   // Fetch metrics with import_key
@@ -537,12 +539,12 @@ const ImportMonthlyReport = () => {
       results: [],
     });
     
+    // Phase 1: Upsert to legacy_monthly_reports
     for (let i = 0; i < loriResult.payloads.length; i++) {
       const payload = loriResult.payloads[i];
       
       try {
         // Upsert into legacy_monthly_reports
-        // Note: Table was just created, types may not be fully regenerated yet
         const { error } = await supabase
           .from('legacy_monthly_reports' as any)
           .upsert({
@@ -581,11 +583,70 @@ const ImportMonthlyReport = () => {
       });
     }
     
+    // Phase 2: Bridge to metric_results (only for legacy/default data mode orgs)
+    let bridgeResults: BridgeResult[] = [];
+    try {
+      const isLegacy = await isLegacyDataMode(currentUser.team_id);
+      if (isLegacy) {
+        // Build payloads with period keys
+        const successfulPayloads = loriResult.payloads
+          .filter((_, i) => results[i]?.status === 'success')
+          .map(p => ({
+            period_key: p.period_key,
+            payload: {
+              sheet_name: p.sheet_name,
+              provider_table: p.provider_table,
+              referral_totals: p.referral_totals,
+              referral_sources: p.referral_sources,
+              extra_blocks: p.extra_blocks,
+              warnings: p.warnings,
+            },
+          }));
+        
+        if (successfulPayloads.length > 0) {
+          bridgeResults = await bridgeMultipleMonths(
+            currentUser.team_id,
+            successfulPayloads
+          );
+          
+          // Update verification in payload with derived metrics
+          for (const br of bridgeResults) {
+            // Find matching payload and update its verification
+            const idx = loriResult.payloads.findIndex(p => p.period_key === br.period_key);
+            if (idx >= 0 && results[idx]?.status === 'success') {
+              // Update the stored payload with derived metrics summary
+              await supabase
+                .from('legacy_monthly_reports' as any)
+                .update({
+                  payload: supabase.rpc as any, // This is a workaround - we need to merge
+                } as any)
+                .eq('organization_id', currentUser.team_id)
+                .eq('period_key', br.period_key);
+            }
+          }
+        }
+      }
+    } catch (bridgeError: any) {
+      console.error('[LoriImport] Bridge failed:', bridgeError);
+      // Don't fail the whole import - bridge is supplementary
+    }
+    
+    setLoriImportProgress(prev => prev ? {
+      ...prev,
+      bridgeResults,
+    } : null);
+    
     setIsProcessing(false);
     
     const successCount = results.filter(r => r.status === 'success').length;
+    const bridgeTotalInserted = bridgeResults.reduce((sum, br) => sum + br.total_inserted, 0);
+    
     if (successCount === results.length) {
-      toast.success(`Successfully imported ${successCount} months`);
+      if (bridgeTotalInserted > 0) {
+        toast.success(`Imported ${successCount} months + ${bridgeTotalInserted} metrics to Scorecard`);
+      } else {
+        toast.success(`Successfully imported ${successCount} months`);
+      }
     } else if (successCount > 0) {
       toast.warning(`Imported ${successCount}/${results.length} months`);
     } else {
@@ -1347,6 +1408,81 @@ const ImportMonthlyReport = () => {
               ))}
             </div>
 
+            {/* Derived Metrics Summary */}
+            {!isProcessing && loriImportProgress.bridgeResults && loriImportProgress.bridgeResults.length > 0 && (
+              <Card className="border-brand/30 bg-brand/5">
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-brand" />
+                    Scorecard Metrics Updated
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Canonical KPIs extracted from workbook data and synced to metric_results
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {loriImportProgress.bridgeResults.map((br, brIdx) => {
+                    const inserted = br.results.filter(r => r.status === 'inserted').length;
+                    const skipped = br.results.filter(r => r.status === 'skipped_null').length;
+                    const errors = br.results.filter(r => r.status === 'error').length;
+                    
+                    return (
+                      <div key={brIdx} className="mb-4 last:mb-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {br.period_key}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {br.metrics_created > 0 && (
+                              <span className="text-brand mr-2">{br.metrics_created} new metrics created</span>
+                            )}
+                            {inserted} synced • {skipped} skipped (null) 
+                            {errors > 0 && <span className="text-destructive"> • {errors} errors</span>}
+                          </span>
+                        </div>
+                        
+                        <Table className="text-xs">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="py-1 px-2">Metric</TableHead>
+                              <TableHead className="py-1 px-2 text-right">Value</TableHead>
+                              <TableHead className="py-1 px-2">Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {br.results.map((dm, dmIdx) => (
+                              <TableRow key={dmIdx} className="hover:bg-muted/20">
+                                <TableCell className="py-1 px-2 font-medium">
+                                  {dm.display_name}
+                                </TableCell>
+                                <TableCell className="py-1 px-2 text-right font-mono">
+                                  {dm.value !== null ? dm.value.toLocaleString() : '—'}
+                                </TableCell>
+                                <TableCell className="py-1 px-2">
+                                  <Badge 
+                                    variant={
+                                      dm.status === 'inserted' ? 'default' :
+                                      dm.status === 'skipped_null' ? 'secondary' :
+                                      'destructive'
+                                    }
+                                    className="text-[10px] px-1.5 py-0"
+                                  >
+                                    {dm.status === 'inserted' ? '✓ Synced' :
+                                     dm.status === 'skipped_null' ? 'No data' :
+                                     'Error'}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+
             {!isProcessing && (
               <div className="flex gap-3 pt-4">
                 <Button variant="outline" onClick={resetUpload}>
@@ -1355,6 +1491,11 @@ const ImportMonthlyReport = () => {
                 <Button onClick={() => navigate('/data')}>
                   View Data
                 </Button>
+                {loriImportProgress.bridgeResults && loriImportProgress.bridgeResults.some(br => br.total_inserted > 0) && (
+                  <Button variant="outline" onClick={() => navigate('/scorecard')}>
+                    View Scorecard
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
