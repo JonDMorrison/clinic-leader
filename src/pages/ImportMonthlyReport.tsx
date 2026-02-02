@@ -1670,11 +1670,16 @@ const ImportMonthlyReport = () => {
                                       {result.status}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell className="py-1 px-2 text-[10px] text-muted-foreground max-w-[200px] truncate" title={result.evidence?.computation || result.notes}>
-                                    {result.evidence ? (
+                                  <TableCell className="py-1 px-2 text-[10px] text-muted-foreground max-w-[250px]" title={result.notes}>
+                                    {result.status === 'FAIL' && result.extracted_value === null ? (
+                                      <span className="text-destructive font-medium">
+                                        ⚠ Extractor returned null
+                                      </span>
+                                    ) : result.evidence ? (
                                       <span>
                                         {result.evidence.source_block}
                                         {result.evidence.excel_row && ` (row ${result.evidence.excel_row})`}
+                                        {result.evidence.column_name && ` / ${result.evidence.column_name}`}
                                       </span>
                                     ) : (
                                       <span className="italic">{result.notes || 'No reference found'}</span>

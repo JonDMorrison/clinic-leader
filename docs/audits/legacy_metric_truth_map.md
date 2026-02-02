@@ -108,9 +108,13 @@ To make referral metrics verifiable:
 
 ### Lori Workbook Parser (as of 2026-02-02)
 
-The current Lori workbook parser has issues extracting data from some workbook formats:
-- **Total Row Label**: Parser expects row[0] === "Total" but some workbooks have "Total Patient Visits"
-- **Null Values**: Some provider_table rows are coming through as all-null arrays
-- **Missing Production Column**: Some workbooks have "Revenue" instead of "Production"
+**FIXED Issues:**
+- ✅ **Total Row Label**: Now handles "Total", "Totals", "Total Patient Visits", and subtotal rows
+- ✅ **Subtotal Summing**: When grand total row has no data, extractors SUM subtotal rows (Chiro + Mid Level + Massage Therapist)
+- ✅ **Revenue/Production**: Now checks "Revenue" column if "Production" not found
+- ✅ **Audit FAIL on null**: VERIFIABLE metrics now FAIL if extractor returns null
 
-These issues cause the audit to fail and block scorecard sync. The parser needs updates to handle column header variations.
+**Remaining Issue:**
+- **JSONB Array Nulls**: The provider_table rows stored in `legacy_monthly_reports.payload` have null values in column positions. This appears to be a Lori workbook parser issue when initially saving to the database. The raw Excel data has values, but they're not being correctly mapped to array positions.
+
+**Root Cause**: The Lori workbook importer (`loriWorkbookImporter.ts`) needs investigation - the row arrays are storing nulls instead of actual cell values for numeric columns.

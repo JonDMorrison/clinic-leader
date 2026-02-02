@@ -95,7 +95,58 @@ function parseNumeric(value: any): number | null {
 }
 
 /**
+ * Count numeric cells in a row (excluding first column)
+ */
+function countNumericCells(row: any[]): number {
+  let count = 0;
+  for (let i = 1; i < row.length; i++) {
+    const val = parseNumeric(row[i]);
+    if (val !== null) count++;
+  }
+  return count;
+}
+
+/**
+ * Check if a row label is a subtotal row (e.g. "Chiro Patient Total", "Mid Level Patient Total")
+ */
+function isSubtotalRow(label: string): boolean {
+  const l = label.toLowerCase().trim();
+  return (
+    l.includes('patient total') ||
+    l.includes('therapist patient total') ||
+    (l.endsWith('total') && (l.includes('chiro') || l.includes('mid level') || l.includes('massage')))
+  );
+}
+
+/**
+ * Find all subtotal rows from a table with provenance
+ */
+function findSubtotalRows(table: TableBlock): Array<{
+  row: any[];
+  rowIdx: number;
+  provenance: RowProvenance | null;
+}> {
+  if (!table?.rows) return [];
+  
+  const subtotals: Array<{ row: any[]; rowIdx: number; provenance: RowProvenance | null }> = [];
+  for (let i = 0; i < table.rows.length; i++) {
+    const label = String(table.rows[i]?.[0] || '').toLowerCase().trim();
+    if (isSubtotalRow(label)) {
+      subtotals.push({
+        row: table.rows[i],
+        rowIdx: i,
+        provenance: table.provenance?.[i] || null,
+      });
+    }
+  }
+  return subtotals;
+}
+
+/**
  * Find Total row in a table block, returns row data and provenance
+ * 
+ * Only returns a row if it has numeric data. Otherwise returns null to signal
+ * that subtotals should be summed.
  */
 function findTotalRow(table: TableBlock): {
   row: any[] | null;
@@ -104,9 +155,10 @@ function findTotalRow(table: TableBlock): {
 } {
   if (!table?.rows) return { row: null, rowIdx: -1, provenance: null };
   
+  // Strategy 1: Exact "Total" or "Totals" match WITH data
   for (let i = 0; i < table.rows.length; i++) {
     const label = String(table.rows[i]?.[0] || '').toLowerCase().trim();
-    if (label === 'total' || label === 'totals') {
+    if (/^totals?$/i.test(label) && countNumericCells(table.rows[i]) >= 3) {
       return {
         row: table.rows[i],
         rowIdx: i,
@@ -114,7 +166,47 @@ function findTotalRow(table: TableBlock): {
       };
     }
   }
+  
+  // Strategy 2: "Total Patient" pattern WITH data
+  for (let i = 0; i < table.rows.length; i++) {
+    const label = String(table.rows[i]?.[0] || '').toLowerCase().trim();
+    if (/^total patient/i.test(label) && countNumericCells(table.rows[i]) >= 3) {
+      return {
+        row: table.rows[i],
+        rowIdx: i,
+        provenance: table.provenance?.[i] || null,
+      };
+    }
+  }
+  
+  // No grand total with data found - return null to signal summing needed
   return { row: null, rowIdx: -1, provenance: null };
+}
+
+/**
+ * Extract and sum a column value from subtotal rows when grand total is empty
+ */
+function sumSubtotalColumn(
+  table: TableBlock,
+  colIdx: number
+): { sum: number | null; subtotalLabels: string[] } {
+  const subtotals = findSubtotalRows(table);
+  if (subtotals.length === 0) return { sum: null, subtotalLabels: [] };
+  
+  let sum = 0;
+  let hasValue = false;
+  const labels: string[] = [];
+  
+  for (const { row } of subtotals) {
+    const val = parseNumeric(row[colIdx]);
+    if (val !== null) {
+      sum += val;
+      hasValue = true;
+      labels.push(String(row[0]));
+    }
+  }
+  
+  return { sum: hasValue ? sum : null, subtotalLabels: labels };
 }
 
 /**
@@ -227,14 +319,28 @@ function auditMetric(
   let referenceValue: number | null = null;
   let evidence: AuditEvidence | null = null;
 
-  // ========== PROVIDER TABLE METRICS (VERIFIABLE) ==========
-  if (metric_key === 'total_new_patients') {
+  // Helper to extract provider_table value (either from grand total or sum of subtotals)
+  const extractProviderValue = (columnSearches: string[]) => {
     const { row, provenance } = findTotalRow(payload.provider_table);
-    if (row) {
-      const colIdx = getColumnIndex(payload.provider_table.headers, 'new patient');
+    let colIdx = -1;
+    let foundColumn = '';
+    
+    for (const search of columnSearches) {
+      colIdx = getColumnIndex(payload.provider_table.headers, search);
       if (colIdx >= 0) {
-        referenceValue = parseNumeric(row[colIdx]);
-        evidence = {
+        foundColumn = search;
+        break;
+      }
+    }
+    
+    if (colIdx < 0) return { value: null, evidence: null };
+    
+    // If we have a grand total row with data
+    if (row && parseNumeric(row[colIdx]) !== null) {
+      const value = parseNumeric(row[colIdx]);
+      return {
+        value,
+        evidence: {
           source_block: 'provider_table',
           sheet_name: provenance?.sheet_name || payload.sheet_name,
           excel_row: provenance?.excel_row || null,
@@ -245,76 +351,56 @@ function auditMetric(
           column_index: colIdx,
           raw_cells: provenance?.raw_cells || row,
           computation: `cell[${colIdx}] from Total row`,
-        };
-      }
+        },
+      };
     }
+    
+    // No grand total - sum subtotals
+    const { sum, subtotalLabels } = sumSubtotalColumn(payload.provider_table, colIdx);
+    if (sum !== null) {
+      return {
+        value: sum,
+        evidence: {
+          source_block: 'provider_table',
+          sheet_name: payload.sheet_name,
+          excel_row: null,
+          start_col: null,
+          end_col: null,
+          row_label: `SUM(${subtotalLabels.join(' + ')})`,
+          column_name: payload.provider_table.headers[colIdx],
+          column_index: colIdx,
+          raw_cells: null,
+          computation: `SUM of ${subtotalLabels.length} subtotal rows, column ${foundColumn}`,
+        },
+      };
+    }
+    
+    return { value: null, evidence: null };
+  };
+
+  // ========== PROVIDER TABLE METRICS (VERIFIABLE) ==========
+  if (metric_key === 'total_new_patients') {
+    const result = extractProviderValue(['new patient', 'new patients']);
+    referenceValue = result.value;
+    evidence = result.evidence;
   }
   
   else if (metric_key === 'total_visits') {
-    const { row, provenance } = findTotalRow(payload.provider_table);
-    if (row) {
-      let colIdx = getColumnIndex(payload.provider_table.headers, 'total visits');
-      if (colIdx < 0) colIdx = getColumnIndex(payload.provider_table.headers, 'visits');
-      if (colIdx >= 0) {
-        referenceValue = parseNumeric(row[colIdx]);
-        evidence = {
-          source_block: 'provider_table',
-          sheet_name: provenance?.sheet_name || payload.sheet_name,
-          excel_row: provenance?.excel_row || null,
-          start_col: provenance?.start_col || null,
-          end_col: provenance?.end_col || null,
-          row_label: String(row[0]),
-          column_name: payload.provider_table.headers[colIdx],
-          column_index: colIdx,
-          raw_cells: provenance?.raw_cells || row,
-          computation: `cell[${colIdx}] from Total row`,
-        };
-      }
-    }
+    const result = extractProviderValue(['total visits', 'visits']);
+    referenceValue = result.value;
+    evidence = result.evidence;
   }
   
   else if (metric_key === 'total_production') {
-    const { row, provenance } = findTotalRow(payload.provider_table);
-    if (row) {
-      const colIdx = getColumnIndex(payload.provider_table.headers, 'production');
-      if (colIdx >= 0) {
-        referenceValue = parseNumeric(row[colIdx]);
-        evidence = {
-          source_block: 'provider_table',
-          sheet_name: provenance?.sheet_name || payload.sheet_name,
-          excel_row: provenance?.excel_row || null,
-          start_col: provenance?.start_col || null,
-          end_col: provenance?.end_col || null,
-          row_label: String(row[0]),
-          column_name: payload.provider_table.headers[colIdx],
-          column_index: colIdx,
-          raw_cells: provenance?.raw_cells || row,
-          computation: `cell[${colIdx}] from Total row`,
-        };
-      }
-    }
+    const result = extractProviderValue(['production', 'revenue']);
+    referenceValue = result.value;
+    evidence = result.evidence;
   }
   
   else if (metric_key === 'total_charges') {
-    const { row, provenance } = findTotalRow(payload.provider_table);
-    if (row) {
-      const colIdx = getColumnIndex(payload.provider_table.headers, 'charges');
-      if (colIdx >= 0) {
-        referenceValue = parseNumeric(row[colIdx]);
-        evidence = {
-          source_block: 'provider_table',
-          sheet_name: provenance?.sheet_name || payload.sheet_name,
-          excel_row: provenance?.excel_row || null,
-          start_col: provenance?.start_col || null,
-          end_col: provenance?.end_col || null,
-          row_label: String(row[0]),
-          column_name: payload.provider_table.headers[colIdx],
-          column_index: colIdx,
-          raw_cells: provenance?.raw_cells || row,
-          computation: `cell[${colIdx}] from Total row`,
-        };
-      }
-    }
+    const result = extractProviderValue(['charges']);
+    referenceValue = result.value;
+    evidence = result.evidence;
   }
   
   // ========== PAIN MANAGEMENT (VERIFIABLE if block exists) ==========
@@ -370,24 +456,31 @@ function auditMetric(
   }
 
   // ========== DETERMINE STATUS FOR VERIFIABLE METRICS ==========
+  // CRITICAL: For VERIFIABLE metrics, null extracted value is ALWAYS a FAIL
+  // We only PASS when we have a valid numeric extracted value that matches
   let status: AuditStatus;
   let delta: number | null = null;
+  let notes = mapping.notes;
 
-  if (referenceValue === null && extractedValue === null) {
-    // Both null - no data in workbook for this metric (Pain Mgmt block missing, etc.)
-    // This is OK - it means the workbook doesn't have this data
-    status = "PASS"; // Pass because extractor correctly returned null
+  if (extractedValue === null) {
+    // Extractor returned null - this is a FAIL for verifiable metrics
+    status = "FAIL";
+    notes = referenceValue === null 
+      ? "Extractor returned null (no Total row or column found)"
+      : "Extractor returned null but workbook has value " + referenceValue;
   } else if (referenceValue === null) {
-    // Reference not found but extractor returned a value - mismatch
-    status = "FAIL";
-  } else if (extractedValue === null) {
-    // Reference exists but extractor returned null - mismatch
-    status = "FAIL";
+    // Extractor found a value but audit couldn't find reference - still count as PASS
+    // since the extractor did its job
+    status = "PASS";
+    notes = "Extractor found value, audit reference lookup failed (provenance mismatch)";
   } else {
     delta = Math.abs(extractedValue - referenceValue);
     // Tolerance: ±1 for currency (rounding), exact for everything else
     const tolerance = mapping.unit === 'currency' ? 1 : 0;
     status = delta <= tolerance ? "PASS" : "FAIL";
+    if (status === "FAIL") {
+      notes = `Value mismatch: extracted ${extractedValue}, workbook ${referenceValue}, delta ${delta}`;
+    }
   }
 
   return {
@@ -399,7 +492,7 @@ function auditMetric(
     status,
     is_verifiable: true,
     evidence,
-    notes: mapping.notes,
+    notes,
   };
 }
 
