@@ -13,9 +13,19 @@ import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { LegacyRowActionsMenu } from "./LegacyRowActionsMenu";
 
+/** Row-level provenance for audit verification */
+interface RowProvenance {
+  sheet_name: string;
+  row_number_1: number;
+  start_col_0: number;
+  end_col_0: number;
+  raw_cells: any[];
+}
+
 interface TableBlock {
   headers: string[];
   rows: any[][];
+  provenance?: RowProvenance[];
 }
 
 interface ExtraBlock extends TableBlock {

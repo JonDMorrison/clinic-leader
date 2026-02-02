@@ -18,9 +18,21 @@
 import * as XLSX from 'xlsx';
 
 // Types
+
+/** Row-level provenance for audit verification */
+export interface RowProvenance {
+  sheet_name: string;
+  row_number_1: number; // 1-indexed Excel row
+  start_col_0: number; // 0-indexed column
+  end_col_0: number;
+  raw_cells: any[];
+}
+
 export interface TableBlock {
   headers: string[];
   rows: any[][];
+  /** Row provenance for audit - parallel array to rows */
+  provenance?: RowProvenance[];
 }
 
 export interface ExtraBlock extends TableBlock {
@@ -312,6 +324,7 @@ function isRowBlankAcrossSpan(rows: any[][], rowIdx: number, startCol: number, e
 interface ExtractedTable {
   headers: string[];
   dataRows: any[][];
+  rowProvenance: RowProvenance[]; // Added for audit
   headerRowIdx: number;
   startCol: number;
   endCol: number;
@@ -327,6 +340,7 @@ function extractTableFromHeader(
   rows: any[][],
   headerPos: CellPos,
   headerLabel: string,
+  sheetName: string, // Added for provenance
   opts?: { maxScanRows?: number }
 ): ExtractedTable {
   const maxScanRows = opts?.maxScanRows ?? rows.length;
@@ -342,7 +356,8 @@ function extractTableFromHeader(
 
   // Rows between header and the first occurrence of 3 consecutive fully blank rows (across span)
   const dataRows: any[][] = [];
-  const blankBuffer: any[][] = [];
+  const rowProvenance: RowProvenance[] = [];
+  const blankBuffer: { row: any[]; prov: RowProvenance }[] = [];
   const STOP_AFTER = 3;
   let endRow = headerRowIdx; // will track last included row
   let nonEmptyRowCount = 0;
@@ -351,8 +366,22 @@ function extractTableFromHeader(
   for (let r = headerRowIdx + 1; r < maxRow; r++) {
     const rowIsBlank = isRowBlankAcrossSpan(rows, r, startCol, endCol);
 
+    // Build raw cells for provenance
+    const rawCells: any[] = [];
+    for (let c = startCol; c <= endCol; c++) {
+      rawCells.push(getCell(rows, r, c));
+    }
+
+    const prov: RowProvenance = {
+      sheet_name: sheetName,
+      row_number_1: r + 1, // Convert to 1-indexed
+      start_col_0: startCol,
+      end_col_0: endCol,
+      raw_cells: rawCells,
+    };
+
     if (rowIsBlank) {
-      blankBuffer.push(new Array(colCount).fill(null));
+      blankBuffer.push({ row: new Array(colCount).fill(null), prov });
       if (blankBuffer.length >= STOP_AFTER) {
         // Stop WITHOUT including the terminating blank run
         break;
@@ -362,15 +391,15 @@ function extractTableFromHeader(
 
     // Flush any buffered blank separators (1-2 consecutive blank rows)
     if (blankBuffer.length > 0) {
-      dataRows.push(...blankBuffer);
+      for (const buf of blankBuffer) {
+        dataRows.push(buf.row);
+        rowProvenance.push(buf.prov);
+      }
       blankBuffer.length = 0;
     }
 
-    const rowData: any[] = [];
-    for (let c = startCol; c <= endCol; c++) {
-      rowData.push(getCell(rows, r, c));
-    }
-    dataRows.push(rowData);
+    dataRows.push(rawCells);
+    rowProvenance.push(prov);
     nonEmptyRowCount++;
     endRow = r;
   }
@@ -385,6 +414,7 @@ function extractTableFromHeader(
   return {
     headers,
     dataRows,
+    rowProvenance,
     headerRowIdx,
     startCol,
     endCol,
@@ -454,6 +484,69 @@ function splitTableAtTotal(
 }
 
 /**
+ * Split a table at the first "Total" row - WITH PROVENANCE
+ */
+function splitTableAtTotalWithProvenance(
+  headers: string[],
+  dataRows: any[][],
+  provenance: RowProvenance[],
+  splitBlockTitle: string
+): { 
+  mainRows: any[][]; 
+  mainProvenance: RowProvenance[];
+  splitBlock: ExtraBlock | null;
+  splitProvenance: RowProvenance[];
+} {
+  // Find the first "Total" row (case-insensitive, must be in first column)
+  let totalRowIdx = -1;
+  for (let i = 0; i < dataRows.length; i++) {
+    const firstCell = normalizeTextLower(dataRows[i]?.[0]);
+    if (firstCell === 'total' || firstCell === 'totals') {
+      totalRowIdx = i;
+      break;
+    }
+  }
+  
+  // If no Total row found, or it's at the end, no split needed
+  if (totalRowIdx === -1 || totalRowIdx >= dataRows.length - 1) {
+    return { mainRows: dataRows, mainProvenance: provenance, splitBlock: null, splitProvenance: [] };
+  }
+  
+  // Main rows include everything up to and including Total
+  const mainRows = dataRows.slice(0, totalRowIdx + 1);
+  const mainProvenance = provenance.slice(0, totalRowIdx + 1);
+  
+  // Split rows are everything after Total (skip leading blank rows)
+  let splitStartIdx = totalRowIdx + 1;
+  while (splitStartIdx < dataRows.length) {
+    const row = dataRows[splitStartIdx];
+    const hasContent = row?.some(cell => !isBlankCell(cell));
+    if (hasContent) break;
+    splitStartIdx++;
+  }
+  
+  const splitRows = dataRows.slice(splitStartIdx);
+  const splitProvenance = provenance.slice(splitStartIdx);
+  
+  // Only create split block if there are meaningful rows
+  const nonEmptySplitRows = splitRows.filter(row => row?.some(cell => !isBlankCell(cell)));
+  if (nonEmptySplitRows.length < 2) {
+    return { mainRows: dataRows, mainProvenance: provenance, splitBlock: null, splitProvenance: [] };
+  }
+  
+  return {
+    mainRows,
+    mainProvenance,
+    splitBlock: {
+      title: splitBlockTitle,
+      headers: headers,
+      rows: splitRows,
+    },
+    splitProvenance,
+  };
+}
+
+/**
  * REMOVED: isSectionHeaderRow
  * We now include ALL rows including category headers like "Chiro", "Mid Levels"
  */
@@ -510,8 +603,8 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   let providerTable: TableBlock = { headers: [], rows: [] };
   
   if (providerHeaderCell) {
-    const extracted = extractTableFromHeader(rows, providerHeaderCell, 'Provider Name', { maxScanRows: 500 });
-    providerTable = { headers: extracted.headers, rows: extracted.dataRows };
+    const extracted = extractTableFromHeader(rows, providerHeaderCell, 'Provider Name', sheetName, { maxScanRows: 500 });
+    providerTable = { headers: extracted.headers, rows: extracted.dataRows, provenance: extracted.rowProvenance };
     verification.provider_raw_range = extracted.rawRangeA1;
     verification.provider_extracted = extracted.dataRows.length;
     verification.provider = {
@@ -541,14 +634,19 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   let revenueByInsurance: ExtraBlock | null = null;
   
   if (referralsHeaderCell) {
-    const extracted = extractTableFromHeader(rows, referralsHeaderCell, 'Referrals', { maxScanRows: 200 });
+    const extracted = extractTableFromHeader(rows, referralsHeaderCell, 'Referrals', sheetName, { maxScanRows: 200 });
     
     // Split the table at "Total" row - everything after is "Revenue by Insurance"
-    const { mainRows, splitBlock } = splitTableAtTotal(extracted.headers, extracted.dataRows, 'Revenue by Insurance');
+    const { mainRows, splitBlock, mainProvenance, splitProvenance } = splitTableAtTotalWithProvenance(
+      extracted.headers, 
+      extracted.dataRows, 
+      extracted.rowProvenance,
+      'Revenue by Insurance'
+    );
     
-    referralTotals = { headers: extracted.headers, rows: mainRows };
+    referralTotals = { headers: extracted.headers, rows: mainRows, provenance: mainProvenance };
     if (splitBlock) {
-      revenueByInsurance = splitBlock;
+      revenueByInsurance = { ...splitBlock, provenance: splitProvenance };
     }
     
     verification.referral_totals_raw_range = extracted.rawRangeA1;
@@ -576,8 +674,8 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   let referralSources: TableBlock = { headers: [], rows: [] };
   
   if (referralSourcesHeaderCell) {
-    const extracted = extractTableFromHeader(rows, referralSourcesHeaderCell, 'Referral Source', { maxScanRows: 500 });
-    referralSources = { headers: extracted.headers, rows: extracted.dataRows };
+    const extracted = extractTableFromHeader(rows, referralSourcesHeaderCell, 'Referral Source', sheetName, { maxScanRows: 500 });
+    referralSources = { headers: extracted.headers, rows: extracted.dataRows, provenance: extracted.rowProvenance };
     verification.referral_sources_raw_range = extracted.rawRangeA1;
     verification.referral_sources_extracted = extracted.dataRows.length;
     verification.referral_sources = {
@@ -675,7 +773,7 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
       const headerRow = findHeaderRowBelow(r, c);
       if (headerRow == null) continue;
 
-      const extracted = extractTableFromHeader(rows, { r: headerRow, c }, `extra:${text}`, { maxScanRows: 200 });
+      const extracted = extractTableFromHeader(rows, { r: headerRow, c }, `extra:${text}`, sheetName, { maxScanRows: 200 });
       
       // Minimum requirements: at least 2 columns AND at least 2 non-empty data rows
       if (extracted.colCount < 2 || extracted.nonEmptyRowCount < 2) continue;
@@ -691,6 +789,7 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
         title: text,
         headers: extracted.headers,
         rows: extracted.dataRows,
+        provenance: extracted.rowProvenance,
       });
 
       verification.extra_blocks_counts.push({ title: text, extracted: extracted.dataRows.length });
