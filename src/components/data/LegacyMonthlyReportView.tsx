@@ -28,6 +28,15 @@ export interface LegacyMonthPayload {
   extra_blocks: ExtraBlock[];
   warnings?: string[];
   imported_at?: string;
+  verification?: {
+    provider_raw_range: string;
+    provider_extracted: number;
+    referral_totals_raw_range: string;
+    referral_totals_extracted: number;
+    referral_sources_raw_range: string;
+    referral_sources_extracted: number;
+    extra_blocks_counts: { title: string; extracted: number }[];
+  };
 }
 
 interface LegacyMonthlyReportViewProps {
