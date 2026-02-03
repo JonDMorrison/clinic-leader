@@ -392,6 +392,7 @@ export default function DataDefaultHome() {
                   payload={reportData.payload}
                   periodKey={effectiveSelectedPeriod!}
                   updatedAt={reportData.updated_at}
+                  organizationId={currentUser?.team_id}
                 />
               )}
             </CardContent>
