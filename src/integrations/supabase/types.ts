@@ -3455,6 +3455,30 @@ export type Database = {
           },
         ]
       }
+      metric_normalization_rules: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          metric_key: string
+          normalization_type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          metric_key: string
+          normalization_type: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          metric_key?: string
+          normalization_type?: string
+        }
+        Relationships: []
+      }
       metric_results: {
         Row: {
           created_at: string
@@ -5080,6 +5104,7 @@ export type Database = {
       }
       teams: {
         Row: {
+          annual_visit_volume: number | null
           brand_color: string | null
           country: string | null
           created_at: string
@@ -5100,6 +5125,8 @@ export type Database = {
           needs_rocks_review: boolean | null
           needs_scorecard_review: boolean | null
           onboarding_status: string | null
+          provider_count: number | null
+          region: string | null
           review_cadence: string | null
           scorecard_mode: string
           scorecard_ready: boolean | null
@@ -5112,6 +5139,7 @@ export type Database = {
           vto_last_impact_result: Json | null
         }
         Insert: {
+          annual_visit_volume?: number | null
           brand_color?: string | null
           country?: string | null
           created_at?: string
@@ -5132,6 +5160,8 @@ export type Database = {
           needs_rocks_review?: boolean | null
           needs_scorecard_review?: boolean | null
           onboarding_status?: string | null
+          provider_count?: number | null
+          region?: string | null
           review_cadence?: string | null
           scorecard_mode?: string
           scorecard_ready?: boolean | null
@@ -5144,6 +5174,7 @@ export type Database = {
           vto_last_impact_result?: Json | null
         }
         Update: {
+          annual_visit_volume?: number | null
           brand_color?: string | null
           country?: string | null
           created_at?: string
@@ -5164,6 +5195,8 @@ export type Database = {
           needs_rocks_review?: boolean | null
           needs_scorecard_review?: boolean | null
           onboarding_status?: string | null
+          provider_count?: number | null
+          region?: string | null
           review_cadence?: string | null
           scorecard_mode?: string
           scorecard_ready?: boolean | null
@@ -6233,6 +6266,51 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       current_user_team: { Args: never; Returns: string }
+      emr_quality_thresholds: {
+        Args: never
+        Returns: {
+          max_latency_days: number
+          min_completeness: number
+          min_consistency: number
+          min_sample_size: number
+        }[]
+      }
+      emr_safe_comparison: {
+        Args: {
+          _metric_key: string
+          _period_key: string
+          _use_peer_matching?: boolean
+        }
+        Returns: {
+          confidence_label: string
+          delta_percent: number
+          jane_avg_completeness: number
+          jane_avg_consistency: number
+          jane_avg_latency_days: number
+          jane_coefficient_of_variation: number
+          jane_median: number
+          jane_p25: number
+          jane_p75: number
+          jane_std_deviation: number
+          metric_key: string
+          non_jane_avg_completeness: number
+          non_jane_avg_consistency: number
+          non_jane_avg_latency_days: number
+          non_jane_coefficient_of_variation: number
+          non_jane_median: number
+          non_jane_p25: number
+          non_jane_p75: number
+          non_jane_std_deviation: number
+          orgs_excluded_quality: number
+          peer_match_criteria: string
+          peer_matching_used: boolean
+          period_key: string
+          sample_size_jane: number
+          sample_size_non_jane: number
+          suppressed: boolean
+          suppression_reason: string
+        }[]
+      }
       expire_data_access_requests: { Args: never; Returns: number }
       get_onboarding_metrics: {
         Args: { org_id: string }
@@ -6242,6 +6320,10 @@ export type Database = {
           pending_count: number
           total_users: number
         }[]
+      }
+      get_provider_size_bucket: {
+        Args: { _provider_count: number }
+        Returns: string
       }
       get_user_onboarding_details: {
         Args: { org_id: string }
@@ -6261,6 +6343,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       get_user_team_id: { Args: never; Returns: string }
+      get_visit_volume_bucket: {
+        Args: { _annual_visits: number }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
@@ -6324,6 +6410,16 @@ export type Database = {
           computed_at: string
           percentile_position: number
           team_value: number
+        }[]
+      }
+      passes_emr_quality_gates: {
+        Args: { _org_id: string; _period_key: string }
+        Returns: {
+          completeness_score: number
+          consistency_score: number
+          exclusion_reason: string
+          latency_score: number
+          passes: boolean
         }[]
       }
     }
