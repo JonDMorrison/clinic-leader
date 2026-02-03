@@ -60,23 +60,34 @@ New metrics MUST be added to `metric_normalization_rules` table before inclusion
 
 ### Matching Criteria
 
-| Dimension | Buckets |
-|-----------|---------|
-| Provider Size | `micro` (1-3), `small` (4-10), `medium` (11-25), `large` (26-50), `enterprise` (51+) |
-| Visit Volume | `low` (<5k/yr), `moderate` (5k-20k), `high` (20k-50k), `very_high` (50k+) |
-| Region | Geographic region if available |
+| Dimension | Buckets | Function |
+|-----------|---------|----------|
+| Provider Size | `1-2`, `3-5`, `6-10`, `11+` | `get_provider_count_bucket(provider_count)` |
+| Visit Volume | Quartiles (`q1`, `q2`, `q3`, `q4`) | `get_visits_quartile_bucket(org_visits, p25, p50, p75)` |
+| Region | Geographic region if available | (optional) |
 
 ### Matching Rules
 
-1. Attempt to match on all available dimensions
-2. If matched groups have <5 orgs each, return "insufficient matched sample"
-3. Document which matching criteria were used in output
+1. Toggle: "Matched Peers" vs "All Eligible" (default: all eligible)
+2. When matching enabled:
+   - Compute visit quartiles across all orgs
+   - Assign each org to size bucket + visit bucket
+   - Only compare non-Jane orgs that share a bucket with at least one Jane org
+3. After matching, both groups must have ≥5 orgs
+4. If either group <5: return `suppressed=true` with "Insufficient matched sample"
+
+### UI Toggle
+
+The comparison page provides a toggle:
+- **OFF**: "All eligible orgs" - compares all qualifying orgs
+- **ON**: "Matched peers" - applies bucket matching
 
 ### Functions
 
 ```sql
-public.get_provider_size_bucket(provider_count) → text
-public.get_visit_volume_bucket(annual_visits) → text
+public.get_provider_count_bucket(provider_count) → text
+public.get_visits_quartile_bucket(org_visits, p25, p50, p75) → text
+public.bench_get_matched_comparison(metric_key, period_key, use_peer_matching) → comparison_result
 ```
 
 ---
@@ -104,14 +115,23 @@ Every comparison MUST include these fields:
 - `non_jane_coefficient_of_variation`
 
 ### Confidence
-- `confidence_label: 'high' | 'medium' | 'low' | 'insufficient_data'`
+
+Confidence is computed deterministically based on:
+
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| Sample Size | Primary | Minimum orgs per group |
+| Volatility | Secondary | Coefficient of Variation (stddev/mean × 100) |
 
 | Label | Criteria |
 |-------|----------|
-| `high` | ≥20 orgs per group AND ≥90% quality |
-| `medium` | ≥10 orgs per group |
-| `low` | 5-9 orgs per group or quality concerns |
+| `high` | ≥20 orgs per group AND CV <30% in both groups |
+| `medium` | ≥10 orgs per group OR (≥20 with high volatility) |
+| `low` | 5-9 orgs per group |
 | `insufficient_data` | <5 orgs in either group |
+
+- `confidence_label: 'high' | 'medium' | 'low' | 'insufficient_data'`
+- `confidence_reason: text` - Human-readable explanation
 
 ### Suppression
 - `suppressed: boolean`
