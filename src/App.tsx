@@ -78,6 +78,7 @@ import Progress from "./pages/Progress";
 import Interventions from "./pages/Interventions";
 import InterventionDetail from "./pages/InterventionDetail";
 import EMRBenchmark from "./pages/EMRBenchmark";
+import BenchmarkAdmin from "./pages/admin/BenchmarkAdmin";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -186,6 +187,7 @@ const App = () => {
             <Route path="/admin/reset-organization" element={<AppLayout><ResetOrganization /></AppLayout>} />
             <Route path="/admin/users" element={<AppLayout><AdminUsers /></AppLayout>} />
             <Route path="/admin/password-diagnostic" element={<AppLayout><AdminPasswordDiagnostic /></AppLayout>} />
+            <Route path="/admin/benchmarks" element={<AppLayout><BenchmarkAdmin /></AppLayout>} />
             <Route path="/account/set-password" element={<SetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
