@@ -17,6 +17,7 @@ import { format } from "date-fns";
 interface AuditLogEntry {
   id: string;
   user_id: string | null;
+  user_email: string | null;
   action: string;
   details: Record<string, unknown>;
   created_at: string;
@@ -26,11 +27,10 @@ export function BenchmarkAuditLog() {
   const { data: logs, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["benchmark-audit-log"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("benchmark_audit_log")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
+      // Use secure RPC instead of direct table access
+      const { data, error } = await (supabase.rpc as any)("bench_get_audit_log", {
+        _limit: 100,
+      });
       if (error) throw error;
       return data as AuditLogEntry[];
     },
@@ -93,8 +93,8 @@ export function BenchmarkAuditLog() {
                       {JSON.stringify(log.details, null, 2)}
                     </code>
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-xs font-mono">
-                    {log.user_id?.slice(0, 8) || "—"}...
+                  <TableCell className="text-muted-foreground text-xs">
+                    {log.user_email || log.user_id?.slice(0, 8) + "..." || "—"}
                   </TableCell>
                 </TableRow>
               ))}
