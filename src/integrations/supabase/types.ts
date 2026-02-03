@@ -516,11 +516,43 @@ export type Database = {
         }
         Relationships: []
       }
+      benchmark_quality_thresholds: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          threshold_key: string
+          threshold_value: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          threshold_key: string
+          threshold_value: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          threshold_key?: string
+          threshold_value?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       benchmark_snapshots: {
         Row: {
           cohort_id: string
           computed_at: string
+          excluded_count: number | null
+          excluded_high_latency: number | null
+          excluded_low_completeness: number | null
+          excluded_low_consistency: number | null
           id: string
+          included_count: number | null
           mean: number | null
           metric_id: string
           n_orgs: number
@@ -531,12 +563,18 @@ export type Database = {
           p90: number | null
           period_start: string
           period_type: string
+          quality_summary: Json | null
           stddev: number | null
         }
         Insert: {
           cohort_id: string
           computed_at?: string
+          excluded_count?: number | null
+          excluded_high_latency?: number | null
+          excluded_low_completeness?: number | null
+          excluded_low_consistency?: number | null
           id?: string
+          included_count?: number | null
           mean?: number | null
           metric_id: string
           n_orgs: number
@@ -547,12 +585,18 @@ export type Database = {
           p90?: number | null
           period_start: string
           period_type: string
+          quality_summary?: Json | null
           stddev?: number | null
         }
         Update: {
           cohort_id?: string
           computed_at?: string
+          excluded_count?: number | null
+          excluded_high_latency?: number | null
+          excluded_low_completeness?: number | null
+          excluded_low_consistency?: number | null
           id?: string
+          included_count?: number | null
           mean?: number | null
           metric_id?: string
           n_orgs?: number
@@ -563,6 +607,7 @@ export type Database = {
           p90?: number | null
           period_start?: string
           period_type?: string
+          quality_summary?: Json | null
           stddev?: number | null
         }
         Relationships: [
@@ -6268,7 +6313,12 @@ export type Database = {
         Returns: {
           cohort_id: string
           computed_at: string
+          excluded_count: number
+          excluded_high_latency: number
+          excluded_low_completeness: number
+          excluded_low_consistency: number
           id: string
+          included_count: number
           mean: number
           metric_id: string
           n_orgs: number
@@ -6279,6 +6329,7 @@ export type Database = {
           p90: number
           period_start: string
           period_type: string
+          quality_summary: Json
           stddev: number
           suppressed: boolean
           suppression_reason: string
@@ -6332,7 +6383,14 @@ export type Database = {
           cohort_name: string
           computed_at: string
           confidence_label: string
+          excluded_count: number
+          excluded_high_latency: number
+          excluded_low_completeness: number
+          excluded_low_consistency: number
+          exclusion_rate: number
+          high_exclusion_warning: boolean
           id: string
+          included_count: number
           mean: number
           metric_id: string
           metric_name: string
@@ -6344,6 +6402,7 @@ export type Database = {
           p90: number
           period_start: string
           period_type: string
+          quality_summary: Json
           stddev: number
           suppressed: boolean
           suppression_reason: string
@@ -6354,7 +6413,13 @@ export type Database = {
         Returns: {
           cohort_id: string
           computed_at: string
+          excluded_count: number
+          excluded_high_latency: number
+          excluded_low_completeness: number
+          excluded_low_consistency: number
+          high_exclusion_warning: boolean
           id: string
+          included_count: number
           mean: number
           metric_id: string
           metric_name: string
@@ -6366,6 +6431,7 @@ export type Database = {
           p90: number
           period_start: string
           period_type: string
+          quality_summary: Json
           stddev: number
           suppressed: boolean
           suppression_reason: string
@@ -6558,6 +6624,17 @@ export type Database = {
           computed_at: string
           percentile_position: number
           team_value: number
+        }[]
+      }
+      org_passes_quality_gates: {
+        Args: { _org_id: string; _period_key: string }
+        Returns: {
+          avg_latency_hours: number
+          completeness_score: number
+          consistency_score: number
+          fail_reason: string
+          latency_score: number
+          passes: boolean
         }[]
       }
       passes_emr_quality_gates: {

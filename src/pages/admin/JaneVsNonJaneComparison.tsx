@@ -32,6 +32,9 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, BarChart3, Shield } from "lucide-react";
 import { format, subMonths, startOfMonth } from "date-fns";
 import { AccessRestrictedView } from "@/components/admin/AccessRestrictedView";
+import { QualityGateWarningBanner } from "@/components/analytics/QualityGateWarningBanner";
+import { BenchmarkQualitySummary } from "@/components/analytics/BenchmarkQualitySummary";
+import { InterpretationCallout } from "@/components/analytics/InterpretationCallout";
 
 interface Cohort {
   id: string;
@@ -48,9 +51,15 @@ interface Snapshot {
   id: string;
   cohort_id: string;
   metric_id: string;
+  metric_name?: string;
   period_type: string;
   period_start: string;
-  n_orgs: number;
+  n_orgs: number | null;
+  included_count?: number;
+  excluded_count?: number;
+  excluded_low_completeness?: number;
+  excluded_high_latency?: number;
+  excluded_low_consistency?: number;
   p10: number | null;
   p25: number | null;
   p50: number | null;
@@ -59,6 +68,13 @@ interface Snapshot {
   mean: number | null;
   stddev: number | null;
   computed_at: string;
+  quality_summary?: {
+    avg_completeness: number | null;
+    avg_consistency: number | null;
+    avg_latency_days: number | null;
+  };
+  suppressed?: boolean;
+  high_exclusion_warning?: boolean;
 }
 
 interface ComparisonData {
@@ -320,6 +336,62 @@ export default function JaneVsNonJaneComparison() {
 
           {selectedMetricId && (
             <>
+              {/* Interpretation Callout */}
+              <InterpretationCallout />
+              
+              {/* Quality Gate Warning Banner */}
+              {(selectedComparison.jane || selectedComparison.nonJane) && (
+                <>
+                  <QualityGateWarningBanner
+                    includedCount={
+                      (selectedComparison.jane?.included_count || selectedComparison.jane?.n_orgs || 0) +
+                      (selectedComparison.nonJane?.included_count || selectedComparison.nonJane?.n_orgs || 0)
+                    }
+                    excludedCount={
+                      (selectedComparison.jane?.excluded_count || 0) +
+                      (selectedComparison.nonJane?.excluded_count || 0)
+                    }
+                    exclusionReasons={{
+                      lowCompleteness:
+                        (selectedComparison.jane?.excluded_low_completeness || 0) +
+                        (selectedComparison.nonJane?.excluded_low_completeness || 0),
+                      highLatency:
+                        (selectedComparison.jane?.excluded_high_latency || 0) +
+                        (selectedComparison.nonJane?.excluded_high_latency || 0),
+                      lowConsistency:
+                        (selectedComparison.jane?.excluded_low_consistency || 0) +
+                        (selectedComparison.nonJane?.excluded_low_consistency || 0),
+                    }}
+                  />
+
+                  {/* Per-group quality summaries */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <BenchmarkQualitySummary
+                      groupLabel="Jane Users"
+                      variant="jane"
+                      includedCount={selectedComparison.jane?.included_count || selectedComparison.jane?.n_orgs || 0}
+                      excludedCount={selectedComparison.jane?.excluded_count || 0}
+                      quality={selectedComparison.jane?.quality_summary ? {
+                        avgCompleteness: selectedComparison.jane.quality_summary.avg_completeness,
+                        avgConsistency: selectedComparison.jane.quality_summary.avg_consistency,
+                        avgLatencyDays: selectedComparison.jane.quality_summary.avg_latency_days,
+                      } : null}
+                    />
+                    <BenchmarkQualitySummary
+                      groupLabel="Non-Jane Users"
+                      variant="non-jane"
+                      includedCount={selectedComparison.nonJane?.included_count || selectedComparison.nonJane?.n_orgs || 0}
+                      excludedCount={selectedComparison.nonJane?.excluded_count || 0}
+                      quality={selectedComparison.nonJane?.quality_summary ? {
+                        avgCompleteness: selectedComparison.nonJane.quality_summary.avg_completeness,
+                        avgConsistency: selectedComparison.nonJane.quality_summary.avg_consistency,
+                        avgLatencyDays: selectedComparison.nonJane.quality_summary.avg_latency_days,
+                      } : null}
+                    />
+                  </div>
+                </>
+              )}
+
               {/* Side-by-side Comparison */}
               <Card>
                 <CardHeader>
