@@ -95,6 +95,11 @@ export interface LoriMonthPayload {
     // v3 (numeric verification for data integrity)
     numeric_cell_count?: number;
     provider_numeric_count?: number;
+    
+    // v4 (month-level no-data detection)
+    month_has_data?: boolean;
+    meaningful_numeric_count?: number;
+    has_nonzero_subtotal?: boolean;
   };
 }
 

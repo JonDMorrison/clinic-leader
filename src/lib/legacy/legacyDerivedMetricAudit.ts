@@ -13,7 +13,7 @@
 import type { LegacyMonthPayload, TableBlock, RowProvenance } from "@/components/data/LegacyMonthlyReportView";
 import { LEGACY_METRIC_MAPPINGS, extractMetricsFromPayload, type LegacyMetricMapping } from "./legacyMetricMapping";
 
-export type AuditStatus = "PASS" | "FAIL" | "UNVERIFIABLE" | "NEEDS_DEFINITION";
+export type AuditStatus = "PASS" | "FAIL" | "NO_DATA" | "NOT_APPLICABLE" | "NEEDS_DEFINITION" | "UNVERIFIABLE";
 
 export interface AuditEvidence {
   source_block: string;
@@ -72,6 +72,14 @@ const VERIFIABLE_METRICS = new Set([
 ]);
 
 /**
+ * Metrics that require a specific block to exist
+ */
+const BLOCK_REQUIRED_METRICS: Record<string, string> = {
+  'pain_mgmt_new_patients': 'pain_management',
+  'pain_mgmt_total_visits': 'pain_management',
+};
+
+/**
  * Check if a metric is verifiable
  */
 export function isMetricVerifiable(metricKey: string): boolean {
@@ -79,10 +87,74 @@ export function isMetricVerifiable(metricKey: string): boolean {
 }
 
 /**
+ * Check if a metric requires a specific block
+ */
+export function getRequiredBlock(metricKey: string): string | null {
+  return BLOCK_REQUIRED_METRICS[metricKey] || null;
+}
+
+/**
  * Get list of verifiable metric keys
  */
 export function getVerifiableMetricKeys(): string[] {
   return Array.from(VERIFIABLE_METRICS);
+}
+
+/**
+ * Check if the Pain Management block exists in the payload
+ */
+export function hasPainManagementBlock(payload: LegacyMonthPayload): boolean {
+  if (!payload.extra_blocks || payload.extra_blocks.length === 0) return false;
+  
+  for (const block of payload.extra_blocks) {
+    const title = String((block as any).title || '').toLowerCase().trim();
+    if (title.includes('pain management') || title.includes('pain mgmt')) {
+      // Must have at least 2 data rows and a header row
+      const rows = (block as any).rows || [];
+      const headers = (block as any).headers || [];
+      if (headers.length >= 2 && rows.length >= 2) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Check if month has meaningful numeric data (not a template)
+ * Returns false if the month appears to be a template/no-data month
+ */
+export function monthHasData(payload: LegacyMonthPayload): boolean {
+  // Check verification metadata first (set by importer)
+  const verification = payload.verification as any;
+  if (verification?.month_has_data !== undefined) {
+    return verification.month_has_data;
+  }
+  
+  // Fallback: count meaningful numeric cells in provider_table
+  const providerTable = payload.provider_table;
+  if (!providerTable?.rows) return false;
+  
+  let meaningfulCount = 0;
+  let hasNonZeroSubtotal = false;
+  
+  for (const row of providerTable.rows) {
+    const label = String(row?.[0] || '').toLowerCase().trim();
+    const isTotal = label.includes('total');
+    
+    for (let i = 1; i < (row?.length || 0); i++) {
+      const val = parseNumeric(row[i]);
+      if (val !== null && val !== 0) {
+        meaningfulCount++;
+        if (isTotal && val > 0) {
+          hasNonZeroSubtotal = true;
+        }
+      }
+    }
+  }
+  
+  // Month has data if: at least 5 meaningful cells OR any subtotal row has non-zero values
+  return meaningfulCount >= 5 || hasNonZeroSubtotal;
 }
 
 /**
@@ -287,11 +359,18 @@ function findExtraBlockWithProvenance(
 
 /**
  * Audit a single metric by extracting workbook reference value with provenance
+ * 
+ * Decision Tree:
+ * 1. If month has NO_DATA → status = NO_DATA (never blocks)
+ * 2. If metric requires a block that doesn't exist → status = NOT_APPLICABLE (never blocks)
+ * 3. If block exists but no truth anchor defined → status = NEEDS_DEFINITION (never blocks)
+ * 4. If truth anchor exists → PASS or FAIL (FAIL blocks sync)
  */
 function auditMetric(
   mapping: LegacyMetricMapping,
   payload: LegacyMonthPayload,
-  extractedValue: number | null
+  extractedValue: number | null,
+  monthHasDataFlag: boolean
 ): MetricAuditResult {
   const metric_key = mapping.metric_key;
   const isVerifiable = isMetricVerifiable(metric_key);
@@ -308,7 +387,7 @@ function auditMetric(
       is_verifiable: false,
       has_reference: false,
       has_extracted: extractedValue !== null && extractedValue !== undefined && !isNaN(extractedValue),
-      blocks_sync: false, // UNVERIFIABLE metrics never block
+      blocks_sync: false,
       evidence: {
         source_block: mapping.notes.split(',')[0] || 'derived',
         sheet_name: payload.sheet_name,
@@ -325,6 +404,66 @@ function auditMetric(
     };
   }
 
+  // ========== DECISION 1: Check if month has data ==========
+  if (!monthHasDataFlag) {
+    return {
+      metric_key,
+      display_name: mapping.display_name,
+      extracted_value: null,
+      workbook_reference_value: null,
+      delta: null,
+      status: "NO_DATA",
+      is_verifiable: true,
+      has_reference: false,
+      has_extracted: false,
+      blocks_sync: false,
+      evidence: {
+        source_block: 'N/A',
+        sheet_name: payload.sheet_name,
+        excel_row: null,
+        start_col: null,
+        end_col: null,
+        row_label: null,
+        column_name: null,
+        column_index: null,
+        raw_cells: null,
+        computation: 'Month marked as no-data/template; skipping verification.',
+      },
+      notes: 'Month has no meaningful numeric data (template or future month). Does not block sync.',
+    };
+  }
+
+  // ========== DECISION 2: Check if required block exists ==========
+  const requiredBlock = getRequiredBlock(metric_key);
+  if (requiredBlock === 'pain_management' && !hasPainManagementBlock(payload)) {
+    return {
+      metric_key,
+      display_name: mapping.display_name,
+      extracted_value: null,
+      workbook_reference_value: null,
+      delta: null,
+      status: "NOT_APPLICABLE",
+      is_verifiable: true,
+      has_reference: false,
+      has_extracted: false,
+      blocks_sync: false,
+      evidence: {
+        source_block: 'extra_blocks',
+        sheet_name: payload.sheet_name,
+        excel_row: null,
+        start_col: null,
+        end_col: null,
+        row_label: null,
+        column_name: null,
+        column_index: null,
+        raw_cells: null,
+        computation: 'Pain Management block not found in workbook for this month.',
+      },
+      notes: 'Pain Management block does not exist in this month\'s workbook. Does not block sync.',
+    };
+  }
+
+  // ========== Extract reference value ==========
   let referenceValue: number | null = null;
   let evidence: AuditEvidence | null = null;
 
@@ -412,7 +551,7 @@ function auditMetric(
     evidence = result.evidence;
   }
   
-  // ========== PAIN MANAGEMENT (VERIFIABLE if block exists) ==========
+  // ========== PAIN MANAGEMENT (block exists - check for truth anchor) ==========
   else if (metric_key === 'pain_mgmt_new_patients') {
     const block = findExtraBlockWithProvenance(payload, 'pain management');
     if (block) {
@@ -464,10 +603,7 @@ function auditMetric(
     }
   }
 
-  // ========== DETERMINE STATUS FOR VERIFIABLE METRICS ==========
-  // CRITICAL: A metric can only FAIL (and block sync) if it has a defined truth anchor
-  // If no truth anchor exists, the metric becomes NEEDS_DEFINITION (informational only)
-  
+  // ========== DECISION 3 & 4: NEEDS_DEFINITION vs PASS/FAIL ==========
   const hasReference = referenceValue !== null && referenceValue !== undefined && !isNaN(referenceValue);
   const hasExtracted = extractedValue !== null && extractedValue !== undefined && !isNaN(extractedValue);
   
@@ -477,15 +613,12 @@ function auditMetric(
   let blockSync = false;
 
   if (!hasReference) {
-    // NO TRUTH ANCHOR DEFINED - cannot FAIL, cannot block sync
+    // Block exists but no truth anchor found (e.g., Pain Management block exists but no Total row)
+    status = "NEEDS_DEFINITION";
     if (hasExtracted) {
-      // Extracted a value but no reference to compare against
-      status = "NEEDS_DEFINITION";
-      notes = `Extracted value ${extractedValue} but no truth anchor defined in workbook. Does not block sync.`;
+      notes = `Block exists, extracted value ${extractedValue}, but no truth anchor defined yet. Does not block sync.`;
     } else {
-      // Neither extracted nor reference - completely undefined
-      status = "NEEDS_DEFINITION";
-      notes = "No truth anchor defined in workbook; extraction also returned null. Does not block sync.";
+      notes = "Block exists but no truth anchor defined (no Total row or column found). Does not block sync.";
     }
   } else {
     // HAS TRUTH ANCHOR - can PASS or FAIL
@@ -527,7 +660,7 @@ function auditMetric(
 
 /**
  * Run full audit for a month's payload
- * Returns a complete audit report with PASS/FAIL/UNVERIFIABLE for each metric
+ * Returns a complete audit report with PASS/FAIL/NO_DATA/NOT_APPLICABLE/NEEDS_DEFINITION for each metric
  */
 export function auditDerivedMetrics(
   periodKey: string,
@@ -535,11 +668,14 @@ export function auditDerivedMetrics(
 ): DerivedMetricAuditReport {
   const extracted = extractMetricsFromPayload(payload);
   const results: MetricAuditResult[] = [];
+  
+  // Determine if month has meaningful data
+  const monthHasDataFlag = monthHasData(payload);
 
   for (const mapping of LEGACY_METRIC_MAPPINGS) {
     const ex = extracted.find(e => e.metric_key === mapping.metric_key);
     const extractedValue = ex?.value ?? null;
-    const result = auditMetric(mapping, payload, extractedValue);
+    const result = auditMetric(mapping, payload, extractedValue, monthHasDataFlag);
     results.push(result);
   }
 
@@ -552,7 +688,12 @@ export function auditDerivedMetrics(
     total_metrics: results.length,
     passed: verifiableResults.filter(r => r.status === "PASS").length,
     failed: verifiableResults.filter(r => r.status === "FAIL").length,
-    unverifiable: results.filter(r => r.status === "UNVERIFIABLE").length,
+    unverifiable: results.filter(r => 
+      r.status === "UNVERIFIABLE" || 
+      r.status === "NO_DATA" || 
+      r.status === "NOT_APPLICABLE" || 
+      r.status === "NEEDS_DEFINITION"
+    ).length,
     verifiable_count: verifiableResults.length,
     results,
   };

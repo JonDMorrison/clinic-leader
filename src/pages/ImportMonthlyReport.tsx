@@ -1719,22 +1719,38 @@ const ImportMonthlyReport = () => {
                                         variant={
                                           result.status === 'PASS' ? 'default' :
                                           blocksSync ? 'destructive' :
+                                          result.status === 'NO_DATA' ? 'secondary' :
+                                          result.status === 'NOT_APPLICABLE' ? 'secondary' :
                                           result.status === 'NEEDS_DEFINITION' ? 'outline' :
                                           'secondary'
                                         }
                                         className={`text-[10px] px-1.5 py-0 ${
                                           result.status === 'PASS' ? 'bg-success text-success-foreground' :
+                                          result.status === 'NO_DATA' ? 'bg-muted text-muted-foreground' :
+                                          result.status === 'NOT_APPLICABLE' ? 'bg-muted text-muted-foreground' :
                                           result.status === 'NEEDS_DEFINITION' ? 'border-amber-500 text-amber-700 dark:text-amber-400' :
                                           ''
                                         }`}
                                       >
-                                        {blocksSync ? '✕ FAIL (blocks)' : result.status}
+                                        {blocksSync ? '✕ BLOCKING' : 
+                                         result.status === 'NO_DATA' ? 'NO DATA' :
+                                         result.status === 'NOT_APPLICABLE' ? 'N/A' :
+                                         result.status === 'NEEDS_DEFINITION' ? 'NEEDS DEF' :
+                                         result.status}
                                       </Badge>
                                     </TableCell>
                                     <TableCell className="py-1 px-2 text-[10px] text-muted-foreground max-w-[250px]" title={result.notes}>
                                       {blocksSync ? (
                                         <span className="text-destructive font-medium">
                                           {!hasExtracted ? '⚠ Extractor null, ref exists' : '⚠ Value mismatch'}
+                                        </span>
+                                      ) : result.status === 'NO_DATA' ? (
+                                        <span className="text-muted-foreground">
+                                          Template/future month • Skipped
+                                        </span>
+                                      ) : result.status === 'NOT_APPLICABLE' ? (
+                                        <span className="text-muted-foreground">
+                                          Block not in workbook • Skipped
                                         </span>
                                       ) : result.status === 'NEEDS_DEFINITION' && !hasReference ? (
                                         <span className="text-amber-600 dark:text-amber-400">

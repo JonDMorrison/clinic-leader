@@ -28,13 +28,13 @@ import {
   extractMetricsFromPayload,
   type LegacyMetricMapping,
 } from "./legacyMetricMapping";
-import { isMetricVerifiable, getVerifiableMetricKeys } from "./legacyDerivedMetricAudit";
+import { isMetricVerifiable, getVerifiableMetricKeys, monthHasData } from "./legacyDerivedMetricAudit";
 
 export interface DerivedMetricResult {
   metric_key: string;
   display_name: string;
   value: number | null;
-  status: "inserted" | "updated" | "skipped_null" | "skipped_unverifiable" | "error";
+  status: "inserted" | "updated" | "skipped_null" | "skipped_unverifiable" | "skipped_no_data" | "error";
   error_message?: string;
 }
 
@@ -268,6 +268,26 @@ export async function bridgeLegacyToMetricResults(
   periodKey: string,
   payload: LegacyMonthPayload
 ): Promise<BridgeResult> {
+  // Check if month has meaningful data - skip NO_DATA months
+  if (!monthHasData(payload)) {
+    console.log(`[LegacyBridge] Skipping ${periodKey} - no meaningful data (template month)`);
+    return {
+      period_key: periodKey,
+      metrics_ensured: 0,
+      metrics_created: 0,
+      results: LEGACY_METRIC_MAPPINGS.filter(m => isMetricVerifiable(m.metric_key)).map(m => ({
+        metric_key: m.metric_key,
+        display_name: m.display_name,
+        value: null,
+        status: "skipped_no_data" as const,
+      })),
+      total_inserted: 0,
+      total_updated: 0,
+      total_skipped: 0,
+      total_unverifiable_skipped: 0,
+    };
+  }
+
   // Step 1: Extract all metrics from payload
   const extractedMetrics = extractMetricsFromPayload(payload);
 
