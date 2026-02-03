@@ -75,6 +75,8 @@ import DataHomeRouter from "./pages/DataHomeRouter";
 import JaneCompliance from "./pages/JaneCompliance";
 import Security from "./pages/Security";
 import Progress from "./pages/Progress";
+import Interventions from "./pages/Interventions";
+import InterventionDetail from "./pages/InterventionDetail";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -138,6 +140,8 @@ const App = () => {
             <Route path="/rocks/quarterly-close" element={<AppLayout><QuarterlyCloseReport /></AppLayout>} />
             
             <Route path="/progress" element={<AppLayout><Progress /></AppLayout>} />
+            <Route path="/interventions" element={<AppLayout><Interventions /></AppLayout>} />
+            <Route path="/interventions/:id" element={<AppLayout><InterventionDetail /></AppLayout>} />
             <Route path="/data" element={<AppLayout><DataHomeRouter /></AppLayout>} />
             <Route path="/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
             <Route path="/meeting" element={<AppLayout><L10 /></AppLayout>} />
