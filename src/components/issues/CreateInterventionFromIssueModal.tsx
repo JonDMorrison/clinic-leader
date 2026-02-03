@@ -30,6 +30,7 @@ import {
   type InterventionType,
 } from "@/lib/interventions/types";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { logInterventionEventAsync } from "@/lib/interventions/eventLogger";
 
 interface Issue {
   id: string;
@@ -134,6 +135,14 @@ export function CreateInterventionFromIssueModal({
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["interventions"] });
+      
+      // Log event asynchronously
+      logInterventionEventAsync(data.id, "create_intervention", {
+        origin_type: "issue",
+        origin_id: issue.id,
+        intervention_type: interventionType,
+      });
+      
       toast({
         title: "Intervention created",
         description: "The intervention has been created from this issue.",

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getTenantContext } from '../_shared/tenant-context.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,11 +7,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const EVALUATOR_VERSION = "v2"; // Increment when evaluation logic changes
+const AI_MODEL = "google/gemini-3-flash-preview";
+
 interface EvaluationResult {
   metric_id: string;
   metric_name: string;
   baseline_value: number | null;
+  baseline_result_id: string | null;
   current_value: number | null;
+  current_result_id: string | null;
   actual_delta_value: number | null;
   actual_delta_percent: number | null;
   expected_direction: string;
@@ -28,18 +34,25 @@ interface LinkedMetricInfo {
   baseline_value: number | null;
 }
 
+interface AIMetaData {
+  provider: string;
+  model: string;
+  generated_at: string;
+  tokens_used?: number;
+}
+
 async function generateAISummary(
   intervention: { title: string; intervention_type: string },
   linkedMetrics: LinkedMetricInfo[],
   results: EvaluationResult[]
-): Promise<string> {
+): Promise<{ summary: string; meta: AIMetaData | null }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     console.warn("LOVABLE_API_KEY not configured, skipping AI summary");
-    return "";
+    return { summary: "", meta: null };
   }
 
-  // Build context for the AI
+  // Build context for the AI - use ONLY deterministic data
   const metricsContext = results.map((r) => {
     const linked = linkedMetrics.find((l) => l.metric_id === r.metric_id);
     const expectedDir = linked?.expected_direction || "unknown";
@@ -79,7 +92,7 @@ Write a concise, factual summary:`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: AI_MODEL,
         messages: [
           { role: "system", content: "You are a data analyst providing factual summaries. Never invent numbers. Be concise and objective." },
           { role: "user", content: prompt },
@@ -92,22 +105,53 @@ Write a concise, factual summary:`;
     if (!response.ok) {
       if (response.status === 429) {
         console.warn("AI rate limit exceeded, skipping summary");
-        return "";
+        return { summary: "", meta: null };
       }
       if (response.status === 402) {
         console.warn("AI credits exhausted, skipping summary");
-        return "";
+        return { summary: "", meta: null };
       }
       console.error("AI gateway error:", response.status);
-      return "";
+      return { summary: "", meta: null };
     }
 
     const data = await response.json();
     const summary = data.choices?.[0]?.message?.content?.trim() || "";
-    return summary;
+    const tokensUsed = data.usage?.total_tokens;
+    
+    const meta: AIMetaData = {
+      provider: "lovable_ai",
+      model: AI_MODEL,
+      generated_at: new Date().toISOString(),
+      tokens_used: tokensUsed,
+    };
+    
+    return { summary, meta };
   } catch (error) {
     console.error("AI summary generation error:", error);
-    return "";
+    return { summary: "", meta: null };
+  }
+}
+
+async function logInterventionEvent(
+  supabase: any,
+  interventionId: string,
+  orgId: string,
+  actorUserId: string,
+  eventType: string,
+  details: Record<string, unknown>
+): Promise<void> {
+  try {
+    await supabase.from("intervention_events").insert({
+      organization_id: orgId,
+      intervention_id: interventionId,
+      actor_user_id: actorUserId,
+      event_type: eventType,
+      details,
+    } as any);
+  } catch (error) {
+    console.error("Failed to log intervention event:", error);
+    // Don't throw - event logging is not critical path
   }
 }
 
@@ -117,31 +161,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Validate auth and get tenant context
+    const tenantContext = await getTenantContext(req);
+    console.log(`evaluate-intervention-outcomes: User ${tenantContext.userId}, Org ${tenantContext.teamId}`);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-    // Create client with user's auth to verify permissions
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    // Verify user is authenticated
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     const { intervention_id } = await req.json();
     if (!intervention_id) {
@@ -168,14 +193,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check user belongs to org (using user client to respect RLS)
-    const { data: userRecord } = await supabaseUser
-      .from("users")
-      .select("id, team_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!userRecord || userRecord.team_id !== intervention.organization_id) {
+    // Verify user belongs to same org
+    if (tenantContext.teamId !== intervention.organization_id) {
       return new Response(
         JSON.stringify({ error: "Access denied to this intervention" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -239,7 +258,9 @@ Deno.serve(async (req) => {
           metric_id: link.metric_id,
           metric_name: metricName,
           baseline_value: null,
+          baseline_result_id: null,
           current_value: null,
+          current_result_id: null,
           actual_delta_value: null,
           actual_delta_percent: null,
           expected_direction: link.expected_direction,
@@ -251,6 +272,15 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Get baseline result ID explicitly
+      const { data: baselineResult } = await supabase
+        .from("metric_results")
+        .select("id, value")
+        .eq("metric_id", link.metric_id)
+        .eq("period_type", "monthly")
+        .eq("period_start", link.baseline_period_start)
+        .maybeSingle();
+
       // Calculate evaluation window
       const evalStart = new Date(link.baseline_period_start);
       const evalEnd = new Date(evalStart);
@@ -261,10 +291,10 @@ Deno.serve(async (req) => {
       const evalEndStr = evalEndMonthStart.toISOString().split("T")[0];
       const evalStartStr = link.baseline_period_start;
 
-      // Find metric result at or after evaluation_period_end
+      // Find metric result at or after evaluation_period_end - get ID explicitly
       let { data: currentResult } = await supabase
         .from("metric_results")
-        .select("value, period_start")
+        .select("id, value, period_start")
         .eq("metric_id", link.metric_id)
         .eq("period_type", "monthly")
         .gte("period_start", evalEndStr)
@@ -276,7 +306,7 @@ Deno.serve(async (req) => {
       if (!currentResult) {
         const { data: fallbackResult } = await supabase
           .from("metric_results")
-          .select("value, period_start")
+          .select("id, value, period_start")
           .eq("metric_id", link.metric_id)
           .eq("period_type", "monthly")
           .gt("period_start", evalStartStr)
@@ -287,8 +317,10 @@ Deno.serve(async (req) => {
         currentResult = fallbackResult;
       }
 
-      const baselineValue = link.baseline_value;
+      const baselineValue = baselineResult?.value ?? link.baseline_value;
+      const baselineResultId = baselineResult?.id ?? null;
       const currentValue = currentResult?.value ?? null;
+      const currentResultId = currentResult?.id ?? null;
 
       let actualDeltaValue: number | null = null;
       let actualDeltaPercent: number | null = null;
@@ -306,7 +338,9 @@ Deno.serve(async (req) => {
         metric_id: link.metric_id,
         metric_name: metricName,
         baseline_value: baselineValue,
+        baseline_result_id: baselineResultId,
         current_value: currentValue,
+        current_result_id: currentResultId,
         actual_delta_value: actualDeltaValue,
         actual_delta_percent: actualDeltaPercent,
         expected_direction: link.expected_direction,
@@ -316,7 +350,7 @@ Deno.serve(async (req) => {
         reason: !evaluated ? "No metric result found for evaluation period" : undefined,
       });
 
-      // Prepare outcome for upsert (ai_summary will be added later)
+      // Prepare outcome for upsert with deterministic IDs
       if (evaluated) {
         outcomesToUpsert.push({
           intervention_id,
@@ -326,35 +360,39 @@ Deno.serve(async (req) => {
           actual_delta_value: actualDeltaValue,
           actual_delta_percent: actualDeltaPercent,
           confidence_score: 3,
-          ai_summary: null, // Will be updated with per-metric summary if needed
+          baseline_result_id: baselineResultId,
+          current_result_id: currentResultId,
+          evaluator_version: EVALUATOR_VERSION,
+          computed_at: new Date().toISOString(),
           evaluated_at: new Date().toISOString(),
         });
       }
     }
 
-    // Generate AI summary for the intervention
-    const aiSummary = await generateAISummary(
+    // Generate AI summary
+    const { summary: aiSummary, meta: aiMeta } = await generateAISummary(
       { title: intervention.title, intervention_type: intervention.intervention_type },
       linkedMetricsInfo,
       results
     );
 
-    // Upsert outcomes
+    // Upsert outcomes with ON CONFLICT for determinism
     if (outcomesToUpsert.length > 0) {
-      // Delete existing outcomes for this intervention first
-      await supabase
-        .from("intervention_outcomes")
-        .delete()
-        .eq("intervention_id", intervention_id);
+      for (const outcome of outcomesToUpsert) {
+        // Add AI meta to each outcome
+        outcome.ai_meta = aiMeta;
+        
+        // Upsert with deterministic key
+        const { error: upsertError } = await supabase
+          .from("intervention_outcomes")
+          .upsert(outcome, {
+            onConflict: "intervention_id,metric_id,evaluation_period_end,evaluator_version",
+          });
 
-      // Insert new outcomes
-      const { error: upsertError } = await supabase
-        .from("intervention_outcomes")
-        .insert(outcomesToUpsert);
-
-      if (upsertError) {
-        console.error("Upsert error:", upsertError);
-        throw upsertError;
+        if (upsertError) {
+          console.error("Upsert error:", upsertError);
+          throw upsertError;
+        }
       }
     }
 
@@ -370,11 +408,32 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Log the evaluation event
+    await logInterventionEvent(
+      supabase,
+      intervention_id,
+      intervention.organization_id,
+      tenantContext.userId,
+      "evaluate_outcomes",
+      {
+        evaluator_version: EVALUATOR_VERSION,
+        metrics_evaluated: outcomesToUpsert.length,
+        ai_summary_generated: !!aiSummary,
+        results: results.map(r => ({
+          metric_id: r.metric_id,
+          evaluated: r.evaluated,
+          delta_percent: r.actual_delta_percent,
+        })),
+      }
+    );
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         evaluated_count: outcomesToUpsert.length,
+        evaluator_version: EVALUATOR_VERSION,
         ai_summary: aiSummary || null,
+        ai_meta: aiMeta,
         results 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

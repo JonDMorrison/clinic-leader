@@ -2048,6 +2048,51 @@ export type Database = {
         }
         Relationships: []
       }
+      intervention_events: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          details: Json
+          event_type: string
+          id: string
+          intervention_id: string
+          organization_id: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          details?: Json
+          event_type: string
+          id?: string
+          intervention_id: string
+          organization_id: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          details?: Json
+          event_type?: string
+          id?: string
+          intervention_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_events_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intervention_metric_links: {
         Row: {
           baseline_period_start: string | null
@@ -2103,11 +2148,16 @@ export type Database = {
         Row: {
           actual_delta_percent: number | null
           actual_delta_value: number | null
+          ai_meta: Json | null
           ai_summary: string | null
+          baseline_result_id: string | null
+          computed_at: string
           confidence_score: number
+          current_result_id: string | null
           evaluated_at: string
           evaluation_period_end: string
           evaluation_period_start: string
+          evaluator_version: string
           id: string
           intervention_id: string
           metric_id: string
@@ -2115,11 +2165,16 @@ export type Database = {
         Insert: {
           actual_delta_percent?: number | null
           actual_delta_value?: number | null
+          ai_meta?: Json | null
           ai_summary?: string | null
+          baseline_result_id?: string | null
+          computed_at?: string
           confidence_score?: number
+          current_result_id?: string | null
           evaluated_at?: string
           evaluation_period_end: string
           evaluation_period_start: string
+          evaluator_version?: string
           id?: string
           intervention_id: string
           metric_id: string
@@ -2127,16 +2182,35 @@ export type Database = {
         Update: {
           actual_delta_percent?: number | null
           actual_delta_value?: number | null
+          ai_meta?: Json | null
           ai_summary?: string | null
+          baseline_result_id?: string | null
+          computed_at?: string
           confidence_score?: number
+          current_result_id?: string | null
           evaluated_at?: string
           evaluation_period_end?: string
           evaluation_period_start?: string
+          evaluator_version?: string
           id?: string
           intervention_id?: string
           metric_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "intervention_outcomes_baseline_result_id_fkey"
+            columns: ["baseline_result_id"]
+            isOneToOne: false
+            referencedRelation: "metric_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_outcomes_current_result_id_fkey"
+            columns: ["current_result_id"]
+            isOneToOne: false
+            referencedRelation: "metric_results"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "intervention_outcomes_intervention_id_fkey"
             columns: ["intervention_id"]
@@ -6149,6 +6223,10 @@ export type Database = {
       is_same_team: { Args: { check_team_id: string }; Returns: boolean }
       is_user_admin: { Args: { _user_id: string }; Returns: boolean }
       is_user_manager: { Args: { _user_id: string }; Returns: boolean }
+      log_intervention_event: {
+        Args: { _details?: Json; _event_type: string; _intervention_id: string }
+        Returns: string
+      }
       match_doc_sections: {
         Args: {
           match_count?: number

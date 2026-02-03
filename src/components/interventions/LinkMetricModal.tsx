@@ -37,6 +37,7 @@ import { Loader2, Check, ChevronsUpDown, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import type { ExpectedDirection } from "@/lib/interventions/types";
+import { logInterventionEventAsync } from "@/lib/interventions/eventLogger";
 
 interface LinkMetricModalProps {
   open: boolean;
@@ -162,6 +163,15 @@ export function LinkMetricModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["intervention-metrics", interventionId] });
+      
+      // Log event asynchronously
+      logInterventionEventAsync(interventionId, "link_metric", {
+        metric_id: selectedMetricId,
+        expected_direction: expectedDirection,
+        expected_magnitude_percent: expectedMagnitude ? parseFloat(expectedMagnitude) : null,
+        baseline_value: baselineData?.value ?? null,
+      });
+      
       toast({
         title: "Metric linked",
         description: "The metric has been linked to this intervention.",
