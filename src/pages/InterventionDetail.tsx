@@ -744,6 +744,7 @@ export default function InterventionDetail() {
               {outcomes.map((outcome) => (
                 <OutcomeRow
                   key={outcome.id}
+                  outcomeId={outcome.id}
                   metricName={outcome.metric?.name || "Unknown metric"}
                   baselineValue={outcome.baseline_value}
                   currentValue={outcome.current_value}
@@ -752,6 +753,8 @@ export default function InterventionDetail() {
                   evaluationPeriodStart={outcome.evaluation_period_start}
                   evaluationPeriodEnd={outcome.evaluation_period_end}
                   evaluatedAt={outcome.evaluated_at}
+                  aiSummary={outcome.ai_summary}
+                  isAdmin={isAdmin}
                 />
               ))}
             </div>
