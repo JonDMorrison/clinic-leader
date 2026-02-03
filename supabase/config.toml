@@ -215,3 +215,6 @@ verify_jwt = false
 
 [functions.generate-issue-suggestions]
 verify_jwt = false
+
+[functions.ai-intervention-insight]
+verify_jwt = false

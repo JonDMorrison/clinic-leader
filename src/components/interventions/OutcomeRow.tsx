@@ -1,8 +1,10 @@
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus, Calendar } from "lucide-react";
+import { OutcomeAIInsight } from "./OutcomeAIInsight";
 
 interface OutcomeRowProps {
+  outcomeId: string;
   metricName: string;
   baselineValue: number | null;
   currentValue: number | null;
@@ -11,9 +13,12 @@ interface OutcomeRowProps {
   evaluationPeriodStart: string;
   evaluationPeriodEnd: string;
   evaluatedAt: string;
+  aiSummary?: string | null;
+  isAdmin?: boolean;
 }
 
 export function OutcomeRow({
+  outcomeId,
   metricName,
   baselineValue,
   currentValue,
@@ -22,6 +27,8 @@ export function OutcomeRow({
   evaluationPeriodStart,
   evaluationPeriodEnd,
   evaluatedAt,
+  aiSummary,
+  isAdmin = false,
 }: OutcomeRowProps) {
   const formatPeriod = (dateStr: string) => {
     try {
@@ -93,6 +100,14 @@ export function OutcomeRow({
       <p className="text-xs text-muted-foreground">
         Evaluated {format(new Date(evaluatedAt), "MMM d, yyyy 'at' h:mm a")}
       </p>
+
+      {/* AI Insight Section */}
+      <OutcomeAIInsight
+        outcomeId={outcomeId}
+        existingSummary={aiSummary ?? null}
+        metricName={metricName}
+        isAdmin={isAdmin}
+      />
     </div>
   );
 }
