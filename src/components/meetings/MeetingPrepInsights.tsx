@@ -2,13 +2,27 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, RotateCcw, Mountain, Plus, ExternalLink, CheckCircle2 } from "lucide-react";
+import { 
+  Lightbulb, 
+  RotateCcw, 
+  Mountain, 
+  Plus, 
+  ExternalLink, 
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  PartyPopper,
+  Target,
+} from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { subDays, format } from "date-fns";
 import { useRecurringIssues, RecurringIssue } from "@/hooks/useRecurringIssues";
+import { useInterventionMeetingSignals } from "@/hooks/useInterventionMeetingSignals";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import type { InterventionSignal } from "@/lib/interventions/meetingSignals";
 
 interface MeetingPrepInsightsProps {
   meetingId: string;
@@ -51,6 +65,16 @@ export function MeetingPrepInsights({ meetingId, organizationId }: MeetingPrepIn
       return data || [];
     },
     enabled: !!meetingId && !!organizationId,
+  });
+
+  // Fetch role data for leadership check
+  const { data: roleData } = useIsAdmin();
+  const isLeadership = roleData?.isManager ?? false;
+
+  // Fetch intervention signals (only for leadership)
+  const { data: interventionSignals, isLoading: interventionsLoading } = useInterventionMeetingSignals({
+    organizationId,
+    enabled: isLeadership,
   });
 
   // Use the new strict recurring issues hook
@@ -195,8 +219,20 @@ export function MeetingPrepInsights({ meetingId, organizationId }: MeetingPrepIn
     return existingItems?.some(item => item.source_ref_id === refId && item.source_ref_type === refType) || addedItems.has(refId);
   };
 
-  const isLoading = issuesLoading || blockersLoading || unresolvedLoading;
-  const hasData = (recurringIssues?.length || 0) > 0 || (recurringBlockers?.length || 0) > 0 || (unresolvedFromLast?.length || 0) > 0;
+  const isLoading = issuesLoading || blockersLoading || unresolvedLoading || interventionsLoading;
+  
+  // Count intervention signals
+  const interventionCount = isLeadership 
+    ? (interventionSignals?.overdue_interventions?.length || 0) +
+      (interventionSignals?.at_risk_interventions?.length || 0) +
+      (interventionSignals?.newly_successful_interventions?.length || 0)
+    : 0;
+  
+  const hasData = 
+    (recurringIssues?.length || 0) > 0 || 
+    (recurringBlockers?.length || 0) > 0 || 
+    (unresolvedFromLast?.length || 0) > 0 ||
+    interventionCount > 0;
 
   if (isLoading) {
     return (
@@ -229,6 +265,100 @@ export function MeetingPrepInsights({ meetingId, organizationId }: MeetingPrepIn
           </p>
         ) : (
           <>
+            {/* Intervention Review Section - Leadership only */}
+            {isLeadership && interventionCount > 0 && (
+              <div>
+                <h4 className="text-sm font-medium flex items-center gap-2 mb-2">
+                  <Target className="w-3 h-3" />
+                  Intervention Review
+                </h4>
+                <div className="space-y-2">
+                  {/* Overdue Interventions */}
+                  {interventionSignals?.overdue_interventions?.map((intervention) => (
+                    <div key={`overdue-${intervention.id}`} className="flex items-center justify-between p-2 rounded bg-red-50 dark:bg-red-950/30 text-sm border border-red-200 dark:border-red-800">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3 h-3 text-red-600 dark:text-red-400 shrink-0" />
+                          <p className="truncate font-medium">Overdue: {intervention.title}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground pl-5">
+                          {intervention.primaryMetricName && `(${intervention.primaryMetricName}) · `}
+                          {Math.abs(intervention.progress.days_remaining)} days overdue
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2"
+                          onClick={() => navigate(`/interventions/${intervention.id}`)}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* At Risk Interventions */}
+                  {interventionSignals?.at_risk_interventions?.map((intervention) => (
+                    <div key={`at-risk-${intervention.id}`} className="flex items-center justify-between p-2 rounded bg-yellow-50 dark:bg-yellow-950/30 text-sm border border-yellow-200 dark:border-yellow-800">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-3 h-3 text-yellow-600 dark:text-yellow-400 shrink-0" />
+                          <p className="truncate font-medium">At Risk: {intervention.title}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground pl-5">
+                          {intervention.primaryMetricName && `(${intervention.primaryMetricName}) · `}
+                          {intervention.progress.days_remaining} days remaining
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2"
+                          onClick={() => navigate(`/interventions/${intervention.id}`)}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Newly Successful Interventions */}
+                  {interventionSignals?.newly_successful_interventions?.map((intervention) => (
+                    <div key={`success-${intervention.id}`} className="flex items-center justify-between p-2 rounded bg-green-50 dark:bg-green-950/30 text-sm border border-green-200 dark:border-green-800">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <PartyPopper className="w-3 h-3 text-green-600 dark:text-green-400 shrink-0" />
+                          <p className="truncate font-medium">Success: {intervention.title}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground pl-5">
+                          {intervention.primaryMetricName && `(${intervention.primaryMetricName}) · `}
+                          {intervention.deltaPercent !== undefined && (
+                            <span className="text-green-700 dark:text-green-300 font-medium">
+                              +{intervention.deltaPercent.toFixed(1)}% improvement
+                            </span>
+                          )}
+                          {intervention.deltaPercent === undefined && "Celebrate!"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2"
+                          onClick={() => navigate(`/interventions/${intervention.id}`)}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Recurring Issues (last 90 days) */}
             {(recurringIssues?.length || 0) > 0 && (
               <div>
