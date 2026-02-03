@@ -391,7 +391,19 @@ export async function bridgeLegacyToMetricResults(
   console.debug("METRIC_RESULTS_SCHEMA_PROBE", schemaDebug);
   
   // GATE 1: Check if month has meaningful data - skip NO_DATA months entirely
-  if (!monthHasData(payload)) {
+  // CRITICAL: Check both monthHasData function AND explicit verification metadata
+  const hasDataByFunction = monthHasData(payload);
+  const hasDataByVerification = (payload.verification as any)?.month_has_data;
+  const effectiveMonthHasData = hasDataByVerification === false ? false : hasDataByFunction;
+  
+  console.debug("BRIDGE_MONTH_HAS_DATA_CHECK", {
+    period_key: periodKey,
+    hasDataByFunction,
+    hasDataByVerification,
+    effectiveMonthHasData,
+  });
+  
+  if (!effectiveMonthHasData) {
     console.log(`[LegacyBridge] Skipping ${periodKey} - no meaningful data (NO_DATA month)`);
     return {
       period_key: periodKey,

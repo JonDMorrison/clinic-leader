@@ -1848,17 +1848,24 @@ const ImportMonthlyReport = () => {
                       {loriImportProgress.bridgeResults.map((br, idx) => {
                         const auditReport = loriImportProgress.auditReports?.find(ar => ar.period_key === br.period_key);
                         const passCount = auditReport?.passed ?? 0;
-                        const attempted = br.results.filter(r => !['skipped_no_data', 'skipped_blocked', 'skipped_unverifiable'].includes(r.status)).length;
-                        const synced = br.results.filter(r => r.status === 'inserted').length;
-                        const errors = br.results.filter(r => r.status === 'error').length;
+                        
+                        // For NO_DATA months, attempted should be 0 (nothing was even tried)
+                        // For other months, count non-skipped results
+                        const attempted = br.total_skipped_no_data ? 0 : 
+                          br.results.filter(r => !['skipped_no_data', 'skipped_blocked', 'skipped_unverifiable'].includes(r.status)).length;
+                        const synced = br.total_skipped_no_data ? 0 : 
+                          br.results.filter(r => r.status === 'inserted').length;
+                        const errors = br.total_skipped_no_data ? 0 :
+                          br.results.filter(r => r.status === 'error').length;
                         
                         let gateStatus = '✓ Synced';
-                        if (br.total_skipped_no_data) gateStatus = 'NO_DATA';
-                        else if (br.total_skipped_blocked) gateStatus = 'BLOCKED';
-                        else if (errors > 0) gateStatus = 'PARTIAL ERROR';
+                        if (br.total_skipped_no_data) gateStatus = '⏭ Skipped (NO DATA)';
+                        else if (br.total_skipped_blocked) gateStatus = '🚫 BLOCKED';
+                        else if (errors > 0) gateStatus = '⚠️ PARTIAL ERROR';
                         
                         // Get month_has_data from audit report classification inputs
-                        const monthHasData = (auditReport?.results[0] as any)?.classification_inputs?.month_has_data;
+                        const monthHasData = br.total_skipped_no_data ? false :
+                          (auditReport?.results[0] as any)?.classification_inputs?.month_has_data;
                         
                         return (
                           <TableRow key={idx} className={br.total_skipped_no_data ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''}>
@@ -1874,7 +1881,7 @@ const ImportMonthlyReport = () => {
                             <TableCell className="py-1 px-2 font-mono text-destructive">{errors}</TableCell>
                             <TableCell className="py-1 px-2">
                               <Badge 
-                                variant={gateStatus === '✓ Synced' ? 'default' : gateStatus === 'NO_DATA' ? 'secondary' : 'destructive'}
+                                variant={gateStatus.includes('Synced') ? 'default' : gateStatus.includes('NO DATA') ? 'secondary' : 'destructive'}
                                 className="text-[10px] px-1.5 py-0"
                               >
                                 {gateStatus}
