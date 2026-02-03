@@ -33,6 +33,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStr
 import { CSS } from "@dnd-kit/utilities";
 import { MonthlyMetricsDebugPanel } from "@/components/scorecard/MonthlyMetricsDebugPanel";
 import { MissingTargetsBanner } from "@/components/scorecard/MissingTargetsBanner";
+import { fetchCanonicalMetricResults, groupResultsByMetric } from "@/hooks/useCanonicalMetricResults";
 
 
 const Scorecard = () => {
@@ -137,31 +138,69 @@ const Scorecard = () => {
       const weeklyMetricIds = metrics?.filter(m => m.cadence !== 'monthly').map(m => m.id) || [];
       const monthlyMetricIds = metrics?.filter(m => m.cadence === 'monthly').map(m => m.id) || [];
 
-      // Fetch weekly results
+      // ========== CANONICAL-FIRST QUERY STRATEGY ==========
+      // 1. Try metric_canonical_results first (computed by selection engine)
+      // 2. Fall back to raw metric_results if canonical not computed yet
+      
       let weeklyResults: any[] = [];
+      let monthlyResults: any[] = [];
+      let fallbackMetricIds: string[] = [];
+      
+      // Fetch weekly results (canonical first)
       if (weeklyMetricIds.length > 0) {
-        const { data, error } = await supabase
-          .from("metric_results")
-          .select("*")
-          .in("metric_id", weeklyMetricIds)
-          .in("week_start", weeks)
-          .order("week_start", { ascending: true });
-        if (error) throw error;
-        weeklyResults = data || [];
+        const { results, fallbackMetricIds: weeklyFallback } = await fetchCanonicalMetricResults({
+          organizationId: currentUser.team_id,
+          metricIds: weeklyMetricIds,
+          periodType: 'week',
+          periodStarts: weeks,
+        });
+        
+        // Convert to legacy format for compatibility
+        weeklyResults = results.map(r => ({
+          metric_id: r.metric_id,
+          value: r.value,
+          week_start: r.period_start,
+          period_start: r.period_start,
+          period_type: 'weekly',
+          source: r.source,
+          is_canonical: r.is_canonical,
+          selection_reason: r.selection_reason,
+        }));
+        
+        if (weeklyFallback.length > 0) {
+          fallbackMetricIds.push(...weeklyFallback);
+        }
       }
 
-      // Fetch monthly results - query by period_type and period_start
-      let monthlyResults: any[] = [];
+      // Fetch monthly results (canonical first)
       if (monthlyMetricIds.length > 0) {
-        const { data, error } = await supabase
-          .from("metric_results")
-          .select("*")
-          .in("metric_id", monthlyMetricIds)
-          .eq("period_type", "monthly")
-          .in("period_start", months)
-          .order("period_start", { ascending: true });
-        if (error) throw error;
-        monthlyResults = data || [];
+        const { results, fallbackMetricIds: monthlyFallback } = await fetchCanonicalMetricResults({
+          organizationId: currentUser.team_id,
+          metricIds: monthlyMetricIds,
+          periodType: 'month',
+          periodStarts: months,
+        });
+        
+        // Convert to legacy format for compatibility
+        monthlyResults = results.map(r => ({
+          metric_id: r.metric_id,
+          value: r.value,
+          period_start: r.period_start,
+          period_key: format(new Date(r.period_start), "yyyy-MM"),
+          period_type: 'monthly',
+          source: r.source,
+          is_canonical: r.is_canonical,
+          selection_reason: r.selection_reason,
+        }));
+        
+        if (monthlyFallback.length > 0) {
+          fallbackMetricIds.push(...monthlyFallback);
+        }
+      }
+
+      // Log fallback metrics in dev mode for visibility
+      if (import.meta.env.DEV && fallbackMetricIds.length > 0) {
+        console.warn("[Scorecard] Using raw fallback for metrics (canonical not computed):", fallbackMetricIds);
       }
 
       const allResults = [...weeklyResults, ...monthlyResults];
@@ -203,6 +242,9 @@ const Scorecard = () => {
         const last8 = sortedResults.slice(-8);
         const current = sortedResults[sortedResults.length - 1];
 
+        // Track if this metric is using fallback (non-canonical) data
+        const hasNonCanonical = metricResults.some(r => r.is_canonical === false);
+
         return {
           id: metric.id,
           name: metric.name,
@@ -221,6 +263,10 @@ const Scorecard = () => {
           latest_result_source: current?.source || null,
           latest_result_updated_at: current?.created_at || null,
           latest_period_key: current?.period_key || null,
+          // Canonical selection fields
+          is_canonical: current?.is_canonical ?? null,
+          selection_reason: current?.selection_reason || null,
+          using_fallback: hasNonCanonical,
         };
       }) || [];
     },
