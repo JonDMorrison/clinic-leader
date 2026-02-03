@@ -21,9 +21,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, Users } from "lucide-react";
+import { Plus, Trash2, Users, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+
+interface RefreshResult {
+  jane_cohort_id: string;
+  non_jane_cohort_id: string;
+  jane_member_count: number;
+  non_jane_member_count: number;
+}
 
 interface Cohort {
   id: string;
@@ -84,6 +91,28 @@ export function CohortList() {
     },
   });
 
+  const refreshDefaultCohortsMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("bench_refresh_default_cohorts");
+      if (error) throw error;
+      return data as RefreshResult[];
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["benchmark-cohorts"] });
+      const result = data?.[0];
+      if (result) {
+        toast.success(
+          `Default cohorts refreshed: ${result.jane_member_count} Jane users, ${result.non_jane_member_count} non-Jane users`
+        );
+      } else {
+        toast.success("Default cohorts refreshed");
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(`Failed to refresh default cohorts: ${err.message}`);
+    },
+  });
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -91,13 +120,24 @@ export function CohortList() {
           <Users className="h-5 w-5" />
           Benchmark Cohorts
         </CardTitle>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create Cohort
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => refreshDefaultCohortsMutation.mutate()}
+            disabled={refreshDefaultCohortsMutation.isPending}
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshDefaultCohortsMutation.isPending ? "animate-spin" : ""}`} />
+            Refresh Default Cohorts
+          </Button>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Create Cohort
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Cohort</DialogTitle>
@@ -128,7 +168,8 @@ export function CohortList() {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (

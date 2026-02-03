@@ -6017,6 +6017,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      bench_refresh_default_cohorts: {
+        Args: never
+        Returns: {
+          jane_cohort_id: string
+          jane_member_count: number
+          non_jane_cohort_id: string
+          non_jane_member_count: number
+        }[]
+      }
       can_modify_intervention: {
         Args: { intervention_id: string }
         Returns: boolean
