@@ -5373,6 +5373,10 @@ export type Database = {
       }
     }
     Functions: {
+      can_modify_intervention: {
+        Args: { intervention_id: string }
+        Returns: boolean
+      }
       current_user_id: { Args: never; Returns: string }
       current_user_role: {
         Args: never
@@ -5420,7 +5424,12 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_admin_simple: { Args: never; Returns: boolean }
       is_billing: { Args: never; Returns: boolean }
+      is_intervention_creator: {
+        Args: { intervention_id: string }
+        Returns: boolean
+      }
       is_manager: { Args: never; Returns: boolean }
+      is_org_admin_for: { Args: { org_id: string }; Returns: boolean }
       is_same_team: { Args: { check_team_id: string }; Returns: boolean }
       is_user_admin: { Args: { _user_id: string }; Returns: boolean }
       is_user_manager: { Args: { _user_id: string }; Returns: boolean }
