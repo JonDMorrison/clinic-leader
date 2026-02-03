@@ -31,6 +31,7 @@ import {
   type InterventionStatus,
   type InterventionRow,
 } from "@/lib/interventions/types";
+import { logInterventionEventAsync } from "@/lib/interventions/eventLogger";
 
 interface EditInterventionModalProps {
   open: boolean;
@@ -117,6 +118,13 @@ export function EditInterventionModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["intervention", intervention.id] });
       queryClient.invalidateQueries({ queryKey: ["interventions"] });
+      
+      // Log event asynchronously
+      logInterventionEventAsync(intervention.id, "edit_intervention", {
+        status,
+        intervention_type: interventionType,
+      });
+      
       toast({
         title: "Intervention updated",
         description: "Your changes have been saved.",

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Loader2, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ExpectedDirection } from "@/lib/interventions/types";
+import { logInterventionEventAsync } from "@/lib/interventions/eventLogger";
 
 interface LinkedMetricRowProps {
   linkId: string;
@@ -48,6 +49,13 @@ export function LinkedMetricRow({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["intervention-metrics", interventionId] });
+      
+      // Log event asynchronously
+      logInterventionEventAsync(interventionId, "unlink_metric", {
+        link_id: linkId,
+        metric_name: metricName,
+      });
+      
       toast({
         title: "Metric unlinked",
         description: "The metric has been removed from this intervention.",

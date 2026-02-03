@@ -4,11 +4,14 @@
  * - Deterministic data drives the prompt
  * - No hallucinated numbers
  * - Always advisory language
+ * - Consistent AI provider (Lovable AI gateway)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getTenantContext } from '../_shared/tenant-context.ts';
+
+const AI_MODEL = "google/gemini-3-flash-preview";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -166,7 +169,7 @@ Generate a brief advisory insight explaining:
 
 Remember: Advisory language only. No definitive claims. Reference only the provided data.`;
 
-    // Call Lovable AI
+    // Call Lovable AI with consistent model
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -174,7 +177,7 @@ Remember: Advisory language only. No definitive claims. Reference only the provi
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: AI_MODEL,
         messages: [
           { 
             role: "system", 
@@ -182,6 +185,8 @@ Remember: Advisory language only. No definitive claims. Reference only the provi
           },
           { role: "user", content: prompt }
         ],
+        max_tokens: 300,
+        temperature: 0.3,
       }),
     });
 
@@ -221,10 +226,21 @@ Remember: Advisory language only. No definitive claims. Reference only the provi
       ignoreDuplicates: false,
     });
 
-    // Save AI summary to outcome
+    // Build AI meta for determinism
+    const aiMeta = {
+      provider: "lovable_ai",
+      model: AI_MODEL,
+      generated_at: new Date().toISOString(),
+      tokens_used: tokensUsed,
+    };
+
+    // Save AI summary and meta to outcome
     const { error: updateError } = await supabase
       .from("intervention_outcomes")
-      .update({ ai_summary: aiSummary })
+      .update({ 
+        ai_summary: aiSummary,
+        ai_meta: aiMeta,
+      })
       .eq("id", outcome_id);
 
     if (updateError) throw updateError;
