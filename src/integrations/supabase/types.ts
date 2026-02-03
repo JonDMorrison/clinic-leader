@@ -4138,36 +4138,42 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          deviation_at_run: number | null
           evidence: Json
           id: string
           inputs: Json
           metric_id: string
           model_version: string
           organization_id: string
+          recommendations: Json
           recommendations_generated: number
           run_period_start: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
+          deviation_at_run?: number | null
           evidence?: Json
           id?: string
           inputs?: Json
           metric_id: string
           model_version?: string
           organization_id: string
+          recommendations?: Json
           recommendations_generated?: number
           run_period_start: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
+          deviation_at_run?: number | null
           evidence?: Json
           id?: string
           inputs?: Json
           metric_id?: string
           model_version?: string
           organization_id?: string
+          recommendations?: Json
           recommendations_generated?: number
           run_period_start?: string
         }
@@ -6486,6 +6492,20 @@ export type Database = {
         Args: { intervention_id: string }
         Returns: boolean
       }
+      check_recommendation_eligibility: {
+        Args: { _metric_id: string; _org_id: string; _period_start: string }
+        Returns: {
+          cooldown_active: boolean
+          current_value: number
+          deviation_percent: number
+          eligible: boolean
+          last_deviation: number
+          last_run_at: string
+          reason: string
+          sample_size: number
+          target_value: number
+        }[]
+      }
       current_user_id: { Args: never; Returns: string }
       current_user_role: {
         Args: never
@@ -6554,6 +6574,25 @@ export type Database = {
       get_provider_size_bucket: {
         Args: { _provider_count: number }
         Returns: string
+      }
+      get_recommendation_config_value: {
+        Args: { _default: number; _key: string; _org_id: string }
+        Returns: number
+      }
+      get_recommendation_run: {
+        Args: { _metric_id: string; _org_id: string; _period_start: string }
+        Returns: {
+          created_at: string
+          eligible: boolean
+          evidence: Json
+          id: string
+          ineligibility_reason: string
+          inputs: Json
+          metric_id: string
+          organization_id: string
+          period_start: string
+          recommendations: Json
+        }[]
       }
       get_user_onboarding_details: {
         Args: { org_id: string }
