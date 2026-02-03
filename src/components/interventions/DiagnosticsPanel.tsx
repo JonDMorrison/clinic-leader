@@ -18,9 +18,14 @@ import { format } from "date-fns";
 interface DiagnosticsPanelProps {
   interventionId?: string; // Optional - if provided, shows intervention-specific data
   linkedMetricIds?: string[]; // Metric IDs linked to this intervention
+  showOutcomesDiagnostics?: boolean; // Show detailed outcomes after evaluation
 }
 
-export function DiagnosticsPanel({ interventionId, linkedMetricIds = [] }: DiagnosticsPanelProps) {
+export function DiagnosticsPanel({ 
+  interventionId, 
+  linkedMetricIds = [],
+  showOutcomesDiagnostics = true,
+}: DiagnosticsPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { data: currentUser } = useCurrentUser();
   const { data: adminData } = useIsAdmin();
@@ -120,6 +125,54 @@ export function DiagnosticsPanel({ interventionId, linkedMetricIds = [] }: Diagn
       return results;
     },
     enabled: linkedMetricIds.length > 0 && isOpen,
+  });
+
+  // Fetch intervention outcomes for diagnostics
+  const { data: outcomesDiagnostics } = useQuery({
+    queryKey: ["diagnostics-outcomes", interventionId],
+    queryFn: async () => {
+      if (!interventionId) return null;
+
+      const { data: outcomes, error } = await supabase
+        .from("intervention_outcomes")
+        .select("*, metrics:metric_id(name)")
+        .eq("intervention_id", interventionId);
+
+      if (error) throw error;
+
+      // Get links to show baseline info
+      const { data: links } = await supabase
+        .from("intervention_metric_links")
+        .select("metric_id, baseline_value, baseline_period_start")
+        .eq("intervention_id", interventionId);
+
+      const linksMap = new Map(
+        (links || []).map((l) => [l.metric_id, l])
+      );
+
+      return {
+        count: outcomes?.length || 0,
+        items: (outcomes || []).map((o) => {
+          const link = linksMap.get(o.metric_id);
+          const baseline = link?.baseline_value ?? null;
+          const current = baseline !== null && o.actual_delta_value !== null
+            ? baseline + o.actual_delta_value
+            : null;
+          return {
+            metric_id: o.metric_id,
+            metric_name: (o.metrics as { name: string } | null)?.name || "Unknown",
+            baseline_value: baseline,
+            current_value: current,
+            current_period: o.evaluation_period_end,
+            delta_value: o.actual_delta_value,
+            delta_percent: o.actual_delta_percent,
+            evaluated_at: o.evaluated_at,
+            status: baseline !== null && current !== null ? "computed" : "insufficient_data",
+          };
+        }),
+      };
+    },
+    enabled: !!interventionId && isOpen && showOutcomesDiagnostics,
   });
 
   return (
@@ -276,6 +329,68 @@ export function DiagnosticsPanel({ interventionId, linkedMetricIds = [] }: Diagn
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Outcomes Diagnostics */}
+              {interventionId && showOutcomesDiagnostics && outcomesDiagnostics && (
+                <div className="space-y-2">
+                  <div className="font-medium text-amber-700 dark:text-amber-300">
+                    Evaluated Outcomes ({outcomesDiagnostics.count})
+                  </div>
+                  {outcomesDiagnostics.items.length === 0 ? (
+                    <div className="pl-5 text-muted-foreground italic text-[10px]">
+                      No outcomes evaluated yet
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pl-2">
+                      {outcomesDiagnostics.items.map((item) => (
+                        <div
+                          key={item.metric_id}
+                          className="p-2 bg-white/50 dark:bg-black/20 rounded text-[10px] space-y-1"
+                        >
+                          <div className="font-medium">{item.metric_name}</div>
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                            <span className="text-muted-foreground">metric_id:</span>
+                            <code className="font-mono truncate">{item.metric_id.slice(0, 8)}...</code>
+                            
+                            <span className="text-muted-foreground">baseline:</span>
+                            <span className="font-mono">
+                              {item.baseline_value !== null ? item.baseline_value : "null"}
+                            </span>
+                            
+                            <span className="text-muted-foreground">current:</span>
+                            <span className="font-mono">
+                              {item.current_value !== null ? item.current_value : "null"}
+                            </span>
+                            
+                            <span className="text-muted-foreground">current_period:</span>
+                            <span className="font-mono">
+                              {item.current_period ? format(new Date(item.current_period), "MMM yyyy") : "—"}
+                            </span>
+                            
+                            <span className="text-muted-foreground">delta_value:</span>
+                            <span className="font-mono">
+                              {item.delta_value !== null ? item.delta_value : "null"}
+                            </span>
+                            
+                            <span className="text-muted-foreground">delta_percent:</span>
+                            <span className="font-mono">
+                              {item.delta_percent !== null ? `${item.delta_percent.toFixed(2)}%` : "null"}
+                            </span>
+                            
+                            <span className="text-muted-foreground">status:</span>
+                            <Badge
+                              variant={item.status === "computed" ? "default" : "secondary"}
+                              className="text-[8px] px-1 py-0 h-4"
+                            >
+                              {item.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

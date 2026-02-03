@@ -182,6 +182,30 @@
 
 ---
 
+## Diagnostics Panel Verification (Dev-Only)
+
+Open the Dev Diagnostics panel (bottom-right corner in dev mode):
+
+| Field | Expected Value |
+|-------|----------------|
+| org_id | Current user's organization UUID |
+| auth_user_id | Current authenticated user UUID |
+| Role badge | "Admin" or "Member" based on user_roles |
+| Interventions count | Total interventions in org |
+| Links count | Total metric links in org |
+| Outcomes count | Total outcomes evaluated in org |
+
+### After Evaluating Outcomes
+| Field | Expected Value |
+|-------|----------------|
+| Evaluated Outcomes count | Matches number of linked metrics |
+| Per-metric baseline | Value from intervention_metric_links |
+| Per-metric current | Computed from metric_results |
+| Per-metric status | "computed" or "insufficient_data" |
+| current_period | Month of the metric_result used |
+
+---
+
 ## Edge Cases to Verify
 
 | Scenario | Expected Behavior |
