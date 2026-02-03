@@ -47,6 +47,8 @@ import { OutcomeRow } from "@/components/interventions/OutcomeRow";
 import { DiagnosticsPanel } from "@/components/interventions/DiagnosticsPanel";
 import { InterventionRiskBanner } from "@/components/interventions/InterventionRiskBanner";
 import { InterventionTimeline } from "@/components/interventions/InterventionTimeline";
+import { LinkedIssueCard } from "@/components/interventions/LinkedIssueCard";
+import { CreateIssueFromFailureButton } from "@/components/interventions/CreateIssueFromFailureButton";
 import { getInterventionProgress, getProgressStatusStyle, type ProgressStatus } from "@/lib/interventions/interventionStatus";
 
 type InterventionWithUsers = InterventionRow & {
@@ -278,6 +280,25 @@ export default function InterventionDetail() {
     enabled: !!id && linkedMetrics.length > 0,
   });
 
+  // Check if intervention has a linked issue (from failure)
+  const { data: linkedIssue } = useQuery({
+    queryKey: ["intervention-linked-issue", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from("issues")
+        .select("id")
+        .eq("intervention_id", id)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const hasLinkedIssue = !!linkedIssue;
+
   // Evaluate outcomes mutation
   const evaluateMutation = useMutation({
     mutationFn: async () => {
@@ -407,6 +428,9 @@ export default function InterventionDetail() {
     <div className="space-y-6">
       {/* Risk/Status Banner */}
       <InterventionRiskBanner progress={progress} />
+
+      {/* Linked Issue Card (if intervention has failed and issue was created) */}
+      {hasLinkedIssue && <LinkedIssueCard interventionId={intervention.id} />}
 
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -730,6 +754,21 @@ export default function InterventionDetail() {
                   evaluatedAt={outcome.evaluated_at}
                 />
               ))}
+            </div>
+          )}
+          
+          {/* Create Issue from Failure button - show if there are failed outcomes and no linked issue */}
+          {outcomes.length > 0 && 
+           progress.status === "overdue" && 
+           outcomes.some((o) => o.actual_delta_value !== null && o.actual_delta_value <= 0) &&
+           isAdmin && (
+            <div className="mt-4 pt-4 border-t">
+              <CreateIssueFromFailureButton
+                interventionId={intervention.id}
+                organizationId={intervention.organization_id}
+                interventionTitle={intervention.title}
+                hasExistingIssue={hasLinkedIssue}
+              />
             </div>
           )}
         </CardContent>
