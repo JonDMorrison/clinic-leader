@@ -49,7 +49,14 @@ import { InterventionRiskBanner } from "@/components/interventions/InterventionR
 import { InterventionTimeline } from "@/components/interventions/InterventionTimeline";
 import { LinkedIssueCard } from "@/components/interventions/LinkedIssueCard";
 import { CreateIssueFromFailureButton } from "@/components/interventions/CreateIssueFromFailureButton";
+import { InterventionIssueLink } from "@/components/interventions/InterventionIssueLink";
 import { getInterventionProgress, getProgressStatusStyle, type ProgressStatus } from "@/lib/interventions/interventionStatus";
+import {
+  canEditIntervention,
+  canDeleteIntervention,
+  canEvaluateOutcome,
+  canLinkMetrics,
+} from "@/lib/interventions/permissions";
 
 type InterventionWithUsers = InterventionRow & {
   owner: { id: string; full_name: string } | null;
@@ -791,7 +798,10 @@ export default function InterventionDetail() {
         outcomes={outcomes}
       />
 
-      {/* Section 6: AI Summary */}
+      {/* Section 6: Related Issues */}
+      <InterventionIssueLink interventionId={intervention.id} />
+
+      {/* Section 7: AI Summary */}
       {intervention.ai_summary && (
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader className="pb-3">
