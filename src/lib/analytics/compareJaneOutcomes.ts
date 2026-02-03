@@ -1,6 +1,10 @@
 /**
  * Jane vs Non-Jane Outcome Comparison Engine
  * Calculates performance deltas between EMR source groups
+ * 
+ * PRIVACY: All comparisons only include organizations that have opted in
+ * via teams.benchmark_opt_in = true. Non-opted-in orgs never contribute
+ * to cross-org aggregates.
  */
 
 import { supabase } from "@/integrations/supabase/client";

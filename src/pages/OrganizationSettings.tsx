@@ -18,6 +18,7 @@ import {
 import { copyDocsFromDemo } from "@/lib/docs/copyDocs";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { BenchmarkOptInSettings } from "@/components/settings/BenchmarkOptInSettings";
 
 export default function OrganizationSettings() {
   const navigate = useNavigate();
@@ -487,6 +488,9 @@ export default function OrganizationSettings() {
             )}
           </div>
         </Card>
+
+        {/* Benchmark Opt-In */}
+        <BenchmarkOptInSettings />
 
         {/* Departments */}
         <Card className="glass p-6">
