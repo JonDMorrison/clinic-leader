@@ -45,6 +45,8 @@ import { LinkMetricModal } from "@/components/interventions/LinkMetricModal";
 import { LinkedMetricRow } from "@/components/interventions/LinkedMetricRow";
 import { OutcomeRow } from "@/components/interventions/OutcomeRow";
 import { DiagnosticsPanel } from "@/components/interventions/DiagnosticsPanel";
+import { InterventionRiskBanner } from "@/components/interventions/InterventionRiskBanner";
+import { getInterventionProgress, getProgressStatusStyle, type ProgressStatus } from "@/lib/interventions/interventionStatus";
 
 type InterventionWithUsers = InterventionRow & {
   owner: { id: string; full_name: string } | null;
@@ -364,8 +366,26 @@ export default function InterventionDetail() {
     );
   }
 
+  // Compute progress status
+  const progress = getInterventionProgress({
+    intervention: {
+      created_at: intervention.created_at,
+      expected_time_horizon_days: intervention.expected_time_horizon_days,
+      status: intervention.status,
+    },
+    outcomes: outcomes.map((o) => ({
+      actual_delta_value: o.actual_delta_value,
+      actual_delta_percent: o.actual_delta_percent,
+    })),
+  });
+
+  const progressStyle = getProgressStatusStyle(progress.status);
+
   return (
     <div className="space-y-6">
+      {/* Risk/Status Banner */}
+      <InterventionRiskBanner progress={progress} />
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">
@@ -375,8 +395,8 @@ export default function InterventionDetail() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-2xl font-bold">{intervention.title}</h1>
-              <Badge className={STATUS_COLORS[intervention.status]}>
-                {intervention.status.charAt(0).toUpperCase() + intervention.status.slice(1)}
+              <Badge className={progressStyle.className}>
+                {progressStyle.label}
               </Badge>
             </div>
             <Badge variant="secondary">{getTypeLabel(intervention.intervention_type)}</Badge>
@@ -740,6 +760,11 @@ export default function InterventionDetail() {
       <DiagnosticsPanel
         interventionId={intervention.id}
         linkedMetricIds={linkedMetrics.map((l) => l.metric_id)}
+        interventionData={{
+          created_at: intervention.created_at,
+          expected_time_horizon_days: intervention.expected_time_horizon_days,
+          status: intervention.status,
+        }}
       />
     </div>
   );

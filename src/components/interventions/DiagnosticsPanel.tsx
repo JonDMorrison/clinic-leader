@@ -3,7 +3,7 @@
  * Shows org context, permissions, and data counts for debugging
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -12,19 +12,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, Bug, Database, Shield, User } from "lucide-react";
+import { ChevronDown, ChevronUp, Bug, Database, Shield, User, Activity } from "lucide-react";
 import { format } from "date-fns";
+import { getInterventionProgress, getProgressStatusStyle, type InterventionInput } from "@/lib/interventions/interventionStatus";
 
 interface DiagnosticsPanelProps {
   interventionId?: string; // Optional - if provided, shows intervention-specific data
   linkedMetricIds?: string[]; // Metric IDs linked to this intervention
   showOutcomesDiagnostics?: boolean; // Show detailed outcomes after evaluation
+  interventionData?: InterventionInput; // For computing progress
 }
 
 export function DiagnosticsPanel({ 
   interventionId, 
   linkedMetricIds = [],
   showOutcomesDiagnostics = true,
+  interventionData,
 }: DiagnosticsPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { data: currentUser } = useCurrentUser();
@@ -175,6 +178,28 @@ export function DiagnosticsPanel({
     enabled: !!interventionId && isOpen && showOutcomesDiagnostics,
   });
 
+  // Compute progress status for diagnostics
+  const progressDiagnostics = useMemo(() => {
+    if (!interventionData || !isOpen) return null;
+    
+    const outcomes = outcomesDiagnostics?.items.map((i) => ({
+      actual_delta_value: i.delta_value,
+      actual_delta_percent: i.delta_percent,
+    })) || [];
+
+    const progress = getInterventionProgress({
+      intervention: interventionData,
+      outcomes,
+    });
+
+    return {
+      ...progress,
+      created_at: interventionData.created_at,
+      expected_time_horizon_days: interventionData.expected_time_horizon_days,
+      db_status: interventionData.status,
+    };
+  }, [interventionData, outcomesDiagnostics, isOpen]);
+
   return (
     <div className="fixed bottom-4 right-4 z-50">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -278,6 +303,59 @@ export function DiagnosticsPanel({
                   </div>
                   <div className="pl-5">
                     <code className="font-mono text-[10px]">{interventionId}</code>
+                  </div>
+                </div>
+              )}
+
+              {/* Progress Status Diagnostics */}
+              {progressDiagnostics && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 font-medium text-amber-700 dark:text-amber-300">
+                    <Activity className="h-3 w-3" />
+                    Progress Status
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 pl-5 text-[10px]">
+                    <span className="text-muted-foreground">created_at:</span>
+                    <span className="font-mono">
+                      {format(new Date(progressDiagnostics.created_at), "yyyy-MM-dd")}
+                    </span>
+                    
+                    <span className="text-muted-foreground">horizon_days:</span>
+                    <span className="font-mono">{progressDiagnostics.expected_time_horizon_days}</span>
+                    
+                    <span className="text-muted-foreground">horizon_end_date:</span>
+                    <span className="font-mono">
+                      {format(progressDiagnostics.horizon_end_date, "yyyy-MM-dd")}
+                    </span>
+                    
+                    <span className="text-muted-foreground">days_elapsed:</span>
+                    <span className="font-mono">{progressDiagnostics.days_elapsed}</span>
+                    
+                    <span className="text-muted-foreground">days_remaining:</span>
+                    <span className={`font-mono ${progressDiagnostics.days_remaining < 0 ? "text-red-500" : ""}`}>
+                      {progressDiagnostics.days_remaining}
+                    </span>
+                    
+                    <span className="text-muted-foreground">db_status:</span>
+                    <span className="font-mono">{progressDiagnostics.db_status}</span>
+                    
+                    <span className="text-muted-foreground">computed_status:</span>
+                    <Badge
+                      className={`${getProgressStatusStyle(progressDiagnostics.status).className} text-[8px] px-1 py-0 h-4`}
+                    >
+                      {progressDiagnostics.status}
+                    </Badge>
+                    
+                    <span className="text-muted-foreground">has_outcomes:</span>
+                    <span className="font-mono">{progressDiagnostics.has_any_outcomes ? "true" : "false"}</span>
+                    
+                    <span className="text-muted-foreground">has_positive_delta:</span>
+                    <span className="font-mono">{progressDiagnostics.has_any_positive_delta ? "true" : "false"}</span>
+                    
+                    <span className="text-muted-foreground col-span-2 pt-1">reason:</span>
+                    <span className="col-span-2 text-[9px] italic text-muted-foreground">
+                      {progressDiagnostics.reason}
+                    </span>
                   </div>
                 </div>
               )}
