@@ -375,23 +375,48 @@ export const LEGACY_METRIC_MAPPINGS: LegacyMetricMapping[] = [
     default_target: null,
     category: "Referrals",
     extractor: (payload) => {
-      // Get Total row from referral_totals
-      const totalRow = getTotalRow(payload.referral_totals);
-      if (!totalRow) return null;
+      // referral_totals structure has:
+      // - Rows for each category (W/C, HI, MVA, etc.)
+      // - Headers: ["Referrals", "Totals", "Scheduled", "%"]
+      // - A "Total" row at the bottom with the grand total in "Totals" column
       
-      // Sum all numeric columns after the label
+      if (!payload.referral_totals?.rows) return null;
+      
+      // Find the "Totals" column (should be index 1)
+      const headers = payload.referral_totals.headers || [];
+      const totalsColIdx = headers.findIndex(h => 
+        String(h || '').toLowerCase().includes('total')
+      );
+      const colIdx = totalsColIdx >= 0 ? totalsColIdx : 1;
+      
+      // Get Total row
+      const totalRow = getTotalRow(payload.referral_totals);
+      if (totalRow) {
+        const val = parseNumeric(totalRow[colIdx]);
+        if (val !== null) {
+          if (import.meta.env.DEV) console.log('[Extractor] total_referrals from Total row:', val);
+          return val;
+        }
+      }
+      
+      // Fallback: sum all category rows
       let sum = 0;
       let hasValue = false;
-      for (let i = 1; i < totalRow.length; i++) {
-        const val = parseNumeric(totalRow[i]);
+      for (const row of payload.referral_totals.rows) {
+        const label = String(row?.[0] || '').toLowerCase().trim();
+        if (!label || /^totals?$/i.test(label)) continue;
+        
+        const val = parseNumeric(row[colIdx]);
         if (val !== null) {
           sum += val;
           hasValue = true;
         }
       }
+      
+      if (import.meta.env.DEV && hasValue) console.log('[Extractor] total_referrals summed:', sum);
       return hasValue ? sum : null;
     },
-    notes: "From referral_totals, Total row, sum of all columns",
+    notes: "From referral_totals, 'Totals' column from Total row or sum of categories",
   },
   {
     metric_key: "new_referrals",
@@ -401,23 +426,43 @@ export const LEGACY_METRIC_MAPPINGS: LegacyMetricMapping[] = [
     default_target: null,
     category: "Referrals",
     extractor: (payload) => {
-      // Find "New" or "New Referrals" row
-      const row = findRowByLabel(payload.referral_totals, /^new/i);
-      if (!row) return null;
+      // NOTE: Lori's workbook may not have a separate "New Referrals" breakdown
+      // The referral_totals shows categories (W/C, HI, MVA) not New/Reactivation/Discharge
+      // We return the total_referrals value as a proxy since these are likely all "new"
       
-      // Sum numeric columns
-      let sum = 0;
-      let hasValue = false;
-      for (let i = 1; i < row.length; i++) {
-        const val = parseNumeric(row[i]);
-        if (val !== null) {
-          sum += val;
-          hasValue = true;
+      // First check if there's a "New" row explicitly
+      const row = findRowByLabel(payload.referral_totals, /^new/i);
+      if (row) {
+        let sum = 0;
+        let hasValue = false;
+        for (let i = 1; i < row.length; i++) {
+          const val = parseNumeric(row[i]);
+          if (val !== null) {
+            sum += val;
+            hasValue = true;
+          }
         }
+        if (hasValue) return sum;
       }
-      return hasValue ? sum : null;
+      
+      // Fallback: Total referrals = New referrals in this workbook structure
+      // (workbook doesn't distinguish between new/reactivated)
+      if (!payload.referral_totals?.rows) return null;
+      
+      const headers = payload.referral_totals.headers || [];
+      const totalsColIdx = headers.findIndex(h => 
+        String(h || '').toLowerCase().includes('total')
+      );
+      const colIdx = totalsColIdx >= 0 ? totalsColIdx : 1;
+      
+      const totalRow = getTotalRow(payload.referral_totals);
+      if (totalRow) {
+        return parseNumeric(totalRow[colIdx]);
+      }
+      
+      return null;
     },
-    notes: "From referral_totals, 'New' row, sum of all columns",
+    notes: "From referral_totals, 'New' row if exists, else same as total_referrals",
   },
   {
     metric_key: "reactivations",
@@ -427,21 +472,25 @@ export const LEGACY_METRIC_MAPPINGS: LegacyMetricMapping[] = [
     default_target: null,
     category: "Referrals",
     extractor: (payload) => {
+      // Check for explicit "Reactivation" row
       const row = findRowByLabel(payload.referral_totals, /reactivat/i);
-      if (!row) return null;
-      
-      let sum = 0;
-      let hasValue = false;
-      for (let i = 1; i < row.length; i++) {
-        const val = parseNumeric(row[i]);
-        if (val !== null) {
-          sum += val;
-          hasValue = true;
+      if (row) {
+        let sum = 0;
+        let hasValue = false;
+        for (let i = 1; i < row.length; i++) {
+          const val = parseNumeric(row[i]);
+          if (val !== null) {
+            sum += val;
+            hasValue = true;
+          }
         }
+        if (hasValue) return sum;
       }
-      return hasValue ? sum : null;
+      
+      // Not available in this workbook structure
+      return null;
     },
-    notes: "From referral_totals, 'Reactivation' row, sum of all columns",
+    notes: "From referral_totals, 'Reactivation' row if present",
   },
   {
     metric_key: "discharges",
@@ -451,21 +500,25 @@ export const LEGACY_METRIC_MAPPINGS: LegacyMetricMapping[] = [
     default_target: null,
     category: "Referrals",
     extractor: (payload) => {
+      // Check for explicit "Discharge" row
       const row = findRowByLabel(payload.referral_totals, /discharge/i);
-      if (!row) return null;
-      
-      let sum = 0;
-      let hasValue = false;
-      for (let i = 1; i < row.length; i++) {
-        const val = parseNumeric(row[i]);
-        if (val !== null) {
-          sum += val;
-          hasValue = true;
+      if (row) {
+        let sum = 0;
+        let hasValue = false;
+        for (let i = 1; i < row.length; i++) {
+          const val = parseNumeric(row[i]);
+          if (val !== null) {
+            sum += val;
+            hasValue = true;
+          }
         }
+        if (hasValue) return sum;
       }
-      return hasValue ? sum : null;
+      
+      // Not available in this workbook structure
+      return null;
     },
-    notes: "From referral_totals, 'Discharge' row, sum of all columns",
+    notes: "From referral_totals, 'Discharge' row if present",
   },
 
   // ---------------------------------------------------------------------------
@@ -528,11 +581,31 @@ export const LEGACY_METRIC_MAPPINGS: LegacyMetricMapping[] = [
     category: "Pain Management",
     extractor: (payload) => {
       const block = findExtraBlock(payload, "pain management");
-      if (!block) return null;
+      if (!block) {
+        if (import.meta.env.DEV) console.log('[Extractor] No Pain Management block found');
+        return null;
+      }
       
+      if (import.meta.env.DEV) {
+        console.log('[Extractor] Pain Management block:', block.title, 'headers:', block.headers);
+      }
+      
+      // Pain Management table structure varies - provider names are in headers
+      // Find "Pain Management Patient Total" row for aggregate
+      const totalRow = findRowByLabel(block, /pain management patient total/i);
+      if (totalRow) {
+        // First numeric column after label is often "New Patients"
+        const val = parseNumeric(totalRow[1]);
+        if (val !== null) {
+          if (import.meta.env.DEV) console.log('[Extractor] pain_mgmt_new_patients from Total row col 1:', val);
+          return val;
+        }
+      }
+      
+      // Fallback: try extractTotalColumn with "new"
       return extractTotalColumn(block, "new");
     },
-    notes: "From 'Pain Management' extra block, 'New' column, Total row",
+    notes: "From 'Pain Management' extra block, first numeric column of Total row",
   },
   {
     metric_key: "pain_mgmt_total_visits",
@@ -545,13 +618,50 @@ export const LEGACY_METRIC_MAPPINGS: LegacyMetricMapping[] = [
       const block = findExtraBlock(payload, "pain management");
       if (!block) return null;
       
+      if (import.meta.env.DEV) {
+        console.log('[Extractor] Pain Management block for visits:', block.title);
+      }
+      
+      // Find "Pain Management Patient Total" row
+      const totalRow = findRowByLabel(block, /pain management patient total/i);
+      if (totalRow) {
+        // Look for a column that could be "Total Visits" - often index 3 or 4
+        // Headers vary, so try to find numeric columns
+        // Structure: [Label, NewPt?, ?, ?, TotalVisits?, Production, Charges]
+        // From data: [Pain Management Patient Total, 13, 12, 17, 36, 55619, 4207.68]
+        // Index 4 (36) appears to be total visits
+        if (totalRow.length > 4) {
+          const val = parseNumeric(totalRow[4]);
+          if (val !== null && val < 10000) { // Sanity check - visits should be < 10k
+            if (import.meta.env.DEV) console.log('[Extractor] pain_mgmt_total_visits from col 4:', val);
+            return val;
+          }
+        }
+        
+        // Fallback: sum columns 2-4 if they look like visit counts
+        let sum = 0;
+        let hasValue = false;
+        for (let i = 2; i <= Math.min(4, totalRow.length - 1); i++) {
+          const val = parseNumeric(totalRow[i]);
+          if (val !== null && val < 1000) { // Sanity check
+            sum += val;
+            hasValue = true;
+          }
+        }
+        if (hasValue) {
+          if (import.meta.env.DEV) console.log('[Extractor] pain_mgmt_total_visits summed:', sum);
+          return sum;
+        }
+      }
+      
+      // Fallback: try extractTotalColumn
       let val = extractTotalColumn(block, "total");
       if (val === null) {
         val = extractTotalColumn(block, "visits");
       }
       return val;
     },
-    notes: "From 'Pain Management' extra block, 'Total' column, Total row",
+    notes: "From 'Pain Management' extra block, visits column of Total row",
   },
 ];
 
