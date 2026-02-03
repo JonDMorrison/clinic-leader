@@ -6107,6 +6107,24 @@ export type Database = {
           similarity: number
         }[]
       }
+      org_get_benchmark_summary: {
+        Args: {
+          _metric_id: string
+          _period_start: string
+          _period_type: string
+        }
+        Returns: {
+          bucket_label: string
+          cohort_n_orgs: number
+          cohort_name: string
+          cohort_p25: number
+          cohort_p50: number
+          cohort_p75: number
+          computed_at: string
+          percentile_position: number
+          team_value: number
+        }[]
+      }
     }
     Enums: {
       ar_bucket: "30-60" | "60-90" | "90-120" | "120+"

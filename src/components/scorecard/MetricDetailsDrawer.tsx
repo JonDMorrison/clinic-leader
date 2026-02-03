@@ -22,6 +22,7 @@ import { GoalProgressCard } from "./GoalProgressCard";
 import { GoalHistoryView } from "./GoalHistoryView";
 import { MetricComments } from "./MetricComments";
 import { MetricResultsDebugPanel } from "./MetricResultsDebugPanel";
+import { BenchmarkPositionPanel } from "./BenchmarkPositionPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface MetricDetailsDrawerProps {
@@ -279,6 +280,11 @@ export const MetricDetailsDrawer = ({
                 </div>
               </div>
             )}
+
+          {/* Benchmark Position Panel */}
+          {metricId && (
+            <BenchmarkPositionPanel metricId={metricId} />
+          )}
 
           {/* Chart */}
           <div className="glass rounded-lg p-4">
