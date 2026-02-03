@@ -144,6 +144,7 @@ const AdminDashboard = () => {
     { title: "System Health", path: "/system/health", icon: TestTube, color: "text-red-500" },
     { title: "Manage All Users", path: "/admin/users", icon: Users, color: "text-indigo-500" },
     { title: "Add User to Org", path: "/admin/add-user", icon: UserPlus, color: "text-emerald-500" },
+    { title: "Metric Governance", path: "/admin/metrics-governance", icon: Settings, color: "text-orange-500" },
     { title: "Reset Organization", path: "/admin/reset-organization", icon: AlertTriangle, color: "text-destructive" },
   ];
 
