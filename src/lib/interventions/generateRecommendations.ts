@@ -21,7 +21,7 @@ import {
   computePatternStats,
 } from "./buildInterventionPatterns";
 import type { InterventionType } from "./types";
-import { checkMetricEligibility, checkCooldown } from "./recommendationEligibility";
+import { checkMetricEligibility, type EligibilityResult } from "./recommendationEligibility";
 import { filterByAllowedTypes, isInterventionTypeAllowed } from "./interventionTypeAllowlist";
 import { 
   createRecommendationRun, 
@@ -133,7 +133,7 @@ export async function generateRecommendationsForMetric(
   }
 
   // HARDENED: Deterministic eligibility check
-  const eligibility = await checkMetricEligibility(metricId, currentValue);
+  const eligibility = await checkMetricEligibility(organizationId, metricId, new Date(`${periodKey}-01`));
   if (!eligibility.isEligible) {
     console.log(`Metric ${metricId} not eligible: ${eligibility.reason}`);
     return [];
@@ -181,21 +181,7 @@ export async function generateRecommendationsForMetric(
       continue;
     }
 
-    // HARDENED: Check cooldown
-    const cooldownCheck = await checkCooldown(
-      organizationId,
-      metricId,
-      interventionType,
-      currentDeviation
-    );
-    if (cooldownCheck.inCooldown) {
-      filteredReasons.push({
-        interventionType,
-        reason: cooldownCheck.reason || "In cooldown",
-        filteredAt: "cooldown",
-      });
-      continue;
-    }
+    // HARDENED: Cooldown is now checked at eligibility level via check_recommendation_eligibility RPC
 
     const pattern = computePatternStats(group, metricName);
     if (!pattern || pattern.sample_size < CONFIDENCE_THRESHOLDS.MIN_SAMPLE_SIZE) {
