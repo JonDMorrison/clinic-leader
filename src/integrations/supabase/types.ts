@@ -1749,6 +1749,7 @@ export type Database = {
       }
       interventions: {
         Row: {
+          ai_summary: string | null
           confidence_level: number
           created_at: string
           created_by: string
@@ -1768,6 +1769,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_summary?: string | null
           confidence_level?: number
           created_at?: string
           created_by: string
@@ -1787,6 +1789,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_summary?: string | null
           confidence_level?: number
           created_at?: string
           created_by?: string
