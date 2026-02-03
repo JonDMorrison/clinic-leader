@@ -588,14 +588,22 @@ export const LEGACY_METRIC_MAPPINGS: LegacyMetricMapping[] = [
       
       if (import.meta.env.DEV) {
         console.log('[Extractor] Pain Management block:', block.title, 'headers:', block.headers);
+        console.log('[Extractor] Pain Management rows:', JSON.stringify(block.rows));
       }
       
       // Pain Management table structure varies - provider names are in headers
       // Find "Pain Management Patient Total" row for aggregate
       const totalRow = findRowByLabel(block, /pain management patient total/i);
+      if (import.meta.env.DEV) {
+        console.log('[Extractor] Pain Management totalRow:', JSON.stringify(totalRow));
+      }
       if (totalRow) {
         // First numeric column after label is often "New Patients"
-        const val = parseNumeric(totalRow[1]);
+        const rawVal = totalRow[1];
+        const val = parseNumeric(rawVal);
+        if (import.meta.env.DEV) {
+          console.log('[Extractor] pain_mgmt_new_patients rawVal:', rawVal, 'parsed:', val, 'type:', typeof rawVal);
+        }
         if (val !== null) {
           if (import.meta.env.DEV) console.log('[Extractor] pain_mgmt_new_patients from Total row col 1:', val);
           return val;
