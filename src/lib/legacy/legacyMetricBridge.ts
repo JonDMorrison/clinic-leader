@@ -205,6 +205,7 @@ async function upsertMetricResults(
       continue;
     }
 
+    // ========== SAFETY: Never upsert null values ==========
     if (extracted.value === null) {
       results.push({
         metric_key: extracted.metric_key,
@@ -215,7 +216,23 @@ async function upsertMetricResults(
       continue;
     }
 
-    // Upsert to metric_results
+    // ========== SAFETY: Never upsert value=0 unless explicitly valid ==========
+    // Zero can be a legitimate value in some cases, but we want to be cautious
+    // For legacy_workbook source, we assume 0 could be template/placeholder data
+    if (extracted.value === 0) {
+      console.warn(
+        `[LegacyBridge] Skipping ${extracted.metric_key} with value=0 for ${periodKey} (potential template data)`
+      );
+      results.push({
+        metric_key: extracted.metric_key,
+        display_name: extracted.display_name,
+        value: 0,
+        status: "skipped_null", // Treat as skipped
+      });
+      continue;
+    }
+
+    // Upsert to metric_results - ALWAYS use source='legacy_workbook' for bridged metrics
     const { error: upsertError } = await supabase.from("metric_results").upsert(
       {
         organization_id: organizationId,
@@ -225,7 +242,7 @@ async function upsertMetricResults(
         period_start: periodStart,
         period_key: periodKey,
         week_start: periodStart, // Required legacy field
-        source: "legacy_workbook",
+        source: "legacy_workbook", // ALWAYS tag as legacy_workbook
         note: `Derived from Lori workbook import`,
       },
       {
