@@ -4072,6 +4072,7 @@ export type Database = {
           period_type: string
           previous_value: number | null
           raw_row: Json | null
+          selection_meta: Json
           source: string | null
           updated_at: string
           value: number | null
@@ -4088,6 +4089,7 @@ export type Database = {
           period_type: string
           previous_value?: number | null
           raw_row?: Json | null
+          selection_meta?: Json
           source?: string | null
           updated_at?: string
           value?: number | null
@@ -4104,6 +4106,7 @@ export type Database = {
           period_type?: string
           previous_value?: number | null
           raw_row?: Json | null
+          selection_meta?: Json
           source?: string | null
           updated_at?: string
           value?: number | null
@@ -7271,6 +7274,23 @@ export type Database = {
           sample_size: number
           target_value: number
         }[]
+      }
+      compute_canonical_for_month: {
+        Args: { _month_start: string; _org_id: string }
+        Returns: Json
+      }
+      compute_canonical_for_week: {
+        Args: { _org_id: string; _week_start: string }
+        Returns: Json
+      }
+      compute_metric_canonical_results: {
+        Args: {
+          _metric_id: string
+          _org_id: string
+          _period_start: string
+          _period_type: string
+        }
+        Returns: Json
       }
       current_user_id: { Args: never; Returns: string }
       current_user_role: {
