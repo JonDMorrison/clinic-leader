@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Search, Settings2, ArrowUpDown, Database, RefreshCw, ShieldCheck } from "lucide-react";
 import { MetricGovernanceDrawer } from "@/components/admin/governance/MetricGovernanceDrawer";
 import { RecomputeCanonicalsDialog } from "@/components/admin/governance/RecomputeCanonicalsDialog";
+import { GovernanceDevSeederPanel } from "@/components/admin/governance/GovernanceDevSeederPanel";
 import { AccessRestrictedView } from "@/components/admin/AccessRestrictedView";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -144,6 +145,9 @@ export default function MetricsGovernance() {
           Recompute Canonicals
         </Button>
       </div>
+
+      {/* Dev Seeder Panel (dev only) */}
+      <GovernanceDevSeederPanel organizationId={organizationId || null} />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
