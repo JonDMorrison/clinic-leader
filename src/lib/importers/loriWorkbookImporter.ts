@@ -66,6 +66,24 @@ export interface SheetFingerprint {
   total_cols: number;
 }
 
+/** Audit evidence fields for transparency */
+export interface AuditEvidenceFields {
+  // Provider block evidence
+  meaningful_numeric_count_provider: number;
+  provider_total_row_found: boolean;
+  provider_total_row_numeric_cells: number;
+  provider_subtotal_rows_found: number;
+  provider_subtotal_numeric_cells: number;
+  
+  // Pain Management block evidence
+  pain_mgmt_block_found: boolean;
+  pain_mgmt_header_row_found: boolean;
+  pain_mgmt_total_row_found: boolean;
+  pain_mgmt_total_row_numeric_cells: number;
+  pain_mgmt_headers_preview: string[];
+  pain_mgmt_rows_count: number;
+}
+
 export interface LoriMonthPayload {
   sheet_name: string;
   period_key: string; // YYYY-MM
@@ -100,6 +118,9 @@ export interface LoriMonthPayload {
     month_has_data?: boolean;
     meaningful_numeric_count?: number;
     has_nonzero_subtotal?: boolean;
+    
+    // v5 (audit evidence for NO_DATA/N/A classification transparency)
+    audit_evidence?: AuditEvidenceFields;
   };
 }
 
@@ -662,6 +683,95 @@ function splitTableAtTotal(
 }
 
 /**
+ * Compute audit evidence fields for transparency in NO_DATA and NOT_APPLICABLE classification
+ */
+function computeAuditEvidence(providerTable: TableBlock, extraBlocks: ExtraBlock[]): AuditEvidenceFields {
+  // Provider table evidence
+  let meaningfulNumericCountProvider = 0;
+  let providerTotalRowFound = false;
+  let providerTotalRowNumericCells = 0;
+  let providerSubtotalRowsFound = 0;
+  let providerSubtotalNumericCells = 0;
+  
+  for (const row of providerTable.rows || []) {
+    const label = normalizeTextLower(row?.[0]);
+    const isGrandTotal = label === 'total' || label === 'totals' || /^total patient/i.test(String(row?.[0] || ''));
+    const isSubtotal = !isGrandTotal && (
+      label.includes('patient total') ||
+      label.includes('therapist patient total') ||
+      (label.endsWith('total') && (label.includes('chiro') || label.includes('mid level') || label.includes('massage')))
+    );
+    
+    let rowNumericCount = 0;
+    for (let i = 1; i < (row?.length || 0); i++) {
+      const cell = row[i];
+      if (typeof cell === 'number' && !isNaN(cell)) {
+        rowNumericCount++;
+        if (cell !== 0) meaningfulNumericCountProvider++;
+      }
+    }
+    
+    if (isGrandTotal && rowNumericCount >= 3) {
+      providerTotalRowFound = true;
+      providerTotalRowNumericCells = rowNumericCount;
+    }
+    
+    if (isSubtotal && rowNumericCount >= 3) {
+      providerSubtotalRowsFound++;
+      providerSubtotalNumericCells += rowNumericCount;
+    }
+  }
+  
+  // Pain Management block evidence
+  let painMgmtBlockFound = false;
+  let painMgmtHeaderRowFound = false;
+  let painMgmtTotalRowFound = false;
+  let painMgmtTotalRowNumericCells = 0;
+  let painMgmtHeadersPreview: string[] = [];
+  let painMgmtRowsCount = 0;
+  
+  for (const block of extraBlocks) {
+    const title = normalizeTextLower(block.title || '');
+    if (title.includes('pain management') || title.includes('pain mgmt')) {
+      painMgmtBlockFound = true;
+      painMgmtHeaderRowFound = (block.headers?.length || 0) >= 2;
+      painMgmtRowsCount = block.rows?.length || 0;
+      painMgmtHeadersPreview = (block.headers || []).slice(0, 5).map(h => normalizeText(h));
+      
+      // Find total row
+      for (const row of block.rows || []) {
+        const label = normalizeTextLower(row?.[0]);
+        if (label === 'total' || label === 'totals' || label.includes('total')) {
+          painMgmtTotalRowFound = true;
+          for (let i = 1; i < (row?.length || 0); i++) {
+            const cell = row[i];
+            if (typeof cell === 'number' && !isNaN(cell)) {
+              painMgmtTotalRowNumericCells++;
+            }
+          }
+          break;
+        }
+      }
+      break; // Only process first matching block
+    }
+  }
+  
+  return {
+    meaningful_numeric_count_provider: meaningfulNumericCountProvider,
+    provider_total_row_found: providerTotalRowFound,
+    provider_total_row_numeric_cells: providerTotalRowNumericCells,
+    provider_subtotal_rows_found: providerSubtotalRowsFound,
+    provider_subtotal_numeric_cells: providerSubtotalNumericCells,
+    pain_mgmt_block_found: painMgmtBlockFound,
+    pain_mgmt_header_row_found: painMgmtHeaderRowFound,
+    pain_mgmt_total_row_found: painMgmtTotalRowFound,
+    pain_mgmt_total_row_numeric_cells: painMgmtTotalRowNumericCells,
+    pain_mgmt_headers_preview: painMgmtHeadersPreview,
+    pain_mgmt_rows_count: painMgmtRowsCount,
+  };
+}
+
+/**
  * REMOVED: isSectionHeaderRow
  * We now include ALL rows including category headers like "Chiro", "Mid Levels"
  */
@@ -972,6 +1082,19 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
   if (revenueByInsurance) {
     extraBlocks.unshift(revenueByInsurance); // Add at the beginning so it appears first
   }
+
+  // ========== COMPUTE AUDIT EVIDENCE ==========
+  // These fields provide transparency for NO_DATA and NOT_APPLICABLE classification
+  const auditEvidence = computeAuditEvidence(providerTable, extraBlocks);
+  verification.audit_evidence = auditEvidence;
+  
+  // Compute month_has_data based on evidence
+  const meaningfulCount = auditEvidence.meaningful_numeric_count_provider;
+  const hasNonZeroTotal = auditEvidence.provider_total_row_found && auditEvidence.provider_total_row_numeric_cells >= 3;
+  const hasNonZeroSubtotals = auditEvidence.provider_subtotal_rows_found > 0 && auditEvidence.provider_subtotal_numeric_cells >= 3;
+  verification.month_has_data = meaningfulCount >= 5 || hasNonZeroTotal || hasNonZeroSubtotals;
+  verification.meaningful_numeric_count = meaningfulCount;
+  verification.has_nonzero_subtotal = hasNonZeroSubtotals || hasNonZeroTotal;
 
   return {
     sheet_name: sheetName,
