@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, DollarSign, Users, Activity, CheckCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, DollarSign, Users, Activity, CheckCircle } from "lucide-react";
 import type { LegacyMonthPayload } from "./LegacyMonthlyReportView";
 import { extractMetricsFromPayload } from "@/lib/legacy/legacyMetricMapping";
 import { isMetricVerifiable } from "@/lib/legacy/legacyDerivedMetricAudit";
@@ -8,6 +8,7 @@ import { isMetricVerifiable } from "@/lib/legacy/legacyDerivedMetricAudit";
 interface ExecutiveSummaryCardProps {
   payload: LegacyMonthPayload;
   periodKey: string;
+  previousPayload?: LegacyMonthPayload | null;
 }
 
 /**
@@ -68,8 +69,53 @@ function getCategory(metricKey: string): string {
   return 'Other';
 }
 
-export default function ExecutiveSummaryCard({ payload, periodKey }: ExecutiveSummaryCardProps) {
+/**
+ * Get trend direction by comparing current and previous values
+ */
+function getTrend(
+  currentValue: number | null, 
+  previousValue: number | null,
+  direction: 'higher_is_better' | 'lower_is_better' = 'higher_is_better'
+): 'up' | 'down' | 'stable' | null {
+  if (currentValue === null || previousValue === null) return null;
+  if (previousValue === 0 && currentValue === 0) return 'stable';
+  if (previousValue === 0) return currentValue > 0 ? 'up' : 'down';
+  
+  const change = ((currentValue - previousValue) / Math.abs(previousValue)) * 100;
+  
+  // Consider < 1% change as stable
+  if (Math.abs(change) < 1) return 'stable';
+  
+  return change > 0 ? 'up' : 'down';
+}
+
+/**
+ * Get trend color based on direction and metric preference
+ */
+function getTrendColor(
+  trend: 'up' | 'down' | 'stable' | null,
+  metricKey: string
+): string {
+  if (trend === null || trend === 'stable') return 'text-muted-foreground';
+  
+  // For most metrics, higher is better
+  // For discharges, lower is better
+  const isLowerBetter = metricKey === 'discharges';
+  
+  if (isLowerBetter) {
+    return trend === 'up' ? 'text-destructive' : 'text-success';
+  }
+  return trend === 'up' ? 'text-success' : 'text-destructive';
+}
+
+export default function ExecutiveSummaryCard({ payload, periodKey, previousPayload }: ExecutiveSummaryCardProps) {
   const extracted = extractMetricsFromPayload(payload);
+  const previousExtracted = previousPayload ? extractMetricsFromPayload(previousPayload) : [];
+  
+  // Create a map of previous values for quick lookup
+  const previousValuesMap = new Map(
+    previousExtracted.map(m => [m.metric_key, m.value])
+  );
   
   // Group metrics by category
   const grouped = new Map<string, typeof extracted>();
@@ -109,6 +155,9 @@ export default function ExecutiveSummaryCard({ payload, periodKey }: ExecutiveSu
                 {metrics.map((metric) => {
                   const Icon = getMetricIcon(metric.metric_key);
                   const isVerifiable = isMetricVerifiable(metric.metric_key);
+                  const previousValue = previousValuesMap.get(metric.metric_key);
+                  const trend = getTrend(metric.value, previousValue ?? null);
+                  const trendColor = getTrendColor(trend, metric.metric_key);
                   
                   return (
                     <Card 
@@ -131,15 +180,19 @@ export default function ExecutiveSummaryCard({ payload, periodKey }: ExecutiveSu
                           </div>
                           <div className="flex flex-col items-end gap-1">
                             <Icon className="w-4 h-4 text-muted-foreground" />
-                            {isVerifiable && metric.value !== null && (
-                              <Badge className="bg-success/20 text-success border-0 text-[9px] px-1 py-0">
-                                <CheckCircle className="w-2.5 h-2.5 mr-0.5" />
-                                Synced
-                              </Badge>
+                            {/* Trend indicator */}
+                            {trend === 'up' && (
+                              <TrendingUp className={`w-4 h-4 ${trendColor}`} />
                             )}
-                            {!isVerifiable && (
-                              <Badge variant="secondary" className="text-[9px] px-1 py-0">
-                                Info
+                            {trend === 'down' && (
+                              <TrendingDown className={`w-4 h-4 ${trendColor}`} />
+                            )}
+                            {trend === 'stable' && (
+                              <Minus className={`w-4 h-4 ${trendColor}`} />
+                            )}
+                            {trend === null && metric.value !== null && isVerifiable && (
+                              <Badge className="bg-muted/50 text-muted-foreground border-0 text-[9px] px-1 py-0">
+                                No prior
                               </Badge>
                             )}
                           </div>
@@ -155,14 +208,26 @@ export default function ExecutiveSummaryCard({ payload, periodKey }: ExecutiveSu
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground pt-4 border-t">
+      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-4 border-t">
         <div className="flex items-center gap-1.5">
+          <TrendingUp className="w-3.5 h-3.5 text-success" />
+          <span>Up vs last month</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <TrendingDown className="w-3.5 h-3.5 text-destructive" />
+          <span>Down vs last month</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+          <span>Stable</span>
+        </div>
+        <div className="flex items-center gap-1.5 ml-auto">
           <div className="w-3 h-3 rounded border-brand/30 bg-brand/5 border" />
           <span>Synced to Scorecard</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded border-muted bg-muted/20 border" />
-          <span>Informational (not synced)</span>
+          <span>Informational</span>
         </div>
       </div>
     </div>

@@ -71,25 +71,50 @@ export default function DataDefaultHome() {
 
   const isYTDSelected = effectiveSelectedPeriod === YTD_TAB_VALUE || selectedPeriod === YTD_TAB_VALUE;
 
-  // Fetch selected month's payload (single month)
+  // Calculate previous month period key
+  const previousPeriodKey = useMemo(() => {
+    if (!effectiveSelectedPeriod || isYTDSelected) return null;
+    try {
+      const [year, month] = effectiveSelectedPeriod.split('-').map(Number);
+      const prevDate = new Date(year, month - 2, 1); // month-2 because Date uses 0-indexed months
+      return `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+    } catch {
+      return null;
+    }
+  }, [effectiveSelectedPeriod, isYTDSelected]);
+
+  // Fetch selected month's payload AND previous month for trend comparison
   const { data: reportData, isLoading: reportLoading } = useQuery({
-    queryKey: ["legacy-monthly-report", currentUser?.team_id, effectiveSelectedPeriod],
+    queryKey: ["legacy-monthly-report", currentUser?.team_id, effectiveSelectedPeriod, previousPeriodKey],
     queryFn: async () => {
       if (!currentUser?.team_id || !effectiveSelectedPeriod || isYTDSelected) return null;
       
+      // Fetch current and previous month in parallel
+      const periodKeys = previousPeriodKey 
+        ? [effectiveSelectedPeriod, previousPeriodKey]
+        : [effectiveSelectedPeriod];
+      
       const { data, error } = await supabase
         .from("legacy_monthly_reports" as any)
-        .select("payload, updated_at, source_file_name")
+        .select("period_key, payload, updated_at, source_file_name")
         .eq("organization_id", currentUser.team_id)
-        .eq("period_key", effectiveSelectedPeriod)
-        .maybeSingle();
+        .in("period_key", periodKeys);
       
       if (error) {
         console.error("Error fetching report payload:", error);
         return null;
       }
       
-      return data as unknown as { payload: LegacyMonthPayload; updated_at: string; source_file_name: string | null } | null;
+      const records = (data || []) as unknown as { period_key: string; payload: LegacyMonthPayload; updated_at: string; source_file_name: string | null }[];
+      const current = records.find(r => r.period_key === effectiveSelectedPeriod);
+      const previous = records.find(r => r.period_key === previousPeriodKey);
+      
+      return current ? {
+        payload: current.payload,
+        updated_at: current.updated_at,
+        source_file_name: current.source_file_name,
+        previousPayload: previous?.payload || null,
+      } : null;
     },
     enabled: !!currentUser?.team_id && !!effectiveSelectedPeriod && !isYTDSelected,
   });
@@ -316,6 +341,7 @@ export default function DataDefaultHome() {
                 <ExecutiveSummaryCard
                   payload={reportData.payload}
                   periodKey={effectiveSelectedPeriod!}
+                  previousPayload={reportData.previousPayload}
                 />
               ) : (
                 <LegacyMonthlyReportView
