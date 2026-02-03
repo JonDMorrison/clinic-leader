@@ -5916,6 +5916,107 @@ export type Database = {
       }
     }
     Functions: {
+      bench_compare_team_to_cohort: {
+        Args: {
+          _cohort_id: string
+          _metric_id: string
+          _period_start: string
+          _period_type: string
+          _team_id: string
+        }
+        Returns: {
+          cohort_mean: number
+          cohort_n_orgs: number
+          cohort_p10: number
+          cohort_p25: number
+          cohort_p50: number
+          cohort_p75: number
+          cohort_p90: number
+          cohort_stddev: number
+          computed_at: string
+          rank_bucket: string
+          source: string
+          team_value: number
+        }[]
+      }
+      bench_compute_snapshot: {
+        Args: {
+          _cohort_id: string
+          _metric_id: string
+          _period_start: string
+          _period_type: string
+        }
+        Returns: {
+          cohort_id: string
+          computed_at: string
+          id: string
+          mean: number | null
+          metric_id: string
+          n_orgs: number
+          p10: number | null
+          p25: number | null
+          p50: number | null
+          p75: number | null
+          p90: number | null
+          period_start: string
+          period_type: string
+          stddev: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "benchmark_snapshots"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      bench_get_cohort_members: {
+        Args: { _cohort_id: string }
+        Returns: {
+          joined_at: string
+          team_id: string
+          team_name: string
+        }[]
+      }
+      bench_get_cohorts: {
+        Args: never
+        Returns: {
+          created_at: string
+          description: string
+          id: string
+          member_count: number
+          name: string
+        }[]
+      }
+      bench_get_snapshot: {
+        Args: {
+          _cohort_id: string
+          _metric_id: string
+          _period_start: string
+          _period_type: string
+        }
+        Returns: {
+          cohort_id: string
+          computed_at: string
+          id: string
+          mean: number | null
+          metric_id: string
+          n_orgs: number
+          p10: number | null
+          p25: number | null
+          p50: number | null
+          p75: number | null
+          p90: number | null
+          period_start: string
+          period_type: string
+          stddev: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "benchmark_snapshots"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       can_modify_intervention: {
         Args: { intervention_id: string }
         Returns: boolean
