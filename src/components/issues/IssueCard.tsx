@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, CheckCircle2, ListTodo, GripVertical, Link as LinkIcon, TrendingUp, Target, User, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, ListTodo, GripVertical, Link as LinkIcon, TrendingUp, Target, User, Trash2, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConvertToTodoModal } from "./ConvertToTodoModal";
+import { CreateInterventionFromIssueModal } from "./CreateInterventionFromIssueModal";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 import {
@@ -36,6 +37,7 @@ interface IssueCardProps {
 export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) => {
   const [convertModalOpen, setConvertModalOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [interventionModalOpen, setInterventionModalOpen] = useState(false);
   const { toast } = useToast();
 
   const getPriorityBadge = (priority: number) => {
@@ -216,6 +218,14 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                       </Button>
                       <Button
                         size="sm"
+                        variant="outline"
+                        onClick={() => setInterventionModalOpen(true)}
+                      >
+                        <Zap className="w-4 h-4 mr-1" />
+                        Intervention
+                      </Button>
+                      <Button
+                        size="sm"
                         onClick={handleMarkSolved}
                       >
                         <CheckCircle2 className="w-4 h-4 mr-1" />
@@ -274,6 +284,17 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
         linkType="issue"
         linkId={issue.id}
         itemName={issue.title}
+      />
+
+      <CreateInterventionFromIssueModal
+        open={interventionModalOpen}
+        onClose={() => setInterventionModalOpen(false)}
+        issue={{
+          id: issue.id,
+          title: issue.title,
+          context: issue.context,
+          organization_id: issue.organization_id,
+        }}
       />
     </>
   );

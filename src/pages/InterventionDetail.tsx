@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import {
   BarChart3,
   Loader2,
   Play,
+  ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -46,6 +47,7 @@ import { OutcomeRow } from "@/components/interventions/OutcomeRow";
 type InterventionWithUsers = InterventionRow & {
   owner: { id: string; full_name: string } | null;
   creator: { id: string; full_name: string } | null;
+  originIssue: { id: string; title: string } | null;
 };
 
 type LinkedMetric = {
@@ -122,10 +124,25 @@ export default function InterventionDetail() {
         usersMap = new Map((usersData || []).map((u) => [u.id, u]));
       }
 
+      // Fetch origin issue if origin_type is 'issue'
+      let originIssue: { id: string; title: string } | null = null;
+      if (data.origin_type === "issue" && data.origin_id) {
+        const { data: issueData } = await supabase
+          .from("issues")
+          .select("id, title")
+          .eq("id", data.origin_id)
+          .single();
+        
+        if (issueData) {
+          originIssue = issueData;
+        }
+      }
+
       return {
         ...data,
         owner: data.owner_user_id ? usersMap.get(data.owner_user_id) || null : null,
         creator: data.created_by ? usersMap.get(data.created_by) || null : null,
+        originIssue,
       } as InterventionWithUsers;
     },
     enabled: !!id,
@@ -465,9 +482,21 @@ export default function InterventionDetail() {
 
               <div>
                 <p className="text-sm text-muted-foreground">Origin</p>
-                <p className="font-medium capitalize">
-                  {intervention.origin_type.replace("_", " ")}
-                </p>
+                {intervention.originIssue ? (
+                  <Link
+                    to={`/issues`}
+                    className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    Issue: {intervention.originIssue.title.slice(0, 30)}
+                    {intervention.originIssue.title.length > 30 && "..."}
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                ) : (
+                  <p className="font-medium capitalize">
+                    {intervention.origin_type.replace("_", " ")}
+                  </p>
+                )}
               </div>
             </div>
 
