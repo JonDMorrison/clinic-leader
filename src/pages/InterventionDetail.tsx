@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,10 +23,14 @@ import {
   Trash2,
   Plus,
   Link as LinkIcon,
+  BarChart3,
+  Loader2,
+  Play,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useToast } from "@/hooks/use-toast";
 import {
   STATUS_COLORS,
   INTERVENTION_TYPE_OPTIONS,
@@ -37,6 +41,7 @@ import { EditInterventionModal } from "@/components/interventions/EditInterventi
 import { DeleteInterventionDialog } from "@/components/interventions/DeleteInterventionDialog";
 import { LinkMetricModal } from "@/components/interventions/LinkMetricModal";
 import { LinkedMetricRow } from "@/components/interventions/LinkedMetricRow";
+import { OutcomeRow } from "@/components/interventions/OutcomeRow";
 
 type InterventionWithUsers = InterventionRow & {
   owner: { id: string; full_name: string } | null;
@@ -56,9 +61,27 @@ type LinkedMetric = {
   metric: { id: string; name: string } | null;
 };
 
+type OutcomeWithMetric = {
+  id: string;
+  intervention_id: string;
+  metric_id: string;
+  evaluation_period_start: string;
+  evaluation_period_end: string;
+  actual_delta_value: number | null;
+  actual_delta_percent: number | null;
+  confidence_score: number;
+  ai_summary: string | null;
+  evaluated_at: string;
+  metric: { id: string; name: string } | null;
+  baseline_value: number | null;
+  current_value: number | null;
+};
+
 export default function InterventionDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: currentUser } = useCurrentUser();
   const { data: adminData } = useIsAdmin();
 
@@ -159,11 +182,102 @@ export default function InterventionDetail() {
     enabled: !!intervention?.organization_id,
   });
 
+  // Fetch outcomes
+  const { data: outcomes = [], refetch: refetchOutcomes } = useQuery({
+    queryKey: ["intervention-outcomes", id],
+    queryFn: async () => {
+      if (!id) return [];
+
+      const { data, error } = await supabase
+        .from("intervention_outcomes")
+        .select("*")
+        .eq("intervention_id", id)
+        .order("evaluated_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Fetch metric names and baseline values from links
+      const metricIds = (data || []).map((o) => o.metric_id);
+      let metricsMap = new Map<string, { id: string; name: string }>();
+      let linksMap = new Map<string, { baseline_value: number | null }>();
+
+      if (metricIds.length > 0) {
+        const [metricsResult, linksResult] = await Promise.all([
+          supabase.from("metrics").select("id, name").in("id", metricIds),
+          supabase
+            .from("intervention_metric_links")
+            .select("metric_id, baseline_value")
+            .eq("intervention_id", id)
+            .in("metric_id", metricIds),
+        ]);
+
+        metricsMap = new Map((metricsResult.data || []).map((m) => [m.id, m]));
+        linksMap = new Map((linksResult.data || []).map((l) => [l.metric_id, l]));
+      }
+
+      return (data || []).map((outcome) => {
+        const link = linksMap.get(outcome.metric_id);
+        const baselineValue = link?.baseline_value ?? null;
+        const currentValue =
+          baselineValue !== null && outcome.actual_delta_value !== null
+            ? baselineValue + outcome.actual_delta_value
+            : null;
+
+        return {
+          ...outcome,
+          metric: metricsMap.get(outcome.metric_id) || null,
+          baseline_value: baselineValue,
+          current_value: currentValue,
+        } as OutcomeWithMetric;
+      });
+    },
+    enabled: !!id,
+  });
+
+  // Evaluate outcomes mutation
+  const evaluateMutation = useMutation({
+    mutationFn: async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.access_token) {
+        throw new Error("Not authenticated");
+      }
+
+      const response = await supabase.functions.invoke("evaluate-intervention-outcomes", {
+        body: { intervention_id: id },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Evaluation failed");
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["intervention-outcomes", id] });
+      toast({
+        title: "Evaluation complete",
+        description: `Evaluated ${data.evaluated_count} metric(s).`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Evaluation failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Permission checks
   const isAdmin = adminData?.isAdmin || false;
   const isCreator = intervention?.created_by === currentUser?.id;
   const canEdit = isAdmin || isCreator;
   const canDelete = isAdmin;
+  const canEvaluate = isAdmin && ["active", "completed"].includes(intervention?.status || "");
 
   const getTypeLabel = (type: string) =>
     INTERVENTION_TYPE_OPTIONS.find((t) => t.value === type)?.label || type;
@@ -454,6 +568,91 @@ export default function InterventionDetail() {
                   baselineValue={link.baseline_value}
                   baselinePeriodStart={link.baseline_period_start}
                   canEdit={canEdit}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Section 4: Outcomes */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Outcomes ({outcomes.length})</CardTitle>
+          </div>
+          {canEvaluate ? (
+            <Button
+              size="sm"
+              onClick={() => evaluateMutation.mutate()}
+              disabled={evaluateMutation.isPending || linkedMetrics.length === 0}
+            >
+              {evaluateMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="mr-2 h-4 w-4" />
+              )}
+              Evaluate Outcomes
+            </Button>
+          ) : isAdmin ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="sm" disabled variant="outline">
+                  <Play className="mr-2 h-4 w-4" />
+                  Evaluate Outcomes
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Intervention must be active or completed to evaluate
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
+        </CardHeader>
+        <CardContent>
+          {outcomes.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground mb-2">
+                No outcomes evaluated yet.
+              </p>
+              {linkedMetrics.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Link metrics first, then run evaluation.
+                </p>
+              ) : canEvaluate ? (
+                <Button
+                  variant="outline"
+                  onClick={() => evaluateMutation.mutate()}
+                  disabled={evaluateMutation.isPending}
+                >
+                  {evaluateMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="mr-2 h-4 w-4" />
+                  )}
+                  Run first evaluation
+                </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {isAdmin
+                    ? "Set status to active or completed to evaluate."
+                    : "Only admins can evaluate outcomes."}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {outcomes.map((outcome) => (
+                <OutcomeRow
+                  key={outcome.id}
+                  metricName={outcome.metric?.name || "Unknown metric"}
+                  baselineValue={outcome.baseline_value}
+                  currentValue={outcome.current_value}
+                  actualDeltaValue={outcome.actual_delta_value}
+                  actualDeltaPercent={outcome.actual_delta_percent}
+                  evaluationPeriodStart={outcome.evaluation_period_start}
+                  evaluationPeriodEnd={outcome.evaluation_period_end}
+                  evaluatedAt={outcome.evaluated_at}
                 />
               ))}
             </div>
