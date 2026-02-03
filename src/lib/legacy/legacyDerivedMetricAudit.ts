@@ -28,6 +28,27 @@ export interface AuditEvidence {
   computation: string;
 }
 
+/** Classification inputs for transparency */
+export interface ClassificationInputs {
+  // Provider block evidence
+  meaningful_numeric_count_provider: number;
+  provider_total_row_found: boolean;
+  provider_total_row_numeric_cells: number;
+  provider_subtotal_rows_found: number;
+  provider_subtotal_numeric_cells: number;
+  
+  // Pain Management block evidence (for pain metrics)
+  pain_mgmt_block_found: boolean;
+  pain_mgmt_header_row_found: boolean;
+  pain_mgmt_total_row_found: boolean;
+  pain_mgmt_total_row_numeric_cells: number;
+  pain_mgmt_headers_preview: string[];
+  pain_mgmt_rows_count: number;
+  
+  // Month-level flags
+  month_has_data: boolean;
+}
+
 export interface MetricAuditResult {
   metric_key: string;
   display_name: string;
@@ -44,6 +65,10 @@ export interface MetricAuditResult {
   blocks_sync: boolean;
   evidence: AuditEvidence | null;
   notes: string;
+  /** Human-readable explanation of classification decision */
+  classification_reason: string;
+  /** Structured inputs used for classification decision */
+  classification_inputs: ClassificationInputs;
 }
 
 export interface DerivedMetricAuditReport {
@@ -118,6 +143,150 @@ export function hasPainManagementBlock(payload: LegacyMonthPayload): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Get Pain Management block details for classification inputs
+ */
+function getPainManagementDetails(payload: LegacyMonthPayload): {
+  block_found: boolean;
+  header_row_found: boolean;
+  total_row_found: boolean;
+  total_row_numeric_cells: number;
+  headers_preview: string[];
+  rows_count: number;
+} {
+  const defaultResult = {
+    block_found: false,
+    header_row_found: false,
+    total_row_found: false,
+    total_row_numeric_cells: 0,
+    headers_preview: [],
+    rows_count: 0,
+  };
+  
+  if (!payload.extra_blocks || payload.extra_blocks.length === 0) return defaultResult;
+  
+  for (const block of payload.extra_blocks) {
+    const title = String((block as any).title || '').toLowerCase().trim();
+    if (title.includes('pain management') || title.includes('pain mgmt')) {
+      const rows = (block as any).rows || [];
+      const headers = (block as any).headers || [];
+      
+      // Find total row
+      let totalRowFound = false;
+      let totalRowNumericCells = 0;
+      for (const row of rows) {
+        const label = String(row?.[0] || '').toLowerCase().trim();
+        if (label === 'total' || label === 'totals' || label.includes('total')) {
+          totalRowFound = true;
+          for (let i = 1; i < row.length; i++) {
+            const val = parseNumeric(row[i]);
+            if (val !== null) totalRowNumericCells++;
+          }
+          break;
+        }
+      }
+      
+      return {
+        block_found: true,
+        header_row_found: headers.length >= 2,
+        total_row_found: totalRowFound,
+        total_row_numeric_cells: totalRowNumericCells,
+        headers_preview: headers.slice(0, 5).map((h: any) => String(h || '').trim()),
+        rows_count: rows.length,
+      };
+    }
+  }
+  return defaultResult;
+}
+
+/**
+ * Get Provider table details for classification inputs
+ */
+function getProviderDetails(payload: LegacyMonthPayload): {
+  meaningful_numeric_count: number;
+  total_row_found: boolean;
+  total_row_numeric_cells: number;
+  subtotal_rows_found: number;
+  subtotal_numeric_cells: number;
+} {
+  const providerTable = payload.provider_table;
+  if (!providerTable?.rows) {
+    return {
+      meaningful_numeric_count: 0,
+      total_row_found: false,
+      total_row_numeric_cells: 0,
+      subtotal_rows_found: 0,
+      subtotal_numeric_cells: 0,
+    };
+  }
+  
+  let meaningfulCount = 0;
+  let totalRowFound = false;
+  let totalRowNumericCells = 0;
+  let subtotalRowsFound = 0;
+  let subtotalNumericCells = 0;
+  
+  for (const row of providerTable.rows) {
+    const label = String(row?.[0] || '').toLowerCase().trim();
+    const isGrandTotal = label === 'total' || label === 'totals' || /^total patient/i.test(label);
+    const isSubtotal = !isGrandTotal && (
+      label.includes('patient total') ||
+      label.includes('therapist patient total') ||
+      (label.endsWith('total') && (label.includes('chiro') || label.includes('mid level') || label.includes('massage')))
+    );
+    
+    let rowNumericCount = 0;
+    for (let i = 1; i < (row?.length || 0); i++) {
+      const val = parseNumeric(row[i]);
+      if (val !== null) {
+        rowNumericCount++;
+        if (val !== 0) meaningfulCount++;
+      }
+    }
+    
+    if (isGrandTotal && rowNumericCount >= 3) {
+      totalRowFound = true;
+      totalRowNumericCells = rowNumericCount;
+    }
+    
+    if (isSubtotal && rowNumericCount >= 3) {
+      subtotalRowsFound++;
+      subtotalNumericCells += rowNumericCount;
+    }
+  }
+  
+  return {
+    meaningful_numeric_count: meaningfulCount,
+    total_row_found: totalRowFound,
+    total_row_numeric_cells: totalRowNumericCells,
+    subtotal_rows_found: subtotalRowsFound,
+    subtotal_numeric_cells: subtotalNumericCells,
+  };
+}
+
+/**
+ * Build classification inputs for a payload
+ */
+function buildClassificationInputs(payload: LegacyMonthPayload, monthHasDataFlag: boolean): ClassificationInputs {
+  const providerDetails = getProviderDetails(payload);
+  const painDetails = getPainManagementDetails(payload);
+  
+  return {
+    meaningful_numeric_count_provider: providerDetails.meaningful_numeric_count,
+    provider_total_row_found: providerDetails.total_row_found,
+    provider_total_row_numeric_cells: providerDetails.total_row_numeric_cells,
+    provider_subtotal_rows_found: providerDetails.subtotal_rows_found,
+    provider_subtotal_numeric_cells: providerDetails.subtotal_numeric_cells,
+    pain_mgmt_block_found: painDetails.block_found,
+    pain_mgmt_header_row_found: painDetails.header_row_found,
+    pain_mgmt_total_row_found: painDetails.total_row_found,
+    pain_mgmt_total_row_numeric_cells: painDetails.total_row_numeric_cells,
+    pain_mgmt_headers_preview: painDetails.headers_preview,
+    pain_mgmt_rows_count: painDetails.rows_count,
+    month_has_data: monthHasDataFlag,
+  };
 }
 
 /**
@@ -370,7 +539,8 @@ function auditMetric(
   mapping: LegacyMetricMapping,
   payload: LegacyMonthPayload,
   extractedValue: number | null,
-  monthHasDataFlag: boolean
+  monthHasDataFlag: boolean,
+  classificationInputs: ClassificationInputs
 ): MetricAuditResult {
   const metric_key = mapping.metric_key;
   const isVerifiable = isMetricVerifiable(metric_key);
@@ -401,11 +571,18 @@ function auditMetric(
         computation: 'Computed value - no single cell reference',
       },
       notes: mapping.notes,
+      classification_reason: 'UNVERIFIABLE: Computed/derived metric with no deterministic cell reference.',
+      classification_inputs: classificationInputs,
     };
   }
 
   // ========== DECISION 1: Check if month has data ==========
   if (!monthHasDataFlag) {
+    const reason = `NO_DATA: meaningful_numeric_count_provider=${classificationInputs.meaningful_numeric_count_provider}, ` +
+      `provider_total_row_found=${classificationInputs.provider_total_row_found}, ` +
+      `provider_subtotal_rows_found=${classificationInputs.provider_subtotal_rows_found}. ` +
+      `Month appears to be a template or future month with insufficient numeric data.`;
+    
     return {
       metric_key,
       display_name: mapping.display_name,
@@ -430,12 +607,20 @@ function auditMetric(
         computation: 'Month marked as no-data/template; skipping verification.',
       },
       notes: 'Month has no meaningful numeric data (template or future month). Does not block sync.',
+      classification_reason: reason,
+      classification_inputs: classificationInputs,
     };
   }
 
   // ========== DECISION 2: Check if required block exists ==========
   const requiredBlock = getRequiredBlock(metric_key);
   if (requiredBlock === 'pain_management' && !hasPainManagementBlock(payload)) {
+    const reason = `NOT_APPLICABLE: Metric requires Pain Management block. ` +
+      `pain_mgmt_block_found=${classificationInputs.pain_mgmt_block_found}, ` +
+      `pain_mgmt_header_row_found=${classificationInputs.pain_mgmt_header_row_found}, ` +
+      `pain_mgmt_rows_count=${classificationInputs.pain_mgmt_rows_count}. ` +
+      `Block not present in this month's workbook.`;
+    
     return {
       metric_key,
       display_name: mapping.display_name,
@@ -460,6 +645,8 @@ function auditMetric(
         computation: 'Pain Management block not found in workbook for this month.',
       },
       notes: 'Pain Management block does not exist in this month\'s workbook. Does not block sync.',
+      classification_reason: reason,
+      classification_inputs: classificationInputs,
     };
   }
 
@@ -611,14 +798,23 @@ function auditMetric(
   let delta: number | null = null;
   let notes = mapping.notes;
   let blockSync = false;
+  let classificationReason = '';
 
   if (!hasReference) {
     // Block exists but no truth anchor found (e.g., Pain Management block exists but no Total row)
     status = "NEEDS_DEFINITION";
     if (hasExtracted) {
       notes = `Block exists, extracted value ${extractedValue}, but no truth anchor defined yet. Does not block sync.`;
+      classificationReason = `NEEDS_DEFINITION: Extracted value=${extractedValue} but no truth anchor. ` +
+        `provider_total_row_found=${classificationInputs.provider_total_row_found}, ` +
+        `pain_mgmt_total_row_found=${classificationInputs.pain_mgmt_total_row_found}. ` +
+        `Block exists but Total row has no valid numeric data for this column.`;
     } else {
       notes = "Block exists but no truth anchor defined (no Total row or column found). Does not block sync.";
+      classificationReason = `NEEDS_DEFINITION: No extracted value and no truth anchor. ` +
+        `provider_total_row_found=${classificationInputs.provider_total_row_found}, ` +
+        `pain_mgmt_total_row_found=${classificationInputs.pain_mgmt_total_row_found}. ` +
+        `Block exists but Total row or column not found.`;
     }
   } else {
     // HAS TRUTH ANCHOR - can PASS or FAIL
@@ -627,6 +823,8 @@ function auditMetric(
       status = "FAIL";
       blockSync = true;
       notes = `Extractor returned null but workbook reference shows ${referenceValue}. Sync blocked.`;
+      classificationReason = `FAIL: Truth anchor exists (ref=${referenceValue}) but extractor returned null. ` +
+        `This is a BLOCKING failure that prevents sync.`;
     } else {
       // Both values exist - compare with tolerance
       delta = Math.abs(extractedValue - referenceValue);
@@ -634,10 +832,14 @@ function auditMetric(
       if (delta <= tolerance) {
         status = "PASS";
         notes = `Verified: extracted ${extractedValue} matches reference ${referenceValue}`;
+        classificationReason = `PASS: Extracted value ${extractedValue} matches reference ${referenceValue} ` +
+          `(delta=${delta}, tolerance=${tolerance}).`;
       } else {
         status = "FAIL";
         blockSync = true;
         notes = `Value mismatch: extracted ${extractedValue}, workbook ${referenceValue}, delta ${delta}. Sync blocked.`;
+        classificationReason = `FAIL: Value mismatch. Extracted=${extractedValue}, reference=${referenceValue}, delta=${delta}. ` +
+          `This is a BLOCKING failure that prevents sync.`;
       }
     }
   }
@@ -655,6 +857,8 @@ function auditMetric(
     blocks_sync: blockSync,
     evidence,
     notes,
+    classification_reason: classificationReason,
+    classification_inputs: classificationInputs,
   };
 }
 
@@ -671,11 +875,14 @@ export function auditDerivedMetrics(
   
   // Determine if month has meaningful data
   const monthHasDataFlag = monthHasData(payload);
+  
+  // Build classification inputs once for all metrics
+  const classificationInputs = buildClassificationInputs(payload, monthHasDataFlag);
 
   for (const mapping of LEGACY_METRIC_MAPPINGS) {
     const ex = extracted.find(e => e.metric_key === mapping.metric_key);
     const extractedValue = ex?.value ?? null;
-    const result = auditMetric(mapping, payload, extractedValue, monthHasDataFlag);
+    const result = auditMetric(mapping, payload, extractedValue, monthHasDataFlag, classificationInputs);
     results.push(result);
   }
 

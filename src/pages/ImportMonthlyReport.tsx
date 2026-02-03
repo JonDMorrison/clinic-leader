@@ -10,14 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { 
   Upload, Download, Loader2, CheckCircle, AlertTriangle, ArrowLeft, 
   FileWarning, FileSpreadsheet, AlertCircle, RotateCcw, Copy, ExternalLink,
-  Calendar, FileCheck, TrendingUp, Info
+  Calendar, FileCheck, TrendingUp, Info, ChevronDown
 } from "lucide-react";
 import { bridgeMultipleMonths, isLegacyDataMode, type BridgeResult, type DerivedMetricResult } from "@/lib/legacy/legacyMetricBridge";
-import { auditDerivedMetrics, hasBlockingFailures, getBlockingFailures, getInformationalMetrics, type DerivedMetricAuditReport, type MetricAuditResult } from "@/lib/legacy/legacyDerivedMetricAudit";
+import { auditDerivedMetrics, hasBlockingFailures, getBlockingFailures, getInformationalMetrics, type DerivedMetricAuditReport, type MetricAuditResult, type ClassificationInputs } from "@/lib/legacy/legacyDerivedMetricAudit";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { getWorkbookSheets, parseSheet, normalizeLabel } from "@/lib/importers/excelProfileParser";
@@ -61,6 +62,126 @@ interface ImportSummary {
   processed: number;
   imported: number;
   skipped: ParsedRow[];
+}
+
+/**
+ * Collapsible Audit Evidence Panel
+ * Shows detailed classification inputs to explain NO_DATA and NOT_APPLICABLE decisions
+ */
+function AuditEvidencePanel({ report }: { report: DerivedMetricAuditReport }) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  // Get classification inputs from any result (they're the same for the whole report)
+  const sampleResult = report.results.find(r => (r as any).classification_inputs);
+  const inputs = (sampleResult as any)?.classification_inputs as ClassificationInputs | undefined;
+  
+  if (!inputs) return null;
+  
+  // Check for NO_DATA or N/A statuses to show relevant warnings
+  const hasNoData = report.results.some(r => r.status === 'NO_DATA');
+  const hasNotApplicable = report.results.some(r => r.status === 'NOT_APPLICABLE');
+  
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-3">
+      <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full justify-between px-2 py-1.5 rounded bg-muted/30 hover:bg-muted/50">
+        <span className="flex items-center gap-1.5">
+          <Info className="w-3.5 h-3.5" />
+          Audit Evidence (Classification Inputs)
+        </span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2 p-3 border rounded-lg bg-muted/20 text-xs space-y-3">
+        {/* Warning for NO_DATA */}
+        {hasNoData && (
+          <Alert className="py-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+            <AlertDescription className="text-[11px] text-amber-800 dark:text-amber-200">
+              <strong>NO_DATA</strong> is based on provider numeric evidence. 
+              Verify Sept–Dec show <strong>meaningful_numeric_count_provider &gt; 0</strong>.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {/* Provider Evidence Table */}
+        <div>
+          <h4 className="font-medium text-[11px] mb-1.5 text-foreground">Provider Block Evidence</h4>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">meaningful_numeric_count_provider:</span>
+              <span className={`font-mono ${inputs.meaningful_numeric_count_provider >= 5 ? 'text-success' : 'text-amber-600'}`}>
+                {inputs.meaningful_numeric_count_provider}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">month_has_data:</span>
+              <span className={`font-mono ${inputs.month_has_data ? 'text-success' : 'text-amber-600'}`}>
+                {inputs.month_has_data ? 'true' : 'false'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">provider_total_row_found:</span>
+              <span className="font-mono">{inputs.provider_total_row_found ? 'true' : 'false'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">provider_total_row_numeric_cells:</span>
+              <span className="font-mono">{inputs.provider_total_row_numeric_cells}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">provider_subtotal_rows_found:</span>
+              <span className="font-mono">{inputs.provider_subtotal_rows_found}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">provider_subtotal_numeric_cells:</span>
+              <span className="font-mono">{inputs.provider_subtotal_numeric_cells}</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Pain Management Evidence Table */}
+        <div>
+          <h4 className="font-medium text-[11px] mb-1.5 text-foreground">Pain Management Block Evidence</h4>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">pain_mgmt_block_found:</span>
+              <span className={`font-mono ${inputs.pain_mgmt_block_found ? 'text-success' : 'text-muted-foreground'}`}>
+                {inputs.pain_mgmt_block_found ? 'true' : 'false'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">pain_mgmt_header_row_found:</span>
+              <span className="font-mono">{inputs.pain_mgmt_header_row_found ? 'true' : 'false'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">pain_mgmt_total_row_found:</span>
+              <span className="font-mono">{inputs.pain_mgmt_total_row_found ? 'true' : 'false'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">pain_mgmt_total_row_numeric_cells:</span>
+              <span className="font-mono">{inputs.pain_mgmt_total_row_numeric_cells}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">pain_mgmt_rows_count:</span>
+              <span className="font-mono">{inputs.pain_mgmt_rows_count}</span>
+            </div>
+            <div className="flex justify-between col-span-2">
+              <span className="text-muted-foreground">pain_mgmt_headers_preview:</span>
+              <span className="font-mono text-[10px] truncate max-w-[200px]" title={inputs.pain_mgmt_headers_preview.join(', ')}>
+                [{inputs.pain_mgmt_headers_preview.join(', ')}]
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        {/* N/A explanation */}
+        {hasNotApplicable && !inputs.pain_mgmt_block_found && (
+          <p className="text-[10px] text-muted-foreground italic">
+            Pain Management metrics show N/A because <strong>pain_mgmt_block_found=false</strong>. 
+            The block does not exist in this month's workbook.
+          </p>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 const ImportMonthlyReport = () => {
@@ -1770,8 +1891,11 @@ const ImportMonthlyReport = () => {
                                 );
                               })}
                             </TableBody>
-                          </Table>
+                            </Table>
                         </div>
+                        
+                        {/* Collapsible Audit Evidence Panel */}
+                        <AuditEvidencePanel report={report} />
                       </div>
                     );
                   })}
