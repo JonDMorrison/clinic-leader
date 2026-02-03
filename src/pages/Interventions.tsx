@@ -11,6 +11,7 @@ import { InterventionFilters } from "@/components/interventions/InterventionFilt
 import { InterventionsTable, InterventionsTableSkeleton } from "@/components/interventions/InterventionsTable";
 import { NewInterventionModal } from "@/components/interventions/NewInterventionModal";
 import { EmptyInterventions } from "@/components/interventions/EmptyInterventions";
+import { DiagnosticsPanel } from "@/components/interventions/DiagnosticsPanel";
 import type { InterventionStatus, InterventionType, InterventionWithDetails } from "@/lib/interventions/types";
 
 const PAGE_SIZE = 25;
@@ -254,6 +255,9 @@ export default function Interventions() {
         organizationId={orgId!}
         users={users}
       />
+
+      {/* Dev Diagnostics Panel */}
+      <DiagnosticsPanel />
     </div>
   );
 }

@@ -44,6 +44,7 @@ import { DeleteInterventionDialog } from "@/components/interventions/DeleteInter
 import { LinkMetricModal } from "@/components/interventions/LinkMetricModal";
 import { LinkedMetricRow } from "@/components/interventions/LinkedMetricRow";
 import { OutcomeRow } from "@/components/interventions/OutcomeRow";
+import { DiagnosticsPanel } from "@/components/interventions/DiagnosticsPanel";
 
 type InterventionWithUsers = InterventionRow & {
   owner: { id: string; full_name: string } | null;
@@ -733,6 +734,12 @@ export default function InterventionDetail() {
         interventionId={intervention.id}
         organizationId={intervention.organization_id}
         existingMetricIds={linkedMetrics.map((l) => l.metric_id)}
+      />
+
+      {/* Dev Diagnostics Panel */}
+      <DiagnosticsPanel
+        interventionId={intervention.id}
+        linkedMetricIds={linkedMetrics.map((l) => l.metric_id)}
       />
     </div>
   );
