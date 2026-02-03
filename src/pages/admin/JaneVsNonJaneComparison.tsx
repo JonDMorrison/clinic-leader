@@ -35,6 +35,9 @@ import { AccessRestrictedView } from "@/components/admin/AccessRestrictedView";
 import { QualityGateWarningBanner } from "@/components/analytics/QualityGateWarningBanner";
 import { BenchmarkQualitySummary } from "@/components/analytics/BenchmarkQualitySummary";
 import { InterpretationCallout } from "@/components/analytics/InterpretationCallout";
+import { PeerMatchingToggle } from "@/components/analytics/PeerMatchingToggle";
+import { ConfidenceBadge } from "@/components/analytics/ConfidenceBadge";
+import type { ConfidenceLabel } from "@/lib/analytics/emrComparisonTypes";
 
 interface Cohort {
   id: string;
@@ -88,9 +91,40 @@ interface ComparisonData {
   };
 }
 
+interface MatchedComparisonResult {
+  metric_key: string;
+  period_key: string;
+  peer_matching_used: boolean;
+  peer_match_criteria: string | null;
+  jane_sample_size: number | null;
+  jane_included_count: number;
+  jane_excluded_count: number;
+  jane_median: number | null;
+  jane_p25: number | null;
+  jane_p75: number | null;
+  jane_std_deviation: number | null;
+  jane_coefficient_of_variation: number | null;
+  jane_quality_summary: object | null;
+  non_jane_sample_size: number | null;
+  non_jane_included_count: number;
+  non_jane_excluded_count: number;
+  non_jane_median: number | null;
+  non_jane_p25: number | null;
+  non_jane_p75: number | null;
+  non_jane_std_deviation: number | null;
+  non_jane_coefficient_of_variation: number | null;
+  non_jane_quality_summary: object | null;
+  delta_percent: number | null;
+  confidence_label: ConfidenceLabel;
+  confidence_reason: string | null;
+  suppressed: boolean;
+  suppression_reason: string | null;
+}
+
 export default function JaneVsNonJaneComparison() {
   const { isMasterAdmin, isLoading: adminLoading } = useMasterAdminGate();
   const [selectedMetricId, setSelectedMetricId] = useState<string>("");
+  const [usePeerMatching, setUsePeerMatching] = useState<boolean>(false);
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const lastMonth = startOfMonth(subMonths(new Date(), 1));
     return format(lastMonth, "yyyy-MM-dd");
@@ -168,6 +202,26 @@ export default function JaneVsNonJaneComparison() {
       return ((data || []) as any[]).filter((s: any) => s.period_type === "monthly") as Snapshot[];
     },
     enabled: !!nonJaneCohort?.id && !!selectedMetricId && !!isMasterAdmin,
+  });
+
+  // Get selected metric's import_key for the matched comparison RPC
+  const selectedMetric = metrics?.find((m) => m.id === selectedMetricId);
+
+  // Fetch matched comparison using the new peer matching RPC
+  const { data: matchedComparison, isLoading: matchedLoading } = useQuery({
+    queryKey: ["matched-comparison", selectedMetric?.name, selectedMonth, usePeerMatching],
+    queryFn: async () => {
+      if (!selectedMetric?.name) return null;
+      const periodKey = format(new Date(selectedMonth), "yyyy-MM");
+      const { data, error } = await supabase.rpc("bench_get_matched_comparison", {
+        _metric_key: selectedMetric.name.toLowerCase().replace(/\s+/g, "_"),
+        _period_key: periodKey,
+        _use_peer_matching: usePeerMatching,
+      });
+      if (error) throw error;
+      return (data as MatchedComparisonResult[])?.[0] || null;
+    },
+    enabled: !!selectedMetric?.name && !!selectedMonth && !!isMasterAdmin,
   });
 
   // Build comparison data for selected month
@@ -334,6 +388,31 @@ export default function JaneVsNonJaneComparison() {
             </CardContent>
           </Card>
 
+          {/* Peer Matching Toggle + Confidence Badge */}
+          {selectedMetricId && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <PeerMatchingToggle
+                enabled={usePeerMatching}
+                onChange={setUsePeerMatching}
+                disabled={matchedLoading}
+              />
+              {matchedComparison && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Confidence:</span>
+                  <ConfidenceBadge 
+                    confidence={matchedComparison.confidence_label}
+                    showTooltip={true}
+                  />
+                  {matchedComparison.confidence_reason && (
+                    <span className="text-xs text-muted-foreground hidden md:inline">
+                      ({matchedComparison.confidence_reason})
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {selectedMetricId && (
             <>
               {/* Interpretation Callout */}
@@ -395,14 +474,105 @@ export default function JaneVsNonJaneComparison() {
               {/* Side-by-side Comparison */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Selected Month Comparison
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Selected Month Comparison
+                    </div>
+                    {matchedComparison?.peer_matching_used && (
+                      <Badge variant="outline" className="text-xs">
+                        Peer-matched: {matchedComparison.peer_match_criteria?.replace(",", ", ")}
+                      </Badge>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {janeLoading || nonJaneLoading ? (
+                  {matchedLoading || janeLoading || nonJaneLoading ? (
                     <Skeleton className="h-48 w-full" />
+                  ) : matchedComparison?.suppressed ? (
+                    <div className="text-center py-8">
+                      <Badge variant="destructive" className="mb-2">Suppressed</Badge>
+                      <p className="text-muted-foreground">{matchedComparison.suppression_reason}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Jane orgs: {matchedComparison.jane_included_count || 0} | 
+                        Non-Jane orgs: {matchedComparison.non_jane_included_count || 0}
+                      </p>
+                    </div>
+                  ) : matchedComparison ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Cohort</TableHead>
+                          <TableHead className="text-center">N Orgs</TableHead>
+                          <TableHead className="text-right">P25</TableHead>
+                          <TableHead className="text-right">P50 (Median)</TableHead>
+                          <TableHead className="text-right">P75</TableHead>
+                          <TableHead className="text-right">CV%</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell>
+                            <Badge variant="default" className="bg-green-600">Jane Users</Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {matchedComparison.jane_sample_size ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatNumber(matchedComparison.jane_p25)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-medium">
+                            {formatNumber(matchedComparison.jane_median)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatNumber(matchedComparison.jane_p75)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-xs text-muted-foreground">
+                            {matchedComparison.jane_coefficient_of_variation != null 
+                              ? `${matchedComparison.jane_coefficient_of_variation}%` 
+                              : "—"}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>
+                            <Badge variant="secondary">Non-Jane Users</Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {matchedComparison.non_jane_sample_size ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatNumber(matchedComparison.non_jane_p25)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono font-medium">
+                            {formatNumber(matchedComparison.non_jane_median)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatNumber(matchedComparison.non_jane_p75)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-xs text-muted-foreground">
+                            {matchedComparison.non_jane_coefficient_of_variation != null 
+                              ? `${matchedComparison.non_jane_coefficient_of_variation}%` 
+                              : "—"}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow className="bg-muted/50 font-medium">
+                          <TableCell>
+                            <span className="text-muted-foreground">Delta %</span>
+                          </TableCell>
+                          <TableCell></TableCell>
+                          <TableCell></TableCell>
+                          <TableCell className="text-right">
+                            {matchedComparison.delta_percent != null ? (
+                              <span className={matchedComparison.delta_percent > 0 ? "text-green-600" : matchedComparison.delta_percent < 0 ? "text-red-600" : ""}>
+                                {matchedComparison.delta_percent > 0 ? "+" : ""}{matchedComparison.delta_percent}%
+                              </span>
+                            ) : "—"}
+                          </TableCell>
+                          <TableCell></TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
                   ) : (
                     <Table>
                       <TableHeader>

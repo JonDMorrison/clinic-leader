@@ -6376,6 +6376,42 @@ export type Database = {
           name: string
         }[]
       }
+      bench_get_matched_comparison: {
+        Args: {
+          _metric_key: string
+          _period_key: string
+          _use_peer_matching?: boolean
+        }
+        Returns: {
+          confidence_label: string
+          confidence_reason: string
+          delta_percent: number
+          jane_coefficient_of_variation: number
+          jane_excluded_count: number
+          jane_included_count: number
+          jane_median: number
+          jane_p25: number
+          jane_p75: number
+          jane_quality_summary: Json
+          jane_sample_size: number
+          jane_std_deviation: number
+          metric_key: string
+          non_jane_coefficient_of_variation: number
+          non_jane_excluded_count: number
+          non_jane_included_count: number
+          non_jane_median: number
+          non_jane_p25: number
+          non_jane_p75: number
+          non_jane_quality_summary: Json
+          non_jane_sample_size: number
+          non_jane_std_deviation: number
+          peer_match_criteria: string
+          peer_matching_used: boolean
+          period_key: string
+          suppressed: boolean
+          suppression_reason: string
+        }[]
+      }
       bench_get_snapshot: {
         Args: { _snapshot_id: string }
         Returns: {
@@ -6511,6 +6547,10 @@ export type Database = {
           total_users: number
         }[]
       }
+      get_provider_count_bucket: {
+        Args: { provider_count: number }
+        Returns: string
+      }
       get_provider_size_bucket: {
         Args: { _provider_count: number }
         Returns: string
@@ -6535,6 +6575,15 @@ export type Database = {
       get_user_team_id: { Args: never; Returns: string }
       get_visit_volume_bucket: {
         Args: { _annual_visits: number }
+        Returns: string
+      }
+      get_visits_quartile_bucket: {
+        Args: {
+          cohort_p25: number
+          cohort_p50: number
+          cohort_p75: number
+          org_visits: number
+        }
         Returns: string
       }
       has_role: {

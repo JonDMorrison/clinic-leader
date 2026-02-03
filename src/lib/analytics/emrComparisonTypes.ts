@@ -108,10 +108,10 @@ export const SAFE_LANGUAGE = {
   
   /** Confidence label descriptions */
   CONFIDENCE_DESCRIPTIONS: {
-    high: 'High confidence: ≥20 orgs per group with ≥90% data quality',
-    medium: 'Medium confidence: ≥10 orgs per group',
-    low: 'Low confidence: 5-9 orgs per group or quality concerns',
-    insufficient_data: 'Insufficient data: Below minimum sample size requirements',
+    high: 'High confidence: ≥20 orgs per group with low volatility (CV<30%)',
+    medium: 'Medium confidence: ≥10 orgs per group or high volatility detected',
+    low: 'Low confidence: 5-9 orgs per group',
+    insufficient_data: 'Insufficient data: Below minimum sample size (5 orgs per group)',
   } as Record<ConfidenceLabel, string>,
 } as const;
 
