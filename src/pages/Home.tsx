@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { QuickActions } from "@/components/layout/QuickActions";
 import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
+import { DashboardHeroHeader } from "@/components/dashboard/DashboardHeroHeader";
 
 import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -341,25 +342,14 @@ const Home = () => {
           delay: 2,
         }}
       />
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <p className="text-xl md:text-2xl font-semibold text-foreground mb-1">
-          Hey {currentUser?.full_name?.includes(' ') ? currentUser.full_name.split(' ')[0] : 'there'} 👋
-        </p>
-        <p className="text-base md:text-lg text-muted-foreground">
-          <span className="italic">{inspirationalMessage}</span> Here's your overview for today.
-        </p>
-      </motion.div>
-
+      {/* Unified Hero Header with QuickActions on desktop */}
+      <DashboardHeroHeader 
+        userName={currentUser?.full_name?.includes(' ') ? currentUser.full_name.split(' ')[0] : 'there'}
+        inspirationalMessage={inspirationalMessage}
+      />
 
       {/* Demo Account Banner */}
       <DemoBanner />
-
-      {/* Core Values Strip */}
-      <CoreValuesStrip />
 
       {/* Connect Data Card - shows when Jane not connected */}
       <ConnectDataCard />
@@ -390,7 +380,7 @@ const Home = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4, duration: 0.6 }}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
       >
         <Card className="relative overflow-hidden h-fit">
           <CardHeader>
@@ -477,15 +467,16 @@ const Home = () => {
             </div>
           </CardContent>
         </Card>
-
-        <QuickActions />
         
         <CopilotWidget />
 
-        
-
         <CoreValueOfWeekCard />
       </motion.div>
+
+      {/* QuickActions on mobile - hidden on desktop since it's in the hero header */}
+      <div className="lg:hidden">
+        <QuickActions />
+      </div>
 
       {/* Year in Progress Preview */}
       <ProgressPreviewCard />
