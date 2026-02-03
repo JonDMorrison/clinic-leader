@@ -2235,6 +2235,7 @@ export type Database = {
           accepted_intervention_id: string | null
           confidence_score: number
           created_at: string | null
+          deviation_at_generation: number | null
           dismissed: boolean | null
           dismissed_at: string | null
           dismissed_by: string | null
@@ -2243,11 +2244,13 @@ export type Database = {
           expires_at: string | null
           generated_at: string | null
           id: string
+          last_generated_at: string | null
           metric_id: string
           model_version: string
           organization_id: string
           period_key: string
           recommendation_reason: Json
+          recommendation_run_id: string | null
           recommended_intervention_template: Json
           recommended_template_id: string | null
         }
@@ -2258,6 +2261,7 @@ export type Database = {
           accepted_intervention_id?: string | null
           confidence_score: number
           created_at?: string | null
+          deviation_at_generation?: number | null
           dismissed?: boolean | null
           dismissed_at?: string | null
           dismissed_by?: string | null
@@ -2266,11 +2270,13 @@ export type Database = {
           expires_at?: string | null
           generated_at?: string | null
           id?: string
+          last_generated_at?: string | null
           metric_id: string
           model_version?: string
           organization_id: string
           period_key: string
           recommendation_reason?: Json
+          recommendation_run_id?: string | null
           recommended_intervention_template: Json
           recommended_template_id?: string | null
         }
@@ -2281,6 +2287,7 @@ export type Database = {
           accepted_intervention_id?: string | null
           confidence_score?: number
           created_at?: string | null
+          deviation_at_generation?: number | null
           dismissed?: boolean | null
           dismissed_at?: string | null
           dismissed_by?: string | null
@@ -2289,11 +2296,13 @@ export type Database = {
           expires_at?: string | null
           generated_at?: string | null
           id?: string
+          last_generated_at?: string | null
           metric_id?: string
           model_version?: string
           organization_id?: string
           period_key?: string
           recommendation_reason?: Json
+          recommendation_run_id?: string | null
           recommended_intervention_template?: Json
           recommended_template_id?: string | null
         }
@@ -2317,6 +2326,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_recommendations_recommendation_run_id_fkey"
+            columns: ["recommendation_run_id"]
+            isOneToOne: false
+            referencedRelation: "recommendation_runs"
             referencedColumns: ["id"]
           },
           {
@@ -2383,6 +2399,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "intervention_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_types: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          is_enabled: boolean
+          is_sensitive: boolean
+          organization_id: string | null
+          requires_approval: boolean
+          type_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_enabled?: boolean
+          is_sensitive?: boolean
+          organization_id?: string | null
+          requires_approval?: boolean
+          type_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_enabled?: boolean
+          is_sensitive?: boolean
+          organization_id?: string | null
+          requires_approval?: boolean
+          type_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_types_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -3990,6 +4053,95 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      recommendation_config: {
+        Row: {
+          config_key: string
+          config_value: Json
+          created_at: string
+          id: string
+          organization_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          config_key: string
+          config_value?: Json
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          config_key?: string
+          config_value?: Json
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recommendation_runs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          evidence: Json
+          id: string
+          inputs: Json
+          metric_id: string
+          model_version: string
+          organization_id: string
+          recommendations_generated: number
+          run_period_start: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          evidence?: Json
+          id?: string
+          inputs?: Json
+          metric_id: string
+          model_version?: string
+          organization_id: string
+          recommendations_generated?: number
+          run_period_start: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          evidence?: Json
+          id?: string
+          inputs?: Json
+          metric_id?: string
+          model_version?: string
+          organization_id?: string
+          recommendations_generated?: number
+          run_period_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_runs_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendation_runs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       referral_sources: {
         Row: {
@@ -6368,7 +6520,31 @@ export type Database = {
       is_jane_integrated: { Args: { org_id: string }; Returns: boolean }
       is_manager: { Args: never; Returns: boolean }
       is_master_admin: { Args: never; Returns: boolean }
+      is_metric_eligible_for_recommendations: {
+        Args: { _current_value: number; _metric_id: string }
+        Returns: {
+          deviation_percent: number
+          is_eligible: boolean
+          reason: string
+          target: number
+          threshold_used: number
+        }[]
+      }
       is_org_admin_for: { Args: { org_id: string }; Returns: boolean }
+      is_recommendation_in_cooldown: {
+        Args: {
+          _current_deviation: number
+          _intervention_type: string
+          _metric_id: string
+          _org_id: string
+        }
+        Returns: {
+          deviation_worsened: boolean
+          in_cooldown: boolean
+          last_recommended_at: string
+          reason: string
+        }[]
+      }
       is_same_team: { Args: { check_team_id: string }; Returns: boolean }
       is_user_admin: { Args: { _user_id: string }; Returns: boolean }
       is_user_manager: { Args: { _user_id: string }; Returns: boolean }
