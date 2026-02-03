@@ -21,6 +21,7 @@ import { SetGoalDialog } from "./SetGoalDialog";
 import { GoalProgressCard } from "./GoalProgressCard";
 import { GoalHistoryView } from "./GoalHistoryView";
 import { MetricComments } from "./MetricComments";
+import { MetricResultsDebugPanel } from "./MetricResultsDebugPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface MetricDetailsDrawerProps {
@@ -394,6 +395,9 @@ export const MetricDetailsDrawer = ({
             />
           </TabsContent>
         </Tabs>
+
+        {/* Dev-only debug panel */}
+        <MetricResultsDebugPanel metricId={metricId} />
 
         {/* Goal Dialog */}
         {metricId && organizationId && currentUser && (

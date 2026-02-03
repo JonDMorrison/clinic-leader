@@ -178,8 +178,18 @@ const Scorecard = () => {
         return acc;
       }, {} as Record<string, string>) || {};
 
+      // ========== FILTER: Exclude empty legacy_workbook results ==========
+      // Don't render null/0 values from legacy_workbook source - they might be template months
+      const filteredResults = allResults.filter(r => {
+        // If source is legacy_workbook, exclude null or 0 values
+        if (r.source === 'legacy_workbook' && (r.value === null || r.value === 0)) {
+          return false;
+        }
+        return true;
+      });
+
       // Group results by metric
-      const resultsByMetric = allResults.reduce((acc, r) => {
+      const resultsByMetric = filteredResults.reduce((acc, r) => {
         if (!acc[r.metric_id]) acc[r.metric_id] = [];
         acc[r.metric_id].push(r);
         return acc;
