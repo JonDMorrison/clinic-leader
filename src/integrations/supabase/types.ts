@@ -1910,6 +1910,7 @@ export type Database = {
           created_at: string
           created_from: string | null
           id: string
+          intervention_id: string | null
           meeting_horizon: string | null
           meeting_id: string | null
           meeting_item_id: string | null
@@ -1930,6 +1931,7 @@ export type Database = {
           created_at?: string
           created_from?: string | null
           id?: string
+          intervention_id?: string | null
           meeting_horizon?: string | null
           meeting_id?: string | null
           meeting_item_id?: string | null
@@ -1950,6 +1952,7 @@ export type Database = {
           created_at?: string
           created_from?: string | null
           id?: string
+          intervention_id?: string | null
           meeting_horizon?: string | null
           meeting_id?: string | null
           meeting_item_id?: string | null
@@ -1966,6 +1969,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "issues_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "issues_meeting_id_fkey"
             columns: ["meeting_id"]
