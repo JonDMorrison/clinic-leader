@@ -327,6 +327,57 @@ export type Database = {
           },
         ]
       }
+      benchmark_metric_aggregates: {
+        Row: {
+          emr_source_group: string
+          generated_at: string
+          id: string
+          max_value: number | null
+          median_value: number | null
+          methodology_version: string
+          metric_key: string
+          min_value: number | null
+          organization_count: number
+          percentile_25: number | null
+          percentile_75: number | null
+          period_key: string
+          sample_size: number
+          std_deviation: number | null
+        }
+        Insert: {
+          emr_source_group: string
+          generated_at?: string
+          id?: string
+          max_value?: number | null
+          median_value?: number | null
+          methodology_version?: string
+          metric_key: string
+          min_value?: number | null
+          organization_count?: number
+          percentile_25?: number | null
+          percentile_75?: number | null
+          period_key: string
+          sample_size?: number
+          std_deviation?: number | null
+        }
+        Update: {
+          emr_source_group?: string
+          generated_at?: string
+          id?: string
+          max_value?: number | null
+          median_value?: number | null
+          methodology_version?: string
+          metric_key?: string
+          min_value?: number | null
+          organization_count?: number
+          percentile_25?: number | null
+          percentile_75?: number | null
+          period_key?: string
+          sample_size?: number
+          std_deviation?: number | null
+        }
+        Relationships: []
+      }
       branding: {
         Row: {
           accent_color: string | null
@@ -1274,6 +1325,112 @@ export type Database = {
           },
         ]
       }
+      emr_comparison_snapshots: {
+        Row: {
+          calculated_at: string
+          delta_vs_jane: number | null
+          delta_vs_non_jane: number | null
+          id: string
+          jane_cohort_median: number | null
+          jane_cohort_percentile_position: number | null
+          metric_key: string
+          non_jane_cohort_median: number | null
+          non_jane_cohort_percentile_position: number | null
+          org_normalized_value: number
+          org_value: number
+          organization_id: string
+          period_key: string
+        }
+        Insert: {
+          calculated_at?: string
+          delta_vs_jane?: number | null
+          delta_vs_non_jane?: number | null
+          id?: string
+          jane_cohort_median?: number | null
+          jane_cohort_percentile_position?: number | null
+          metric_key: string
+          non_jane_cohort_median?: number | null
+          non_jane_cohort_percentile_position?: number | null
+          org_normalized_value: number
+          org_value: number
+          organization_id: string
+          period_key: string
+        }
+        Update: {
+          calculated_at?: string
+          delta_vs_jane?: number | null
+          delta_vs_non_jane?: number | null
+          id?: string
+          jane_cohort_median?: number | null
+          jane_cohort_percentile_position?: number | null
+          metric_key?: string
+          non_jane_cohort_median?: number | null
+          non_jane_cohort_percentile_position?: number | null
+          org_normalized_value?: number
+          org_value?: number
+          organization_id?: string
+          period_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emr_comparison_snapshots_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emr_data_quality_scores: {
+        Row: {
+          audit_pass_rate: number | null
+          avg_reporting_delay_hours: number | null
+          calculated_at: string
+          completeness_score: number
+          consistency_score: number
+          id: string
+          latency_score: number
+          missing_fields_count: number
+          organization_id: string
+          overall_score: number
+          period_key: string
+        }
+        Insert: {
+          audit_pass_rate?: number | null
+          avg_reporting_delay_hours?: number | null
+          calculated_at?: string
+          completeness_score?: number
+          consistency_score?: number
+          id?: string
+          latency_score?: number
+          missing_fields_count?: number
+          organization_id: string
+          overall_score?: number
+          period_key: string
+        }
+        Update: {
+          audit_pass_rate?: number | null
+          avg_reporting_delay_hours?: number | null
+          calculated_at?: string
+          completeness_score?: number
+          consistency_score?: number
+          id?: string
+          latency_score?: number
+          missing_fields_count?: number
+          organization_id?: string
+          overall_score?: number
+          period_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emr_data_quality_scores_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       file_ingest_log: {
         Row: {
           account_guid: string | null
@@ -1641,6 +1798,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      intervention_emr_analysis: {
+        Row: {
+          avg_improvement_percent: number | null
+          avg_resolution_days: number | null
+          emr_source_group: string
+          generated_at: string
+          id: string
+          intervention_type: string
+          period_key: string
+          recurrence_rate: number | null
+          sample_size: number
+          success_rate: number | null
+          successful_interventions: number
+          total_interventions: number
+        }
+        Insert: {
+          avg_improvement_percent?: number | null
+          avg_resolution_days?: number | null
+          emr_source_group: string
+          generated_at?: string
+          id?: string
+          intervention_type: string
+          period_key: string
+          recurrence_rate?: number | null
+          sample_size?: number
+          success_rate?: number | null
+          successful_interventions?: number
+          total_interventions?: number
+        }
+        Update: {
+          avg_improvement_percent?: number | null
+          avg_resolution_days?: number | null
+          emr_source_group?: string
+          generated_at?: string
+          id?: string
+          intervention_type?: string
+          period_key?: string
+          recurrence_rate?: number | null
+          sample_size?: number
+          success_rate?: number | null
+          successful_interventions?: number
+          total_interventions?: number
+        }
+        Relationships: []
       }
       intervention_metric_links: {
         Row: {
@@ -4589,6 +4791,7 @@ export type Database = {
           data_mode: string
           default_report_email: string | null
           ehr_system: string | null
+          emr_source_type: string | null
           eos_enabled: boolean | null
           id: string
           industry: string | null
@@ -4620,6 +4823,7 @@ export type Database = {
           data_mode?: string
           default_report_email?: string | null
           ehr_system?: string | null
+          emr_source_type?: string | null
           eos_enabled?: boolean | null
           id?: string
           industry?: string | null
@@ -4651,6 +4855,7 @@ export type Database = {
           data_mode?: string
           default_report_email?: string | null
           ehr_system?: string | null
+          emr_source_type?: string | null
           eos_enabled?: boolean | null
           id?: string
           industry?: string | null
@@ -5604,6 +5809,7 @@ export type Database = {
         Args: { intervention_id: string }
         Returns: boolean
       }
+      is_jane_integrated: { Args: { org_id: string }; Returns: boolean }
       is_manager: { Args: never; Returns: boolean }
       is_org_admin_for: { Args: { org_id: string }; Returns: boolean }
       is_same_team: { Args: { check_team_id: string }; Returns: boolean }

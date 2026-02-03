@@ -77,7 +77,7 @@ import Security from "./pages/Security";
 import Progress from "./pages/Progress";
 import Interventions from "./pages/Interventions";
 import InterventionDetail from "./pages/InterventionDetail";
-
+import EMRBenchmark from "./pages/EMRBenchmark";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -140,6 +140,7 @@ const App = () => {
             <Route path="/rocks/quarterly-close" element={<AppLayout><QuarterlyCloseReport /></AppLayout>} />
             
             <Route path="/progress" element={<AppLayout><Progress /></AppLayout>} />
+            <Route path="/analytics/emr-benchmark" element={<AppLayout><EMRBenchmark /></AppLayout>} />
             <Route path="/interventions" element={<AppLayout><Interventions /></AppLayout>} />
             <Route path="/interventions/:id" element={<AppLayout><InterventionDetail /></AppLayout>} />
             <Route path="/data" element={<AppLayout><DataHomeRouter /></AppLayout>} />
