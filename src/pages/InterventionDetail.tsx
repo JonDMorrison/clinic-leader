@@ -46,6 +46,7 @@ import { LinkedMetricRow } from "@/components/interventions/LinkedMetricRow";
 import { OutcomeRow } from "@/components/interventions/OutcomeRow";
 import { DiagnosticsPanel } from "@/components/interventions/DiagnosticsPanel";
 import { InterventionRiskBanner } from "@/components/interventions/InterventionRiskBanner";
+import { InterventionTimeline } from "@/components/interventions/InterventionTimeline";
 import { getInterventionProgress, getProgressStatusStyle, type ProgressStatus } from "@/lib/interventions/interventionStatus";
 
 type InterventionWithUsers = InterventionRow & {
@@ -254,6 +255,27 @@ export default function InterventionDetail() {
       });
     },
     enabled: !!id,
+  });
+
+  // Fetch metric results for timeline (linked metrics only)
+  const { data: metricResults = [] } = useQuery({
+    queryKey: ["intervention-metric-results", id, linkedMetrics.map(l => l.metric_id).join(",")],
+    queryFn: async () => {
+      if (!id || linkedMetrics.length === 0) return [];
+
+      const metricIds = linkedMetrics.map((l) => l.metric_id);
+      
+      const { data, error } = await supabase
+        .from("metric_results")
+        .select("metric_id, period_start, value, period_type")
+        .in("metric_id", metricIds)
+        .eq("period_type", "monthly")
+        .order("period_start", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id && linkedMetrics.length > 0,
   });
 
   // Evaluate outcomes mutation
@@ -713,7 +735,21 @@ export default function InterventionDetail() {
         </CardContent>
       </Card>
 
-      {/* Section 5: AI Summary */}
+      {/* Section 5: Timeline */}
+      <InterventionTimeline
+        intervention={{
+          created_at: intervention.created_at,
+          start_date: intervention.start_date,
+          end_date: intervention.end_date,
+          status: intervention.status,
+          title: intervention.title,
+        }}
+        linkedMetrics={linkedMetrics}
+        metricResults={metricResults}
+        outcomes={outcomes}
+      />
+
+      {/* Section 6: AI Summary */}
       {intervention.ai_summary && (
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader className="pb-3">
