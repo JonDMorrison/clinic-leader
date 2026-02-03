@@ -6,6 +6,7 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { LegacyRowActionsMenu } from "./LegacyRowActionsMenu";
 
 /** Row-level provenance for audit verification */
 export interface RowProvenance {
@@ -43,6 +44,7 @@ interface LegacyMonthlyReportViewProps {
   payload: LegacyMonthPayload;
   periodKey: string;
   updatedAt?: string;
+  organizationId?: string;
 }
 
 function normalizeHeaders(headers: any[], rows: any[][]): string[] {
@@ -62,7 +64,15 @@ function normalizeRows(rows: any[][], headerCount: number): any[][] {
   });
 }
 
-function DataTable({ title, headers, rows }: { title: string; headers: string[]; rows: any[][] }) {
+interface DataTableProps {
+  title: string;
+  headers: string[];
+  rows: any[][];
+  periodKey: string;
+  organizationId?: string;
+}
+
+function DataTable({ title, headers, rows, periodKey, organizationId }: DataTableProps) {
   const normalizedHeaders = normalizeHeaders(headers, rows);
   const normalizedRows = normalizeRows(rows, normalizedHeaders.length);
   
@@ -81,12 +91,13 @@ function DataTable({ title, headers, rows }: { title: string; headers: string[];
                     {header}
                   </TableHead>
                 ))}
+                <TableHead className="w-10" /> {/* Actions column */}
               </TableRow>
             </TableHeader>
             <TableBody>
               {normalizedRows.map((row, rowIdx) => (
                 <TableRow key={rowIdx} className={cn(
-                  "hover:bg-muted/20",
+                  "group hover:bg-muted/20",
                   String(row[0]).toLowerCase().includes('total') && "bg-muted/40 font-medium"
                 )}>
                   {row.map((cell, cellIdx) => (
@@ -94,6 +105,15 @@ function DataTable({ title, headers, rows }: { title: string; headers: string[];
                       {cell ?? ''}
                     </TableCell>
                   ))}
+                  <TableCell className="py-1 px-1.5 w-10">
+                    <LegacyRowActionsMenu
+                      rowLabel={String(row[0] ?? '')}
+                      rowData={row}
+                      sectionTitle={title}
+                      periodKey={periodKey}
+                      organizationId={organizationId}
+                    />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -104,7 +124,7 @@ function DataTable({ title, headers, rows }: { title: string; headers: string[];
   );
 }
 
-export function LegacyMonthlyReportView({ payload, periodKey }: LegacyMonthlyReportViewProps) {
+export function LegacyMonthlyReportView({ payload, periodKey, organizationId }: LegacyMonthlyReportViewProps) {
   const { provider_table, referral_totals, referral_sources, extra_blocks, warnings } = payload;
 
   return (
@@ -118,15 +138,15 @@ export function LegacyMonthlyReportView({ payload, periodKey }: LegacyMonthlyRep
       )}
 
       <div className="space-y-6">
-        <DataTable title="Provider Production" headers={provider_table.headers} rows={provider_table.rows} />
+        <DataTable title="Provider Production" headers={provider_table.headers} rows={provider_table.rows} periodKey={periodKey} organizationId={organizationId} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <DataTable title="Referral Totals" headers={referral_totals.headers} rows={referral_totals.rows} />
-          <DataTable title="Referral Sources" headers={referral_sources.headers} rows={referral_sources.rows} />
+          <DataTable title="Referral Totals" headers={referral_totals.headers} rows={referral_totals.rows} periodKey={periodKey} organizationId={organizationId} />
+          <DataTable title="Referral Sources" headers={referral_sources.headers} rows={referral_sources.rows} periodKey={periodKey} organizationId={organizationId} />
         </div>
       </div>
 
       {extra_blocks.filter(b => b.rows?.length > 0).map((block, idx) => (
-        <DataTable key={idx} title={block.title} headers={block.headers} rows={block.rows} />
+        <DataTable key={idx} title={block.title} headers={block.headers} rows={block.rows} periodKey={periodKey} organizationId={organizationId} />
       ))}
     </div>
   );
