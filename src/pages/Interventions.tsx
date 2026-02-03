@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
-import { InterventionFilters } from "@/components/interventions/InterventionFilters";
+import { InterventionFilters, type ProgressFilterType } from "@/components/interventions/InterventionFilters";
 import { InterventionsTable, InterventionsTableSkeleton } from "@/components/interventions/InterventionsTable";
 import { NewInterventionModal } from "@/components/interventions/NewInterventionModal";
 import { EmptyInterventions } from "@/components/interventions/EmptyInterventions";
 import { DiagnosticsPanel } from "@/components/interventions/DiagnosticsPanel";
+import { getInterventionProgress } from "@/lib/interventions/interventionStatus";
 import type { InterventionStatus, InterventionType, InterventionWithDetails } from "@/lib/interventions/types";
 
 const PAGE_SIZE = 25;
@@ -28,6 +29,7 @@ export default function Interventions() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InterventionStatus | "all">("all");
   const [typeFilter, setTypeFilter] = useState<InterventionType | "all">("all");
+  const [progressFilter, setProgressFilter] = useState<ProgressFilterType>("all");
 
   // Pagination state
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -74,11 +76,27 @@ export default function Interventions() {
         linkCounts.set(link.intervention_id, current + 1);
       });
 
+      // Get outcomes for each intervention
+      const interventionIds = (interventionData || []).map((i) => i.id);
+      const { data: outcomesData } = await supabase
+        .from("intervention_outcomes")
+        .select("intervention_id, actual_delta_value, actual_delta_percent")
+        .in("intervention_id", interventionIds);
+
+      // Group outcomes by intervention
+      const outcomesMap = new Map<string, { actual_delta_value: number | null; actual_delta_percent: number | null }[]>();
+      (outcomesData || []).forEach((o) => {
+        const existing = outcomesMap.get(o.intervention_id) || [];
+        existing.push({ actual_delta_value: o.actual_delta_value, actual_delta_percent: o.actual_delta_percent });
+        outcomesMap.set(o.intervention_id, existing);
+      });
+
       // Merge data
       const result: InterventionWithDetails[] = (interventionData || []).map((i) => ({
         ...i,
         owner: i.owner_user_id ? usersMap.get(i.owner_user_id) || null : null,
         linked_metrics_count: linkCounts.get(i.id) || 0,
+        outcomes: outcomesMap.get(i.id) || [],
       }));
 
       return result;
@@ -103,11 +121,37 @@ export default function Interventions() {
     enabled: !!orgId,
   });
 
+  // Compute progress for each intervention and filter
+  const interventionsWithProgress = useMemo(() => {
+    if (!interventions) return [];
+    
+    return interventions.map((i) => ({
+      ...i,
+      progress: getInterventionProgress({
+        intervention: {
+          created_at: i.created_at,
+          expected_time_horizon_days: i.expected_time_horizon_days,
+          status: i.status,
+        },
+        outcomes: i.outcomes || [],
+      }),
+    }));
+  }, [interventions]);
+
+  // Count at risk and overdue
+  const { atRiskCount, overdueCount } = useMemo(() => {
+    let atRisk = 0;
+    let overdue = 0;
+    interventionsWithProgress.forEach((i) => {
+      if (i.progress.status === "at_risk") atRisk++;
+      if (i.progress.status === "overdue") overdue++;
+    });
+    return { atRiskCount: atRisk, overdueCount: overdue };
+  }, [interventionsWithProgress]);
+
   // Filter interventions
   const filteredInterventions = useMemo(() => {
-    if (!interventions) return [];
-
-    return interventions.filter((i) => {
+    return interventionsWithProgress.filter((i) => {
       // Search filter
       if (search) {
         const searchLower = search.toLowerCase();
@@ -122,9 +166,13 @@ export default function Interventions() {
       // Type filter
       if (typeFilter !== "all" && i.intervention_type !== typeFilter) return false;
 
+      // Progress filter
+      if (progressFilter === "at_risk" && i.progress.status !== "at_risk") return false;
+      if (progressFilter === "overdue" && i.progress.status !== "overdue") return false;
+
       return true;
     });
-  }, [interventions, search, statusFilter, typeFilter]);
+  }, [interventionsWithProgress, search, statusFilter, typeFilter, progressFilter]);
 
   // Paginated interventions
   const visibleInterventions = filteredInterventions.slice(0, visibleCount);
@@ -210,6 +258,10 @@ export default function Interventions() {
         onStatusChange={setStatusFilter}
         typeFilter={typeFilter}
         onTypeChange={setTypeFilter}
+        progressFilter={progressFilter}
+        onProgressFilterChange={setProgressFilter}
+        atRiskCount={atRiskCount}
+        overdueCount={overdueCount}
       />
 
       {/* Content */}

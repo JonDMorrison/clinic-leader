@@ -18,6 +18,7 @@ export type InterventionOutcomeRow = Database["public"]["Tables"]["intervention_
 export interface InterventionWithDetails extends InterventionRow {
   owner?: { id: string; full_name: string } | null;
   linked_metrics_count?: number;
+  outcomes?: { actual_delta_value: number | null; actual_delta_percent: number | null }[];
 }
 
 // Constants for UI
