@@ -1699,8 +1699,8 @@ const ImportMonthlyReport = () => {
               </Alert>
             )}
 
-            {/* Derived Metrics Summary - only show if NOT blocked */}
-            {!isProcessing && !loriImportProgress.syncBlocked && loriImportProgress.bridgeResults && loriImportProgress.bridgeResults.length > 0 && (
+            {/* Derived Metrics Summary - show for all bridge results */}
+            {!isProcessing && loriImportProgress.bridgeResults && loriImportProgress.bridgeResults.length > 0 && (
               <Card className="border-brand/30 bg-brand/5">
                 <CardHeader className="py-3">
                   <CardTitle className="text-sm flex items-center gap-2">
@@ -1715,6 +1715,8 @@ const ImportMonthlyReport = () => {
                   {loriImportProgress.bridgeResults.map((br, brIdx) => {
                     const inserted = br.results.filter(r => r.status === 'inserted').length;
                     const skipped = br.results.filter(r => r.status === 'skipped_null').length;
+                    const skippedNoData = br.total_skipped_no_data;
+                    const skippedBlocked = br.total_skipped_blocked;
                     const errors = br.results.filter(r => r.status === 'error').length;
                     
                     return (
@@ -1727,51 +1729,136 @@ const ImportMonthlyReport = () => {
                             {br.metrics_created > 0 && (
                               <span className="text-brand mr-2">{br.metrics_created} new metrics created</span>
                             )}
-                            {inserted} synced • {skipped} skipped (null) 
-                            {errors > 0 && <span className="text-destructive"> • {errors} errors</span>}
+                            {skippedNoData && (
+                              <span className="text-amber-600">NO_DATA (skipped)</span>
+                            )}
+                            {skippedBlocked && (
+                              <span className="text-destructive">BLOCKED by audit</span>
+                            )}
+                            {!skippedNoData && !skippedBlocked && (
+                              <>
+                                {inserted} synced • {skipped} skipped (null) 
+                                {errors > 0 && <span className="text-destructive"> • {errors} errors</span>}
+                              </>
+                            )}
                           </span>
                         </div>
                         
-                        <Table className="text-xs">
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="py-1 px-2">Metric</TableHead>
-                              <TableHead className="py-1 px-2 text-right">Value</TableHead>
-                              <TableHead className="py-1 px-2">Status</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {br.results.map((dm, dmIdx) => (
-                              <TableRow key={dmIdx} className="hover:bg-muted/20">
-                                <TableCell className="py-1 px-2 font-medium">
-                                  {dm.display_name}
-                                </TableCell>
-                                <TableCell className="py-1 px-2 text-right font-mono">
-                                  {dm.value !== null ? dm.value.toLocaleString() : '—'}
-                                </TableCell>
-                                <TableCell className="py-1 px-2">
-                                  <Badge 
-                                    variant={
-                                      dm.status === 'inserted' ? 'default' :
-                                      dm.status === 'skipped_null' ? 'secondary' :
-                                      'destructive'
-                                    }
-                                    className="text-[10px] px-1.5 py-0"
-                                  >
-                                    {dm.status === 'inserted' ? '✓ Synced' :
-                                     dm.status === 'skipped_null' ? 'No data' :
-                                     'Error'}
-                                  </Badge>
-                                </TableCell>
+                        {/* Only show table if not skipped entirely */}
+                        {!skippedNoData && !skippedBlocked && (
+                          <Table className="text-xs">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="py-1 px-2">Metric</TableHead>
+                                <TableHead className="py-1 px-2 text-right">Value</TableHead>
+                                <TableHead className="py-1 px-2">Status</TableHead>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                            </TableHeader>
+                            <TableBody>
+                              {br.results.map((dm, dmIdx) => (
+                                <TableRow key={dmIdx} className="hover:bg-muted/20">
+                                  <TableCell className="py-1 px-2 font-medium">
+                                    {dm.display_name}
+                                  </TableCell>
+                                  <TableCell className="py-1 px-2 text-right font-mono">
+                                    {dm.value !== null ? dm.value.toLocaleString() : '—'}
+                                  </TableCell>
+                                  <TableCell className="py-1 px-2">
+                                    <Badge 
+                                      variant={
+                                        dm.status === 'inserted' ? 'default' :
+                                        dm.status === 'skipped_null' ? 'secondary' :
+                                        dm.status === 'skipped_unverifiable' ? 'secondary' :
+                                        'destructive'
+                                      }
+                                      className="text-[10px] px-1.5 py-0"
+                                      title={dm.error_message || undefined}
+                                    >
+                                      {dm.status === 'inserted' ? '✓ Synced' :
+                                       dm.status === 'skipped_null' ? 'No data' :
+                                       dm.status === 'skipped_unverifiable' ? 'Info only' :
+                                       dm.status === 'error' ? `✕ ${dm.error_message?.slice(0, 30) || 'Error'}` :
+                                       dm.status}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        )}
                       </div>
                     );
                   })}
                 </CardContent>
               </Card>
+            )}
+
+            {/* DEV ONLY: Bridge Debug Panel */}
+            {!isProcessing && loriImportProgress.bridgeResults && loriImportProgress.bridgeResults.length > 0 && (
+              <Collapsible className="mt-3">
+                <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full justify-between px-3 py-2 rounded bg-muted/30 hover:bg-muted/50 border border-dashed">
+                  <span className="flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5" />
+                    [DEV] Bridge Debug Output
+                  </span>
+                  <ChevronDown className="w-4 h-4" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 p-3 border rounded-lg bg-muted/20 text-xs space-y-3">
+                  <Table className="text-[11px]">
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="py-1 px-2 font-medium">Period</TableHead>
+                        <TableHead className="py-1 px-2 font-medium">month_has_data</TableHead>
+                        <TableHead className="py-1 px-2 font-medium">Audit PASS</TableHead>
+                        <TableHead className="py-1 px-2 font-medium">Attempted</TableHead>
+                        <TableHead className="py-1 px-2 font-medium">Synced</TableHead>
+                        <TableHead className="py-1 px-2 font-medium">Errors</TableHead>
+                        <TableHead className="py-1 px-2 font-medium">Gate Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loriImportProgress.bridgeResults.map((br, idx) => {
+                        const auditReport = loriImportProgress.auditReports?.find(ar => ar.period_key === br.period_key);
+                        const passCount = auditReport?.passed ?? 0;
+                        const attempted = br.results.filter(r => !['skipped_no_data', 'skipped_blocked', 'skipped_unverifiable'].includes(r.status)).length;
+                        const synced = br.results.filter(r => r.status === 'inserted').length;
+                        const errors = br.results.filter(r => r.status === 'error').length;
+                        
+                        let gateStatus = '✓ Synced';
+                        if (br.total_skipped_no_data) gateStatus = 'NO_DATA';
+                        else if (br.total_skipped_blocked) gateStatus = 'BLOCKED';
+                        else if (errors > 0) gateStatus = 'PARTIAL ERROR';
+                        
+                        // Get month_has_data from audit report classification inputs
+                        const monthHasData = (auditReport?.results[0] as any)?.classification_inputs?.month_has_data;
+                        
+                        return (
+                          <TableRow key={idx} className={br.total_skipped_no_data ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''}>
+                            <TableCell className="py-1 px-2 font-mono">{br.period_key}</TableCell>
+                            <TableCell className="py-1 px-2">
+                              <Badge variant={monthHasData ? 'default' : 'secondary'} className="text-[10px] px-1 py-0">
+                                {monthHasData === undefined ? '?' : monthHasData ? 'true' : 'false'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="py-1 px-2 font-mono">{passCount}</TableCell>
+                            <TableCell className="py-1 px-2 font-mono">{attempted}</TableCell>
+                            <TableCell className="py-1 px-2 font-mono text-success">{synced}</TableCell>
+                            <TableCell className="py-1 px-2 font-mono text-destructive">{errors}</TableCell>
+                            <TableCell className="py-1 px-2">
+                              <Badge 
+                                variant={gateStatus === '✓ Synced' ? 'default' : gateStatus === 'NO_DATA' ? 'secondary' : 'destructive'}
+                                className="text-[10px] px-1.5 py-0"
+                              >
+                                {gateStatus}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             {/* Audit Results - PASS/FAIL Table */}

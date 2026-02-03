@@ -634,12 +634,20 @@ function auditMetric(
     // Check if there are title scan hits indicating the block SHOULD exist
     const titleScanHits = classificationInputs.pain_mgmt_title_scan_hits || [];
     
-    if (titleScanHits.length > 0) {
+    // HARDEN: In NO_DATA months, ignore title scan hits - they're likely template remnants
+    // Also require minimum numeric cells in the pain mgmt total row to count as a real block
+    const painMgmtTotalNumeric = classificationInputs.pain_mgmt_total_row_numeric_cells || 0;
+    const hasRealPainMgmtIndicator = titleScanHits.length > 0 && 
+                                      monthHasDataFlag && 
+                                      painMgmtTotalNumeric >= 2; // Require at least 2 numeric cells in total row
+    
+    if (hasRealPainMgmtIndicator) {
       // FAIL_EXTRACTION: Workbook indicates pain mgmt section exists but extractor didn't build the block
       const hitCells = titleScanHits.map(h => `${h.cell_a1}="${h.value}"`).join(', ');
       const reason = `FAIL_EXTRACTION: Workbook contains Pain Management indicators but extractor failed to build block. ` +
         `Title scan hits: [${hitCells}]. ` +
-        `pain_mgmt_block_found=${classificationInputs.pain_mgmt_block_found}. ` +
+        `pain_mgmt_block_found=${classificationInputs.pain_mgmt_block_found}, ` +
+        `pain_mgmt_total_row_numeric_cells=${painMgmtTotalNumeric}. ` +
         `This is a BLOCKING failure.`;
       
       return {
@@ -671,11 +679,17 @@ function auditMetric(
       };
     }
     
-    // Truly NOT_APPLICABLE: no title scan hits found
+    // NOT_APPLICABLE: Either no title scan hits, or NO_DATA month, or insufficient numeric data
     const reason = `NOT_APPLICABLE: Metric requires Pain Management block. ` +
       `pain_mgmt_block_found=${classificationInputs.pain_mgmt_block_found}, ` +
       `pain_mgmt_title_scan_hits=${titleScanHits.length}, ` +
-      `Block not present in this month's workbook.`;
+      `pain_mgmt_total_row_numeric_cells=${painMgmtTotalNumeric}, ` +
+      `month_has_data=${monthHasDataFlag}. ` +
+      (titleScanHits.length > 0 && !monthHasDataFlag 
+        ? `Title scan hits ignored because month is NO_DATA (template/future).`
+        : titleScanHits.length > 0 && painMgmtTotalNumeric < 2
+        ? `Title scan hits ignored because pain_mgmt_total_row_numeric_cells < 2 (insufficient data).`
+        : `Block not present in this month's workbook.`);
     
     return {
       metric_key,
@@ -698,9 +712,11 @@ function auditMetric(
         column_name: null,
         column_index: null,
         raw_cells: null,
-        computation: 'Pain Management block not found in workbook for this month (no title scan hits).',
+        computation: titleScanHits.length > 0 
+          ? `Title scan found ${titleScanHits.length} hit(s) but gated out: monthHasData=${monthHasDataFlag}, numericCells=${painMgmtTotalNumeric}.`
+          : 'Pain Management block not found in workbook for this month (no title scan hits).',
       },
-      notes: 'Pain Management block does not exist in this month\'s workbook (no indicators found). Does not block sync.',
+      notes: 'Pain Management block does not exist or has insufficient data. Does not block sync.',
       classification_reason: reason,
       classification_inputs: classificationInputs,
     };

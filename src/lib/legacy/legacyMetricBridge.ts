@@ -223,10 +223,10 @@ async function upsertMetricResults(
     }
 
     // Upsert to metric_results - ALWAYS use source='legacy_workbook' for bridged metrics
+    // Note: metric_results table does NOT have organization_id column - it's linked via metric_id
     // Zero values are allowed here since month_has_data was verified at the caller level
     const { error: upsertError } = await supabase.from("metric_results").upsert(
       {
-        organization_id: organizationId,
         metric_id: metricId,
         value: extracted.value, // Can be 0 - that's valid for real months
         period_type: "monthly",
