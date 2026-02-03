@@ -452,6 +452,7 @@ export default function InterventionDetail() {
                   expectedDirection={link.expected_direction}
                   expectedMagnitudePercent={link.expected_magnitude_percent}
                   baselineValue={link.baseline_value}
+                  baselinePeriodStart={link.baseline_period_start}
                   canEdit={canEdit}
                 />
               ))}
