@@ -101,6 +101,10 @@ export default function ExecutiveSummaryCard({ payload, periodKey, previousPaylo
     previousExtracted.map(m => [m.metric_key, m.value])
   );
   
+  // Check if we have any metrics with actual values
+  const metricsWithValues = extracted.filter(m => m.value !== null);
+  const hasPreviousData = previousExtracted.length > 0;
+  
   // Group metrics by category
   const grouped = new Map<string, typeof extracted>();
   for (const metric of extracted) {
@@ -115,14 +119,35 @@ export default function ExecutiveSummaryCard({ payload, periodKey, previousPaylo
     (a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b)
   );
 
+  // Empty state - no metrics extracted at all
+  if (extracted.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">No metrics found in this report.</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          The report format may not be recognized.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Summary Header */}
-      <div className="flex items-center gap-3 pb-2 border-b">
-        <h2 className="text-lg font-semibold">Executive Summary</h2>
-        <Badge variant="outline" className="font-mono">
-          {periodKey}
-        </Badge>
+      <div className="flex items-center justify-between gap-3 pb-2 border-b">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold">Executive Summary</h2>
+          <Badge variant="outline" className="font-mono">
+            {periodKey}
+          </Badge>
+        </div>
+        {/* Stats summary */}
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span>{metricsWithValues.length} of {extracted.length} metrics populated</span>
+          {!hasPreviousData && (
+            <span className="text-amber-600">No prior month for comparison</span>
+          )}
+        </div>
       </div>
 
       {/* Metric Cards by Category */}

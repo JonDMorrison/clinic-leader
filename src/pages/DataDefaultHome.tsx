@@ -84,7 +84,7 @@ export default function DataDefaultHome() {
   }, [effectiveSelectedPeriod, isYTDSelected]);
 
   // Fetch selected month's payload AND previous month for trend comparison
-  const { data: reportData, isLoading: reportLoading } = useQuery({
+  const { data: reportData, isLoading: reportLoading, error: reportError } = useQuery({
     queryKey: ["legacy-monthly-report", currentUser?.team_id, effectiveSelectedPeriod, previousPeriodKey],
     queryFn: async () => {
       if (!currentUser?.team_id || !effectiveSelectedPeriod || isYTDSelected) return null;
@@ -102,7 +102,7 @@ export default function DataDefaultHome() {
       
       if (error) {
         console.error("Error fetching report payload:", error);
-        return null;
+        throw new Error(error.message);
       }
       
       const records = (data || []) as unknown as { period_key: string; payload: LegacyMonthPayload; updated_at: string; source_file_name: string | null }[];
@@ -117,6 +117,7 @@ export default function DataDefaultHome() {
       } : null;
     },
     enabled: !!currentUser?.team_id && !!effectiveSelectedPeriod && !isYTDSelected,
+    retry: 1,
   });
 
   // Fetch all months for YTD view
@@ -327,6 +328,16 @@ export default function DataDefaultHome() {
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-6 h-6 animate-spin text-brand" />
           </div>
+        ) : reportError ? (
+          // Error state
+          <Card className="border-destructive/50">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-destructive font-medium mb-2">Failed to load report data</p>
+              <p className="text-sm text-muted-foreground max-w-md">
+                {reportError instanceof Error ? reportError.message : 'An unexpected error occurred'}
+              </p>
+            </CardContent>
+          </Card>
         ) : isYTDSelected ? (
           // YTD View
           <YTDDataView
@@ -357,6 +368,9 @@ export default function DataDefaultHome() {
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-muted-foreground">
                 No data found for {effectiveSelectedPeriod && formatPeriodKey(effectiveSelectedPeriod)}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Import a monthly report to see data here.
               </p>
             </CardContent>
           </Card>
