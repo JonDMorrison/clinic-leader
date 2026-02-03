@@ -197,6 +197,66 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_intervention_recommendations: {
+        Row: {
+          accepted: boolean | null
+          created_at: string
+          created_by: string
+          id: string
+          implemented: boolean | null
+          metric_id: string
+          outcome_notes: string | null
+          period_start: string
+          recommendation_key: string
+          recommended_at: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          accepted?: boolean | null
+          created_at?: string
+          created_by: string
+          id?: string
+          implemented?: boolean | null
+          metric_id: string
+          outcome_notes?: string | null
+          period_start: string
+          recommendation_key: string
+          recommended_at?: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          accepted?: boolean | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          implemented?: boolean | null
+          metric_id?: string
+          outcome_notes?: string | null
+          period_start?: string
+          recommendation_key?: string
+          recommended_at?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_intervention_recommendations_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_intervention_recommendations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_logs: {
         Row: {
           created_at: string
