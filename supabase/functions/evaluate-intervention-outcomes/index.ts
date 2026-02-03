@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface EvaluationResult {
@@ -13,10 +13,102 @@ interface EvaluationResult {
   current_value: number | null;
   actual_delta_value: number | null;
   actual_delta_percent: number | null;
+  expected_direction: string;
   evaluation_period_start: string;
   evaluation_period_end: string;
   evaluated: boolean;
   reason?: string;
+}
+
+interface LinkedMetricInfo {
+  metric_id: string;
+  metric_name: string;
+  expected_direction: string;
+  expected_magnitude_percent: number | null;
+  baseline_value: number | null;
+}
+
+async function generateAISummary(
+  intervention: { title: string; intervention_type: string },
+  linkedMetrics: LinkedMetricInfo[],
+  results: EvaluationResult[]
+): Promise<string> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    console.warn("LOVABLE_API_KEY not configured, skipping AI summary");
+    return "";
+  }
+
+  // Build context for the AI
+  const metricsContext = results.map((r) => {
+    const linked = linkedMetrics.find((l) => l.metric_id === r.metric_id);
+    const expectedDir = linked?.expected_direction || "unknown";
+    
+    if (!r.evaluated || r.baseline_value === null || r.current_value === null) {
+      return `- ${r.metric_name}: Insufficient data (baseline or current value missing)`;
+    }
+
+    const direction = r.actual_delta_value! > 0 ? "increased" : r.actual_delta_value! < 0 ? "decreased" : "unchanged";
+    const matchedExpectation = 
+      (expectedDir === "up" && r.actual_delta_value! > 0) ||
+      (expectedDir === "down" && r.actual_delta_value! < 0) ||
+      (expectedDir === "stable" && Math.abs(r.actual_delta_percent || 0) < 5);
+
+    return `- ${r.metric_name}: ${direction} from ${r.baseline_value} to ${r.current_value} (${r.actual_delta_percent !== null ? (r.actual_delta_percent > 0 ? "+" : "") + r.actual_delta_percent.toFixed(1) + "%" : "N/A"}). Expected: ${expectedDir}. ${matchedExpectation ? "Matched expectation." : "Did NOT match expectation."}`;
+  }).join("\n");
+
+  const prompt = `You are analyzing the outcomes of an intervention. Write a brief summary (3-6 sentences max) that describes:
+1. What was attempted (intervention title and type)
+2. Which metrics moved and by how much (use ONLY the exact numbers provided)
+3. Whether the movement matched expectations
+
+CRITICAL: Do NOT invent or estimate any numbers. Use ONLY the values provided below. If data is insufficient, say so.
+
+Intervention: "${intervention.title}" (Type: ${intervention.intervention_type})
+
+Metric Results:
+${metricsContext}
+
+Write a concise, factual summary:`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You are a data analyst providing factual summaries. Never invent numbers. Be concise and objective." },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 300,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        console.warn("AI rate limit exceeded, skipping summary");
+        return "";
+      }
+      if (response.status === 402) {
+        console.warn("AI credits exhausted, skipping summary");
+        return "";
+      }
+      console.error("AI gateway error:", response.status);
+      return "";
+    }
+
+    const data = await response.json();
+    const summary = data.choices?.[0]?.message?.content?.trim() || "";
+    return summary;
+  } catch (error) {
+    console.error("AI summary generation error:", error);
+    return "";
+  }
 }
 
 Deno.serve(async (req) => {
@@ -65,7 +157,7 @@ Deno.serve(async (req) => {
     // Fetch intervention with its organization
     const { data: intervention, error: intError } = await supabase
       .from("interventions")
-      .select("id, organization_id, status, expected_time_horizon_days")
+      .select("id, organization_id, status, expected_time_horizon_days, title, intervention_type")
       .eq("id", intervention_id)
       .single();
 
@@ -100,10 +192,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch linked metrics
+    // Fetch linked metrics with expected direction
     const { data: links, error: linksError } = await supabase
       .from("intervention_metric_links")
-      .select("id, metric_id, baseline_value, baseline_period_start, baseline_period_type")
+      .select("id, metric_id, baseline_value, baseline_period_start, baseline_period_type, expected_direction, expected_magnitude_percent")
       .eq("intervention_id", intervention_id);
 
     if (linksError) {
@@ -126,6 +218,15 @@ Deno.serve(async (req) => {
 
     const metricsMap = new Map(metrics?.map((m) => [m.id, m.name]) || []);
 
+    // Build linked metrics info for AI
+    const linkedMetricsInfo: LinkedMetricInfo[] = links.map((l) => ({
+      metric_id: l.metric_id,
+      metric_name: metricsMap.get(l.metric_id) || "Unknown",
+      expected_direction: l.expected_direction,
+      expected_magnitude_percent: l.expected_magnitude_percent,
+      baseline_value: l.baseline_value,
+    }));
+
     const results: EvaluationResult[] = [];
     const outcomesToUpsert: any[] = [];
 
@@ -141,6 +242,7 @@ Deno.serve(async (req) => {
           current_value: null,
           actual_delta_value: null,
           actual_delta_percent: null,
+          expected_direction: link.expected_direction,
           evaluation_period_start: "",
           evaluation_period_end: "",
           evaluated: false,
@@ -207,13 +309,14 @@ Deno.serve(async (req) => {
         current_value: currentValue,
         actual_delta_value: actualDeltaValue,
         actual_delta_percent: actualDeltaPercent,
+        expected_direction: link.expected_direction,
         evaluation_period_start: evalStartStr,
         evaluation_period_end: evalEndStr,
         evaluated,
         reason: !evaluated ? "No metric result found for evaluation period" : undefined,
       });
 
-      // Prepare outcome for upsert
+      // Prepare outcome for upsert (ai_summary will be added later)
       if (evaluated) {
         outcomesToUpsert.push({
           intervention_id,
@@ -223,11 +326,18 @@ Deno.serve(async (req) => {
           actual_delta_value: actualDeltaValue,
           actual_delta_percent: actualDeltaPercent,
           confidence_score: 3,
-          ai_summary: null,
+          ai_summary: null, // Will be updated with per-metric summary if needed
           evaluated_at: new Date().toISOString(),
         });
       }
     }
+
+    // Generate AI summary for the intervention
+    const aiSummary = await generateAISummary(
+      { title: intervention.title, intervention_type: intervention.intervention_type },
+      linkedMetricsInfo,
+      results
+    );
 
     // Upsert outcomes
     if (outcomesToUpsert.length > 0) {
@@ -248,10 +358,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Update intervention with rollup AI summary
+    if (aiSummary) {
+      const { error: updateError } = await supabase
+        .from("interventions")
+        .update({ ai_summary: aiSummary })
+        .eq("id", intervention_id);
+
+      if (updateError) {
+        console.error("Failed to update intervention ai_summary:", updateError);
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         evaluated_count: outcomesToUpsert.length,
+        ai_summary: aiSummary || null,
         results 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

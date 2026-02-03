@@ -27,6 +27,7 @@ import {
   Loader2,
   Play,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -48,6 +49,7 @@ type InterventionWithUsers = InterventionRow & {
   owner: { id: string; full_name: string } | null;
   creator: { id: string; full_name: string } | null;
   originIssue: { id: string; title: string } | null;
+  ai_summary?: string | null;
 };
 
 type LinkedMetric = {
@@ -275,9 +277,10 @@ export default function InterventionDetail() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["intervention-outcomes", id] });
+      queryClient.invalidateQueries({ queryKey: ["intervention", id] }); // Refetch to get new ai_summary
       toast({
         title: "Evaluation complete",
-        description: `Evaluated ${data.evaluated_count} metric(s).`,
+        description: `Evaluated ${data.evaluated_count} metric(s).${data.ai_summary ? " AI summary generated." : ""}`,
       });
     },
     onError: (error: Error) => {
@@ -689,7 +692,25 @@ export default function InterventionDetail() {
         </CardContent>
       </Card>
 
-      {/* Modals */}
+      {/* Section 5: AI Summary */}
+      {intervention.ai_summary && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <CardTitle>AI Summary</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+              {intervention.ai_summary}
+            </p>
+            <p className="text-xs text-muted-foreground mt-3">
+              Generated from the latest outcome evaluation
+            </p>
+          </CardContent>
+        </Card>
+      )}
       {editModalOpen && (
         <EditInterventionModal
           open={editModalOpen}
