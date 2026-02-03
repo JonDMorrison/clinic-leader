@@ -1764,22 +1764,41 @@ const ImportMonthlyReport = () => {
                                     {dm.value !== null ? dm.value.toLocaleString() : '—'}
                                   </TableCell>
                                   <TableCell className="py-1 px-2">
-                                    <Badge 
-                                      variant={
-                                        dm.status === 'inserted' ? 'default' :
-                                        dm.status === 'skipped_null' ? 'secondary' :
-                                        dm.status === 'skipped_unverifiable' ? 'secondary' :
-                                        'destructive'
-                                      }
-                                      className="text-[10px] px-1.5 py-0"
-                                      title={dm.error_message || undefined}
-                                    >
-                                      {dm.status === 'inserted' ? '✓ Synced' :
-                                       dm.status === 'skipped_null' ? 'No data' :
-                                       dm.status === 'skipped_unverifiable' ? 'Info only' :
-                                       dm.status === 'error' ? `✕ ${dm.error_message?.slice(0, 30) || 'Error'}` :
-                                       dm.status}
-                                    </Badge>
+                                    <div className="space-y-1">
+                                      <Badge 
+                                        variant={
+                                          dm.status === 'inserted' ? 'default' :
+                                          dm.status === 'skipped_null' ? 'secondary' :
+                                          dm.status === 'skipped_unverifiable' ? 'secondary' :
+                                          'destructive'
+                                        }
+                                        className="text-[10px] px-1.5 py-0"
+                                        title={dm.error_message || undefined}
+                                      >
+                                        {dm.status === 'inserted' ? '✓ Synced' :
+                                         dm.status === 'skipped_null' ? 'No data' :
+                                         dm.status === 'skipped_unverifiable' ? 'Info only' :
+                                         dm.status === 'error' ? `✕ Error` :
+                                         dm.status}
+                                      </Badge>
+                                      {/* Full error details for diagnostics */}
+                                      {dm.status === 'error' && dm.error_message && (
+                                        <details className="text-destructive text-[10px] mt-1">
+                                          <summary className="cursor-pointer hover:underline">
+                                            Database Error Details
+                                          </summary>
+                                          <pre className="mt-1 p-2 bg-destructive/10 rounded text-[9px] overflow-x-auto max-w-[300px] whitespace-pre-wrap">
+{JSON.stringify({
+  message: dm.error_message,
+  details: (dm as any).error_details,
+  hint: (dm as any).error_hint,
+  code: (dm as any).error_code,
+  payload: (dm as any).attempted_payload
+}, null, 2)}
+                                          </pre>
+                                        </details>
+                                      )}
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               ))}
@@ -1803,7 +1822,16 @@ const ImportMonthlyReport = () => {
                   </span>
                   <ChevronDown className="w-4 h-4" />
                 </CollapsibleTrigger>
-                <CollapsibleContent className="mt-2 p-3 border rounded-lg bg-muted/20 text-xs space-y-3">
+                <CollapsibleContent className="mt-2 p-3 border rounded-lg bg-muted/20 text-xs space-y-4">
+                  {/* Auth Context */}
+                  <div className="p-2 bg-muted/30 rounded border">
+                    <p className="text-[10px] font-medium mb-1">Auth Context</p>
+                    <p className="font-mono text-[10px]">
+                      auth_user_id: {loriImportProgress.bridgeResults[0]?.auth_user_id || 'null'}
+                    </p>
+                  </div>
+                  
+                  {/* Summary Table */}
                   <Table className="text-[11px]">
                     <TableHeader>
                       <TableRow className="bg-muted/50">
@@ -1857,6 +1885,34 @@ const ImportMonthlyReport = () => {
                       })}
                     </TableBody>
                   </Table>
+
+                  {/* Error Details Section */}
+                  {loriImportProgress.bridgeResults.some(br => br.results.some(r => r.status === 'error')) && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-medium text-destructive">Error Payloads</p>
+                      {loriImportProgress.bridgeResults.map((br, brIdx) => 
+                        br.results.filter(r => r.status === 'error').map((r, rIdx) => (
+                          <div key={`${brIdx}-${rIdx}`} className="p-2 bg-destructive/10 rounded border border-destructive/30">
+                            <p className="font-mono text-[10px] font-medium text-destructive">
+                              {br.period_key} / {r.display_name}
+                            </p>
+                            <pre className="mt-1 text-[9px] overflow-x-auto whitespace-pre-wrap">
+{JSON.stringify({
+  metric_key: r.metric_key,
+  error: {
+    message: r.error_message,
+    details: (r as any).error_details,
+    hint: (r as any).error_hint,
+    code: (r as any).error_code
+  },
+  attempted_payload: (r as any).attempted_payload
+}, null, 2)}
+                            </pre>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </CollapsibleContent>
               </Collapsible>
             )}

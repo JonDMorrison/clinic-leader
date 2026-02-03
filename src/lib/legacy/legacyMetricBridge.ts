@@ -30,12 +30,26 @@ import {
 } from "./legacyMetricMapping";
 import { isMetricVerifiable, getVerifiableMetricKeys, monthHasData } from "./legacyDerivedMetricAudit";
 
+// ============= ENHANCED ERROR TYPES FOR DIAGNOSTICS =============
+
+export interface SupabaseErrorDetails {
+  message: string;
+  details: string | null;
+  hint: string | null;
+  code: string | null;
+}
+
 export interface DerivedMetricResult {
   metric_key: string;
   display_name: string;
   value: number | null;
   status: "inserted" | "updated" | "skipped_null" | "skipped_unverifiable" | "skipped_no_data" | "skipped_blocked" | "error";
   error_message?: string;
+  // Enhanced error fields for diagnostics
+  error_details?: string | null;
+  error_hint?: string | null;
+  error_code?: string | null;
+  attempted_payload?: Record<string, any>;
 }
 
 export interface BridgeResult {
@@ -49,6 +63,9 @@ export interface BridgeResult {
   total_skipped_no_data: boolean;
   total_skipped_blocked: boolean;
   total_unverifiable_skipped: number;
+  // Debug context
+  auth_user_id?: string | null;
+  debug_schema?: any;
 }
 
 /**
@@ -56,6 +73,25 @@ export interface BridgeResult {
  */
 function getVerifiableMappings(): LegacyMetricMapping[] {
   return LEGACY_METRIC_MAPPINGS.filter(m => isMetricVerifiable(m.metric_key));
+}
+
+/**
+ * Debug helper: Fetch metric_results table schema for diagnostics
+ */
+async function debugFetchMetricResultsSchema(): Promise<any> {
+  try {
+    const { data, error } = await supabase
+      .from('metric_results')
+      .select('*')
+      .limit(0);
+    
+    // We can't get schema directly, but we can log the attempt
+    console.debug("[LegacyBridge] Schema probe attempted", { error: error?.message });
+    
+    return { probed: true, error: error?.message };
+  } catch (e: any) {
+    return { probed: false, error: e.message };
+  }
 }
 
 /**
@@ -171,12 +207,15 @@ async function ensureMetricsExist(
  * 
  * IMPORTANT: Zero values ARE valid when month_has_data is true.
  * Only null/undefined values are skipped per-metric.
+ * 
+ * ENHANCED: Full error capture for diagnostics
  */
 async function upsertMetricResults(
   organizationId: string,
   periodKey: string,
   metricIdMap: Map<string, string>,
-  extractedMetrics: { metric_key: string; value: number | null; display_name: string }[]
+  extractedMetrics: { metric_key: string; value: number | null; display_name: string }[],
+  authUserId: string | null
 ): Promise<{ results: DerivedMetricResult[]; unverifiableSkipped: number }> {
   const results: DerivedMetricResult[] = [];
   let unverifiableSkipped = 0;
@@ -206,6 +245,7 @@ async function upsertMetricResults(
         value: extracted.value,
         status: "error",
         error_message: "Metric not found in database",
+        error_code: "METRIC_NOT_FOUND",
       });
       continue;
     }
@@ -222,34 +262,86 @@ async function upsertMetricResults(
       continue;
     }
 
-    // Upsert to metric_results - ALWAYS use source='legacy_workbook' for bridged metrics
-    // Note: metric_results table does NOT have organization_id column - it's linked via metric_id
-    // Zero values are allowed here since month_has_data was verified at the caller level
-    const { error: upsertError } = await supabase.from("metric_results").upsert(
-      {
-        metric_id: metricId,
-        value: extracted.value, // Can be 0 - that's valid for real months
-        period_type: "monthly",
-        period_start: periodStart,
-        period_key: periodKey,
-        week_start: periodStart, // Required legacy field
-        source: "legacy_workbook", // ALWAYS tag as legacy_workbook
-        note: `Derived from Lori workbook import`,
-      },
+    // ========== BUILD UPSERT PAYLOAD ==========
+    const upsertPayload = {
+      metric_id: metricId,
+      value: extracted.value, // Can be 0 - that's valid for real months
+      period_type: "monthly",
+      period_start: periodStart,
+      period_key: periodKey,
+      week_start: periodStart, // Required legacy field
+      source: "legacy_workbook", // ALWAYS tag as legacy_workbook
+      note: `Derived from Lori workbook import`,
+    };
+
+    // ========== DEBUG: Log payload before upsert ==========
+    console.debug("LEGACY_BRIDGE_PAYLOAD", {
+      metric_name: extracted.display_name,
+      metric_key: extracted.metric_key,
+      metric_id: metricId,
+      period_key: periodKey,
+      auth_user_id: authUserId,
+      payload: upsertPayload
+    });
+
+    // ========== RLS PROBE: Test insert capability ==========
+    const rlsProbe = await supabase
+      .from("metric_results")
+      .select("id")
+      .eq("metric_id", metricId)
+      .eq("period_type", "monthly")
+      .eq("period_start", periodStart)
+      .maybeSingle();
+
+    console.debug("RLS_PROBE_SELECT", {
+      metric_key: extracted.metric_key,
+      existing_row: rlsProbe.data,
+      error: rlsProbe.error?.message
+    });
+
+    // ========== UPSERT with full error capture ==========
+    const { data, error: upsertError } = await supabase.from("metric_results").upsert(
+      upsertPayload,
       {
         onConflict: "metric_id,period_type,period_start",
       }
-    );
+    ).select();
 
     if (upsertError) {
+      // ========== FULL ERROR CAPTURE ==========
+      console.error("LEGACY_BRIDGE_UPSERT_ERROR", {
+        metric_name: extracted.display_name,
+        metric_key: extracted.metric_key,
+        metric_id: metricId,
+        period_key: periodKey,
+        auth_user_id: authUserId,
+        upsertPayload,
+        supabase_error: {
+          message: upsertError.message,
+          details: upsertError.details,
+          hint: upsertError.hint,
+          code: upsertError.code
+        }
+      });
+
       results.push({
         metric_key: extracted.metric_key,
         display_name: extracted.display_name,
         value: extracted.value,
         status: "error",
         error_message: upsertError.message,
+        error_details: upsertError.details,
+        error_hint: upsertError.hint,
+        error_code: upsertError.code,
+        attempted_payload: upsertPayload,
       });
     } else {
+      console.debug("LEGACY_BRIDGE_UPSERT_SUCCESS", {
+        metric_key: extracted.metric_key,
+        period_key: periodKey,
+        returned_data: data
+      });
+
       results.push({
         metric_key: extracted.metric_key,
         display_name: extracted.display_name,
@@ -285,6 +377,19 @@ export async function bridgeLegacyToMetricResults(
 ): Promise<BridgeResult> {
   const verifiableMappings = getVerifiableMappings();
   
+  // ========== CAPTURE AUTH CONTEXT ==========
+  const { data: authData } = await supabase.auth.getUser();
+  const authUserId = authData?.user?.id || null;
+  console.debug("BRIDGE_AUTH_CONTEXT", {
+    user_id: authUserId,
+    email: authData?.user?.email,
+    period_key: periodKey
+  });
+
+  // ========== SCHEMA DEBUG ==========
+  const schemaDebug = await debugFetchMetricResultsSchema();
+  console.debug("METRIC_RESULTS_SCHEMA_PROBE", schemaDebug);
+  
   // GATE 1: Check if month has meaningful data - skip NO_DATA months entirely
   if (!monthHasData(payload)) {
     console.log(`[LegacyBridge] Skipping ${periodKey} - no meaningful data (NO_DATA month)`);
@@ -304,6 +409,8 @@ export async function bridgeLegacyToMetricResults(
       total_skipped_no_data: true,
       total_skipped_blocked: false,
       total_unverifiable_skipped: 0,
+      auth_user_id: authUserId,
+      debug_schema: schemaDebug,
     };
   }
 
@@ -326,6 +433,8 @@ export async function bridgeLegacyToMetricResults(
       total_skipped_no_data: false,
       total_skipped_blocked: true,
       total_unverifiable_skipped: 0,
+      auth_user_id: authUserId,
+      debug_schema: schemaDebug,
     };
   }
 
@@ -344,7 +453,8 @@ export async function bridgeLegacyToMetricResults(
     organizationId,
     periodKey,
     metricIdMap,
-    extractedMetrics
+    extractedMetrics,
+    authUserId
   );
 
   // Count statuses
@@ -364,6 +474,8 @@ export async function bridgeLegacyToMetricResults(
     total_skipped_no_data: false,
     total_skipped_blocked: false,
     total_unverifiable_skipped: unverifiableSkipped,
+    auth_user_id: authUserId,
+    debug_schema: schemaDebug,
   };
 }
 
@@ -400,11 +512,24 @@ export async function bridgeMultipleMonths(
       );
       results.push(result);
     } catch (error: any) {
+      console.error(`[LegacyBridge] CRITICAL EXCEPTION for ${item.period_key}:`, {
+        error_message: error.message,
+        error_stack: error.stack,
+        error_name: error.name
+      });
+      
       results.push({
         period_key: item.period_key,
         metrics_ensured: 0,
         metrics_created: 0,
-        results: [],
+        results: [{
+          metric_key: "BRIDGE_EXCEPTION",
+          display_name: "Bridge Exception",
+          value: null,
+          status: "error",
+          error_message: error.message,
+          error_details: error.stack,
+        }],
         total_inserted: 0,
         total_updated: 0,
         total_skipped_null: 0,
@@ -412,10 +537,6 @@ export async function bridgeMultipleMonths(
         total_skipped_blocked: false,
         total_unverifiable_skipped: 0,
       });
-      console.error(
-        `[LegacyBridge] Failed to bridge ${item.period_key}:`,
-        error
-      );
     }
   }
 
