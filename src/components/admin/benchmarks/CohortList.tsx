@@ -54,12 +54,13 @@ export function CohortList() {
       return data as Cohort[];
     },
   });
-
+  // Use secure RPC instead of direct table access
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("benchmark_cohorts")
-        .insert({ name: newName, description: newDescription || null });
+      const { error } = await (supabase.rpc as any)("bench_create_cohort", {
+        _name: newName,
+        _description: newDescription || null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -74,12 +75,12 @@ export function CohortList() {
     },
   });
 
+  // Use secure RPC instead of direct table access
   const deleteMutation = useMutation({
     mutationFn: async (cohortId: string) => {
-      const { error } = await supabase
-        .from("benchmark_cohorts")
-        .delete()
-        .eq("id", cohortId);
+      const { error } = await (supabase.rpc as any)("bench_delete_cohort", {
+        _cohort_id: cohortId,
+      });
       if (error) throw error;
     },
     onSuccess: () => {

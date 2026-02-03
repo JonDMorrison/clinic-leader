@@ -72,16 +72,14 @@ export function CohortMembershipManager() {
     enabled: !!selectedCohortId,
   });
 
-  // Search teams (master admin can see all teams)
+  // Use secure RPC for team search (master admin can see all teams)
   const { data: searchResults } = useQuery({
     queryKey: ["search-teams", searchTerm],
     queryFn: async () => {
       if (!searchTerm.trim()) return [];
-      const { data, error } = await supabase
-        .from("teams")
-        .select("id, name")
-        .ilike("name", `%${searchTerm}%`)
-        .limit(10);
+      const { data, error } = await (supabase.rpc as any)("bench_search_teams", {
+        _search: searchTerm,
+      });
       if (error) throw error;
       return data as Team[];
     },
@@ -93,11 +91,13 @@ export function CohortMembershipManager() {
     (team) => !members?.some((m) => m.team_id === team.id)
   );
 
+  // Use secure RPC instead of direct table access
   const addMutation = useMutation({
     mutationFn: async (teamId: string) => {
-      const { error } = await supabase
-        .from("benchmark_cohort_memberships")
-        .insert({ cohort_id: selectedCohortId, team_id: teamId });
+      const { error } = await (supabase.rpc as any)("bench_add_cohort_member", {
+        _cohort_id: selectedCohortId,
+        _team_id: teamId,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -112,13 +112,13 @@ export function CohortMembershipManager() {
     },
   });
 
+  // Use secure RPC instead of direct table access
   const removeMutation = useMutation({
     mutationFn: async (teamId: string) => {
-      const { error } = await supabase
-        .from("benchmark_cohort_memberships")
-        .delete()
-        .eq("cohort_id", selectedCohortId)
-        .eq("team_id", teamId);
+      const { error } = await (supabase.rpc as any)("bench_remove_cohort_member", {
+        _cohort_id: selectedCohortId,
+        _team_id: teamId,
+      });
       if (error) throw error;
     },
     onSuccess: () => {

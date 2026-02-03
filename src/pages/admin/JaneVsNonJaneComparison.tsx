@@ -1,8 +1,15 @@
-import { useEffect, useState, useMemo } from "react";
-import { useNavigate, Link } from "react-router-dom";
+/**
+ * Jane vs Non-Jane Comparison Page
+ * 
+ * SECURITY: Master admin only - shows cross-org EMR cohort comparisons.
+ * All data access goes through secure RPCs with audit logging.
+ */
+
+import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useMasterAdmin } from "@/hooks/useMasterAdmin";
+import { useMasterAdminGate } from "@/hooks/useMasterAdminGate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, BarChart3, Shield } from "lucide-react";
 import { format, subMonths, startOfMonth } from "date-fns";
+import { AccessRestrictedView } from "@/components/admin/AccessRestrictedView";
 
 interface Cohort {
   id: string;
@@ -65,19 +73,12 @@ interface ComparisonData {
 }
 
 export default function JaneVsNonJaneComparison() {
-  const navigate = useNavigate();
-  const { data: isMasterAdmin, isLoading: adminLoading } = useMasterAdmin();
+  const { isMasterAdmin, isLoading: adminLoading } = useMasterAdminGate();
   const [selectedMetricId, setSelectedMetricId] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const lastMonth = startOfMonth(subMonths(new Date(), 1));
     return format(lastMonth, "yyyy-MM-dd");
   });
-
-  useEffect(() => {
-    if (!adminLoading && !isMasterAdmin) {
-      navigate("/dashboard");
-    }
-  }, [isMasterAdmin, adminLoading, navigate]);
 
   // Get cohorts to find jane_users and non_jane_users
   const { data: cohorts } = useQuery({
@@ -121,40 +122,34 @@ export default function JaneVsNonJaneComparison() {
     return months;
   }, []);
 
-  // Fetch snapshots for Jane cohort (6 months)
+  // Fetch snapshots for Jane cohort (6 months) - use secure RPC
   const { data: janeSnapshots, isLoading: janeLoading } = useQuery({
     queryKey: ["jane-snapshots-trend", janeCohort?.id, selectedMetricId],
     queryFn: async () => {
       if (!janeCohort?.id || !selectedMetricId) return [];
-      const periodStarts = last6Months.map((m) => m.value);
-      const { data, error } = await supabase
-        .from("benchmark_snapshots")
-        .select("*")
-        .eq("cohort_id", janeCohort.id)
-        .eq("metric_id", selectedMetricId)
-        .eq("period_type", "monthly")
-        .in("period_start", periodStarts);
+      const { data, error } = await (supabase.rpc as any)("bench_list_snapshots", {
+        _cohort_id: janeCohort.id,
+        _metric_id: selectedMetricId,
+        _limit: 12,
+      });
       if (error) throw error;
-      return data as Snapshot[];
+      return ((data || []) as any[]).filter((s: any) => s.period_type === "monthly") as Snapshot[];
     },
     enabled: !!janeCohort?.id && !!selectedMetricId && !!isMasterAdmin,
   });
 
-  // Fetch snapshots for Non-Jane cohort (6 months)
+  // Fetch snapshots for Non-Jane cohort (6 months) - use secure RPC
   const { data: nonJaneSnapshots, isLoading: nonJaneLoading } = useQuery({
     queryKey: ["non-jane-snapshots-trend", nonJaneCohort?.id, selectedMetricId],
     queryFn: async () => {
       if (!nonJaneCohort?.id || !selectedMetricId) return [];
-      const periodStarts = last6Months.map((m) => m.value);
-      const { data, error } = await supabase
-        .from("benchmark_snapshots")
-        .select("*")
-        .eq("cohort_id", nonJaneCohort.id)
-        .eq("metric_id", selectedMetricId)
-        .eq("period_type", "monthly")
-        .in("period_start", periodStarts);
+      const { data, error } = await (supabase.rpc as any)("bench_list_snapshots", {
+        _cohort_id: nonJaneCohort.id,
+        _metric_id: selectedMetricId,
+        _limit: 12,
+      });
       if (error) throw error;
-      return data as Snapshot[];
+      return ((data || []) as any[]).filter((s: any) => s.period_type === "monthly") as Snapshot[];
     },
     enabled: !!nonJaneCohort?.id && !!selectedMetricId && !!isMasterAdmin,
   });
@@ -237,7 +232,13 @@ export default function JaneVsNonJaneComparison() {
   }
 
   if (!isMasterAdmin) {
-    return null;
+    return (
+      <AccessRestrictedView
+        title="Master Admin Required"
+        description="Cross-organization EMR comparisons require platform administrator privileges."
+        backTo="/admin/benchmarks"
+      />
+    );
   }
 
   const cohortsExist = janeCohort && nonJaneCohort;

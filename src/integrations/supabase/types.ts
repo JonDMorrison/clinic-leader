@@ -6337,24 +6337,18 @@ export type Database = {
               cohort_id: string
               computed_at: string
               id: string
-              mean: number | null
+              mean: number
               metric_id: string
               n_orgs: number
-              p10: number | null
-              p25: number | null
-              p50: number | null
-              p75: number | null
-              p90: number | null
+              p10: number
+              p25: number
+              p50: number
+              p75: number
+              p90: number
               period_start: string
               period_type: string
-              stddev: number | null
-            }
-            SetofOptions: {
-              from: "*"
-              to: "benchmark_snapshots"
-              isOneToOne: true
-              isSetofReturn: false
-            }
+              stddev: number
+            }[]
           }
         | {
             Args: { _snapshot_id: string }

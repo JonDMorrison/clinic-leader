@@ -84,7 +84,7 @@ export function SnapshotComputer() {
     },
   });
 
-  // Get existing snapshot if any
+  // Get existing snapshot if any - RPC now returns TABLE so we get first row
   const { data: existingSnapshot, isLoading: snapshotLoading } = useQuery({
     queryKey: ["benchmark-snapshot", selectedCohortId, selectedMetricId, periodType, periodStart],
     queryFn: async () => {
@@ -96,7 +96,9 @@ export function SnapshotComputer() {
         _period_start: periodStart,
       });
       if (error) throw error;
-      return data as Snapshot | null;
+      // RPC returns array, take first element
+      const rows = data as Snapshot[] | null;
+      return rows && rows.length > 0 ? rows[0] : null;
     },
     enabled: !!selectedCohortId && !!selectedMetricId && !!periodStart,
   });

@@ -1,8 +1,13 @@
-import { useEffect } from "react";
+/**
+ * Benchmark Admin Page
+ * 
+ * SECURITY: Master admin only - manages cross-org benchmark cohorts and snapshots.
+ * All data access goes through secure RPCs with audit logging.
+ */
+
 import { useNavigate, Link } from "react-router-dom";
-import { useMasterAdmin } from "@/hooks/useMasterAdmin";
+import { useMasterAdminGate } from "@/hooks/useMasterAdminGate";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Shield, Users, Database, FileText, BarChart3 } from "lucide-react";
@@ -10,17 +15,13 @@ import { CohortList } from "@/components/admin/benchmarks/CohortList";
 import { CohortMembershipManager } from "@/components/admin/benchmarks/CohortMembershipManager";
 import { SnapshotComputer } from "@/components/admin/benchmarks/SnapshotComputer";
 import { BenchmarkAuditLog } from "@/components/admin/benchmarks/BenchmarkAuditLog";
+import { AccessRestrictedView } from "@/components/admin/AccessRestrictedView";
 
 export default function BenchmarkAdmin() {
   const navigate = useNavigate();
-  const { data: isMasterAdmin, isLoading } = useMasterAdmin();
+  const { isMasterAdmin, isLoading, error } = useMasterAdminGate();
 
-  useEffect(() => {
-    if (!isLoading && !isMasterAdmin) {
-      navigate("/dashboard");
-    }
-  }, [isMasterAdmin, isLoading, navigate]);
-
+  // Loading state
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -30,8 +31,15 @@ export default function BenchmarkAdmin() {
     );
   }
 
+  // Not a master admin - show access restricted (no redirect to avoid flash)
   if (!isMasterAdmin) {
-    return null; // Will redirect
+    return (
+      <AccessRestrictedView
+        title="Master Admin Required"
+        description="This area manages cross-organization benchmark data and requires platform administrator privileges."
+        backTo="/dashboard"
+      />
+    );
   }
 
   return (
