@@ -163,6 +163,12 @@ function AuditEvidencePanel({ report }: { report: DerivedMetricAuditReport }) {
               <span className="text-muted-foreground">pain_mgmt_rows_count:</span>
               <span className="font-mono">{inputs.pain_mgmt_rows_count}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">pain_mgmt_title_scan_hits:</span>
+              <span className={`font-mono ${inputs.pain_mgmt_title_scan_hits?.length > 0 && !inputs.pain_mgmt_block_found ? 'text-destructive font-medium' : ''}`}>
+                {inputs.pain_mgmt_title_scan_hits?.length || 0}
+              </span>
+            </div>
             <div className="flex justify-between col-span-2">
               <span className="text-muted-foreground">pain_mgmt_headers_preview:</span>
               <span className="font-mono text-[10px] truncate max-w-[200px]" title={inputs.pain_mgmt_headers_preview.join(', ')}>
@@ -170,6 +176,32 @@ function AuditEvidencePanel({ report }: { report: DerivedMetricAuditReport }) {
               </span>
             </div>
           </div>
+          
+          {/* Title scan hits detail */}
+          {inputs.pain_mgmt_title_scan_hits && inputs.pain_mgmt_title_scan_hits.length > 0 && (
+            <div className="mt-2 p-2 rounded border border-dashed border-amber-400 bg-amber-50/50 dark:bg-amber-900/10">
+              <p className="text-[10px] font-medium text-amber-700 dark:text-amber-400 mb-1">
+                Title Scan Hits ({inputs.pain_mgmt_title_scan_hits.length}):
+              </p>
+              <div className="text-[10px] font-mono space-y-0.5">
+                {inputs.pain_mgmt_title_scan_hits.slice(0, 5).map((hit, i) => (
+                  <div key={i} className="text-amber-600 dark:text-amber-300">
+                    • {hit.cell_a1}: "{hit.value}"
+                  </div>
+                ))}
+                {inputs.pain_mgmt_title_scan_hits.length > 5 && (
+                  <div className="text-muted-foreground italic">
+                    ... and {inputs.pain_mgmt_title_scan_hits.length - 5} more
+                  </div>
+                )}
+              </div>
+              {!inputs.pain_mgmt_block_found && (
+                <p className="text-[10px] text-destructive font-medium mt-1">
+                  ⚠ Workbook contains indicators but block was NOT extracted → FAIL_EXTRACTION
+                </p>
+              )}
+            </div>
+          )}
         </div>
         
         {/* N/A explanation */}
@@ -1748,6 +1780,7 @@ const ImportMonthlyReport = () => {
                     const failCount = report.failed;
                     const needsDefCount = report.results.filter(r => r.status === 'NEEDS_DEFINITION').length;
                     const unverifiableCount = report.unverifiable - needsDefCount;
+                    const extractFailCount = report.results.filter(r => r.status === 'FAIL_EXTRACTION').length;
                     const blockingCount = report.results.filter(r => (r as any).blocks_sync === true).length;
                     
                     return (
@@ -1765,9 +1798,14 @@ const ImportMonthlyReport = () => {
                                 {passCount} PASS
                               </Badge>
                             )}
-                            {blockingCount > 0 && (
+                            {extractFailCount > 0 && (
                               <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                {blockingCount} BLOCKING
+                                {extractFailCount} EXTRACT FAIL
+                              </Badge>
+                            )}
+                            {blockingCount > extractFailCount && (
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                {blockingCount - extractFailCount} BLOCKING
                               </Badge>
                             )}
                             {needsDefCount > 0 && (
@@ -1847,13 +1885,15 @@ const ImportMonthlyReport = () => {
                                         }
                                         className={`text-[10px] px-1.5 py-0 ${
                                           result.status === 'PASS' ? 'bg-success text-success-foreground' :
+                                          result.status === 'FAIL_EXTRACTION' ? 'bg-destructive text-destructive-foreground' :
                                           result.status === 'NO_DATA' ? 'bg-muted text-muted-foreground' :
                                           result.status === 'NOT_APPLICABLE' ? 'bg-muted text-muted-foreground' :
                                           result.status === 'NEEDS_DEFINITION' ? 'border-amber-500 text-amber-700 dark:text-amber-400' :
                                           ''
                                         }`}
                                       >
-                                        {blocksSync ? '✕ BLOCKING' : 
+                                        {result.status === 'FAIL_EXTRACTION' ? '✕ EXTRACT FAIL' :
+                                         blocksSync ? '✕ BLOCKING' : 
                                          result.status === 'NO_DATA' ? 'NO DATA' :
                                          result.status === 'NOT_APPLICABLE' ? 'N/A' :
                                          result.status === 'NEEDS_DEFINITION' ? 'NEEDS DEF' :
@@ -1861,7 +1901,16 @@ const ImportMonthlyReport = () => {
                                       </Badge>
                                     </TableCell>
                                     <TableCell className="py-1 px-2 text-[10px] text-muted-foreground max-w-[250px]" title={result.notes}>
-                                      {blocksSync ? (
+                                      {result.status === 'FAIL_EXTRACTION' ? (
+                                        <span className="text-destructive font-medium">
+                                          ⚠ Block exists but extractor failed
+                                          {result.evidence?.raw_cells && Array.isArray(result.evidence.raw_cells) && (
+                                            <span className="font-normal ml-1">
+                                              (found: {(result.evidence.raw_cells as string[]).slice(0, 2).join(', ')})
+                                            </span>
+                                          )}
+                                        </span>
+                                      ) : blocksSync ? (
                                         <span className="text-destructive font-medium">
                                           {!hasExtracted ? '⚠ Extractor null, ref exists' : '⚠ Value mismatch'}
                                         </span>

@@ -66,6 +66,14 @@ export interface SheetFingerprint {
   total_cols: number;
 }
 
+/** Pain Management title scan hit - evidence that the section exists in workbook */
+export interface PainMgmtTitleScanHit {
+  row_1: number;      // 1-indexed row
+  col_0: number;      // 0-indexed column
+  value: string;      // Raw cell value
+  cell_a1: string;    // A1 notation
+}
+
 /** Audit evidence fields for transparency */
 export interface AuditEvidenceFields {
   // Provider block evidence
@@ -82,6 +90,9 @@ export interface AuditEvidenceFields {
   pain_mgmt_total_row_numeric_cells: number;
   pain_mgmt_headers_preview: string[];
   pain_mgmt_rows_count: number;
+  
+  // Pain Management title scan (for extraction failure detection)
+  pain_mgmt_title_scan_hits: PainMgmtTitleScanHit[];
 }
 
 export interface LoriMonthPayload {
@@ -684,8 +695,17 @@ function splitTableAtTotal(
 
 /**
  * Compute audit evidence fields for transparency in NO_DATA and NOT_APPLICABLE classification
+ * @param providerTable - The provider table block
+ * @param extraBlocks - Extra blocks found in the sheet
+ * @param rawRows - Raw sheet rows for scanning pain management indicators
+ * @param sheetMaxCols - Max columns in the sheet
  */
-function computeAuditEvidence(providerTable: TableBlock, extraBlocks: ExtraBlock[]): AuditEvidenceFields {
+function computeAuditEvidence(
+  providerTable: TableBlock, 
+  extraBlocks: ExtraBlock[], 
+  rawRows: any[][], 
+  sheetMaxCols: number
+): AuditEvidenceFields {
   // Provider table evidence
   let meaningfulNumericCountProvider = 0;
   let providerTotalRowFound = false;
@@ -722,7 +742,7 @@ function computeAuditEvidence(providerTable: TableBlock, extraBlocks: ExtraBlock
     }
   }
   
-  // Pain Management block evidence
+  // Pain Management block evidence from extracted blocks
   let painMgmtBlockFound = false;
   let painMgmtHeaderRowFound = false;
   let painMgmtTotalRowFound = false;
@@ -756,6 +776,46 @@ function computeAuditEvidence(providerTable: TableBlock, extraBlocks: ExtraBlock
     }
   }
   
+  // ========== PAIN MANAGEMENT TITLE SCAN ==========
+  // Scan ALL cells for "pain", "management", or "PM" to detect if the section should exist
+  const painMgmtTitleScanHits: PainMgmtTitleScanHit[] = [];
+  
+  for (let r = 0; r < rawRows.length; r++) {
+    const row = rawRows[r];
+    if (!row) continue;
+    
+    for (let c = 0; c < Math.min(row.length, sheetMaxCols); c++) {
+      const cellValue = row[c];
+      if (cellValue === null || cellValue === undefined) continue;
+      
+      const cellStr = String(cellValue).trim();
+      if (!cellStr) continue;
+      
+      const cellLower = cellStr.toLowerCase();
+      
+      // Check for pain management indicators
+      // Must be specific enough to avoid false positives
+      const hasPainManagement = cellLower.includes('pain management') || 
+                                 cellLower.includes('pain mgmt') ||
+                                 cellLower === 'pain management' ||
+                                 (cellLower.includes('pain') && cellLower.includes('management'));
+      
+      // Also check for "PM" as standalone (careful to avoid false positives like "PM" time)
+      const isPMSection = /^pm$/i.test(cellStr) && 
+                          // Adjacent cells should give context (e.g., next cell might be a header)
+                          (r > 0 || c > 0);
+      
+      if (hasPainManagement || isPMSection) {
+        painMgmtTitleScanHits.push({
+          row_1: r + 1,  // 1-indexed
+          col_0: c,
+          value: cellStr,
+          cell_a1: XLSX.utils.encode_cell({ r, c }),
+        });
+      }
+    }
+  }
+  
   return {
     meaningful_numeric_count_provider: meaningfulNumericCountProvider,
     provider_total_row_found: providerTotalRowFound,
@@ -768,6 +828,7 @@ function computeAuditEvidence(providerTable: TableBlock, extraBlocks: ExtraBlock
     pain_mgmt_total_row_numeric_cells: painMgmtTotalRowNumericCells,
     pain_mgmt_headers_preview: painMgmtHeadersPreview,
     pain_mgmt_rows_count: painMgmtRowsCount,
+    pain_mgmt_title_scan_hits: painMgmtTitleScanHits,
   };
 }
 
@@ -1085,7 +1146,7 @@ function parseMonthSheet(sheetName: string, worksheet: XLSX.WorkSheet, fallbackY
 
   // ========== COMPUTE AUDIT EVIDENCE ==========
   // These fields provide transparency for NO_DATA and NOT_APPLICABLE classification
-  const auditEvidence = computeAuditEvidence(providerTable, extraBlocks);
+  const auditEvidence = computeAuditEvidence(providerTable, extraBlocks, rows, maxCols);
   verification.audit_evidence = auditEvidence;
   
   // Compute month_has_data based on evidence

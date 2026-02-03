@@ -13,7 +13,7 @@
 import type { LegacyMonthPayload, TableBlock, RowProvenance } from "@/components/data/LegacyMonthlyReportView";
 import { LEGACY_METRIC_MAPPINGS, extractMetricsFromPayload, type LegacyMetricMapping } from "./legacyMetricMapping";
 
-export type AuditStatus = "PASS" | "FAIL" | "NO_DATA" | "NOT_APPLICABLE" | "NEEDS_DEFINITION" | "UNVERIFIABLE";
+export type AuditStatus = "PASS" | "FAIL" | "FAIL_EXTRACTION" | "NO_DATA" | "NOT_APPLICABLE" | "NEEDS_DEFINITION" | "UNVERIFIABLE";
 
 export interface AuditEvidence {
   source_block: string;
@@ -26,6 +26,14 @@ export interface AuditEvidence {
   column_index: number | null;
   raw_cells: any[] | null;
   computation: string;
+}
+
+/** Pain Management title scan hit (imported from loriWorkbookImporter) */
+export interface PainMgmtTitleScanHit {
+  row_1: number;
+  col_0: number;
+  value: string;
+  cell_a1: string;
 }
 
 /** Classification inputs for transparency */
@@ -44,6 +52,9 @@ export interface ClassificationInputs {
   pain_mgmt_total_row_numeric_cells: number;
   pain_mgmt_headers_preview: string[];
   pain_mgmt_rows_count: number;
+  
+  // Pain Management title scan (for extraction failure detection)
+  pain_mgmt_title_scan_hits: PainMgmtTitleScanHit[];
   
   // Month-level flags
   month_has_data: boolean;
@@ -273,6 +284,10 @@ function buildClassificationInputs(payload: LegacyMonthPayload, monthHasDataFlag
   const providerDetails = getProviderDetails(payload);
   const painDetails = getPainManagementDetails(payload);
   
+  // Get pain management title scan hits from audit evidence if available
+  const auditEvidence = (payload.verification as any)?.audit_evidence;
+  const painMgmtTitleScanHits: PainMgmtTitleScanHit[] = auditEvidence?.pain_mgmt_title_scan_hits || [];
+  
   return {
     meaningful_numeric_count_provider: providerDetails.meaningful_numeric_count,
     provider_total_row_found: providerDetails.total_row_found,
@@ -285,6 +300,7 @@ function buildClassificationInputs(payload: LegacyMonthPayload, monthHasDataFlag
     pain_mgmt_total_row_numeric_cells: painDetails.total_row_numeric_cells,
     pain_mgmt_headers_preview: painDetails.headers_preview,
     pain_mgmt_rows_count: painDetails.rows_count,
+    pain_mgmt_title_scan_hits: painMgmtTitleScanHits,
     month_has_data: monthHasDataFlag,
   };
 }
@@ -615,10 +631,50 @@ function auditMetric(
   // ========== DECISION 2: Check if required block exists ==========
   const requiredBlock = getRequiredBlock(metric_key);
   if (requiredBlock === 'pain_management' && !hasPainManagementBlock(payload)) {
+    // Check if there are title scan hits indicating the block SHOULD exist
+    const titleScanHits = classificationInputs.pain_mgmt_title_scan_hits || [];
+    
+    if (titleScanHits.length > 0) {
+      // FAIL_EXTRACTION: Workbook indicates pain mgmt section exists but extractor didn't build the block
+      const hitCells = titleScanHits.map(h => `${h.cell_a1}="${h.value}"`).join(', ');
+      const reason = `FAIL_EXTRACTION: Workbook contains Pain Management indicators but extractor failed to build block. ` +
+        `Title scan hits: [${hitCells}]. ` +
+        `pain_mgmt_block_found=${classificationInputs.pain_mgmt_block_found}. ` +
+        `This is a BLOCKING failure.`;
+      
+      return {
+        metric_key,
+        display_name: mapping.display_name,
+        extracted_value: null,
+        workbook_reference_value: null,
+        delta: null,
+        status: "FAIL_EXTRACTION",
+        is_verifiable: true,
+        has_reference: false,  // No reference found because block wasn't extracted
+        has_extracted: false,
+        blocks_sync: true,     // BLOCKS SYNC
+        evidence: {
+          source_block: 'extra_blocks',
+          sheet_name: payload.sheet_name,
+          excel_row: titleScanHits[0]?.row_1 || null,
+          start_col: titleScanHits[0]?.col_0 || null,
+          end_col: null,
+          row_label: titleScanHits[0]?.value || null,
+          column_name: null,
+          column_index: null,
+          raw_cells: titleScanHits.map(h => h.value),
+          computation: `Title scan found ${titleScanHits.length} hit(s): ${hitCells}`,
+        },
+        notes: `Workbook indicates Pain Management section exists (found "${titleScanHits[0]?.value}" at ${titleScanHits[0]?.cell_a1}) but extractor did not build the block. Sync blocked.`,
+        classification_reason: reason,
+        classification_inputs: classificationInputs,
+      };
+    }
+    
+    // Truly NOT_APPLICABLE: no title scan hits found
     const reason = `NOT_APPLICABLE: Metric requires Pain Management block. ` +
       `pain_mgmt_block_found=${classificationInputs.pain_mgmt_block_found}, ` +
-      `pain_mgmt_header_row_found=${classificationInputs.pain_mgmt_header_row_found}, ` +
-      `pain_mgmt_rows_count=${classificationInputs.pain_mgmt_rows_count}. ` +
+      `pain_mgmt_title_scan_hits=${titleScanHits.length}, ` +
       `Block not present in this month's workbook.`;
     
     return {
@@ -642,9 +698,9 @@ function auditMetric(
         column_name: null,
         column_index: null,
         raw_cells: null,
-        computation: 'Pain Management block not found in workbook for this month.',
+        computation: 'Pain Management block not found in workbook for this month (no title scan hits).',
       },
-      notes: 'Pain Management block does not exist in this month\'s workbook. Does not block sync.',
+      notes: 'Pain Management block does not exist in this month\'s workbook (no indicators found). Does not block sync.',
       classification_reason: reason,
       classification_inputs: classificationInputs,
     };
