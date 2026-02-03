@@ -51,6 +51,13 @@ export type Database = {
             foreignKeyName: "fk_account_lock_org"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_account_lock_org"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -87,6 +94,13 @@ export type Database = {
             columns: ["doc_id"]
             isOneToOne: false
             referencedRelation: "docs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acknowledgements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -164,6 +178,13 @@ export type Database = {
           week_start?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_agendas_team_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ai_agendas_team_id_fkey"
             columns: ["organization_id"]
@@ -246,6 +267,13 @@ export type Database = {
             columns: ["metric_id"]
             isOneToOne: false
             referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_intervention_recommendations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -433,6 +461,13 @@ export type Database = {
             columns: ["cohort_id"]
             isOneToOne: false
             referencedRelation: "benchmark_cohorts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "benchmark_cohort_memberships_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -675,6 +710,13 @@ export type Database = {
             foreignKeyName: "branding_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branding_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -763,6 +805,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bulk_analytics_connectors_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bulk_analytics_connectors_organization_id_fkey"
             columns: ["organization_id"]
@@ -889,6 +938,13 @@ export type Database = {
             foreignKeyName: "core_value_shoutouts_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "core_value_shoutouts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -935,6 +991,13 @@ export type Database = {
             columns: ["current_core_value_id"]
             isOneToOne: false
             referencedRelation: "org_core_values"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "core_value_spotlight_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -990,6 +1053,13 @@ export type Database = {
           version_hash?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "core_values_ack_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "core_values_ack_organization_id_fkey"
             columns: ["organization_id"]
@@ -1061,6 +1131,13 @@ export type Database = {
             foreignKeyName: "data_access_audit_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_access_audit_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -1107,6 +1184,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "data_access_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "data_access_requests_organization_id_fkey"
             columns: ["organization_id"]
@@ -1163,6 +1247,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "data_deletion_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "data_deletion_requests_organization_id_fkey"
             columns: ["organization_id"]
@@ -1251,6 +1342,13 @@ export type Database = {
             foreignKeyName: "fk_ledger_org"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_ledger_org"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -1307,6 +1405,13 @@ export type Database = {
             foreignKeyName: "data_purge_log_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_purge_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -1348,6 +1453,13 @@ export type Database = {
             foreignKeyName: "data_retention_policies_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_retention_policies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -1376,6 +1488,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "demo_provision_team_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "demo_provision_team_id_fkey"
             columns: ["organization_id"]
@@ -1562,6 +1681,13 @@ export type Database = {
             foreignKeyName: "docs_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "docs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -1625,6 +1751,13 @@ export type Database = {
             foreignKeyName: "emr_comparison_snapshots_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emr_comparison_snapshots_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -1671,6 +1804,13 @@ export type Database = {
           period_key?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "emr_data_quality_scores_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "emr_data_quality_scores_organization_id_fkey"
             columns: ["organization_id"]
@@ -1743,6 +1883,13 @@ export type Database = {
             foreignKeyName: "file_ingest_log_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "file_ingest_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -1788,6 +1935,13 @@ export type Database = {
             columns: ["connector_id"]
             isOneToOne: false
             referencedRelation: "bulk_analytics_connectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_rejection_org"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -1907,6 +2061,13 @@ export type Database = {
             foreignKeyName: "help_dismissed_team_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "help_dismissed_team_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -1948,6 +2109,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "help_events_team_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "help_events_team_id_fkey"
             columns: ["organization_id"]
@@ -1998,6 +2166,13 @@ export type Database = {
             foreignKeyName: "hidden_jane_resources_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hidden_jane_resources_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -2032,6 +2207,13 @@ export type Database = {
           transform?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "import_mappings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "import_mappings_organization_id_fkey"
             columns: ["organization_id"]
@@ -2127,6 +2309,13 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -2370,6 +2559,13 @@ export type Database = {
             foreignKeyName: "intervention_recommendations_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_recommendations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -2446,6 +2642,13 @@ export type Database = {
             foreignKeyName: "intervention_templates_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -2489,6 +2692,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "intervention_types_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "intervention_types_organization_id_fkey"
             columns: ["organization_id"]
@@ -2560,6 +2770,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "interventions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "interventions_organization_id_fkey"
             columns: ["organization_id"]
@@ -2644,6 +2861,13 @@ export type Database = {
             columns: ["metric_id"]
             isOneToOne: false
             referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issue_suggestions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -2766,6 +2990,13 @@ export type Database = {
             foreignKeyName: "issues_team_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issues_team_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -2812,6 +3043,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "jane_integrations_team_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "jane_integrations_team_id_fkey"
             columns: ["organization_id"]
@@ -3035,6 +3273,13 @@ export type Database = {
             foreignKeyName: "legacy_monthly_reports_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legacy_monthly_reports_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -3075,6 +3320,13 @@ export type Database = {
           users_limit?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "licenses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "licenses_organization_id_fkey"
             columns: ["organization_id"]
@@ -3152,6 +3404,13 @@ export type Database = {
             columns: ["meeting_id"]
             isOneToOne: false
             referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -3262,6 +3521,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_team_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -3382,6 +3648,13 @@ export type Database = {
             columns: ["metric_id"]
             isOneToOne: false
             referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metric_breakdowns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -3801,6 +4074,13 @@ export type Database = {
             foreignKeyName: "monthly_import_profiles_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monthly_import_profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -3838,6 +4118,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "onboarding_sessions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "onboarding_sessions_organization_id_fkey"
             columns: ["organization_id"]
@@ -3886,6 +4173,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "org_core_values_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "org_core_values_organization_id_fkey"
             columns: ["organization_id"]
@@ -4013,6 +4307,13 @@ export type Database = {
             foreignKeyName: "quarantined_fields_log_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quarantined_fields_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -4129,6 +4430,13 @@ export type Database = {
             foreignKeyName: "recommendation_config_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendation_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -4183,6 +4491,13 @@ export type Database = {
             columns: ["metric_id"]
             isOneToOne: false
             referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendation_runs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -4292,6 +4607,13 @@ export type Database = {
             foreignKeyName: "reports_team_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_team_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -4320,6 +4642,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rock_collaborators_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rock_collaborators_organization_id_fkey"
             columns: ["organization_id"]
@@ -4411,6 +4740,13 @@ export type Database = {
             columns: ["metric_id"]
             isOneToOne: false
             referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rock_metric_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -4512,6 +4848,13 @@ export type Database = {
             foreignKeyName: "rock_outcomes_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rock_outcomes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -4588,6 +4931,13 @@ export type Database = {
             foreignKeyName: "rocks_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rocks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -4645,6 +4995,13 @@ export type Database = {
             foreignKeyName: "scorecard_import_configs_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: true
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scorecard_import_configs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -4693,6 +5050,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seat_metrics_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -4932,6 +5296,13 @@ export type Database = {
             foreignKeyName: "staging_appointments_jane_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staging_appointments_jane_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -5036,6 +5407,13 @@ export type Database = {
             foreignKeyName: "staging_invoices_jane_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staging_invoices_jane_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -5121,6 +5499,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "staging_patients_jane_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "staging_patients_jane_organization_id_fkey"
             columns: ["organization_id"]
@@ -5232,6 +5617,13 @@ export type Database = {
             foreignKeyName: "staging_payments_jane_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staging_payments_jane_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -5300,6 +5692,13 @@ export type Database = {
             foreignKeyName: "staging_shifts_jane_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staging_shifts_jane_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -5308,6 +5707,7 @@ export type Database = {
       teams: {
         Row: {
           annual_visit_volume: number | null
+          benchmark_opt_in: boolean
           brand_color: string | null
           country: string | null
           created_at: string
@@ -5343,6 +5743,7 @@ export type Database = {
         }
         Insert: {
           annual_visit_volume?: number | null
+          benchmark_opt_in?: boolean
           brand_color?: string | null
           country?: string | null
           created_at?: string
@@ -5378,6 +5779,7 @@ export type Database = {
         }
         Update: {
           annual_visit_volume?: number | null
+          benchmark_opt_in?: boolean
           brand_color?: string | null
           country?: string | null
           created_at?: string
@@ -5466,6 +5868,13 @@ export type Database = {
             foreignKeyName: "todos_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -5501,6 +5910,13 @@ export type Database = {
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tracked_dimensions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tracked_dimensions_organization_id_fkey"
             columns: ["organization_id"]
@@ -5551,6 +5967,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tracked_kpis_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tracked_kpis_organization_id_fkey"
             columns: ["organization_id"]
@@ -5689,6 +6112,13 @@ export type Database = {
             foreignKeyName: "user_tour_status_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_tour_status_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -5762,6 +6192,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -5890,6 +6327,13 @@ export type Database = {
             foreignKeyName: "vto_team_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vto_team_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -5966,6 +6410,13 @@ export type Database = {
           vto_version_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "vto_diff_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vto_diff_events_organization_id_fkey"
             columns: ["organization_id"]
@@ -6103,6 +6554,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "vto_preset_events_team_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vto_preset_events_team_id_fkey"
             columns: ["organization_id"]
@@ -6246,6 +6704,27 @@ export type Database = {
       }
     }
     Views: {
+      benchmark_opted_in_orgs: {
+        Row: {
+          emr_source_type: string | null
+          id: string | null
+          name: string | null
+          provider_count: number | null
+        }
+        Insert: {
+          emr_source_type?: string | null
+          id?: string | null
+          name?: string | null
+          provider_count?: number | null
+        }
+        Update: {
+          emr_source_type?: string | null
+          id?: string | null
+          name?: string | null
+          provider_count?: number | null
+        }
+        Relationships: []
+      }
       v_data_scope_compliance: {
         Row: {
           connector_id: string | null
@@ -6263,6 +6742,13 @@ export type Database = {
             columns: ["connector_id"]
             isOneToOne: false
             referencedRelation: "bulk_analytics_connectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quarantined_fields_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
             referencedColumns: ["id"]
           },
           {
@@ -6567,6 +7053,7 @@ export type Database = {
           total_users: number
         }[]
       }
+      get_org_benchmark_opt_in: { Args: { _org_id: string }; Returns: boolean }
       get_provider_count_bucket: {
         Args: { provider_count: number }
         Returns: string
@@ -6657,6 +7144,7 @@ export type Database = {
         }[]
       }
       is_org_admin_for: { Args: { org_id: string }; Returns: boolean }
+      is_org_benchmark_opted_in: { Args: { _org_id: string }; Returns: boolean }
       is_recommendation_in_cooldown: {
         Args: {
           _current_deviation: number
@@ -6734,6 +7222,10 @@ export type Database = {
           latency_score: number
           passes: boolean
         }[]
+      }
+      set_org_benchmark_opt_in: {
+        Args: { _opt_in: boolean; _org_id: string }
+        Returns: boolean
       }
     }
     Enums: {
