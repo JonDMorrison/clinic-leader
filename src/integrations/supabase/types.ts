@@ -1642,6 +1642,179 @@ export type Database = {
           },
         ]
       }
+      intervention_metric_links: {
+        Row: {
+          baseline_period_start: string | null
+          baseline_period_type: string
+          baseline_value: number | null
+          created_at: string
+          expected_direction: Database["public"]["Enums"]["expected_direction"]
+          expected_magnitude_percent: number | null
+          id: string
+          intervention_id: string
+          metric_id: string
+        }
+        Insert: {
+          baseline_period_start?: string | null
+          baseline_period_type?: string
+          baseline_value?: number | null
+          created_at?: string
+          expected_direction?: Database["public"]["Enums"]["expected_direction"]
+          expected_magnitude_percent?: number | null
+          id?: string
+          intervention_id: string
+          metric_id: string
+        }
+        Update: {
+          baseline_period_start?: string | null
+          baseline_period_type?: string
+          baseline_value?: number | null
+          created_at?: string
+          expected_direction?: Database["public"]["Enums"]["expected_direction"]
+          expected_magnitude_percent?: number | null
+          id?: string
+          intervention_id?: string
+          metric_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_metric_links_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_metric_links_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_outcomes: {
+        Row: {
+          actual_delta_percent: number | null
+          actual_delta_value: number | null
+          ai_summary: string | null
+          confidence_score: number
+          evaluated_at: string
+          evaluation_period_end: string
+          evaluation_period_start: string
+          id: string
+          intervention_id: string
+          metric_id: string
+        }
+        Insert: {
+          actual_delta_percent?: number | null
+          actual_delta_value?: number | null
+          ai_summary?: string | null
+          confidence_score?: number
+          evaluated_at?: string
+          evaluation_period_end: string
+          evaluation_period_start: string
+          id?: string
+          intervention_id: string
+          metric_id: string
+        }
+        Update: {
+          actual_delta_percent?: number | null
+          actual_delta_value?: number | null
+          ai_summary?: string | null
+          confidence_score?: number
+          evaluated_at?: string
+          evaluation_period_end?: string
+          evaluation_period_start?: string
+          id?: string
+          intervention_id?: string
+          metric_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_outcomes_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_outcomes_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interventions: {
+        Row: {
+          confidence_level: number
+          created_at: string
+          created_by: string
+          description: string | null
+          end_date: string | null
+          expected_time_horizon_days: number
+          id: string
+          intervention_type: Database["public"]["Enums"]["intervention_type"]
+          organization_id: string
+          origin_id: string | null
+          origin_type: Database["public"]["Enums"]["intervention_origin_type"]
+          owner_user_id: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["intervention_status"]
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          confidence_level?: number
+          created_at?: string
+          created_by: string
+          description?: string | null
+          end_date?: string | null
+          expected_time_horizon_days?: number
+          id?: string
+          intervention_type?: Database["public"]["Enums"]["intervention_type"]
+          organization_id: string
+          origin_id?: string | null
+          origin_type?: Database["public"]["Enums"]["intervention_origin_type"]
+          owner_user_id?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["intervention_status"]
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          confidence_level?: number
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          end_date?: string | null
+          expected_time_horizon_days?: number
+          id?: string
+          intervention_type?: Database["public"]["Enums"]["intervention_type"]
+          organization_id?: string
+          origin_id?: string | null
+          origin_type?: Database["public"]["Enums"]["intervention_origin_type"]
+          owner_user_id?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["intervention_status"]
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interventions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issue_suggestions: {
         Row: {
           ai_analysis: Json | null
@@ -5287,8 +5460,27 @@ export type Database = {
       bulk_source_system: "jane" | "advancedmd" | "other"
       doc_kind: "SOP" | "Policy" | "Handbook" | "Training"
       doc_status: "draft" | "approved" | "archived"
+      expected_direction: "up" | "down" | "stable"
       gwc_rating: "+" | "±" | "-"
       ingest_status: "pending" | "processing" | "success" | "error"
+      intervention_origin_type:
+        | "issue"
+        | "rock"
+        | "todo"
+        | "manual"
+        | "ai_recommendation"
+      intervention_status: "planned" | "active" | "completed" | "abandoned"
+      intervention_type:
+        | "staffing"
+        | "marketing"
+        | "referral_outreach"
+        | "scheduling"
+        | "pricing"
+        | "workflow"
+        | "training"
+        | "equipment"
+        | "service_line"
+        | "other"
       issue_status: "open" | "in_progress" | "solved" | "parked"
       kpi_direction: ">=" | "<=" | "=="
       kpi_unit:
@@ -5457,8 +5649,29 @@ export const Constants = {
       bulk_source_system: ["jane", "advancedmd", "other"],
       doc_kind: ["SOP", "Policy", "Handbook", "Training"],
       doc_status: ["draft", "approved", "archived"],
+      expected_direction: ["up", "down", "stable"],
       gwc_rating: ["+", "±", "-"],
       ingest_status: ["pending", "processing", "success", "error"],
+      intervention_origin_type: [
+        "issue",
+        "rock",
+        "todo",
+        "manual",
+        "ai_recommendation",
+      ],
+      intervention_status: ["planned", "active", "completed", "abandoned"],
+      intervention_type: [
+        "staffing",
+        "marketing",
+        "referral_outreach",
+        "scheduling",
+        "pricing",
+        "workflow",
+        "training",
+        "equipment",
+        "service_line",
+        "other",
+      ],
       issue_status: ["open", "in_progress", "solved", "parked"],
       kpi_direction: [">=", "<=", "=="],
       kpi_unit: [
