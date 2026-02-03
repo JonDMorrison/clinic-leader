@@ -3666,6 +3666,70 @@ export type Database = {
           },
         ]
       }
+      metric_canonical_results: {
+        Row: {
+          chosen_metric_result_id: string | null
+          chosen_source: string | null
+          computed_at: string
+          id: string
+          metric_id: string
+          organization_id: string
+          period_start: string
+          period_type: string
+          selection_meta: Json
+          selection_reason: string
+          value: number | null
+        }
+        Insert: {
+          chosen_metric_result_id?: string | null
+          chosen_source?: string | null
+          computed_at?: string
+          id?: string
+          metric_id: string
+          organization_id: string
+          period_start: string
+          period_type: string
+          selection_meta?: Json
+          selection_reason: string
+          value?: number | null
+        }
+        Update: {
+          chosen_metric_result_id?: string | null
+          chosen_source?: string | null
+          computed_at?: string
+          id?: string
+          metric_id?: string
+          organization_id?: string
+          period_start?: string
+          period_type?: string
+          selection_meta?: Json
+          selection_reason?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_canonical_results_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metric_canonical_results_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metric_canonical_results_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metric_comments: {
         Row: {
           comment: string
@@ -3699,6 +3763,50 @@ export type Database = {
             foreignKeyName: "metric_comments_metric_id_fkey"
             columns: ["metric_id"]
             isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metric_definitions: {
+        Row: {
+          canonical_description: string
+          canonical_name: string
+          created_at: string
+          default_period_type: string
+          higher_is_better: boolean
+          id: string
+          metric_id: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          canonical_description: string
+          canonical_name: string
+          created_at?: string
+          default_period_type: string
+          higher_is_better?: boolean
+          id?: string
+          metric_id: string
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          canonical_description?: string
+          canonical_name?: string
+          created_at?: string
+          default_period_type?: string
+          higher_is_better?: boolean
+          id?: string
+          metric_id?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_definitions_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: true
             referencedRelation: "metrics"
             referencedColumns: ["id"]
           },
@@ -3839,26 +3947,118 @@ export type Database = {
       metric_normalization_rules: {
         Row: {
           created_at: string
-          description: string | null
+          decimals: number
+          denominator_metric_id: string | null
           id: string
-          metric_key: string
+          is_default: boolean
+          metric_id: string
+          multiplier: number
           normalization_type: string
+          numerator_metric_id: string | null
+          rounding_mode: string
         }
         Insert: {
           created_at?: string
-          description?: string | null
+          decimals?: number
+          denominator_metric_id?: string | null
           id?: string
-          metric_key: string
+          is_default?: boolean
+          metric_id: string
+          multiplier?: number
           normalization_type: string
+          numerator_metric_id?: string | null
+          rounding_mode?: string
         }
         Update: {
           created_at?: string
-          description?: string | null
+          decimals?: number
+          denominator_metric_id?: string | null
           id?: string
-          metric_key?: string
+          is_default?: boolean
+          metric_id?: string
+          multiplier?: number
           normalization_type?: string
+          numerator_metric_id?: string | null
+          rounding_mode?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "metric_normalization_rules_denominator_metric_id_fkey"
+            columns: ["denominator_metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metric_normalization_rules_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metric_normalization_rules_numerator_metric_id_fkey"
+            columns: ["numerator_metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metric_precedence_overrides: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          metric_id: string
+          organization_id: string
+          period_type: string
+          reason: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          metric_id: string
+          organization_id: string
+          period_type: string
+          reason: string
+          source: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          metric_id?: string
+          organization_id?: string
+          period_type?: string
+          reason?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_precedence_overrides_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metric_precedence_overrides_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metric_precedence_overrides_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       metric_results: {
         Row: {
@@ -3956,6 +4156,86 @@ export type Database = {
             columns: ["metric_result_id"]
             isOneToOne: false
             referencedRelation: "metric_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metric_selection_audit_log: {
+        Row: {
+          candidate_sources: Json
+          chosen: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          metric_id: string
+          organization_id: string
+          period_start: string
+          period_type: string
+          reason: string
+        }
+        Insert: {
+          candidate_sources: Json
+          chosen: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metric_id: string
+          organization_id: string
+          period_start: string
+          period_type: string
+          reason: string
+        }
+        Update: {
+          candidate_sources?: Json
+          chosen?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metric_id?: string
+          organization_id?: string
+          period_start?: string
+          period_type?: string
+          reason?: string
+        }
+        Relationships: []
+      }
+      metric_source_policies: {
+        Row: {
+          created_at: string
+          id: string
+          is_allowed: boolean
+          metric_id: string
+          notes: string | null
+          priority: number
+          requires_audit_pass: boolean
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_allowed?: boolean
+          metric_id: string
+          notes?: string | null
+          priority?: number
+          requires_audit_pass?: boolean
+          source: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_allowed?: boolean
+          metric_id?: string
+          notes?: string | null
+          priority?: number
+          requires_audit_pass?: boolean
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_source_policies_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
             referencedColumns: ["id"]
           },
         ]
@@ -7044,6 +7324,19 @@ export type Database = {
         }[]
       }
       expire_data_access_requests: { Args: never; Returns: number }
+      get_canonical_source_priority: {
+        Args: {
+          _metric_id: string
+          _organization_id: string
+          _period_type: string
+        }
+        Returns: {
+          is_override: boolean
+          priority: number
+          requires_audit_pass: boolean
+          source: string
+        }[]
+      }
       get_onboarding_metrics: {
         Args: { org_id: string }
         Returns: {
@@ -7221,6 +7514,21 @@ export type Database = {
           exclusion_reason: string
           latency_score: number
           passes: boolean
+        }[]
+      }
+      select_canonical_metric_result: {
+        Args: {
+          _metric_id: string
+          _organization_id: string
+          _period_start: string
+          _period_type: string
+        }
+        Returns: {
+          metric_result_id: string
+          selection_meta: Json
+          selection_reason: string
+          source: string
+          value: number
         }[]
       }
       set_org_benchmark_opt_in: {
