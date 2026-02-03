@@ -1,10 +1,11 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useMasterAdmin } from "@/hooks/useMasterAdmin";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Shield, Users, Database, FileText } from "lucide-react";
+import { Shield, Users, Database, FileText, BarChart3 } from "lucide-react";
 import { CohortList } from "@/components/admin/benchmarks/CohortList";
 import { CohortMembershipManager } from "@/components/admin/benchmarks/CohortMembershipManager";
 import { SnapshotComputer } from "@/components/admin/benchmarks/SnapshotComputer";
@@ -35,14 +36,22 @@ export default function BenchmarkAdmin() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Shield className="h-8 w-8 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">Benchmark Admin</h1>
-          <p className="text-muted-foreground">
-            Manage cross-organization benchmarking cohorts and snapshots
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Shield className="h-8 w-8 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">Benchmark Admin</h1>
+            <p className="text-muted-foreground">
+              Manage cross-organization benchmarking cohorts and snapshots
+            </p>
+          </div>
         </div>
+        <Link to="/admin/benchmarks/jane-vs-nonjane">
+          <Button variant="outline" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Jane vs Non-Jane
+          </Button>
+        </Link>
       </div>
 
       <Tabs defaultValue="cohorts" className="space-y-4">

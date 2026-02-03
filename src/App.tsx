@@ -79,6 +79,7 @@ import Interventions from "./pages/Interventions";
 import InterventionDetail from "./pages/InterventionDetail";
 import EMRBenchmark from "./pages/EMRBenchmark";
 import BenchmarkAdmin from "./pages/admin/BenchmarkAdmin";
+import JaneVsNonJaneComparison from "./pages/admin/JaneVsNonJaneComparison";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -188,6 +189,7 @@ const App = () => {
             <Route path="/admin/users" element={<AppLayout><AdminUsers /></AppLayout>} />
             <Route path="/admin/password-diagnostic" element={<AppLayout><AdminPasswordDiagnostic /></AppLayout>} />
             <Route path="/admin/benchmarks" element={<AppLayout><BenchmarkAdmin /></AppLayout>} />
+            <Route path="/admin/benchmarks/jane-vs-nonjane" element={<AppLayout><JaneVsNonJaneComparison /></AppLayout>} />
             <Route path="/account/set-password" element={<SetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
