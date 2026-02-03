@@ -90,11 +90,11 @@ export function MetricResultsDebugPanel({ metricId }: MetricResultsDebugPanelPro
                 </thead>
                 <tbody>
                   {results?.map((result: any) => {
-                    const isLegacyZero = result.source === 'legacy_workbook' && (result.value === null || result.value === 0);
+                    const isNullValue = result.value === null;
                     return (
                       <tr 
                         key={result.id} 
-                        className={`border-t border-amber-200/30 ${isLegacyZero ? 'bg-red-50/50 dark:bg-red-950/20' : ''}`}
+                        className={`border-t border-amber-200/30 ${isNullValue ? 'bg-red-50/50 dark:bg-red-950/20' : ''}`}
                       >
                         <td className="pr-2 py-1">
                           <Badge variant="outline" className="text-[10px] font-mono">
@@ -102,11 +102,11 @@ export function MetricResultsDebugPanel({ metricId }: MetricResultsDebugPanelPro
                           </Badge>
                         </td>
                         <td className="pr-2 py-1 font-mono">
-                          <span className={isLegacyZero ? 'text-destructive font-semibold' : ''}>
+                          <span className={isNullValue ? 'text-destructive font-semibold' : ''}>
                             {result.value !== null ? result.value.toLocaleString() : 'null'}
                           </span>
-                          {isLegacyZero && (
-                            <span className="ml-1 text-destructive text-[9px]">⚠ filtered</span>
+                          {isNullValue && (
+                            <span className="ml-1 text-destructive text-[9px]">⚠ excluded</span>
                           )}
                         </td>
                         <td className="pr-2 py-1">
@@ -132,8 +132,8 @@ export function MetricResultsDebugPanel({ metricId }: MetricResultsDebugPanelPro
           
           {/* Legend */}
           <div className="mt-2 pt-2 border-t border-amber-200/50 text-[10px] text-muted-foreground">
-            <span className="font-medium">Filter rules:</span>
-            <span className="ml-2">source='legacy_workbook' AND (value=null OR value=0) → excluded from Scorecard display</span>
+            <span className="font-medium">Display rules:</span>
+            <span className="ml-2">value=null → excluded | value=0 → shown (valid for real months)</span>
           </div>
         </div>
       )}
