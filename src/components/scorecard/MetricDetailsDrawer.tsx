@@ -22,6 +22,7 @@ import { GoalProgressCard } from "./GoalProgressCard";
 import { GoalHistoryView } from "./GoalHistoryView";
 import { MetricComments } from "./MetricComments";
 import { MetricResultsDebugPanel } from "./MetricResultsDebugPanel";
+import { CanonicalSelectionDebugPanel } from "./CanonicalSelectionDebugPanel";
 import { BenchmarkPositionPanel } from "./BenchmarkPositionPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -402,8 +403,16 @@ export const MetricDetailsDrawer = ({
           </TabsContent>
         </Tabs>
 
-        {/* Dev-only debug panel */}
+        {/* Dev-only debug panels */}
         <MetricResultsDebugPanel metricId={metricId} />
+        
+        {/* Canonical Selection Debug - shows selection reasoning */}
+        <CanonicalSelectionDebugPanel
+          metricId={metricId}
+          organizationId={organizationId || null}
+          periodType={metric?.cadence === 'monthly' ? 'month' : 'week'}
+          periodStart={results?.[results.length - 1]?.week_start || null}
+        />
 
         {/* Goal Dialog */}
         {metricId && organizationId && currentUser && (
