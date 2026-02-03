@@ -763,13 +763,17 @@ const ImportMonthlyReport = () => {
       console.error('[LoriImport] Audit failed:', auditError);
     }
     
-    // Check audit results - block sync ONLY if any metric has blocks_sync=true
+    // Check audit results - build per-month blocking failure map
     const blockingFailures: string[] = [];
     const informationalMetrics: string[] = [];
+    const blockingFailuresByMonth = new Map<string, boolean>();
     
     for (const report of auditReports) {
-      // Get blocking failures (has_reference=true AND status=FAIL)
+      // Get blocking failures (has_reference=true AND status=FAIL or FAIL_EXTRACTION)
       const blocking = getBlockingFailures(report);
+      const hasBlocking = blocking.length > 0;
+      blockingFailuresByMonth.set(report.period_key, hasBlocking);
+      
       for (const result of blocking) {
         blockingFailures.push(`${report.period_key}: ${result.display_name} (extracted=${result.extracted_value ?? 'null'}, ref=${result.workbook_reference_value})`);
       }
@@ -784,47 +788,51 @@ const ImportMonthlyReport = () => {
       }
     }
     
-    const syncBlocked = blockingFailures.length > 0;
+    const hasAnyBlockingFailures = blockingFailures.length > 0;
     const hasInformational = informationalMetrics.length > 0;
     
-    // Phase 3: Bridge to metric_results ONLY if no FAIL (PASS or NEEDS_DEFINITION allowed)
+    // Phase 3: Bridge to metric_results - each month gated individually
+    // NO_DATA months and months with blocking failures are skipped by the bridge
     let bridgeResults: BridgeResult[] = [];
     
-    if (!syncBlocked) {
-      try {
-        const isLegacy = await isLegacyDataMode(currentUser.team_id);
-        if (isLegacy) {
-          const payloadsForBridge = successfulPayloads.map(p => ({
-            period_key: p.period_key,
-            payload: {
-              sheet_name: p.sheet_name,
-              provider_table: p.provider_table,
-              referral_totals: p.referral_totals,
-              referral_sources: p.referral_sources,
-              extra_blocks: p.extra_blocks,
-              warnings: p.warnings,
-            },
-          }));
-          
-          if (payloadsForBridge.length > 0) {
-            bridgeResults = await bridgeMultipleMonths(
-              currentUser.team_id,
-              payloadsForBridge
-            );
-          }
+    try {
+      const isLegacy = await isLegacyDataMode(currentUser.team_id);
+      if (isLegacy) {
+        const payloadsForBridge = successfulPayloads.map(p => ({
+          period_key: p.period_key,
+          payload: {
+            sheet_name: p.sheet_name,
+            provider_table: p.provider_table,
+            referral_totals: p.referral_totals,
+            referral_sources: p.referral_sources,
+            extra_blocks: p.extra_blocks,
+            warnings: p.warnings,
+            verification: p.verification, // Include verification for month_has_data check
+          },
+        }));
+        
+        if (payloadsForBridge.length > 0) {
+          // Pass per-month blocking failures to bridge
+          bridgeResults = await bridgeMultipleMonths(
+            currentUser.team_id,
+            payloadsForBridge,
+            blockingFailuresByMonth
+          );
         }
-      } catch (bridgeError: any) {
-        console.error('[LoriImport] Bridge failed:', bridgeError);
       }
-    } else {
-      console.warn('[LoriImport] Scorecard sync blocked due to verification failures:', blockingFailures);
+    } catch (bridgeError: any) {
+      console.error('[LoriImport] Bridge failed:', bridgeError);
+    }
+    
+    if (hasAnyBlockingFailures) {
+      console.warn('[LoriImport] Some months blocked due to verification failures:', blockingFailures);
     }
     
     setLoriImportProgress(prev => prev ? {
       ...prev,
       bridgeResults,
       auditReports,
-      syncBlocked,
+      syncBlocked: hasAnyBlockingFailures,
       syncBlockedReasons: blockingFailures,
       hasUnverifiable: hasInformational,
       unverifiableMetrics: informationalMetrics,
@@ -834,12 +842,16 @@ const ImportMonthlyReport = () => {
     
     const successCount = results.filter(r => r.status === 'success').length;
     const bridgeTotalInserted = bridgeResults.reduce((sum, br) => sum + br.total_inserted, 0);
+    const noDataMonths = bridgeResults.filter(br => br.total_skipped_no_data).length;
+    const blockedMonths = bridgeResults.filter(br => br.total_skipped_blocked).length;
     
-    if (syncBlocked) {
-      toast.error(`Imported ${successCount} months but Scorecard sync blocked (${blockingFailures.length} verification failures)`);
+    if (hasAnyBlockingFailures) {
+      toast.error(`Imported ${successCount} months. ${blockedMonths} blocked by audit failures, ${noDataMonths} NO_DATA. ${bridgeTotalInserted} metrics synced.`);
     } else if (successCount === results.length) {
       if (bridgeTotalInserted > 0) {
         toast.success(`Imported ${successCount} months + ${bridgeTotalInserted} metrics to Scorecard`);
+      } else if (noDataMonths > 0) {
+        toast.success(`Imported ${successCount} months (${noDataMonths} template months skipped)`);
       } else {
         toast.success(`Successfully imported ${successCount} months`);
       }

@@ -34,7 +34,7 @@ export interface DerivedMetricResult {
   metric_key: string;
   display_name: string;
   value: number | null;
-  status: "inserted" | "updated" | "skipped_null" | "skipped_unverifiable" | "skipped_no_data" | "error";
+  status: "inserted" | "updated" | "skipped_null" | "skipped_unverifiable" | "skipped_no_data" | "skipped_blocked" | "error";
   error_message?: string;
 }
 
@@ -45,7 +45,9 @@ export interface BridgeResult {
   results: DerivedMetricResult[];
   total_inserted: number;
   total_updated: number;
-  total_skipped: number;
+  total_skipped_null: number;
+  total_skipped_no_data: boolean;
+  total_skipped_blocked: boolean;
   total_unverifiable_skipped: number;
 }
 
@@ -166,6 +168,9 @@ async function ensureMetricsExist(
 
 /**
  * Upsert extracted metrics into metric_results (only verifiable ones)
+ * 
+ * IMPORTANT: Zero values ARE valid when month_has_data is true.
+ * Only null/undefined values are skipped per-metric.
  */
 async function upsertMetricResults(
   organizationId: string,
@@ -205,8 +210,9 @@ async function upsertMetricResults(
       continue;
     }
 
-    // ========== SAFETY: Never upsert null values ==========
-    if (extracted.value === null) {
+    // ========== SAFETY: Never upsert null/undefined values ==========
+    // Zero IS valid when the month has real data (month_has_data check happens at caller level)
+    if (extracted.value === null || extracted.value === undefined) {
       results.push({
         metric_key: extracted.metric_key,
         display_name: extracted.display_name,
@@ -216,28 +222,13 @@ async function upsertMetricResults(
       continue;
     }
 
-    // ========== SAFETY: Never upsert value=0 unless explicitly valid ==========
-    // Zero can be a legitimate value in some cases, but we want to be cautious
-    // For legacy_workbook source, we assume 0 could be template/placeholder data
-    if (extracted.value === 0) {
-      console.warn(
-        `[LegacyBridge] Skipping ${extracted.metric_key} with value=0 for ${periodKey} (potential template data)`
-      );
-      results.push({
-        metric_key: extracted.metric_key,
-        display_name: extracted.display_name,
-        value: 0,
-        status: "skipped_null", // Treat as skipped
-      });
-      continue;
-    }
-
     // Upsert to metric_results - ALWAYS use source='legacy_workbook' for bridged metrics
+    // Zero values are allowed here since month_has_data was verified at the caller level
     const { error: upsertError } = await supabase.from("metric_results").upsert(
       {
         organization_id: organizationId,
         metric_id: metricId,
-        value: extracted.value,
+        value: extracted.value, // Can be 0 - that's valid for real months
         period_type: "monthly",
         period_start: periodStart,
         period_key: periodKey,
@@ -275,24 +266,33 @@ async function upsertMetricResults(
  * Main bridge function: extract metrics from a Lori payload and upsert to metric_results.
  * Only syncs VERIFIABLE metrics (see truth map).
  * 
+ * GATING LOGIC:
+ * - If month_has_data === false → skip entire month (NO_DATA)
+ * - If blocking audit failures exist → skip entire month (BLOCKED)
+ * - Otherwise: upsert all verifiable metrics, including zeros
+ * 
  * @param organizationId - The organization's UUID
  * @param periodKey - The period in YYYY-MM format
  * @param payload - The Lori workbook payload from legacy_monthly_reports
+ * @param hasBlockingFailures - Optional: if audit found blocking failures, skip this month
  * @returns BridgeResult with summary of operations
  */
 export async function bridgeLegacyToMetricResults(
   organizationId: string,
   periodKey: string,
-  payload: LegacyMonthPayload
+  payload: LegacyMonthPayload,
+  hasBlockingFailures: boolean = false
 ): Promise<BridgeResult> {
-  // Check if month has meaningful data - skip NO_DATA months
+  const verifiableMappings = getVerifiableMappings();
+  
+  // GATE 1: Check if month has meaningful data - skip NO_DATA months entirely
   if (!monthHasData(payload)) {
-    console.log(`[LegacyBridge] Skipping ${periodKey} - no meaningful data (template month)`);
+    console.log(`[LegacyBridge] Skipping ${periodKey} - no meaningful data (NO_DATA month)`);
     return {
       period_key: periodKey,
       metrics_ensured: 0,
       metrics_created: 0,
-      results: LEGACY_METRIC_MAPPINGS.filter(m => isMetricVerifiable(m.metric_key)).map(m => ({
+      results: verifiableMappings.map(m => ({
         metric_key: m.metric_key,
         display_name: m.display_name,
         value: null,
@@ -300,22 +300,46 @@ export async function bridgeLegacyToMetricResults(
       })),
       total_inserted: 0,
       total_updated: 0,
-      total_skipped: 0,
+      total_skipped_null: 0,
+      total_skipped_no_data: true,
+      total_skipped_blocked: false,
       total_unverifiable_skipped: 0,
     };
   }
 
+  // GATE 2: Check for blocking audit failures - skip entire month if any exist
+  if (hasBlockingFailures) {
+    console.log(`[LegacyBridge] Skipping ${periodKey} - blocked by audit failures`);
+    return {
+      period_key: periodKey,
+      metrics_ensured: 0,
+      metrics_created: 0,
+      results: verifiableMappings.map(m => ({
+        metric_key: m.metric_key,
+        display_name: m.display_name,
+        value: null,
+        status: "skipped_blocked" as const,
+      })),
+      total_inserted: 0,
+      total_updated: 0,
+      total_skipped_null: 0,
+      total_skipped_no_data: false,
+      total_skipped_blocked: true,
+      total_unverifiable_skipped: 0,
+    };
+  }
+
+  // Month is real and not blocked - proceed with sync (including zeros)
   // Step 1: Extract all metrics from payload
   const extractedMetrics = extractMetricsFromPayload(payload);
 
   // Step 2: Ensure only verifiable metrics exist (create if missing)
-  const verifiableMappings = getVerifiableMappings();
   const { metricIdMap, created, ensured } = await ensureMetricsExist(
     organizationId,
     verifiableMappings
   );
 
-  // Step 3: Upsert to metric_results (only verifiable)
+  // Step 3: Upsert to metric_results (only verifiable, zeros allowed)
   const { results, unverifiableSkipped } = await upsertMetricResults(
     organizationId,
     periodKey,
@@ -327,7 +351,7 @@ export async function bridgeLegacyToMetricResults(
   const totalInserted = results.filter(
     (r) => r.status === "inserted" || r.status === "updated"
   ).length;
-  const totalSkipped = results.filter((r) => r.status === "skipped_null").length;
+  const totalSkippedNull = results.filter((r) => r.status === "skipped_null").length;
 
   return {
     period_key: periodKey,
@@ -336,7 +360,9 @@ export async function bridgeLegacyToMetricResults(
     results,
     total_inserted: totalInserted,
     total_updated: 0,
-    total_skipped: totalSkipped,
+    total_skipped_null: totalSkippedNull,
+    total_skipped_no_data: false,
+    total_skipped_blocked: false,
     total_unverifiable_skipped: unverifiableSkipped,
   };
 }
@@ -351,19 +377,26 @@ export interface PayloadWithPeriod {
 
 /**
  * Bridge multiple months at once (for batch Lori import)
+ * 
+ * @param organizationId - The organization's UUID
+ * @param items - Array of payloads with period keys
+ * @param blockingFailuresByMonth - Optional map of period_key → hasBlockingFailures
  */
 export async function bridgeMultipleMonths(
   organizationId: string,
-  items: PayloadWithPeriod[]
+  items: PayloadWithPeriod[],
+  blockingFailuresByMonth?: Map<string, boolean>
 ): Promise<BridgeResult[]> {
   const results: BridgeResult[] = [];
 
   for (const item of items) {
     try {
+      const hasBlocking = blockingFailuresByMonth?.get(item.period_key) ?? false;
       const result = await bridgeLegacyToMetricResults(
         organizationId,
         item.period_key,
-        item.payload
+        item.payload,
+        hasBlocking
       );
       results.push(result);
     } catch (error: any) {
@@ -374,7 +407,9 @@ export async function bridgeMultipleMonths(
         results: [],
         total_inserted: 0,
         total_updated: 0,
-        total_skipped: 0,
+        total_skipped_null: 0,
+        total_skipped_no_data: false,
+        total_skipped_blocked: false,
         total_unverifiable_skipped: 0,
       });
       console.error(

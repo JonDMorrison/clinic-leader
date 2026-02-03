@@ -178,15 +178,11 @@ const Scorecard = () => {
         return acc;
       }, {} as Record<string, string>) || {};
 
-      // ========== FILTER: Exclude empty legacy_workbook results ==========
-      // Don't render null/0 values from legacy_workbook source - they might be template months
-      const filteredResults = allResults.filter(r => {
-        // If source is legacy_workbook, exclude null or 0 values
-        if (r.source === 'legacy_workbook' && (r.value === null || r.value === 0)) {
-          return false;
-        }
-        return true;
-      });
+      // ========== NO ZERO FILTERING ==========
+      // Zeros are valid for real months (month_has_data=true).
+      // NO_DATA months are never written by the bridge, so no filtering needed here.
+      // Only exclude explicit null values.
+      const filteredResults = allResults.filter(r => r.value !== null);
 
       // Group results by metric
       const resultsByMetric = filteredResults.reduce((acc, r) => {
