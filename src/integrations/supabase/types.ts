@@ -1747,6 +1747,169 @@ export type Database = {
           },
         ]
       }
+      intervention_recommendations: {
+        Row: {
+          accepted: boolean | null
+          accepted_at: string | null
+          accepted_by: string | null
+          accepted_intervention_id: string | null
+          confidence_score: number
+          created_at: string | null
+          dismissed: boolean | null
+          dismissed_at: string | null
+          dismissed_by: string | null
+          dismissed_reason: string | null
+          evidence_summary: string | null
+          expires_at: string | null
+          generated_at: string | null
+          id: string
+          metric_id: string
+          model_version: string
+          organization_id: string
+          period_key: string
+          recommendation_reason: Json
+          recommended_intervention_template: Json
+          recommended_template_id: string | null
+        }
+        Insert: {
+          accepted?: boolean | null
+          accepted_at?: string | null
+          accepted_by?: string | null
+          accepted_intervention_id?: string | null
+          confidence_score: number
+          created_at?: string | null
+          dismissed?: boolean | null
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          dismissed_reason?: string | null
+          evidence_summary?: string | null
+          expires_at?: string | null
+          generated_at?: string | null
+          id?: string
+          metric_id: string
+          model_version?: string
+          organization_id: string
+          period_key: string
+          recommendation_reason?: Json
+          recommended_intervention_template: Json
+          recommended_template_id?: string | null
+        }
+        Update: {
+          accepted?: boolean | null
+          accepted_at?: string | null
+          accepted_by?: string | null
+          accepted_intervention_id?: string | null
+          confidence_score?: number
+          created_at?: string | null
+          dismissed?: boolean | null
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          dismissed_reason?: string | null
+          evidence_summary?: string | null
+          expires_at?: string | null
+          generated_at?: string | null
+          id?: string
+          metric_id?: string
+          model_version?: string
+          organization_id?: string
+          period_key?: string
+          recommendation_reason?: Json
+          recommended_intervention_template?: Json
+          recommended_template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_recommendations_accepted_intervention_id_fkey"
+            columns: ["accepted_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_recommendations_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_recommendations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_recommendations_recommended_template_id_fkey"
+            columns: ["recommended_template_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_templates: {
+        Row: {
+          average_historical_success_rate: number | null
+          common_actions: Json | null
+          created_at: string | null
+          created_from_intervention_ids: string[] | null
+          historical_sample_size: number | null
+          id: string
+          intervention_type: Database["public"]["Enums"]["intervention_type"]
+          is_active: boolean | null
+          metric_category: string | null
+          organization_id: string
+          required_roles: Json | null
+          template_description: string | null
+          template_name: string
+          typical_duration_days: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          average_historical_success_rate?: number | null
+          common_actions?: Json | null
+          created_at?: string | null
+          created_from_intervention_ids?: string[] | null
+          historical_sample_size?: number | null
+          id?: string
+          intervention_type?: Database["public"]["Enums"]["intervention_type"]
+          is_active?: boolean | null
+          metric_category?: string | null
+          organization_id: string
+          required_roles?: Json | null
+          template_description?: string | null
+          template_name: string
+          typical_duration_days?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          average_historical_success_rate?: number | null
+          common_actions?: Json | null
+          created_at?: string | null
+          created_from_intervention_ids?: string[] | null
+          historical_sample_size?: number | null
+          id?: string
+          intervention_type?: Database["public"]["Enums"]["intervention_type"]
+          is_active?: boolean | null
+          metric_category?: string | null
+          organization_id?: string
+          required_roles?: Json | null
+          template_description?: string | null
+          template_name?: string
+          typical_duration_days?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interventions: {
         Row: {
           ai_summary: string | null
