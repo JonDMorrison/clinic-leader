@@ -84,21 +84,25 @@ export function SnapshotComputer() {
     },
   });
 
-  // Get existing snapshot if any - RPC now returns TABLE so we get first row
+  // Get existing snapshot if any - use bench_list_snapshots filtered by params
   const { data: existingSnapshot, isLoading: snapshotLoading } = useQuery({
     queryKey: ["benchmark-snapshot", selectedCohortId, selectedMetricId, periodType, periodStart],
     queryFn: async () => {
       if (!selectedCohortId || !selectedMetricId || !periodStart) return null;
-      const { data, error } = await supabase.rpc("bench_get_snapshot", {
+      // Use list_snapshots and filter to find matching snapshot
+      const { data, error } = await (supabase.rpc as any)("bench_list_snapshots", {
         _cohort_id: selectedCohortId,
-        _metric_id: selectedMetricId,
-        _period_type: periodType,
-        _period_start: periodStart,
+        _limit: 100,
       });
       if (error) throw error;
-      // RPC returns array, take first element
-      const rows = data as Snapshot[] | null;
-      return rows && rows.length > 0 ? rows[0] : null;
+      // Find the snapshot matching our criteria
+      const snapshots = (data || []) as Snapshot[];
+      return snapshots.find(
+        (s) => 
+          s.metric_id === selectedMetricId && 
+          s.period_type === periodType &&
+          s.period_start === periodStart
+      ) || null;
     },
     enabled: !!selectedCohortId && !!selectedMetricId && !!periodStart,
   });

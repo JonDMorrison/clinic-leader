@@ -65,16 +65,22 @@ All cross-org benchmark data MUST flow through these SECURITY DEFINER RPCs:
 
 ### Available RPCs
 
-| RPC | Purpose | Audit Action |
-|-----|---------|--------------|
-| `bench_get_cohorts()` | List all cohorts with member counts | `list_cohorts` |
-| `bench_get_cohort_members(cohort_id)` | Get org IDs in a cohort | `list_cohort_members` |
-| `bench_list_snapshots(cohort_id, limit)` | List snapshots with suppression | `list_snapshots` |
-| `bench_get_snapshot(snapshot_id)` | Get single snapshot detail | `get_snapshot` |
-| `bench_get_aggregate_comparison(metric_key, period_key)` | Compare Jane vs non-Jane | `get_aggregate_comparison` |
-| `bench_compute_snapshot(...)` | Generate new snapshot | `compute_snapshot` |
-| `bench_refresh_default_cohorts()` | Rebuild jane/non-jane cohorts | `refresh_default_cohorts` |
-| `org_get_benchmark_summary(...)` | Org admin: own org vs cohort | (org-scoped, not master) |
+| RPC | Purpose | Audit Action | Suppression |
+|-----|---------|--------------|-------------|
+| `bench_get_cohorts()` | List all cohorts with member counts | `list_cohorts` | N/A |
+| `bench_get_cohort_members(cohort_id)` | Get teams + EMR source in a cohort | `list_cohort_members` | N/A |
+| `bench_list_snapshots(cohort_id, limit)` | List snapshots with suppression | `list_snapshots` | ✅ n<5 → NULLs |
+| `bench_get_snapshot(snapshot_id)` | Get single snapshot + confidence | `get_snapshot` | ✅ n<5 → NULLs |
+| `bench_get_aggregate_comparison(metric_key, period_key)` | Compare Jane vs non-Jane | `get_aggregate_comparison` | ✅ per-group |
+| `bench_compute_snapshot(...)` | Generate new snapshot | `compute_snapshot` | ✅ on return |
+| `bench_refresh_default_cohorts()` | Rebuild jane/non-jane cohorts | `refresh_default_cohorts` | N/A |
+| `bench_create_cohort(name, desc)` | Create new cohort | `create_cohort` | N/A |
+| `bench_delete_cohort(cohort_id)` | Delete cohort | `delete_cohort` | N/A |
+| `bench_add_cohort_member(cohort_id, team_id)` | Add team to cohort | `add_cohort_member` | N/A |
+| `bench_remove_cohort_member(cohort_id, team_id)` | Remove team from cohort | `remove_cohort_member` | N/A |
+| `bench_search_teams(search)` | Search all teams | N/A | N/A |
+| `bench_get_audit_log(limit)` | View audit log | N/A | N/A |
+| `org_get_benchmark_summary(...)` | Org admin: own org vs cohort | (org-scoped, not master) | ✅ |
 
 ### RPC Security Properties
 
