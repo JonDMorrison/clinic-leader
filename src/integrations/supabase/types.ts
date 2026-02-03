@@ -327,6 +327,84 @@ export type Database = {
           },
         ]
       }
+      benchmark_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      benchmark_cohort_memberships: {
+        Row: {
+          cohort_id: string
+          created_at: string
+          team_id: string
+        }
+        Insert: {
+          cohort_id: string
+          created_at?: string
+          team_id: string
+        }
+        Update: {
+          cohort_id?: string
+          created_at?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "benchmark_cohort_memberships_cohort_id_fkey"
+            columns: ["cohort_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_cohorts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "benchmark_cohort_memberships_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      benchmark_cohorts: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       benchmark_metric_aggregates: {
         Row: {
           emr_source_group: string
@@ -377,6 +455,72 @@ export type Database = {
           std_deviation?: number | null
         }
         Relationships: []
+      }
+      benchmark_snapshots: {
+        Row: {
+          cohort_id: string
+          computed_at: string
+          id: string
+          mean: number | null
+          metric_id: string
+          n_orgs: number
+          p10: number | null
+          p25: number | null
+          p50: number | null
+          p75: number | null
+          p90: number | null
+          period_start: string
+          period_type: string
+          stddev: number | null
+        }
+        Insert: {
+          cohort_id: string
+          computed_at?: string
+          id?: string
+          mean?: number | null
+          metric_id: string
+          n_orgs: number
+          p10?: number | null
+          p25?: number | null
+          p50?: number | null
+          p75?: number | null
+          p90?: number | null
+          period_start: string
+          period_type: string
+          stddev?: number | null
+        }
+        Update: {
+          cohort_id?: string
+          computed_at?: string
+          id?: string
+          mean?: number | null
+          metric_id?: string
+          n_orgs?: number
+          p10?: number | null
+          p25?: number | null
+          p50?: number | null
+          p75?: number | null
+          p90?: number | null
+          period_start?: string
+          period_type?: string
+          stddev?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "benchmark_snapshots_cohort_id_fkey"
+            columns: ["cohort_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_cohorts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "benchmark_snapshots_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       branding: {
         Row: {
@@ -3485,6 +3629,24 @@ export type Database = {
           },
         ]
       }
+      platform_roles: {
+        Row: {
+          created_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       playbooks: {
         Row: {
           category: string | null
@@ -5791,6 +5953,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      get_user_team_id: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
@@ -5811,6 +5974,7 @@ export type Database = {
       }
       is_jane_integrated: { Args: { org_id: string }; Returns: boolean }
       is_manager: { Args: never; Returns: boolean }
+      is_master_admin: { Args: never; Returns: boolean }
       is_org_admin_for: { Args: { org_id: string }; Returns: boolean }
       is_same_team: { Args: { check_team_id: string }; Returns: boolean }
       is_user_admin: { Args: { _user_id: string }; Returns: boolean }
