@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Beaker, Plus } from "lucide-react";
+import { Zap, Plus } from "lucide-react";
 import { InterventionEducationPanel } from "./InterventionEducationPanel";
 
 interface EmptyInterventionsProps {
@@ -11,7 +11,7 @@ export function EmptyInterventions({ onCreateClick }: EmptyInterventionsProps) {
     <div className="flex flex-col items-center justify-center py-12 px-4">
       {/* Icon */}
       <div className="rounded-full bg-purple-100 dark:bg-purple-950/50 p-4 mb-4">
-        <Beaker className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+        <Zap className="h-8 w-8 text-purple-600 dark:text-purple-400" />
       </div>
       
       {/* Title */}

@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
-  Beaker, 
+  Zap, 
   ArrowRight, 
   GraduationCap,
   BarChart3,
@@ -44,7 +44,7 @@ export function InterventionWorkflowBanner({
             <div className="flex-1">
               {/* Header Text */}
               <div className="flex items-center gap-2 mb-2">
-                <Beaker className="h-5 w-5 text-primary" />
+                <Zap className="h-5 w-5 text-primary" />
                 <h3 className="font-semibold text-foreground">Track Your Team's Solutions</h3>
               </div>
               <p className="text-sm text-muted-foreground mb-3">
@@ -56,7 +56,7 @@ export function InterventionWorkflowBanner({
               <div className="flex items-center gap-1 flex-wrap mb-3">
                 <WorkflowPill icon={AlertCircle} label="Problem Detected" color="amber" />
                 <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                <WorkflowPill icon={Beaker} label="Intervention Created" color="purple" active />
+                <WorkflowPill icon={Zap} label="Intervention Created" color="purple" active />
                 <ArrowRight className="h-3 w-3 text-muted-foreground" />
                 <WorkflowPill icon={CheckCircle2} label="Outcome Evaluated" color="green" />
               </div>
