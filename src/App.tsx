@@ -95,7 +95,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="flex w-full relative">
       <Sidebar />
-      <div className="flex-1 relative">
+      {/* Content area: min-w-0 prevents flex overflow, no flex-1 so height is content-driven */}
+      <div className="min-w-0 w-full relative">
         <div className="fixed top-4 right-8 z-50 transition-all">
           <UserNav />
         </div>
