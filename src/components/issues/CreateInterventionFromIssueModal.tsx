@@ -44,12 +44,15 @@ interface CreateInterventionFromIssueModalProps {
   open: boolean;
   onClose: () => void;
   issue: Issue;
+  /** Optional callback when intervention is created - receives the new intervention ID */
+  onSuccess?: (interventionId: string) => void;
 }
 
 export function CreateInterventionFromIssueModal({
   open,
   onClose,
   issue,
+  onSuccess,
 }: CreateInterventionFromIssueModalProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -148,8 +151,14 @@ export function CreateInterventionFromIssueModal({
         title: "Intervention created",
         description: "The intervention has been created from this issue.",
       });
-      handleClose();
-      navigate(`/interventions/${data.id}`);
+      
+      // If onSuccess callback provided, use it instead of navigating
+      if (onSuccess) {
+        onSuccess(data.id);
+      } else {
+        handleClose();
+        navigate(`/interventions/${data.id}`);
+      }
     },
     onError: (error: Error) => {
       toast({

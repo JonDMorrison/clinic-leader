@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConvertToTodoModal } from "./ConvertToTodoModal";
 import { CreateInterventionFromIssueModal } from "./CreateInterventionFromIssueModal";
+import { CloseTheLoopModal } from "./CloseTheLoopModal";
+import { IssueResolutionSection } from "./IssueResolutionSection";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 import {
@@ -38,6 +40,7 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
   const [convertModalOpen, setConvertModalOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [interventionModalOpen, setInterventionModalOpen] = useState(false);
+  const [closeTheLoopModalOpen, setCloseTheLoopModalOpen] = useState(false);
   const { toast } = useToast();
 
   const getPriorityBadge = (priority: number) => {
@@ -66,30 +69,9 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
     }
   };
 
-  const handleMarkSolved = async () => {
-    try {
-      const { error } = await supabase
-        .from("issues")
-        .update({
-          status: "solved",
-          solved_at: new Date().toISOString(),
-        })
-        .eq("id", issue.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Issue marked as solved",
-      });
-      onUpdate();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+  // Trigger CloseTheLoopModal instead of directly marking solved
+  const handleMarkSolvedClick = () => {
+    setCloseTheLoopModalOpen(true);
   };
 
   const handleReopenIssue = async () => {
@@ -226,7 +208,7 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                       </Button>
                       <Button
                         size="sm"
-                        onClick={handleMarkSolved}
+                        onClick={handleMarkSolvedClick}
                       >
                         <CheckCircle2 className="w-4 h-4 mr-1" />
                         Mark Solved
@@ -266,6 +248,11 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                   </AlertDialog>
                 </div>
               </div>
+
+              {/* Resolution Section - shows for solved issues */}
+              {issue.status === "solved" && (
+                <IssueResolutionSection issue={issue} onUpdate={onUpdate} />
+              )}
             </div>
           </div>
         </CardContent>
@@ -295,6 +282,18 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
           context: issue.context,
           organization_id: issue.organization_id,
         }}
+      />
+
+      <CloseTheLoopModal
+        open={closeTheLoopModalOpen}
+        onClose={() => setCloseTheLoopModalOpen(false)}
+        issue={{
+          id: issue.id,
+          title: issue.title,
+          context: issue.context,
+          organization_id: issue.organization_id,
+        }}
+        onResolved={onUpdate}
       />
     </>
   );

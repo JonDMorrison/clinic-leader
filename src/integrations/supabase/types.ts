@@ -2786,6 +2786,71 @@ export type Database = {
           },
         ]
       }
+      issue_resolution_events: {
+        Row: {
+          created_at: string
+          created_by: string
+          event_type: string
+          id: string
+          issue_id: string
+          linked_intervention_id: string | null
+          note: string | null
+          organization_id: string
+          resolution_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          event_type: string
+          id?: string
+          issue_id: string
+          linked_intervention_id?: string | null
+          note?: string | null
+          organization_id: string
+          resolution_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          event_type?: string
+          id?: string
+          issue_id?: string
+          linked_intervention_id?: string | null
+          note?: string | null
+          organization_id?: string
+          resolution_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issue_resolution_events_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issue_resolution_events_linked_intervention_id_fkey"
+            columns: ["linked_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issue_resolution_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issue_resolution_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issue_suggestions: {
         Row: {
           ai_analysis: Json | null
@@ -2886,6 +2951,7 @@ export type Database = {
           created_from: string | null
           id: string
           intervention_id: string | null
+          linked_intervention_id: string | null
           meeting_horizon: string | null
           meeting_id: string | null
           meeting_item_id: string | null
@@ -2895,6 +2961,10 @@ export type Database = {
           period_key: string | null
           priority: number
           recurrence_count: number | null
+          resolution_note: string | null
+          resolution_type: string | null
+          resolved_at: string | null
+          resolved_by: string | null
           rock_id: string | null
           solved_at: string | null
           status: Database["public"]["Enums"]["issue_status"]
@@ -2907,6 +2977,7 @@ export type Database = {
           created_from?: string | null
           id?: string
           intervention_id?: string | null
+          linked_intervention_id?: string | null
           meeting_horizon?: string | null
           meeting_id?: string | null
           meeting_item_id?: string | null
@@ -2916,6 +2987,10 @@ export type Database = {
           period_key?: string | null
           priority?: number
           recurrence_count?: number | null
+          resolution_note?: string | null
+          resolution_type?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           rock_id?: string | null
           solved_at?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
@@ -2928,6 +3003,7 @@ export type Database = {
           created_from?: string | null
           id?: string
           intervention_id?: string | null
+          linked_intervention_id?: string | null
           meeting_horizon?: string | null
           meeting_id?: string | null
           meeting_item_id?: string | null
@@ -2937,6 +3013,10 @@ export type Database = {
           period_key?: string | null
           priority?: number
           recurrence_count?: number | null
+          resolution_note?: string | null
+          resolution_type?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           rock_id?: string | null
           solved_at?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
@@ -2947,6 +3027,13 @@ export type Database = {
           {
             foreignKeyName: "issues_intervention_id_fkey"
             columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issues_linked_intervention_id_fkey"
+            columns: ["linked_intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
             referencedColumns: ["id"]

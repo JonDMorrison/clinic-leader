@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { IDSBoard } from "@/components/issues/IDSBoard";
 import { NewIssueModal } from "@/components/issues/NewIssueModal";
 import { IssueSuggestionsBanner } from "@/components/issues/IssueSuggestionsBanner";
+import { IDSFollowThroughCard } from "@/components/issues/IDSFollowThroughCard";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
@@ -106,6 +107,9 @@ const Issues = () => {
           New Issue
         </Button>
       </div>
+
+      {/* IDS Follow-through Metric */}
+      <IDSFollowThroughCard />
 
       {/* AI Issue Suggestions Banner */}
       <IssueSuggestionsBanner organizationId={orgId} onIssueCreated={refetch} />
