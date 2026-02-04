@@ -363,7 +363,7 @@ const Home = () => {
               </p>
             </motion.div>
 
-            <CoreValuesStrip />
+            <CoreValuesStrip showEditButton={false} />
           </section>
 
           {/* STATS — must sit directly under hero in normal flow */}
