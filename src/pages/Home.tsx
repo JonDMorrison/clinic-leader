@@ -6,7 +6,7 @@ import { QuickActions } from "@/components/layout/QuickActions";
 import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
 import { DashboardHeroHeader } from "@/components/dashboard/DashboardHeroHeader";
 
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { useRef, useEffect, useState, useMemo } from "react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
@@ -21,6 +21,7 @@ import { useDashboardPreferences } from "@/hooks/useDashboardPreferences";
 import { VtoCard } from "@/components/dashboard/VtoCard";
 import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
+import { DashboardPrimaryStack } from "@/components/dashboard/DashboardPrimaryStack";
 
 const INSPIRATIONAL_MESSAGES = [
   "Lead your clinic. Not just manage it.",
@@ -274,12 +275,6 @@ const Home = () => {
 
   const isLoading = userLoading || metricsLoading || rocksLoading || issuesLoading;
 
-  // Use viewport scroll to avoid hydration issues with target refs
-  const { scrollYProgress } = useScroll();
-
-  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.8]);
-  const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.98]);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -297,57 +292,26 @@ const Home = () => {
 
   return (
     <div ref={ref} className="space-y-6 animate-fade-in relative px-4 md:px-0">
-      {/* Background ambient effects */}
-      <motion.div
-        className="absolute top-0 left-1/4 w-96 h-96 bg-brand/5 rounded-full blur-3xl -z-10"
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.3, 0.5, 0.3],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-      />
-      <motion.div
-        className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/5 rounded-full blur-3xl -z-10"
-        animate={{
-          scale: [1.2, 1, 1.2],
-          opacity: [0.3, 0.5, 0.3],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 2,
-        }}
-      />
-      
-      {/* Unified Hero Header with QuickActions on desktop */}
+      {/* Hero Header with QuickActions on desktop */}
       <DashboardHeroHeader 
         userName={currentUser?.full_name?.includes(' ') ? currentUser.full_name.split(' ')[0] : 'there'}
         inspirationalMessage={inspirationalMessage}
       />
 
-      {/* Demo Account Banner */}
+      {/* Conditional banners - render nothing when conditions not met */}
       <DemoBanner />
-
-      {/* Connect Data Card - shows when Jane not connected */}
       <ConnectDataCard />
-
-      {/* Getting Started Widget */}
       <GettingStartedWidget />
 
-      {/* Main Two-Column Layout */}
+      {/* Main Two-Column Layout - immediately after hero */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - 2/3 width */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Stat Cards */}
+          {/* Stat Cards - always visible */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
+            transition={{ delay: 0.1, duration: 0.4 }}
             className="grid grid-cols-2 md:grid-cols-4 gap-4"
           >
             {[0, 1, 2, 3].map((slotIndex) => (
@@ -360,6 +324,9 @@ const Home = () => {
             ))}
           </motion.div>
 
+          {/* Primary Stack - always has content (scorecard setup, issues CTA, or top issues) */}
+          <DashboardPrimaryStack />
+
           {/* Monthly Pulse Widget */}
           <MonthlyPulseWidget />
 
@@ -367,34 +334,23 @@ const Home = () => {
           <IssueSuggestionsWidget />
 
           {/* Recent Activity */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.6 }}
-          >
-            <RecentActivityCard
-              metricsCount={metrics?.length || 0}
-              openIssues={openIssues}
-              totalRocks={totalRocks}
-              completedRocks={completedRocks}
-            />
-          </motion.div>
+          <RecentActivityCard
+            metricsCount={metrics?.length || 0}
+            openIssues={openIssues}
+            totalRocks={totalRocks}
+            completedRocks={completedRocks}
+          />
         </div>
 
         {/* Right Sidebar - 1/3 width */}
         <div className="space-y-6">
-          {/* VTO Strategic Progress Card */}
           <VtoCard />
-
-          {/* AI Copilot */}
           <CopilotWidget />
-
-          {/* Core Value of the Week */}
           <CoreValueOfWeekCard />
         </div>
       </div>
 
-      {/* QuickActions on mobile - hidden on desktop since it's in the hero header */}
+      {/* QuickActions on mobile only */}
       <div className="lg:hidden">
         <QuickActions />
       </div>
