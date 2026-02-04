@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { QuickActions } from "@/components/layout/QuickActions";
 import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
-import { DashboardHeroHeader } from "@/components/dashboard/DashboardHeroHeader";
+import { CoreValuesStrip } from "@/components/core-values";
 
 import { motion } from "framer-motion";
 import { useRef, useEffect, useState, useMemo } from "react";
@@ -103,6 +103,9 @@ const INSPIRATIONAL_MESSAGES = [
 
 const Home = () => {
   const ref = useRef(null);
+  const heroRef = useRef<HTMLElement | null>(null);
+  const statsRef = useRef<HTMLElement | null>(null);
+  const mainRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -275,6 +278,51 @@ const Home = () => {
 
   const isLoading = userLoading || metricsLoading || rocksLoading || issuesLoading;
 
+  // DEV-only layout diagnostics: helps identify unexpected reserved space.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (!mounted) return;
+    if (isLoading) return;
+
+    const log = () => {
+      const heroEl = heroRef.current;
+      const statsEl = statsRef.current;
+      const mainEl = mainRef.current;
+
+      if (!heroEl || !statsEl || !mainEl) return;
+
+      const hero = heroEl.getBoundingClientRect();
+      const stats = statsEl.getBoundingClientRect();
+      const main = mainEl.getBoundingClientRect();
+
+      console.groupCollapsed("[Home layout diagnostics]");
+      console.log(
+        "hero",
+        { top: Math.round(hero.top), bottom: Math.round(hero.bottom), height: Math.round(hero.height) },
+        { className: heroEl.className }
+      );
+      console.log(
+        "stats",
+        { top: Math.round(stats.top), bottom: Math.round(stats.bottom), height: Math.round(stats.height) },
+        { className: statsEl.className }
+      );
+      console.log(
+        "main",
+        { top: Math.round(main.top), bottom: Math.round(main.bottom), height: Math.round(main.height) },
+        { className: mainEl.className }
+      );
+      console.log("gap(hero→stats)", Math.round(stats.top - hero.bottom));
+      console.groupEnd();
+    };
+
+    const raf = requestAnimationFrame(log);
+    window.addEventListener("resize", log);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", log);
+    };
+  }, [mounted, isLoading]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -290,73 +338,100 @@ const Home = () => {
     );
   }
 
+  const firstName = currentUser?.full_name?.includes(" ")
+    ? currentUser.full_name.split(" ")[0]
+    : "there";
+
   return (
-    <div ref={ref} className="space-y-6 animate-fade-in relative px-4 md:px-0">
-      {/* Hero Header with QuickActions on desktop */}
-      <DashboardHeroHeader 
-        userName={currentUser?.full_name?.includes(' ') ? currentUser.full_name.split(' ')[0] : 'there'}
-        inspirationalMessage={inspirationalMessage}
-      />
+    <div ref={ref} className="animate-fade-in relative px-4 md:px-0">
+      {/* Desktop-first layout: left column is a single flow so right-column height never pushes stats down */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left (lg: 2/3): hero-left + stats + operational stack in normal flow */}
+        <div className="lg:col-span-2 space-y-6 min-w-0">
+          {/* HERO (left side) */}
+          <section ref={heroRef} data-home="hero" className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <p className="text-xl md:text-2xl font-semibold text-foreground mb-1">
+                Hey {firstName} 👋
+              </p>
+              <p className="text-base md:text-lg text-muted-foreground">
+                <span className="italic">{inspirationalMessage}</span> Here's your overview for today.
+              </p>
+            </motion.div>
 
-      {/* Conditional banners - render nothing when conditions not met */}
-      <DemoBanner />
-      <ConnectDataCard />
-      <GettingStartedWidget />
+            <CoreValuesStrip />
+          </section>
 
-      {/* Main Two-Column Layout - immediately after hero */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - 2/3 width */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Stat Cards - always visible */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1, duration: 0.4 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4"
-          >
-            {[0, 1, 2, 3].map((slotIndex) => (
-              <CustomizableStatCard
-                key={slotIndex}
-                currentStat={getStatForSlot(slotIndex)}
-                availableStats={allStatOptions}
-                onSwap={(statId) => updateStatSlot(slotIndex, statId)}
-              />
-            ))}
-          </motion.div>
+          {/* STATS — must sit directly under hero in normal flow */}
+          <section ref={statsRef} data-home="stats">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1, duration: 0.4 }}
+              className="grid grid-cols-2 md:grid-cols-4 gap-4"
+            >
+              {[0, 1, 2, 3].map((slotIndex) => (
+                <CustomizableStatCard
+                  key={slotIndex}
+                  currentStat={getStatForSlot(slotIndex)}
+                  availableStats={allStatOptions}
+                  onSwap={(statId) => updateStatSlot(slotIndex, statId)}
+                />
+              ))}
+            </motion.div>
+          </section>
 
-          {/* Primary Stack - always has content (scorecard setup, issues CTA, or top issues) */}
-          <DashboardPrimaryStack />
+          {/* MAIN (left) */}
+          <div ref={mainRef} data-home="main" className="space-y-6">
+            {/* Conditional banners - render nothing when conditions not met (no reserved space) */}
+            <DemoBanner />
+            <ConnectDataCard />
+            <GettingStartedWidget />
 
-          {/* Monthly Pulse Widget */}
-          <MonthlyPulseWidget />
+            {/* Primary Stack - always has content (scorecard setup, issues CTA, or top issues) */}
+            <DashboardPrimaryStack />
 
-          {/* Issue Suggestions Widget */}
-          <IssueSuggestionsWidget />
+            {/* Monthly Pulse Widget */}
+            <MonthlyPulseWidget />
 
-          {/* Recent Activity */}
-          <RecentActivityCard
-            metricsCount={metrics?.length || 0}
-            openIssues={openIssues}
-            totalRocks={totalRocks}
-            completedRocks={completedRocks}
-          />
+            {/* Issue Suggestions Widget */}
+            <IssueSuggestionsWidget />
+
+            {/* Recent Activity */}
+            <RecentActivityCard
+              metricsCount={metrics?.length || 0}
+              openIssues={openIssues}
+              totalRocks={totalRocks}
+              completedRocks={completedRocks}
+            />
+          </div>
         </div>
 
-        {/* Right Sidebar - 1/3 width */}
-        <div className="space-y-6">
+        {/* Right (lg: 1/3): QuickActions in the hero-right position + strategic/culture widgets */}
+        <aside className="space-y-6 min-w-0">
+          <div className="hidden lg:block">
+            <QuickActions />
+          </div>
           <VtoCard />
           <CopilotWidget />
           <CoreValueOfWeekCard />
+        </aside>
+
+        {/* Footer row (full width) */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* QuickActions on mobile only */}
+          <div className="lg:hidden">
+            <QuickActions />
+          </div>
+
+          {/* Year in Progress Preview */}
+          <ProgressPreviewCard />
         </div>
       </div>
-
-      {/* QuickActions on mobile only */}
-      <div className="lg:hidden">
-        <QuickActions />
-      </div>
-
-      {/* Year in Progress Preview */}
-      <ProgressPreviewCard />
     </div>
   );
 };
