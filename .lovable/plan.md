@@ -1,164 +1,159 @@
 
-# Dashboard Header Redesign Plan
+# Dashboard Space Optimization Plan
 
-## Problem Identified
+## Problem Analysis
 
-The current dashboard header has significant wasted horizontal and vertical space on desktop:
+Looking at the screenshot and codebase, the dashboard has a significant empty space between the hero header (greeting + core values + Quick Actions) and the stat cards at the bottom. This happens because:
 
-1. **Greeting section** spans full width but only uses left portion
-2. **User avatar** is fixed-positioned separately (top-right corner)
-3. **Inspirational message** is on its own line, adding vertical height
-4. **CoreValuesStrip** runs full-width below, creating visual disconnect
+1. **Conditionally-hidden widgets leave gaps**: Several components like `ConnectDataCard`, `GettingStartedWidget`, `IssueSuggestionsWidget`, and `DemoBanner` only render when specific conditions are met. When these conditions are not met, the space is left empty.
 
-## Proposed Solution: Compact Hero Header
+2. **Missing key content cards**: The VTO Card, Monthly Pulse Widget, and other valuable widgets exist but are not included in the current layout.
 
-Reorganize the top section into a cohesive "hero header" that uses horizontal space efficiently on desktop while remaining responsive on mobile.
+3. **Poor layout density**: The 3-column grid (Recent Activity, Copilot Widget, Core Value of Week) is positioned after the stat cards, leaving the middle of the page sparse.
+
+## Solution Architecture
+
+Reorganize the dashboard into a denser, two-section layout:
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                         DESKTOP LAYOUT (lg+)                                 │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌─────────────────────────────────────────────┐  ┌────────────────────────┐ │
-│  │  Hey Aaron 👋                               │  │   Quick Actions Grid   │ │
-│  │  "Focus is saying no to good ideas."        │  │   ┌────┐ ┌────┐        │ │
-│  │  Here's your overview for today.            │  │   │ +  │ │ 📊 │        │ │
-│  │                                             │  │   └────┘ └────┘        │ │
-│  │  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐   │  │   ┌────┐ ┌────┐        │ │
-│  │  │Core │ │Value│ │ ... │ │Badge│ │ ⚙  │   │  │   │ 🎯 │ │ 📅 │        │ │
-│  │  └─────┘ └─────┘ └─────┘ └─────┘ └────-┘   │  │   └────┘ └────┘        │ │
-│  └─────────────────────────────────────────────┘  └────────────────────────┘ │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------+
+| Hero Header (Greeting + Values + Quick Actions)                   |
++-------------------------------------------------------------------+
+| [Demo Banner / Connect Data / Getting Started - conditional]      |
++-------------------------------------------------------------------+
+| LEFT COLUMN (2/3)              | RIGHT COLUMN (1/3)               |
+| +----------------------------+ | +-----------------------------+  |
+| | Stat Cards (4 across)      | | | V/TO Strategic Progress     |  |
+| +----------------------------+ | |                             |  |
+| | Monthly Pulse Widget       | | +-----------------------------+  |
+| +----------------------------+ | | AI Copilot                  |  |
+| | Issue Suggestions          | | |                             |  |
+| +----------------------------+ | +-----------------------------+  |
+| | Recent Activity            | | | Core Value of the Week     |  |
+| +----------------------------+ | +-----------------------------+  |
++-------------------------------------------------------------------+
+| Year in Progress Preview (full width banner)                      |
++-------------------------------------------------------------------+
 ```
 
-## Changes
+## Implementation Steps
 
-### 1. Create a New DashboardHeroHeader Component
-
-**File**: `src/components/dashboard/DashboardHeroHeader.tsx`
-
-A unified component that consolidates:
-- Greeting + inspirational message
-- CoreValuesStrip (embedded inline)
-- On desktop (lg+), use a 2-column grid:
-  - Left column: greeting, message, core values strip
-  - Right column: QuickActions component (moved from bottom grid)
-
-### 2. Update Home.tsx Layout
+### 1. Add VTO Card to Dashboard
+Import and add the `VtoCard` component to the right sidebar. This provides strategic visibility that matches the premium feel of the app.
 
 **File**: `src/pages/Home.tsx`
 
-- Replace standalone greeting + CoreValuesStrip with `<DashboardHeroHeader />`
-- Move `QuickActions` from the bottom 2x2 grid into the header on desktop
-- Adjust the bottom grid from `lg:grid-cols-2` (4 items) to show only 3 remaining items:
-  - Recent Activity
-  - CopilotWidget  
-  - CoreValueOfWeekCard
+### 2. Add Monthly Pulse Widget
+The `MonthlyPulseWidget` exists but is not used. Add it to provide scorecard health visibility for monthly metrics.
 
-### 3. Responsive Behavior
+**File**: `src/pages/Home.tsx`
 
-- **Mobile/Tablet** (`< lg`): Stack everything vertically as before, QuickActions stays in its current grid position
-- **Desktop** (`lg+`): Side-by-side hero layout with QuickActions integrated
+### 3. Reorganize into Two-Column Layout
+Convert the current sequential layout into a responsive two-column grid:
+- Left column (2/3 width): Stat cards, Monthly Pulse, Issue Suggestions, Recent Activity
+- Right column (1/3 width): VTO Card, Copilot, Core Value of Week
 
-### 4. Visual Refinements
+This uses `lg:grid-cols-3` with the left content spanning 2 columns.
 
-- Add subtle glass card styling to the hero section
-- Reduce top padding by using the combined header instead of separate stacked elements
-- Keep the user avatar in its current fixed position (it works well in the top-right)
+**File**: `src/pages/Home.tsx`
 
----
+### 4. Move Stat Cards into Main Grid
+Instead of placing stat cards in their own full-width row, integrate them within the left column of the main grid to maximize density.
+
+**File**: `src/pages/Home.tsx`
+
+### 5. Add Fallback Content for Empty States
+When conditional widgets (Issue Suggestions, Monthly Pulse) don't render, add fallback placeholder cards that:
+- Promote setting up the scorecard
+- Encourage data connection
+- Link to relevant documentation
+
+**New component**: `src/components/dashboard/DashboardPlaceholders.tsx`
+
+### 6. Adjust Vertical Spacing
+Reduce excessive `space-y-8` gaps to `space-y-6` for tighter visual rhythm while maintaining readability.
+
+**File**: `src/pages/Home.tsx`
 
 ## Technical Details
 
-### New Component Structure
+### Updated Layout Structure (Home.tsx)
 
-```typescript
-// DashboardHeroHeader.tsx
-export const DashboardHeroHeader = ({ 
-  userName, 
-  inspirationalMessage 
-}: DashboardHeroHeaderProps) => {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Left column: 2/3 width on desktop */}
-      <div className="lg:col-span-2 space-y-4">
-        <motion.div>
-          <p className="text-xl md:text-2xl font-semibold">
-            Hey {userName} 👋
-          </p>
-          <p className="text-base md:text-lg text-muted-foreground">
-            <span className="italic">{inspirationalMessage}</span>{' '}
-            Here's your overview for today.
-          </p>
-        </motion.div>
-        <CoreValuesStrip />
-      </div>
-      
-      {/* Right column: QuickActions - hidden on mobile */}
-      <div className="hidden lg:block">
-        <QuickActions />
-      </div>
+```tsx
+// Main content grid
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  {/* Left column - 2/3 width */}
+  <div className="lg:col-span-2 space-y-6">
+    {/* Stat cards in 2x2 grid on mobile, 4-across on desktop */}
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {[0, 1, 2, 3].map((slotIndex) => (
+        <CustomizableStatCard ... />
+      ))}
     </div>
-  );
-};
-```
-
-### Home.tsx Changes
-
-```typescript
-// Before: Separate components stacked vertically
-<motion.div>{/* greeting */}</motion.div>
-<CoreValuesStrip />
-{/* ... stat cards ... */}
-<motion.div className="grid lg:grid-cols-2">
-  <Card>{/* Recent Activity */}</Card>
-  <QuickActions />
-  <CopilotWidget />
-  <CoreValueOfWeekCard />
-</motion.div>
-
-// After: Unified hero header
-<DashboardHeroHeader 
-  userName={currentUser?.full_name?.split(' ')[0] || 'there'}
-  inspirationalMessage={inspirationalMessage}
-/>
-{/* ... stat cards ... */}
-<motion.div className="grid lg:grid-cols-3 gap-6">
-  <Card>{/* Recent Activity */}</Card>
-  <CopilotWidget />
-  <CoreValueOfWeekCard />
-</motion.div>
-{/* QuickActions shown here only on mobile via lg:hidden */}
-<div className="lg:hidden">
-  <QuickActions />
+    
+    {/* Monthly Pulse or Scorecard Setup Card */}
+    <MonthlyPulseWidget />
+    
+    {/* Issue Suggestions */}
+    <IssueSuggestionsWidget />
+    
+    {/* Recent Activity */}
+    <RecentActivityCard />
+  </div>
+  
+  {/* Right sidebar - 1/3 width */}
+  <div className="space-y-6">
+    <VtoCard />
+    <CopilotWidget />
+    <CoreValueOfWeekCard />
+  </div>
 </div>
 ```
 
----
+### New Fallback Component (DashboardPlaceholders.tsx)
 
-## Alternative Approach (Simpler)
+Create a simple component that renders when no active widgets are shown:
 
-If you prefer minimal code changes, we could instead:
+```tsx
+export const ScorecardSetupCard = () => (
+  <Card className="border-dashed">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        <BarChart3 className="w-5 h-5 text-brand" />
+        Set Up Your Scorecard
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <p className="text-sm text-muted-foreground mb-4">
+        Track weekly KPIs to keep your team aligned and on target.
+      </p>
+      <Button onClick={() => navigate('/scorecard')}>
+        Get Started
+      </Button>
+    </CardContent>
+  </Card>
+);
+```
 
-1. **Inline the CoreValuesStrip** directly below the greeting on the same glass card
-2. **Keep QuickActions** in the lower grid but make the grid smarter:
-   - Desktop: 3-column grid for better balance
-   - Recent Activity takes 1 column
-   - QuickActions + CopilotWidget share middle
-   - CoreValueOfWeekCard on right
+## Files Changed
 
----
+| File | Change |
+|------|--------|
+| `src/pages/Home.tsx` | Reorganize layout, add VtoCard and MonthlyPulseWidget |
+| `src/components/dashboard/DashboardPlaceholders.tsx` | New: fallback cards for empty states |
 
-## Estimated Impact
+## Visual Impact
 
-- **Space savings**: ~60-80px vertical space reclaimed on desktop
-- **Information density**: Same content, better organized
-- **Visual hierarchy**: Clear hero section establishes context immediately
-- **Mobile unchanged**: Stacks naturally on smaller screens
+- Eliminates large empty space in the middle of the dashboard
+- VTO Card prominently displays strategic progress
+- Monthly Pulse shows scorecard health at a glance
+- Copilot remains accessible but in sidebar context
+- Layout adapts gracefully on mobile (stacks vertically)
+- Dashboard feels dense and information-rich like premium SaaS tools (Linear, Notion)
 
-## Files to Modify
+## Mobile Behavior
 
-1. `src/components/dashboard/DashboardHeroHeader.tsx` (new)
-2. `src/pages/Home.tsx` (refactor layout)
-3. `src/components/layout/QuickActions.tsx` (minor: ensure it works in both contexts)
+On mobile (`< lg` breakpoint):
+- Full layout stacks vertically
+- Order: Header, Conditional Banners, Stat Cards, VTO Card, Monthly Pulse, Issue Suggestions, Copilot, Recent Activity, Core Value, Year Preview
+- Quick Actions shown at bottom (existing behavior preserved)
