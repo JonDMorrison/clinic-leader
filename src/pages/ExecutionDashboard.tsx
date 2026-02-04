@@ -15,6 +15,7 @@ import {
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Navigate } from "react-router-dom";
 import { format, subDays } from "date-fns";
+import { ExecutionAuditPanel } from "@/components/analytics/ExecutionAuditPanel";
 
 export default function ExecutionDashboard() {
   const { data: roleData, isLoading: roleLoading } = useIsAdmin();
@@ -439,6 +440,9 @@ export default function ExecutionDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dev Audit Panel */}
+      <ExecutionAuditPanel organizationId={organizationId ?? null} />
     </div>
   );
 }

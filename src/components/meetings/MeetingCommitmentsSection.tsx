@@ -22,6 +22,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { NewInterventionModal } from "@/components/interventions/NewInterventionModal";
 import { format } from "date-fns";
 import type { InterventionSignal } from "@/lib/interventions/meetingSignals";
+import { WhyAmISeeingThisDialog, WhyAmISeeingThisLink } from "@/components/shared/WhyAmISeeingThisDialog";
 
 interface MeetingCommitmentsSectionProps {
   meetingId: string;
@@ -45,6 +46,7 @@ export function MeetingCommitmentsSection({ meetingId, organizationId }: Meeting
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showNewInterventionModal, setShowNewInterventionModal] = useState(false);
+  const [showWhyDialog, setShowWhyDialog] = useState(false);
 
   // Fetch role data for leadership check
   const { data: roleData } = useIsAdmin();
@@ -164,17 +166,17 @@ export function MeetingCommitmentsSection({ meetingId, organizationId }: Meeting
     switch (type) {
       case 'create_intervention': return <Zap className="w-3 h-3 text-primary" />;
       case 'review_overdue': return <Clock className="w-3 h-3 text-warning" />;
-      case 'followup_metric': return <Target className="w-3 h-3 text-blue-500" />;
+      case 'followup_metric': return <Target className="w-3 h-3 text-accent-foreground" />;
       default: return <CheckCircle2 className="w-3 h-3 text-muted-foreground" />;
     }
   };
 
   return (
     <>
-      <Card className="border-amber-500/20 bg-amber-500/5">
+      <Card className="border-warning/20 bg-warning/5">
         <CardHeader className="py-3">
           <CardTitle className="text-base font-medium flex items-center gap-2">
-            <ListChecks className="w-4 h-4 text-amber-600" />
+            <ListChecks className="w-4 h-4 text-warning" />
             Commitments
             {totalSignals > 0 && (
               <Badge variant="outline" className="ml-auto text-xs">
@@ -311,6 +313,9 @@ export function MeetingCommitmentsSection({ meetingId, organizationId }: Meeting
                       Review Overdue ({overdueCount})
                     </Button>
                   </div>
+                  <div className="mt-3">
+                    <WhyAmISeeingThisLink onClick={() => setShowWhyDialog(true)} />
+                  </div>
                 </div>
               )}
 
@@ -363,6 +368,13 @@ export function MeetingCommitmentsSection({ meetingId, organizationId }: Meeting
         onClose={() => setShowNewInterventionModal(false)}
         organizationId={organizationId}
         users={users}
+      />
+
+      {/* Why Am I Seeing This Dialog */}
+      <WhyAmISeeingThisDialog
+        open={showWhyDialog}
+        onClose={() => setShowWhyDialog(false)}
+        context="meeting-commitment"
       />
     </>
   );

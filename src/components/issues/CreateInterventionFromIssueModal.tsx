@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { X, Loader2, AlertTriangle } from "lucide-react";
+import { X, Loader2, AlertTriangle, HelpCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   INTERVENTION_TYPE_OPTIONS,
@@ -32,6 +32,7 @@ import {
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { logInterventionEventAsync } from "@/lib/interventions/eventLogger";
 import { InterventionEducationPanel } from "@/components/interventions/InterventionEducationPanel";
+import { WhyAmISeeingThisDialog, WhyAmISeeingThisLink } from "@/components/shared/WhyAmISeeingThisDialog";
 
 interface Issue {
   id: string;
@@ -69,6 +70,7 @@ export function CreateInterventionFromIssueModal({
   const [startDate, setStartDate] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [showWhyDialog, setShowWhyDialog] = useState(false);
 
   // Fetch org users
   const { data: users = [] } = useQuery({
@@ -160,10 +162,27 @@ export function CreateInterventionFromIssueModal({
         navigate(`/interventions/${data.id}`);
       }
     },
-    onError: (error: Error) => {
+    onError: async (error: Error) => {
+      // Log the failed attempt to issue_resolution_events
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from("issue_resolution_events").insert({
+            organization_id: issue.organization_id,
+            issue_id: issue.id,
+            event_type: "resolution_updated",
+            note: `Intervention creation failed: ${error.message}`,
+            created_by: user.id,
+          });
+        }
+      } catch (logError) {
+        console.error("Failed to log resolution error event:", logError);
+      }
+
+      // Show actionable error message
       toast({
         title: "Failed to create intervention",
-        description: error.message,
+        description: `${error.message}. The issue remains unresolved. Please try again.`,
         variant: "destructive",
       });
     },
@@ -176,7 +195,7 @@ export function CreateInterventionFromIssueModal({
       <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <AlertTriangle className="h-5 w-5 text-warning" />
             Create Intervention from Issue
           </DialogTitle>
           <DialogDescription>
@@ -339,19 +358,28 @@ export function CreateInterventionFromIssueModal({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => createMutation.mutate()}
-            disabled={!isValid || createMutation.isPending}
-          >
-            {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create Intervention
-          </Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <WhyAmISeeingThisLink onClick={() => setShowWhyDialog(true)} className="mr-auto" />
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createMutation.mutate()}
+              disabled={!isValid || createMutation.isPending}
+            >
+              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Intervention
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
+
+      <WhyAmISeeingThisDialog
+        open={showWhyDialog}
+        onClose={() => setShowWhyDialog(false)}
+        context="intervention-prompt"
+      />
     </Dialog>
   );
 }
