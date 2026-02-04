@@ -31,6 +31,7 @@ import {
   type InterventionType,
   type InterventionStatus,
 } from "@/lib/interventions/types";
+import { InterventionEducationPanel } from "./InterventionEducationPanel";
 
 interface NewInterventionModalProps {
   open: boolean;
@@ -156,6 +157,9 @@ export function NewInterventionModal({
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
+          {/* Inline Education Helper */}
+          <InterventionEducationPanel variant="inline" />
+
           {/* Title */}
           <div className="grid gap-2">
             <Label htmlFor="title">
@@ -163,11 +167,14 @@ export function NewInterventionModal({
             </Label>
             <Input
               id="title"
-              placeholder="e.g., Hire additional front desk staff"
+              placeholder="e.g., Quarterly Referrer Appreciation Events"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={200}
             />
+            <p className="text-xs text-muted-foreground">
+              Tip: Name after the change you're testing, not the problem.
+            </p>
             {title.length > 0 && title.length < 4 && (
               <p className="text-xs text-destructive">Title must be at least 4 characters</p>
             )}
