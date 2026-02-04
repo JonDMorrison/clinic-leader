@@ -15,6 +15,7 @@ import { AddItemModal } from "@/components/meetings/AddItemModal";
 import { MeetingPrepChecklist } from "@/components/meetings/MeetingPrepChecklist";
 import { MeetingPrepInsights } from "@/components/meetings/MeetingPrepInsights";
 import { MeetingReviewSummary } from "@/components/meetings/MeetingReviewSummary";
+import { MeetingCommitmentsSection } from "@/components/meetings/MeetingCommitmentsSection";
 import { MeetingPrintView } from "@/components/meetings/MeetingPrintView";
 
 import { SectionNavigator } from "@/components/l10/SectionNavigator";
@@ -662,6 +663,16 @@ export default function MeetingDetail() {
             discussedCount={discussedCount}
             totalItems={totalItems}
             issues={meetingIssues || []}
+          />
+        </div>
+      )}
+
+      {/* Commitments Section - shows intervention signals and prompts */}
+      {organizationId && meetingId && (
+        <div className="print:hidden">
+          <MeetingCommitmentsSection
+            meetingId={meetingId}
+            organizationId={organizationId}
           />
         </div>
       )}
