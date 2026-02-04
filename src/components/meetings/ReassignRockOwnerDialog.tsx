@@ -102,12 +102,12 @@ export function ReassignRockOwnerDialog({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>New Owner</Label>
-            <Select value={newOwnerId} onValueChange={setNewOwnerId}>
+            <Select value={newOwnerId || "none"} onValueChange={(val) => setNewOwnerId(val === "none" ? "" : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select owner" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="none">Unassigned</SelectItem>
                 {(users || []).map((user) => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.full_name || "Unknown"}

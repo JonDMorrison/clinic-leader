@@ -238,12 +238,12 @@ export const AddKpiModal = ({ open, onClose, users, onSuccess }: AddKpiModalProp
 
               <div className="space-y-2">
                 <Label htmlFor="owner">Owner</Label>
-                <Select value={ownerId} onValueChange={setOwnerId}>
+                <Select value={ownerId || "none"} onValueChange={(val) => setOwnerId(val === "none" ? "" : val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select owner" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="none">Unassigned</SelectItem>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.full_name}
