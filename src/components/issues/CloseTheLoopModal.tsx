@@ -14,7 +14,7 @@ import { Zap, X, Clock, HelpCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CreateInterventionFromIssueModal } from "./CreateInterventionFromIssueModal";
-
+import { WhyAmISeeingThisDialog, WhyAmISeeingThisLink } from "@/components/shared/WhyAmISeeingThisDialog";
 type ResolutionType = 'intervention_created' | 'no_intervention_needed' | 'defer' | 'unknown';
 
 interface CloseTheLoopModalProps {
@@ -38,8 +38,8 @@ export const CloseTheLoopModal = ({
   const [resolutionNote, setResolutionNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showInterventionModal, setShowInterventionModal] = useState(false);
+  const [showWhyDialog, setShowWhyDialog] = useState(false);
   const { toast } = useToast();
-
   const handleResolve = async (resolutionType: ResolutionType) => {
     setIsSubmitting(true);
     try {
@@ -195,6 +195,9 @@ export const CloseTheLoopModal = ({
                 rows={2}
               />
             </div>
+
+            {/* Explainability link */}
+            <WhyAmISeeingThisLink onClick={() => setShowWhyDialog(true)} />
           </div>
 
           <DialogFooter className="flex-col gap-2 sm:flex-col">
@@ -241,6 +244,12 @@ export const CloseTheLoopModal = ({
           organization_id: issue.organization_id,
         }}
         onSuccess={handleInterventionCreated}
+      />
+
+      <WhyAmISeeingThisDialog
+        open={showWhyDialog}
+        onClose={() => setShowWhyDialog(false)}
+        context="issue-resolution"
       />
     </>
   );

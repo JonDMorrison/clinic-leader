@@ -23,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
+import { WhyAmISeeingThisDialog, WhyAmISeeingThisLink } from "@/components/shared/WhyAmISeeingThisDialog";
 interface InterventionWorkflowBannerProps {
   onDismiss?: () => void;
   dismissible?: boolean;
@@ -34,16 +34,17 @@ export function InterventionWorkflowBanner({
   dismissible = false,
 }: InterventionWorkflowBannerProps) {
   const [educationOpen, setEducationOpen] = useState(false);
+  const [whyDialogOpen, setWhyDialogOpen] = useState(false);
 
   return (
     <>
-      <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30 border-purple-200 dark:border-purple-800">
+      <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
         <CardContent className="py-4">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               {/* Header Text */}
               <div className="flex items-center gap-2 mb-2">
-                <Beaker className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <Beaker className="h-5 w-5 text-primary" />
                 <h3 className="font-semibold text-foreground">Track Your Team's Solutions</h3>
               </div>
               <p className="text-sm text-muted-foreground mb-3">
@@ -60,16 +61,19 @@ export function InterventionWorkflowBanner({
                 <WorkflowPill icon={CheckCircle2} label="Outcome Evaluated" color="green" />
               </div>
 
-              {/* Learn More Button */}
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setEducationOpen(true)}
-                className="gap-2"
-              >
-                <GraduationCap className="h-4 w-4" />
-                Learn How Interventions Work
-              </Button>
+              {/* Learn More Button + Why Link */}
+              <div className="flex items-center gap-4 flex-wrap">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setEducationOpen(true)}
+                  className="gap-2"
+                >
+                  <GraduationCap className="h-4 w-4" />
+                  Learn How Interventions Work
+                </Button>
+                <WhyAmISeeingThisLink onClick={() => setWhyDialogOpen(true)} />
+              </div>
             </div>
 
             {dismissible && onDismiss && (
@@ -98,6 +102,13 @@ export function InterventionWorkflowBanner({
           <InterventionEducationPanel variant="full" />
         </DialogContent>
       </Dialog>
+
+      {/* Why Am I Seeing This Dialog */}
+      <WhyAmISeeingThisDialog
+        open={whyDialogOpen}
+        onClose={() => setWhyDialogOpen(false)}
+        context="intervention-prompt"
+      />
     </>
   );
 }
