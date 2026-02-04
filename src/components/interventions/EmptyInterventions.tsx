@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Lightbulb, Plus } from "lucide-react";
+import { Beaker, Plus } from "lucide-react";
+import { InterventionEducationPanel } from "./InterventionEducationPanel";
 
 interface EmptyInterventionsProps {
   onCreateClick: () => void;
@@ -7,19 +8,28 @@ interface EmptyInterventionsProps {
 
 export function EmptyInterventions({ onCreateClick }: EmptyInterventionsProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-      <div className="rounded-full bg-primary/10 p-4 mb-4">
-        <Lightbulb className="h-8 w-8 text-primary" />
+    <div className="flex flex-col items-center justify-center py-12 px-4">
+      {/* Icon */}
+      <div className="rounded-full bg-purple-100 dark:bg-purple-950/50 p-4 mb-4">
+        <Beaker className="h-8 w-8 text-purple-600 dark:text-purple-400" />
       </div>
+      
+      {/* Title */}
       <h3 className="text-lg font-semibold mb-2">No interventions yet</h3>
-      <p className="text-muted-foreground max-w-md mb-6">
-        Interventions help you track strategic initiatives and measure their impact on your key metrics.
-        Create your first intervention to get started.
+      <p className="text-muted-foreground text-center max-w-md mb-6">
+        Start tracking the solutions your team implements to improve performance.
       </p>
-      <Button onClick={onCreateClick}>
+
+      {/* Create Button */}
+      <Button onClick={onCreateClick} className="mb-8">
         <Plus className="mr-2 h-4 w-4" />
-        Create Intervention
+        Create First Intervention
       </Button>
+
+      {/* Education Panel */}
+      <div className="w-full max-w-2xl">
+        <InterventionEducationPanel variant="full" />
+      </div>
     </div>
   );
 }

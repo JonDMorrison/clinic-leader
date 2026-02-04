@@ -31,6 +31,7 @@ import {
 } from "@/lib/interventions/types";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { logInterventionEventAsync } from "@/lib/interventions/eventLogger";
+import { InterventionEducationPanel } from "@/components/interventions/InterventionEducationPanel";
 
 interface Issue {
   id: string;
@@ -181,6 +182,9 @@ export function CreateInterventionFromIssueModal({
             <Badge variant="outline">{issue.title}</Badge>
           </div>
 
+          {/* Inline Education Helper */}
+          <InterventionEducationPanel variant="inline" />
+
           {/* Title */}
           <div className="grid gap-2">
             <Label htmlFor="title">
@@ -188,11 +192,14 @@ export function CreateInterventionFromIssueModal({
             </Label>
             <Input
               id="title"
-              placeholder="e.g., Hire additional front desk staff"
+              placeholder="e.g., Quarterly Referrer Appreciation Events"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={200}
             />
+            <p className="text-xs text-muted-foreground">
+              Tip: Name after the change you're testing, not the problem.
+            </p>
             {title.length > 0 && title.length < 4 && (
               <p className="text-xs text-destructive">Title must be at least 4 characters</p>
             )}

@@ -12,6 +12,7 @@ import { InterventionsTable, InterventionsTableSkeleton } from "@/components/int
 import { NewInterventionModal } from "@/components/interventions/NewInterventionModal";
 import { EmptyInterventions } from "@/components/interventions/EmptyInterventions";
 import { DiagnosticsPanel } from "@/components/interventions/DiagnosticsPanel";
+import { InterventionWorkflowBanner } from "@/components/interventions/InterventionWorkflowBanner";
 import { getInterventionProgress } from "@/lib/interventions/interventionStatus";
 import type { InterventionStatus, InterventionType, InterventionWithDetails } from "@/lib/interventions/types";
 
@@ -249,6 +250,11 @@ export default function Interventions() {
           New Intervention
         </Button>
       </div>
+
+      {/* Workflow Banner - shows when there are interventions */}
+      {!isEmptyWithNoFilters && (
+        <InterventionWorkflowBanner />
+      )}
 
       {/* Filters */}
       <InterventionFilters

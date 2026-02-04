@@ -12,7 +12,8 @@ import {
   TrendingUp,
   BarChart3,
   FileText,
-  Zap,
+  Beaker,
+  ArrowRight,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,19 +23,16 @@ import { format, parseISO } from "date-fns";
 import LegacyMonthlyReportView, { LegacyMonthPayload } from "@/components/data/LegacyMonthlyReportView";
 import YTDDataView from "@/components/data/YTDDataView";
 import ExecutiveSummaryCard from "@/components/data/ExecutiveSummaryCard";
-import { InterventionsTab } from "@/components/data/InterventionsTab";
 
 const YTD_TAB_VALUE = "ytd";
 
 type ViewTab = "summary" | "raw";
-type MainTab = "data" | "interventions";
 
 export default function DataDefaultHome() {
   const navigate = useNavigate();
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
   const [viewTab, setViewTab] = useState<ViewTab>("summary");
-  const [mainTab, setMainTab] = useState<MainTab>("data");
 
   // Fetch all available months for current org
   const { data: availableMonths, isLoading: monthsLoading } = useQuery({
@@ -227,7 +225,7 @@ export default function DataDefaultHome() {
   // Has reports - show dashboard with month tabs
   return (
     <div className="container mx-auto py-8 space-y-6">
-      {/* Header with Main Tab Toggle */}
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -239,44 +237,51 @@ export default function DataDefaultHome() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Data</h1>
-            <p className="text-sm text-muted-foreground">Monthly metrics & interventions</p>
+            <p className="text-sm text-muted-foreground">Monthly clinic metrics</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as MainTab)}>
-            <TabsList>
-              <TabsTrigger value="data" className="gap-1.5">
-                <BarChart3 className="w-3.5 h-3.5" />
-                Reports
-              </TabsTrigger>
-              <TabsTrigger value="interventions" className="gap-1.5">
-                <Zap className="w-3.5 h-3.5" />
-                Interventions
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          
-          {mainTab === "data" && (
-            <Button variant="outline" size="sm" onClick={() => navigate("/imports/monthly-report")}>
-              <Upload className="w-4 h-4 mr-2" />
-              Import
-            </Button>
-          )}
-        </div>
+        <Button variant="outline" size="sm" onClick={() => navigate("/imports/monthly-report")}>
+          <Upload className="w-4 h-4 mr-2" />
+          Import
+        </Button>
       </motion.div>
 
-      {/* Main Tab Content */}
-      {mainTab === "interventions" ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-        >
-          <InterventionsTab />
-        </motion.div>
-      ) : (
-        <>
+      {/* Intervention Context Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+      >
+        <Card className="bg-gradient-to-r from-purple-50/50 to-indigo-50/50 dark:from-purple-950/20 dark:to-indigo-950/20 border-purple-200/50 dark:border-purple-800/50">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/50">
+                  <Beaker className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm">Want to improve performance?</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Track your solutions using Interventions to measure what actually works.
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate("/interventions")}
+                className="gap-2 shrink-0"
+              >
+                View Interventions
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Month Tabs */}
 
       {/* Month Tabs */}
       <motion.div
@@ -410,8 +415,6 @@ export default function DataDefaultHome() {
           </Card>
         )}
       </motion.div>
-      </>
-      )}
     </div>
   );
 }

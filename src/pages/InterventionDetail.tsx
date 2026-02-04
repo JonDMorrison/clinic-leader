@@ -50,6 +50,7 @@ import { InterventionTimeline } from "@/components/interventions/InterventionTim
 import { LinkedIssueCard } from "@/components/interventions/LinkedIssueCard";
 import { CreateIssueFromFailureButton } from "@/components/interventions/CreateIssueFromFailureButton";
 import { InterventionIssueLink } from "@/components/interventions/InterventionIssueLink";
+import { OutcomeMindsetBanner } from "@/components/interventions/InterventionEducationPanel";
 import { getInterventionProgress, getProgressStatusStyle, type ProgressStatus } from "@/lib/interventions/interventionStatus";
 import {
   canEditIntervention,
@@ -433,6 +434,9 @@ export default function InterventionDetail() {
 
   return (
     <div className="space-y-6">
+      {/* Outcome Mindset Banner */}
+      <OutcomeMindsetBanner className="mb-2" />
+
       {/* Risk/Status Banner */}
       <InterventionRiskBanner progress={progress} />
 
