@@ -123,7 +123,8 @@ export const IDSBoard = ({ issues, onUpdate }: IDSBoardProps) => {
     <div className="space-y-8">
       {openIssues.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-4">Open Issues (Drag to Prioritize)</h3>
+          <h3 className="text-lg font-semibold mb-1">Open Issues</h3>
+          <p className="text-sm text-muted-foreground mb-4">Drag to reorder by priority</p>
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}

@@ -201,10 +201,11 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                       <Button
                         size="sm"
                         variant="outline"
+                        className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
                         onClick={() => setInterventionModalOpen(true)}
                       >
                         <Zap className="w-4 h-4 mr-1" />
-                        Intervention
+                        Create Intervention
                       </Button>
                       <Button
                         size="sm"

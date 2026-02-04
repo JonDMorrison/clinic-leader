@@ -8,6 +8,7 @@ import { IDSBoard } from "@/components/issues/IDSBoard";
 import { NewIssueModal } from "@/components/issues/NewIssueModal";
 import { IssueSuggestionsBanner } from "@/components/issues/IssueSuggestionsBanner";
 import { IDSFollowThroughCard } from "@/components/issues/IDSFollowThroughCard";
+import { IssuesWorkflowBanner } from "@/components/issues/IssuesWorkflowBanner";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
@@ -111,14 +112,17 @@ const Issues = () => {
       {/* IDS Follow-through Metric */}
       <IDSFollowThroughCard />
 
+      {/* Workflow Education Banner */}
+      <IssuesWorkflowBanner />
+
       {/* AI Issue Suggestions Banner */}
       <IssueSuggestionsBanner organizationId={orgId} onIssueCreated={refetch} />
 
       <Card>
         <CardHeader>
-          <CardTitle>IDS Board</CardTitle>
+          <CardTitle>Issues List</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Drag issues to reorder by priority. Higher priority issues appear first.
+            Use the IDS process to resolve issues, then create an Intervention to track your solution.
           </p>
         </CardHeader>
         <CardContent>

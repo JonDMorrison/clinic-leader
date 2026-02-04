@@ -138,11 +138,12 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
   },
   "IDS": {
     short: "Identify, Discuss, Solve method.",
-    definition: "IDS is the three-step process for solving Issues: Identify the root cause, Discuss possible solutions, and Solve by deciding on an action.",
+    definition: "IDS is the three-step process for solving Issues: Identify the root cause, Discuss possible solutions, and Solve by deciding on an action. After solving, create an Intervention to track whether your solution actually works.",
     why: [
       "Prevents circular discussions",
       "Gets to root causes",
-      "Creates clear next steps"
+      "Creates clear next steps",
+      "Leads to measurable Interventions"
     ],
     learnMore: { label: "View Issues", href: "/issues" }
   }
