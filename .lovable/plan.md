@@ -1,159 +1,115 @@
 
-# Dashboard Space Optimization Plan
+
+# Plan: Clarify the Issues → Interventions Workflow
 
 ## Problem Analysis
 
-Looking at the screenshot and codebase, the dashboard has a significant empty space between the hero header (greeting + core values + Quick Actions) and the stat cards at the bottom. This happens because:
+The current Issues page has several UX clarity problems:
 
-1. **Conditionally-hidden widgets leave gaps**: Several components like `ConnectDataCard`, `GettingStartedWidget`, `IssueSuggestionsWidget`, and `DemoBanner` only render when specific conditions are met. When these conditions are not met, the space is left empty.
+1. **"IDS Board" is confusing** - Users don't know what IDS means (Identify, Discuss, Solve) without context
+2. **Connection to Interventions is unclear** - Users don't understand that solving an issue should ideally lead to an Intervention
+3. **No visual workflow guidance** - There's no indication of what the "next step" is after identifying an issue
+4. **The "Close the Loop" modal is hidden** - Users only see the intervention prompt when they click "Mark Solved"
 
-2. **Missing key content cards**: The VTO Card, Monthly Pulse Widget, and other valuable widgets exist but are not included in the current layout.
+## Solution Overview
 
-3. **Poor layout density**: The 3-column grid (Recent Activity, Copilot Widget, Core Value of Week) is positioned after the stat cards, leaving the middle of the page sparse.
+Create a clear, educational UX that shows the Issues → Interventions workflow upfront, using a condensed workflow stepper (similar to the existing `InterventionEducationPanel`).
 
-## Solution Architecture
+---
 
-Reorganize the dashboard into a denser, two-section layout:
+## Technical Changes
+
+### 1. Rename "IDS Board" to "Issues List" with IDS subtitle
+
+**File:** `src/pages/Issues.tsx`
+
+- Change CardTitle from "IDS Board" to "Issues List"
+- Add a collapsible workflow hint banner above the card explaining the IDS → Intervention flow
+
+### 2. Create a new `IssuesWorkflowBanner` component
+
+**File:** `src/components/issues/IssuesWorkflowBanner.tsx` (new)
+
+A compact, collapsible education component that:
+- Shows a 3-step horizontal workflow: **Identify → Discuss → Solve → Create Intervention**
+- Highlights the "Intervention" step as the recommended next action
+- Is dismissible (stores dismissal in localStorage to avoid annoyance)
+- Explains in one sentence: "IDS stands for Identify, Discuss, Solve. When you solve an issue, create an Intervention to track your solution's impact."
 
 ```text
-+-------------------------------------------------------------------+
-| Hero Header (Greeting + Values + Quick Actions)                   |
-+-------------------------------------------------------------------+
-| [Demo Banner / Connect Data / Getting Started - conditional]      |
-+-------------------------------------------------------------------+
-| LEFT COLUMN (2/3)              | RIGHT COLUMN (1/3)               |
-| +----------------------------+ | +-----------------------------+  |
-| | Stat Cards (4 across)      | | | V/TO Strategic Progress     |  |
-| +----------------------------+ | |                             |  |
-| | Monthly Pulse Widget       | | +-----------------------------+  |
-| +----------------------------+ | | AI Copilot                  |  |
-| | Issue Suggestions          | | |                             |  |
-| +----------------------------+ | +-----------------------------+  |
-| | Recent Activity            | | | Core Value of the Week     |  |
-| +----------------------------+ | +-----------------------------+  |
-+-------------------------------------------------------------------+
-| Year in Progress Preview (full width banner)                      |
-+-------------------------------------------------------------------+
++-------------------------------------------------------+
+|  🔍 How Issues Work                          [Dismiss] |
+|                                                        |
+|  [Identify] → [Discuss] → [Solve] → [Intervention ✨]  |
+|                                                        |
+|  "When you solve an issue, create an Intervention to   |
+|   track whether your solution actually worked."        |
++-------------------------------------------------------+
 ```
 
-## Implementation Steps
+### 3. Update the IDSBoard component headers
 
-### 1. Add VTO Card to Dashboard
-Import and add the `VtoCard` component to the right sidebar. This provides strategic visibility that matches the premium feel of the app.
+**File:** `src/components/issues/IDSBoard.tsx`
 
-**File**: `src/pages/Home.tsx`
+- Change "Open Issues (Drag to Prioritize)" → "Open Issues"
+- Add a subtle instruction: "Drag to reorder by priority"
 
-### 2. Add Monthly Pulse Widget
-The `MonthlyPulseWidget` exists but is not used. Add it to provide scorecard health visibility for monthly metrics.
+### 4. Update the Issues page card header
 
-**File**: `src/pages/Home.tsx`
+**File:** `src/pages/Issues.tsx`
 
-### 3. Reorganize into Two-Column Layout
-Convert the current sequential layout into a responsive two-column grid:
-- Left column (2/3 width): Stat cards, Monthly Pulse, Issue Suggestions, Recent Activity
-- Right column (1/3 width): VTO Card, Copilot, Core Value of Week
+- Replace the current `CardTitle` and description with clearer copy
+- Integrate the `IssuesWorkflowBanner` between the header and the card
 
-This uses `lg:grid-cols-3` with the left content spanning 2 columns.
+### 5. Add "IDS" glossary entry enhancement
 
-**File**: `src/pages/Home.tsx`
+**File:** `src/lib/help/glossary.ts`
 
-### 4. Move Stat Cards into Main Grid
-Instead of placing stat cards in their own full-width row, integrate them within the left column of the main grid to maximize density.
+- Already exists, but update the `learnMore` to link to `/issues` 
+- Add reference to Interventions in the definition
 
-**File**: `src/pages/Home.tsx`
+### 6. Make the Intervention button more prominent on Issue cards
 
-### 5. Add Fallback Content for Empty States
-When conditional widgets (Issue Suggestions, Monthly Pulse) don't render, add fallback placeholder cards that:
-- Promote setting up the scorecard
-- Encourage data connection
-- Link to relevant documentation
+**File:** `src/components/issues/IssueCard.tsx`
 
-**New component**: `src/components/dashboard/DashboardPlaceholders.tsx`
+- Move the "Intervention" button to be more visible (currently same level as "Add Todo")
+- Add a subtle visual indicator (e.g., primary color outline) to guide users
 
-### 6. Adjust Vertical Spacing
-Reduce excessive `space-y-8` gaps to `space-y-6` for tighter visual rhythm while maintaining readability.
+---
 
-**File**: `src/pages/Home.tsx`
+## Component Structure
 
-## Technical Details
-
-### Updated Layout Structure (Home.tsx)
-
-```tsx
-// Main content grid
-<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-  {/* Left column - 2/3 width */}
-  <div className="lg:col-span-2 space-y-6">
-    {/* Stat cards in 2x2 grid on mobile, 4-across on desktop */}
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {[0, 1, 2, 3].map((slotIndex) => (
-        <CustomizableStatCard ... />
-      ))}
-    </div>
-    
-    {/* Monthly Pulse or Scorecard Setup Card */}
-    <MonthlyPulseWidget />
-    
-    {/* Issue Suggestions */}
-    <IssueSuggestionsWidget />
-    
-    {/* Recent Activity */}
-    <RecentActivityCard />
-  </div>
-  
-  {/* Right sidebar - 1/3 width */}
-  <div className="space-y-6">
-    <VtoCard />
-    <CopilotWidget />
-    <CoreValueOfWeekCard />
-  </div>
-</div>
+```text
+Issues Page
+├── Header (title + subtitle + HelpHint for "Issue")
+├── IDSFollowThroughCard (existing metric)
+├── IssuesWorkflowBanner (new - collapsible education)
+│   └── 4-step horizontal workflow with Intervention highlighted
+├── IssueSuggestionsBanner (existing AI suggestions)
+└── Card
+    ├── Header: "Issues List" (not "IDS Board")
+    ├── Subtitle: "Drag issues to reorder by priority"
+    └── IDSBoard (existing component)
 ```
 
-### New Fallback Component (DashboardPlaceholders.tsx)
+---
 
-Create a simple component that renders when no active widgets are shown:
+## Files to Create/Modify
 
-```tsx
-export const ScorecardSetupCard = () => (
-  <Card className="border-dashed">
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <BarChart3 className="w-5 h-5 text-brand" />
-        Set Up Your Scorecard
-      </CardTitle>
-    </CardHeader>
-    <CardContent>
-      <p className="text-sm text-muted-foreground mb-4">
-        Track weekly KPIs to keep your team aligned and on target.
-      </p>
-      <Button onClick={() => navigate('/scorecard')}>
-        Get Started
-      </Button>
-    </CardContent>
-  </Card>
-);
-```
-
-## Files Changed
-
-| File | Change |
+| File | Action |
 |------|--------|
-| `src/pages/Home.tsx` | Reorganize layout, add VtoCard and MonthlyPulseWidget |
-| `src/components/dashboard/DashboardPlaceholders.tsx` | New: fallback cards for empty states |
+| `src/components/issues/IssuesWorkflowBanner.tsx` | Create new education component |
+| `src/pages/Issues.tsx` | Rename card title, add workflow banner |
+| `src/components/issues/IDSBoard.tsx` | Simplify header copy |
+| `src/components/issues/IssueCard.tsx` | Make Intervention button more prominent |
+| `src/lib/help/glossary.ts` | Enhance IDS entry to mention Interventions |
 
-## Visual Impact
+---
 
-- Eliminates large empty space in the middle of the dashboard
-- VTO Card prominently displays strategic progress
-- Monthly Pulse shows scorecard health at a glance
-- Copilot remains accessible but in sidebar context
-- Layout adapts gracefully on mobile (stacks vertically)
-- Dashboard feels dense and information-rich like premium SaaS tools (Linear, Notion)
+## Design Notes
 
-## Mobile Behavior
+- **Minimal visual clutter**: The workflow banner should be compact and dismissible
+- **Consistent styling**: Use the same design tokens as `InterventionEducationPanel` (primary accents, rounded corners, subtle borders)
+- **Mobile responsive**: The 4-step workflow should stack vertically on mobile
+- **No new dependencies**: Use existing framer-motion for animations
 
-On mobile (`< lg` breakpoint):
-- Full layout stacks vertically
-- Order: Header, Conditional Banners, Stat Cards, VTO Card, Monthly Pulse, Issue Suggestions, Copilot, Recent Activity, Core Value, Year Preview
-- Quick Actions shown at bottom (existing behavior preserved)
