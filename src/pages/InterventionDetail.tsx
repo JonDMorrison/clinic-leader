@@ -51,6 +51,8 @@ import { LinkedIssueCard } from "@/components/interventions/LinkedIssueCard";
 import { CreateIssueFromFailureButton } from "@/components/interventions/CreateIssueFromFailureButton";
 import { InterventionIssueLink } from "@/components/interventions/InterventionIssueLink";
 import { OutcomeMindsetBanner } from "@/components/interventions/InterventionEducationPanel";
+import { ROICard } from "@/components/interventions/ROICard";
+import { ExecutiveSummary } from "@/components/interventions/ExecutiveSummary";
 import { getInterventionProgress, getProgressStatusStyle, type ProgressStatus } from "@/lib/interventions/interventionStatus";
 import {
   canEditIntervention,
@@ -609,34 +611,80 @@ export default function InterventionDetail() {
         </Card>
 
         {/* Metadata Sidebar */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Metadata</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Created by</p>
-              <p className="font-medium">{intervention.creator?.full_name || "Unknown"}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Created</p>
-              <p className="font-medium">
-                {format(new Date(intervention.created_at), "MMM d, yyyy 'at' h:mm a")}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Last Updated</p>
-              <p className="font-medium">
-                {format(new Date(intervention.updated_at), "MMM d, yyyy 'at' h:mm a")}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">ID</p>
-              <p className="font-mono text-xs break-all">{intervention.id}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Metadata</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Created by</p>
+                <p className="font-medium">{intervention.creator?.full_name || "Unknown"}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Created</p>
+                <p className="font-medium">
+                  {format(new Date(intervention.created_at), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Last Updated</p>
+                <p className="font-medium">
+                  {format(new Date(intervention.updated_at), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">ID</p>
+                <p className="font-mono text-xs break-all">{intervention.id}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ROI Card */}
+          <ROICard
+            intervention={{
+              id: intervention.id,
+              estimated_hours: (intervention as any).estimated_hours,
+              estimated_cost: (intervention as any).estimated_cost,
+              actual_hours: (intervention as any).actual_hours,
+              actual_cost: (intervention as any).actual_cost,
+              roi_notes: (intervention as any).roi_notes,
+            }}
+            canEdit={canEdit}
+            onUpdate={() => refetch()}
+          />
+        </div>
       </div>
+
+      {/* Executive Summary (CEO Screenshot-ready) */}
+      {(outcomes.length > 0 || (intervention as any).actual_hours != null || (intervention as any).actual_cost != null) && (
+        <ExecutiveSummary
+          intervention={{
+            title: intervention.title,
+            intervention_type: intervention.intervention_type,
+            status: intervention.status,
+            owner: intervention.owner,
+            start_date: intervention.start_date,
+            end_date: intervention.end_date,
+            actual_hours: (intervention as any).actual_hours,
+            actual_cost: (intervention as any).actual_cost,
+            ai_summary: intervention.ai_summary,
+          }}
+          outcomes={outcomes.map(o => ({
+            metric_id: o.metric_id,
+            metric: o.metric,
+            baseline_value: o.baseline_value,
+            current_value: o.current_value,
+            actual_delta_value: o.actual_delta_value,
+            actual_delta_percent: o.actual_delta_percent,
+          }))}
+          linkedMetrics={linkedMetrics.map(lm => ({
+            metric_id: lm.metric_id,
+            baseline_value: lm.baseline_value,
+            metric: lm.metric,
+          }))}
+        />
+      )}
 
       {/* Section 3: Linked Metrics */}
       <Card>

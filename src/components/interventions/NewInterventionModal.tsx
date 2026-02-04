@@ -61,6 +61,8 @@ export function NewInterventionModal({
   const [startDate, setStartDate] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [estimatedHours, setEstimatedHours] = useState("");
+  const [estimatedCost, setEstimatedCost] = useState("");
 
   const resetForm = () => {
     setTitle("");
@@ -73,6 +75,8 @@ export function NewInterventionModal({
     setStartDate("");
     setTagInput("");
     setTags([]);
+    setEstimatedHours("");
+    setEstimatedCost("");
   };
 
   const handleClose = () => {
@@ -105,6 +109,12 @@ export function NewInterventionModal({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      const parseNumber = (value: string): number | null => {
+        if (!value.trim()) return null;
+        const num = parseFloat(value);
+        return isNaN(num) ? null : num;
+      };
+
       const { data, error } = await supabase
         .from("interventions")
         .insert({
@@ -119,6 +129,8 @@ export function NewInterventionModal({
           start_date: startDate || null,
           tags,
           created_by: user.id,
+          estimated_hours: parseNumber(estimatedHours),
+          estimated_cost: parseNumber(estimatedCost),
         })
         .select("id")
         .single();
@@ -290,6 +302,37 @@ export function NewInterventionModal({
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
             />
+          </div>
+
+          {/* ROI Estimates (optional) */}
+          <div className="grid gap-2 pt-2 border-t">
+            <Label className="text-muted-foreground">ROI Estimates (optional)</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1">
+                <Label htmlFor="estimatedHours" className="text-xs">Estimated Hours</Label>
+                <Input
+                  id="estimatedHours"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  placeholder="e.g., 40"
+                  value={estimatedHours}
+                  onChange={(e) => setEstimatedHours(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label htmlFor="estimatedCost" className="text-xs">Estimated Cost ($)</Label>
+                <Input
+                  id="estimatedCost"
+                  type="number"
+                  min="0"
+                  step="100"
+                  placeholder="e.g., 5000"
+                  value={estimatedCost}
+                  onChange={(e) => setEstimatedCost(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
 
           {/* Tags */}
