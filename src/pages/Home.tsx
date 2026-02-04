@@ -116,9 +116,10 @@ const Home = () => {
   }, []);
 
   // Fetch current user first to get team_id
-  const { data: currentUser, isLoading: userLoading } = useCurrentUser();
+  // Use isPending (not isLoading) to only show spinner on initial load, not background refetches
+  const { data: currentUser, isPending: userPending, isFetched: userFetched } = useCurrentUser();
 
-  const { data: metrics, isLoading: metricsLoading } = useQuery({
+  const { data: metrics, isPending: metricsPending } = useQuery({
     queryKey: ["dashboard-metrics", currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return [];
@@ -133,9 +134,10 @@ const Home = () => {
       return data;
     },
     enabled: !!currentUser?.team_id,
+    staleTime: 2 * 60 * 1000, // 2 minutes - reduce refetches
   });
 
-  const { data: rocks, isLoading: rocksLoading } = useQuery({
+  const { data: rocks, isPending: rocksPending } = useQuery({
     queryKey: ["rocks-count", currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return [];
@@ -158,9 +160,10 @@ const Home = () => {
       return data;
     },
     enabled: !!currentUser?.team_id,
+    staleTime: 2 * 60 * 1000,
   });
 
-  const { data: issues, isLoading: issuesLoading } = useQuery({
+  const { data: issues, isPending: issuesPending } = useQuery({
     queryKey: ["issues-count", currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return [];
@@ -174,6 +177,7 @@ const Home = () => {
       return data;
     },
     enabled: !!currentUser?.team_id,
+    staleTime: 2 * 60 * 1000,
   });
 
   const completedRocks = rocks?.filter(r => r.status === "done").length || 0;
@@ -276,13 +280,14 @@ const Home = () => {
     return allStatOptions.find(s => s.id === statId) || allStatOptions[0];
   };
 
-  const isLoading = userLoading || metricsLoading || rocksLoading || issuesLoading;
+  // Only show full-page loading on initial load (isPending), not on background refetches
+  const isInitialLoading = userPending || (userFetched && currentUser?.team_id && (metricsPending || rocksPending || issuesPending));
 
   // DEV-only layout diagnostics: helps identify unexpected reserved space.
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     if (!mounted) return;
-    if (isLoading) return;
+    if (isInitialLoading) return;
 
     const log = () => {
       const heroEl = heroRef.current;
@@ -321,9 +326,9 @@ const Home = () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", log);
     };
-  }, [mounted, isLoading]);
+  }, [mounted, isInitialLoading]);
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
