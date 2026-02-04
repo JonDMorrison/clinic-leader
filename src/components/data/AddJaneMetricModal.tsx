@@ -260,12 +260,12 @@ export function AddJaneMetricModal({
 
               <div className="space-y-2">
                 <Label htmlFor="owner">Owner (optional)</Label>
-                <Select value={ownerId} onValueChange={setOwnerId}>
+                <Select value={ownerId || "none"} onValueChange={(val) => setOwnerId(val === "none" ? "" : val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select owner" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No owner</SelectItem>
+                    <SelectItem value="none">No owner</SelectItem>
                     {teamMembers?.map((member) => (
                       <SelectItem key={member.id} value={member.id}>
                         {member.full_name || member.email}

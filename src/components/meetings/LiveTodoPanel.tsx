@@ -176,12 +176,12 @@ export const LiveTodoPanel = ({ organizationId, meetingId, disabled, onTodosChan
             />
             {newTitle.trim() && (
               <div className="flex gap-2 items-center">
-                <Select value={newOwnerId} onValueChange={setNewOwnerId}>
+                <Select value={newOwnerId || "none"} onValueChange={(val) => setNewOwnerId(val === "none" ? "" : val)}>
                   <SelectTrigger className="h-8 flex-1 text-xs">
                     <SelectValue placeholder="Owner (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="none">Unassigned</SelectItem>
                     {(users || []).map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.full_name}
