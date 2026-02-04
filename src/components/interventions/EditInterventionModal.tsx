@@ -223,12 +223,12 @@ export function EditInterventionModal({
           {/* Owner */}
           <div className="grid gap-2">
             <Label>Owner</Label>
-            <Select value={ownerUserId} onValueChange={setOwnerUserId}>
+            <Select value={ownerUserId || "none"} onValueChange={(val) => setOwnerUserId(val === "none" ? "" : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select owner (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No owner</SelectItem>
+                <SelectItem value="none">No owner</SelectItem>
                 {users.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.full_name}
