@@ -1,6 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { KpiSparkline } from "@/components/ui/KpiSparkline";
-import { TrendingUp, Users, Target, AlertCircle, DollarSign, Calendar, Clock, UserCheck, Activity, Percent } from "lucide-react";
+import { TrendingUp, Users, Target, AlertCircle, DollarSign, Calendar, Percent } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -9,11 +7,10 @@ import { CopilotWidget } from "@/components/dashboard/CopilotWidget";
 import { DashboardHeroHeader } from "@/components/dashboard/DashboardHeroHeader";
 
 import { motion, useScroll, useTransform } from "framer-motion";
-import { cn } from "@/lib/utils";
 import { useRef, useEffect, useState, useMemo } from "react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { GettingStartedWidget } from "@/components/dashboard/GettingStartedWidget";
-import { CoreValuesStrip, CoreValueOfWeekCard } from "@/components/core-values";
+import { CoreValueOfWeekCard } from "@/components/core-values";
 
 import { ConnectDataCard } from "@/components/dashboard/ConnectDataCard";
 import { IssueSuggestionsWidget } from "@/components/dashboard/IssueSuggestionsWidget";
@@ -21,6 +18,9 @@ import { ProgressPreviewCard } from "@/components/progress/ProgressPreviewCard";
 import { DemoBanner } from "@/components/dashboard/DemoBanner";
 import { CustomizableStatCard, StatOption } from "@/components/dashboard/CustomizableStatCard";
 import { useDashboardPreferences } from "@/hooks/useDashboardPreferences";
+import { VtoCard } from "@/components/dashboard/VtoCard";
+import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
+import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 
 const INSPIRATIONAL_MESSAGES = [
   "Lead your clinic. Not just manage it.",
@@ -172,25 +172,6 @@ const Home = () => {
     enabled: !!currentUser?.team_id,
   });
 
-  type CoreValue = { id: string; name: string; description: string | null };
-  
-  const { data: coreValues } = useQuery<CoreValue[]>({
-    queryKey: ["core-values", currentUser?.team_id],
-    queryFn: async (): Promise<CoreValue[]> => {
-      if (!currentUser?.team_id) return [];
-
-      const response: any = await (supabase as any)
-        .from("core_values")
-        .select("id, name, description")
-        .eq("organization_id", currentUser.team_id)
-        .order("name");
-      
-      if (response.error) throw response.error;
-      return response.data || [];
-    },
-    enabled: !!currentUser?.team_id,
-  });
-
   const completedRocks = rocks?.filter(r => r.status === "done").length || 0;
   const totalRocks = rocks?.length || 0;
   const openIssues = issues?.filter(i => i.status === "open").length || 0;
@@ -315,7 +296,7 @@ const Home = () => {
   }
 
   return (
-    <div ref={ref} className="space-y-6 md:space-y-8 animate-fade-in relative px-4 md:px-0">
+    <div ref={ref} className="space-y-6 animate-fade-in relative px-4 md:px-0">
       {/* Background ambient effects */}
       <motion.div
         className="absolute top-0 left-1/4 w-96 h-96 bg-brand/5 rounded-full blur-3xl -z-10"
@@ -342,6 +323,7 @@ const Home = () => {
           delay: 2,
         }}
       />
+      
       {/* Unified Hero Header with QuickActions on desktop */}
       <DashboardHeroHeader 
         userName={currentUser?.full_name?.includes(' ') ? currentUser.full_name.split(' ')[0] : 'there'}
@@ -357,121 +339,60 @@ const Home = () => {
       {/* Getting Started Widget */}
       <GettingStartedWidget />
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2, duration: 0.6 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-      >
-        {[0, 1, 2, 3].map((slotIndex) => (
-          <CustomizableStatCard
-            key={slotIndex}
-            currentStat={getStatForSlot(slotIndex)}
-            availableStats={allStatOptions}
-            onSwap={(statId) => updateStatSlot(slotIndex, statId)}
-          />
-        ))}
-      </motion.div>
-
-      {/* Issue Suggestions Widget */}
-      <IssueSuggestionsWidget />
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4, duration: 0.6 }}
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-      >
-        <Card className="relative overflow-hidden h-fit">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative space-y-6">
-              {/* Animated timeline connector */}
-              <motion.div 
-                className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-brand via-accent to-transparent"
-                initial={{ scaleY: 0 }}
-                animate={{ scaleY: 1 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                style={{ transformOrigin: "top" }}
+      {/* Main Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - 2/3 width */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Stat Cards */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-4"
+          >
+            {[0, 1, 2, 3].map((slotIndex) => (
+              <CustomizableStatCard
+                key={slotIndex}
+                currentStat={getStatForSlot(slotIndex)}
+                availableStats={allStatOptions}
+                onSwap={(statId) => updateStatSlot(slotIndex, statId)}
               />
-              
-              {[
-                { 
-                  type: "success", 
-                  label: "System active", 
-                  desc: `Tracking ${metrics?.length || 0} KPIs across the team`,
-                  time: "Just now",
-                  icon: "✓"
-                },
-                openIssues > 0 && { 
-                  type: "warning", 
-                  label: `${openIssues} open issues`, 
-                  desc: "Requires team attention",
-                  time: "2 hours ago",
-                  icon: "⚠"
-                },
-                { 
-                  type: "brand", 
-                  label: "Rocks in progress", 
-                  desc: `${totalRocks - completedRocks} rocks on track for this quarter`,
-                  time: "5 hours ago",
-                  icon: "🎯"
-                },
-              ].filter(Boolean).map((item, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.6 + index * 0.15, duration: 0.5 }}
-                  className="relative flex items-start gap-4 group"
-                >
-                  {/* Timeline node with gradient background */}
-                  <motion.div
-                    className={cn(
-                      "relative z-10 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-lg",
-                      item.type === "success" && "bg-gradient-to-br from-success to-success/70 text-white",
-                      item.type === "warning" && "bg-gradient-to-br from-warning to-warning/70 text-white",
-                      item.type === "brand" && "bg-gradient-to-br from-brand to-accent text-white"
-                    )}
-                    animate={{ 
-                      scale: [1, 1.1, 1],
-                      boxShadow: [
-                        "0 0 0 0 rgba(var(--brand-rgb), 0)",
-                        "0 0 0 8px rgba(var(--brand-rgb), 0.1)",
-                        "0 0 0 0 rgba(var(--brand-rgb), 0)"
-                      ]
-                    }}
-                    transition={{ duration: 2, repeat: Infinity, delay: index * 0.4 }}
-                  >
-                    {item.icon}
-                  </motion.div>
-                  
-                  {/* Content with hover effect */}
-                  <div className="flex-1 min-w-0 pb-2">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="text-sm font-medium text-foreground group-hover:text-brand transition-colors">
-                        {item.label}
-                      </p>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {item.time}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {item.desc}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <CopilotWidget />
+            ))}
+          </motion.div>
 
-        <CoreValueOfWeekCard />
-      </motion.div>
+          {/* Monthly Pulse Widget */}
+          <MonthlyPulseWidget />
+
+          {/* Issue Suggestions Widget */}
+          <IssueSuggestionsWidget />
+
+          {/* Recent Activity */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+          >
+            <RecentActivityCard
+              metricsCount={metrics?.length || 0}
+              openIssues={openIssues}
+              totalRocks={totalRocks}
+              completedRocks={completedRocks}
+            />
+          </motion.div>
+        </div>
+
+        {/* Right Sidebar - 1/3 width */}
+        <div className="space-y-6">
+          {/* VTO Strategic Progress Card */}
+          <VtoCard />
+
+          {/* AI Copilot */}
+          <CopilotWidget />
+
+          {/* Core Value of the Week */}
+          <CoreValueOfWeekCard />
+        </div>
+      </div>
 
       {/* QuickActions on mobile - hidden on desktop since it's in the hero header */}
       <div className="lg:hidden">
