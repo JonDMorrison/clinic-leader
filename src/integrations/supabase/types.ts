@@ -3423,6 +3423,74 @@ export type Database = {
           },
         ]
       }
+      meeting_commitments: {
+        Row: {
+          assigned_to: string | null
+          commitment_type: string
+          created_at: string
+          created_by: string
+          due_date: string | null
+          id: string
+          label: string
+          linked_intervention_id: string | null
+          meeting_id: string
+          organization_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          commitment_type: string
+          created_at?: string
+          created_by: string
+          due_date?: string | null
+          id?: string
+          label: string
+          linked_intervention_id?: string | null
+          meeting_id: string
+          organization_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          commitment_type?: string
+          created_at?: string
+          created_by?: string
+          due_date?: string | null
+          id?: string
+          label?: string
+          linked_intervention_id?: string | null
+          meeting_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_commitments_linked_intervention_id_fkey"
+            columns: ["linked_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_commitments_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_commitments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_commitments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_items: {
         Row: {
           created_at: string
