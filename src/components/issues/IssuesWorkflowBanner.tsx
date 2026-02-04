@@ -65,28 +65,28 @@ export function IssuesWorkflowBanner({ className }: IssuesWorkflowBannerProps) {
                     icon={Search} 
                     label="Identify" 
                     description="Find the root cause"
-                    color="blue"
+                    variant="muted"
                   />
                   <ArrowRight className="h-3 w-3 text-muted-foreground hidden sm:block" />
                   <WorkflowStep 
                     icon={MessageSquare} 
                     label="Discuss" 
                     description="Explore solutions"
-                    color="amber"
+                    variant="muted"
                   />
                   <ArrowRight className="h-3 w-3 text-muted-foreground hidden sm:block" />
                   <WorkflowStep 
                     icon={CheckCircle2} 
                     label="Solve" 
                     description="Decide on action"
-                    color="green"
+                    variant="muted"
                   />
                   <ArrowRight className="h-3 w-3 text-muted-foreground hidden sm:block" />
                   <WorkflowStep 
                     icon={Zap} 
                     label="Intervention" 
                     description="Track the outcome"
-                    color="purple"
+                    variant="primary"
                     highlighted
                   />
                 </div>
@@ -113,24 +113,22 @@ interface WorkflowStepProps {
   icon: React.ElementType;
   label: string;
   description: string;
-  color: "blue" | "amber" | "green" | "purple";
+  variant: "muted" | "primary";
   highlighted?: boolean;
 }
 
-function WorkflowStep({ icon: Icon, label, description, color, highlighted }: WorkflowStepProps) {
-  const colorClasses = {
-    blue: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
-    amber: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
-    green: "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300",
-    purple: "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300",
+function WorkflowStep({ icon: Icon, label, description, variant, highlighted }: WorkflowStepProps) {
+  const variantClasses = {
+    muted: "bg-muted text-muted-foreground",
+    primary: "bg-primary/10 text-primary",
   };
 
   return (
     <div 
       className={`
         flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium
-        ${colorClasses[color]}
-        ${highlighted ? "ring-2 ring-purple-400 ring-offset-1 ring-offset-background" : ""}
+        ${variantClasses[variant]}
+        ${highlighted ? "ring-2 ring-primary/50 ring-offset-1 ring-offset-background" : ""}
       `}
       title={description}
     >
