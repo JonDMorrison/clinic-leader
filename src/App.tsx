@@ -81,6 +81,7 @@ import EMRBenchmark from "./pages/EMRBenchmark";
 import BenchmarkAdmin from "./pages/admin/BenchmarkAdmin";
 import JaneVsNonJaneComparison from "./pages/admin/JaneVsNonJaneComparison";
 import MetricsGovernance from "./pages/admin/MetricsGovernance";
+import ExecutionDashboard from "./pages/ExecutionDashboard";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -144,6 +145,7 @@ const App = () => {
             
             <Route path="/progress" element={<AppLayout><Progress /></AppLayout>} />
             <Route path="/analytics/emr-benchmark" element={<AppLayout><EMRBenchmark /></AppLayout>} />
+            <Route path="/analytics/execution" element={<AppLayout><ExecutionDashboard /></AppLayout>} />
             <Route path="/interventions" element={<AppLayout><Interventions /></AppLayout>} />
             <Route path="/interventions/:id" element={<AppLayout><InterventionDetail /></AppLayout>} />
             <Route path="/data" element={<AppLayout><DataHomeRouter /></AppLayout>} />
