@@ -2710,12 +2710,16 @@ export type Database = {
       }
       interventions: {
         Row: {
+          actual_cost: number | null
+          actual_hours: number | null
           ai_summary: string | null
           confidence_level: number
           created_at: string
           created_by: string
           description: string | null
           end_date: string | null
+          estimated_cost: number | null
+          estimated_hours: number | null
           expected_time_horizon_days: number
           id: string
           intervention_type: Database["public"]["Enums"]["intervention_type"]
@@ -2723,6 +2727,7 @@ export type Database = {
           origin_id: string | null
           origin_type: Database["public"]["Enums"]["intervention_origin_type"]
           owner_user_id: string | null
+          roi_notes: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["intervention_status"]
           tags: string[]
@@ -2730,12 +2735,16 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          actual_cost?: number | null
+          actual_hours?: number | null
           ai_summary?: string | null
           confidence_level?: number
           created_at?: string
           created_by: string
           description?: string | null
           end_date?: string | null
+          estimated_cost?: number | null
+          estimated_hours?: number | null
           expected_time_horizon_days?: number
           id?: string
           intervention_type?: Database["public"]["Enums"]["intervention_type"]
@@ -2743,6 +2752,7 @@ export type Database = {
           origin_id?: string | null
           origin_type?: Database["public"]["Enums"]["intervention_origin_type"]
           owner_user_id?: string | null
+          roi_notes?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           tags?: string[]
@@ -2750,12 +2760,16 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          actual_cost?: number | null
+          actual_hours?: number | null
           ai_summary?: string | null
           confidence_level?: number
           created_at?: string
           created_by?: string
           description?: string | null
           end_date?: string | null
+          estimated_cost?: number | null
+          estimated_hours?: number | null
           expected_time_horizon_days?: number
           id?: string
           intervention_type?: Database["public"]["Enums"]["intervention_type"]
@@ -2763,6 +2777,7 @@ export type Database = {
           origin_id?: string | null
           origin_type?: Database["public"]["Enums"]["intervention_origin_type"]
           owner_user_id?: string | null
+          roi_notes?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           tags?: string[]
