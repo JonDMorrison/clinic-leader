@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Phone, Compass, LucideIcon, ChevronDown, Settings, Database, FileSpreadsheet, Beaker, Zap } from "lucide-react";
+import { Home, BarChart3, Target, AlertCircle, Calendar, FileText, Users, Phone, Compass, LucideIcon, ChevronDown, Settings, Database, FileSpreadsheet, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { useQuery } from "@tanstack/react-query";
@@ -45,7 +45,7 @@ const navGroups: NavGroup[] = [
       { title: "V/TO", path: "/vto", icon: Compass, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Scorecard", path: "/scorecard", icon: BarChart3, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Issues", path: "/issues", icon: AlertCircle, roles: ["staff", "manager", "director", "owner"] },
-      { title: "Interventions", path: "/interventions", icon: Beaker, roles: ["manager", "director", "owner"], eosOnly: true },
+      { title: "Interventions", path: "/interventions", icon: Zap, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Rocks", path: "/rocks", icon: Target, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "People", path: "/people", icon: Users, roles: ["manager", "director", "owner"], eosOnly: true },
     ],

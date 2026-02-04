@@ -18,7 +18,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  Beaker,
+  Zap,
   CheckCircle2,
   XCircle,
   AlertTriangle,
@@ -107,7 +107,7 @@ export function InterventionTestHarness() {
           <CardHeader className="cursor-pointer hover:bg-yellow-100/50 dark:hover:bg-yellow-900/20 transition-colors">
             <CardTitle className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <Beaker className="h-4 w-4 text-yellow-600" />
+                <Zap className="h-4 w-4 text-yellow-600" />
                 <span className="text-yellow-700 dark:text-yellow-400">
                   Intervention Test Harness (Dev Only)
                 </span>

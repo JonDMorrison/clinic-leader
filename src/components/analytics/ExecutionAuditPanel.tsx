@@ -20,7 +20,7 @@ import {
   ChevronRight, 
   Clock, 
   FileText, 
-  Beaker, 
+  Zap, 
   Users,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -82,7 +82,7 @@ function AuditTabs({ organizationId }: { organizationId: string }) {
           Commitments
         </TabsTrigger>
         <TabsTrigger value="issue-interventions" className="text-xs">
-          <Beaker className="w-3 h-3 mr-1" />
+          <Zap className="w-3 h-3 mr-1" />
           From Issues
         </TabsTrigger>
       </TabsList>
@@ -219,7 +219,7 @@ function IssueInterventionsTab({ organizationId }: { organizationId: string }) {
       )}
       {interventions?.map((intervention) => (
         <div key={intervention.id} className="flex items-start gap-2 p-2 rounded bg-muted/50 text-xs">
-          <Beaker className="w-3 h-3 shrink-0 mt-0.5 text-muted-foreground" />
+          <Zap className="w-3 h-3 shrink-0 mt-0.5 text-muted-foreground" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className="text-[10px]">

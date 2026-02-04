@@ -9,7 +9,7 @@ import {
   Search, 
   MessageSquare, 
   CheckCircle2, 
-  Beaker,
+  Zap,
   ArrowRight,
   X,
   Lightbulb,
@@ -83,7 +83,7 @@ export function IssuesWorkflowBanner({ className }: IssuesWorkflowBannerProps) {
                   />
                   <ArrowRight className="h-3 w-3 text-muted-foreground hidden sm:block" />
                   <WorkflowStep 
-                    icon={Beaker} 
+                    icon={Zap} 
                     label="Intervention" 
                     description="Track the outcome"
                     color="purple"

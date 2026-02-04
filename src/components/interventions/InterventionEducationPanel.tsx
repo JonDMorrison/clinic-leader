@@ -15,7 +15,6 @@ import {
 import { 
   BarChart3,
   AlertCircle,
-  Beaker,
   CheckCircle2,
   Brain,
   ChevronDown,
@@ -82,7 +81,7 @@ export function InterventionEducationPanel({
         >
           <span className="text-sm font-medium flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Beaker className="h-3.5 w-3.5 text-primary" />
+              <Zap className="h-3.5 w-3.5 text-primary" />
             </div>
             Learn How Interventions Work
           </span>
@@ -138,7 +137,7 @@ function EducationContent({ showExample = true, compact = false }: EducationCont
       >
         <div className="flex items-center gap-3 mb-1">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Beaker className="h-5 w-5 text-primary" />
+            <Zap className="h-5 w-5 text-primary" />
           </div>
           <h2 className={cn(
             "font-semibold text-foreground",
@@ -290,7 +289,7 @@ const workflowSteps = [
   { 
     id: "interventions", 
     label: "Interventions", 
-    icon: Beaker, 
+    icon: Zap, 
     color: "bg-primary/15 text-primary",
     borderColor: "border-primary/40",
     tooltip: "Create intentional experiments to solve issues",

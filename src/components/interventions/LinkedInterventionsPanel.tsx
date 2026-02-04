@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
-import { ArrowRight, Beaker, Calendar } from "lucide-react";
+import { ArrowRight, Zap, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { getProgressStatusStyle, getInterventionProgress } from "@/lib/interventions/interventionStatus";
 import type { InterventionStatus } from "@/lib/interventions/types";
@@ -86,7 +86,7 @@ export function LinkedInterventionsPanel({ metricId }: LinkedInterventionsPanelP
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Beaker className="h-4 w-4" />
+            <Zap className="h-4 w-4" />
             Linked Interventions
           </CardTitle>
         </CardHeader>
@@ -105,7 +105,7 @@ export function LinkedInterventionsPanel({ metricId }: LinkedInterventionsPanelP
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Beaker className="h-4 w-4" />
+            <Zap className="h-4 w-4" />
             Linked Interventions
           </CardTitle>
         </CardHeader>
@@ -122,7 +122,7 @@ export function LinkedInterventionsPanel({ metricId }: LinkedInterventionsPanelP
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
-          <Beaker className="h-4 w-4" />
+          <Zap className="h-4 w-4" />
           Linked Interventions ({interventions.length})
         </CardTitle>
       </CardHeader>
