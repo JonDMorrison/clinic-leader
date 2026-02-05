@@ -44,6 +44,7 @@ import { DeleteInterventionDialog } from "@/components/interventions/DeleteInter
 import { LinkMetricModal } from "@/components/interventions/LinkMetricModal";
 import { LinkedMetricRow } from "@/components/interventions/LinkedMetricRow";
 import { OutcomeRow } from "@/components/interventions/OutcomeRow";
+import { BaselineWarningBanner } from "@/components/interventions/BaselineWarningBanner";
 
 import { InterventionRiskBanner } from "@/components/interventions/InterventionRiskBanner";
 import { InterventionTimeline } from "@/components/interventions/InterventionTimeline";
@@ -77,6 +78,8 @@ type LinkedMetric = {
   baseline_value: number | null;
   baseline_period_start: string | null;
   baseline_period_type: string;
+  baseline_quality_flag: "good" | "iffy" | "bad" | null;
+  baseline_override_justification: string | null;
   created_at: string;
   metric: { id: string; name: string } | null;
 };
@@ -715,6 +718,26 @@ export default function InterventionDetail() {
             </div>
           ) : (
             <div className="space-y-2">
+              {/* Baseline quality warnings */}
+              {linkedMetrics
+                .filter((l) => l.baseline_quality_flag && l.baseline_quality_flag !== "good")
+                .map((link) => (
+                  <BaselineWarningBanner
+                    key={`warning-${link.id}`}
+                    linkId={link.id}
+                    interventionId={intervention.id}
+                    metricName={link.metric?.name || "Unknown metric"}
+                    flag={link.baseline_quality_flag!}
+                    reasons={
+                      link.baseline_quality_flag === "bad"
+                        ? ["Baseline was captured after intervention was created"]
+                        : ["Manual data source with limited historical data"]
+                    }
+                    existingJustification={link.baseline_override_justification}
+                    canOverride={canEdit}
+                  />
+                ))}
+
               {linkedMetrics.map((link) => (
                 <LinkedMetricRow
                   key={link.id}
@@ -725,6 +748,7 @@ export default function InterventionDetail() {
                   expectedMagnitudePercent={link.expected_magnitude_percent}
                   baselineValue={link.baseline_value}
                   baselinePeriodStart={link.baseline_period_start}
+                  baselineQualityFlag={link.baseline_quality_flag}
                   canEdit={canEdit}
                 />
               ))}

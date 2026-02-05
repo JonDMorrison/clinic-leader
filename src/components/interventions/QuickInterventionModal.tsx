@@ -47,6 +47,7 @@ import {
   type InterventionOriginType,
 } from "@/lib/interventions/types";
 import { logInterventionEventAsync } from "@/lib/interventions/eventLogger";
+import { validateBaseline, type BaselineQualityFlag } from "@/lib/interventions/baselineValidation";
 import { format } from "date-fns";
 
 // Origin context passed when opening modal
@@ -74,6 +75,9 @@ interface MetricOption {
   name: string;
   latestValue: number | null;
   latestPeriod: string | null;
+  latestSource: string | null;
+  definitionVersion: number | null;
+  historicalCount: number;
 }
 
 interface IssueOption {
@@ -107,9 +111,18 @@ export function QuickInterventionModal({
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Derived baseline from selected metric
-  const [baseline, setBaseline] = useState<{ value: number | null; period: string | null }>({
+  const [baseline, setBaseline] = useState<{
+    value: number | null;
+    period: string | null;
+    source: string | null;
+    definitionVersion: number | null;
+    historicalCount: number;
+  }>({
     value: null,
     period: null,
+    source: null,
+    definitionVersion: null,
+    historicalCount: 0,
   });
 
   // Fetch org metrics with latest value
@@ -121,7 +134,8 @@ export function QuickInterventionModal({
         .select(`
           id, 
           name,
-          metric_results(value, week_start)
+          version,
+          metric_results(value, week_start, source)
         `)
         .eq("organization_id", organizationId)
         .order("name");
@@ -140,6 +154,9 @@ export function QuickInterventionModal({
           name: m.name,
           latestValue: latest?.value ?? null,
           latestPeriod: latest?.week_start ?? null,
+          latestSource: latest?.source ?? null,
+          definitionVersion: m.version ?? null,
+          historicalCount: sortedResults.length,
         };
       });
     },
@@ -215,10 +232,13 @@ export function QuickInterventionModal({
         setBaseline({
           value: metric.latestValue,
           period: metric.latestPeriod,
+          source: metric.latestSource,
+          definitionVersion: metric.definitionVersion,
+          historicalCount: metric.historicalCount,
         });
       }
     } else {
-      setBaseline({ value: null, period: null });
+      setBaseline({ value: null, period: null, source: null, definitionVersion: null, historicalCount: 0 });
     }
   }, [selectedMetricId, metrics]);
 
@@ -263,6 +283,14 @@ export function QuickInterventionModal({
 
       if (intError) throw intError;
 
+      // Compute baseline quality
+      const baselineValidation = validateBaseline({
+        source: baseline.source,
+        historicalPointCount: baseline.historicalCount,
+        baselineCapturedAt: new Date(),
+        interventionCreatedAt: new Date(), // Same moment, so this will be "good" for timing
+      });
+
       // Create metric link with baseline (required)
       const { error: linkError } = await supabase
         .from("intervention_metric_links")
@@ -274,6 +302,11 @@ export function QuickInterventionModal({
           baseline_value: baseline.value,
           baseline_period_start: baseline.period,
           baseline_period_type: "week",
+          baseline_definition_version: baseline.definitionVersion?.toString() || null,
+          baseline_source: baseline.source,
+          baseline_captured_at: new Date().toISOString(),
+          baseline_capture_method: "auto",
+          baseline_quality_flag: baselineValidation.flag,
         });
 
       if (linkError) throw linkError;
