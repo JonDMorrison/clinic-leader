@@ -10,8 +10,8 @@ export function EmptyInterventions({ onCreateClick }: EmptyInterventionsProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4">
       {/* Icon */}
-      <div className="rounded-full bg-purple-100 dark:bg-purple-950/50 p-4 mb-4">
-        <Zap className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+      <div className="rounded-full bg-primary/10 p-4 mb-4">
+        <Zap className="h-8 w-8 text-primary" />
       </div>
       
       {/* Title */}

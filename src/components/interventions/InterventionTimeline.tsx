@@ -88,7 +88,7 @@ function getEventIcon(type: TimelineEventType, delta?: number) {
       }
       return <BarChart3 className="h-4 w-4 text-muted-foreground" />;
     case "outcome_evaluated":
-      return <Target className="h-4 w-4 text-purple-600 dark:text-purple-400" />;
+      return <Target className="h-4 w-4 text-primary" />;
     case "completed":
       return <CheckCircle2 className="h-4 w-4 text-gray-600 dark:text-gray-400" />;
     default:
@@ -105,7 +105,7 @@ function getEventColor(type: TimelineEventType): string {
     case "metric_update":
       return "border-muted bg-muted/30";
     case "outcome_evaluated":
-      return "border-purple-500 bg-purple-50 dark:bg-purple-950/30";
+      return "border-primary bg-primary/10";
     case "completed":
       return "border-gray-500 bg-gray-50 dark:bg-gray-950/30";
     default:
