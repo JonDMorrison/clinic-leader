@@ -5,6 +5,8 @@
  * - At-Risk Interventions
  * - Overdue Interventions  
  * - Recently Successful Interventions
+ * 
+ * Now uses OutcomeIntelligenceCard for successful interventions
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +26,7 @@ import {
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useInterventionMeetingSignals } from "@/hooks/useInterventionMeetingSignals";
+import { OutcomeIntelligenceCard, type OutcomeIntelligenceData } from "@/components/interventions/OutcomeIntelligenceCard";
 import type { InterventionSignal } from "@/lib/interventions/meetingSignals";
 
 interface InterventionSignalsPanelProps {
@@ -167,15 +170,37 @@ export function InterventionSignalsPanel({
             </div>
           )}
 
-          {/* Recently Successful Section */}
+          {/* Recently Successful Section - Use Outcome Cards */}
           {signals.newly_successful_interventions.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wide">
                 Recently Successful ({signals.newly_successful_interventions.length})
               </p>
-              {signals.newly_successful_interventions.map((signal) => (
-                <SignalRow key={signal.id} signal={signal} variant="success" />
-              ))}
+              {signals.newly_successful_interventions.map((signal) => {
+                // Convert signal to OutcomeIntelligenceData format
+                const outcomeData: OutcomeIntelligenceData = {
+                  interventionId: signal.id,
+                  interventionTitle: signal.title,
+                  interventionStatus: signal.status,
+                  interventionType: signal.intervention_type,
+                  metricName: signal.primaryMetricName || null,
+                  metricId: null,
+                  expectedDirection: null,
+                  actualDeltaPercent: signal.deltaPercent ?? null,
+                  confidenceScore: null,
+                  executionHealthScore: null,
+                  baselineQualityFlag: null,
+                  aiSummary: null,
+                  evaluatedAt: null,
+                };
+                return (
+                  <OutcomeIntelligenceCard
+                    key={signal.id}
+                    data={outcomeData}
+                    variant="compact"
+                  />
+                );
+              })}
             </div>
           )}
         </CardContent>
