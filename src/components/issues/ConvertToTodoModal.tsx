@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
+import { ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { InterventionSelector } from "@/components/interventions/InterventionSelector";
 
 const todoSchema = z.object({
   title: z.string().trim().min(3, "Title must be at least 3 characters").max(200, "Title must be less than 200 characters"),
@@ -26,6 +29,8 @@ export const ConvertToTodoModal = ({ open, onClose, issue, onSuccess }: ConvertT
   const [title, setTitle] = useState(`Follow up on: ${issue.title}`);
   const [ownerId, setOwnerId] = useState(issue.owner_id || "");
   const [dueDate, setDueDate] = useState("");
+  const [interventionId, setInterventionId] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
@@ -59,6 +64,7 @@ export const ConvertToTodoModal = ({ open, onClose, issue, onSuccess }: ConvertT
         title: validated.title,
         owner_id: validated.owner_id,
         due_date: validated.due_date,
+        intervention_id: interventionId,
       });
 
       if (error) throw error;
@@ -92,6 +98,8 @@ export const ConvertToTodoModal = ({ open, onClose, issue, onSuccess }: ConvertT
     setTitle(`Follow up on: ${issue.title}`);
     setOwnerId(issue.owner_id || "");
     setDueDate("");
+    setInterventionId(null);
+    setShowAdvanced(false);
     setErrors({});
     onClose();
   };
@@ -151,6 +159,31 @@ export const ConvertToTodoModal = ({ open, onClose, issue, onSuccess }: ConvertT
               {errors.due_date && <p className="text-sm text-destructive">{errors.due_date}</p>}
             </div>
           </div>
+
+          {/* Advanced: Link to Intervention */}
+          <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+            <CollapsibleTrigger asChild>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="w-full justify-between text-muted-foreground"
+              >
+                <span className="flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Link to Intervention (optional)
+                </span>
+                {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <InterventionSelector
+                organizationId={issue.organization_id}
+                value={interventionId}
+                onChange={setInterventionId}
+              />
+            </CollapsibleContent>
+          </Collapsible>
 
           <div className="flex gap-2 justify-end">
             <Button type="button" variant="outline" onClick={handleClose}>
