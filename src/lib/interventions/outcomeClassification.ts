@@ -98,10 +98,20 @@ export function classifyOutcome(params: {
 }
 
 /**
- * Get confidence label
+ * Get confidence label for legacy 1-5 scale or new 0-100 scale
  */
 export function getConfidenceLabel(score: number | null | undefined): string {
   if (score === null || score === undefined) return "Unknown";
+  
+  // Detect scale: if > 5, assume 0-100 scale
+  if (score > 5) {
+    if (score >= 70) return "High";
+    if (score >= 50) return "Moderate";
+    if (score >= 30) return "Low";
+    return "Insufficient";
+  }
+  
+  // Legacy 1-5 scale
   if (score >= 4) return "High";
   if (score >= 3) return "Medium";
   if (score >= 2) return "Low";
@@ -109,11 +119,41 @@ export function getConfidenceLabel(score: number | null | undefined): string {
 }
 
 /**
- * Get confidence variant for badge
+ * Get confidence variant for badge (supports both scales)
  */
 export function getConfidenceVariant(score: number | null | undefined): "default" | "secondary" | "outline" | "destructive" {
   if (score === null || score === undefined) return "outline";
+  
+  // Detect scale: if > 5, assume 0-100 scale
+  if (score > 5) {
+    if (score >= 70) return "default";
+    if (score >= 50) return "secondary";
+    if (score >= 30) return "outline";
+    return "destructive";
+  }
+  
+  // Legacy 1-5 scale
   if (score >= 4) return "default";
   if (score >= 3) return "secondary";
   return "outline";
+}
+
+/**
+ * Get confidence color class (supports both scales)
+ */
+export function getConfidenceColorClass(score: number | null | undefined): string {
+  if (score === null || score === undefined) return "text-muted-foreground";
+  
+  // Detect scale: if > 5, assume 0-100 scale
+  if (score > 5) {
+    if (score >= 70) return "text-green-600 dark:text-green-400";
+    if (score >= 50) return "text-primary";
+    if (score >= 30) return "text-warning";
+    return "text-muted-foreground";
+  }
+  
+  // Legacy 1-5 scale
+  if (score >= 4) return "text-green-600 dark:text-green-400";
+  if (score >= 3) return "text-primary";
+  return "text-warning";
 }
