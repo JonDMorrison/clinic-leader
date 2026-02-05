@@ -25,6 +25,14 @@ export type ReliabilityTier =
   | "reliable_pattern"
   | "strong_evidence";
 
+export type ReliabilityTierLabel = 
+  | "Insufficient Evidence"
+  | "Emerging Pattern"
+  | "Reliable Pattern"
+  | "Strong Evidence";
+
+export type ToneType = "cautious" | "neutral" | "confident";
+
 export type DowngradeReasonCode =
   | "no_pattern_clusters"
   | "low_cluster_count"
@@ -32,13 +40,22 @@ export type DowngradeReasonCode =
   | "high_variance"
   | "low_consistency"
   | "poor_baseline_integrity"
+  | "mixed_baseline_quality"
+  | "bad_baseline_dominant"
   | "low_execution_health"
   | "insufficient_data_density"
   | "pattern_recency_stale";
 
+export interface UIGuardrails {
+  allow_recommend_tier: boolean;
+  force_tier: "explore" | "suggest" | "recommend";
+  tone: ToneType;
+}
+
 export interface ReliabilityResult {
   reliability_score: number; // 0-100
   reliability_tier: ReliabilityTier;
+  reliability_tier_label: ReliabilityTierLabel;
   reliability_explanations: string[];
   downgrade_reason_codes: DowngradeReasonCode[];
   component_scores: {
@@ -48,9 +65,17 @@ export interface ReliabilityResult {
     execution_reliability: number;
     data_density: number;
   };
+  ui_guardrails: UIGuardrails;
   effective_tier: RecommendationTier; // Final tier after reliability downgrade
   tier_downgraded: boolean;
   original_tier: RecommendationTier;
+  // Evidence stats for tooltip display
+  evidence_stats: {
+    sample_size: number;
+    success_rate: number | null;
+    variance: number | null;
+    recency_days: number | null;
+  };
 }
 
 export interface ReliabilityInputs {
@@ -82,9 +107,14 @@ export interface ReliabilityInputs {
 // ============= Thresholds =============
 
 const THRESHOLDS = {
+  // Sample size thresholds per spec
+  SAMPLE_SIZE_INSUFFICIENT: 5,      // < 5 => Insufficient Evidence
+  SAMPLE_SIZE_EMERGING: 10,         // 5-9 => Emerging Pattern
+  SAMPLE_SIZE_RELIABLE: 25,         // 10-24 => Reliable Pattern
+                                    // 25+ => Strong Evidence
+  
   // Pattern availability
   MIN_CLUSTER_COUNT: 3,
-  MIN_PATTERN_SAMPLE_SIZE: 5,
   
   // Evidence stability
   MAX_VARIANCE_FOR_RELIABLE: 20, // %
@@ -102,11 +132,12 @@ const THRESHOLDS = {
   MIN_DATA_POINTS_PER_30_DAYS: 4,
 };
 
-const TIER_SCORE_THRESHOLDS = {
-  strong_evidence: 75,
-  reliable_pattern: 55,
-  emerging_pattern: 35,
-  insufficient_evidence: 0,
+// Tier label mapping
+const TIER_LABELS: Record<ReliabilityTier, ReliabilityTierLabel> = {
+  insufficient_evidence: "Insufficient Evidence",
+  emerging_pattern: "Emerging Pattern",
+  reliable_pattern: "Reliable Pattern",
+  strong_evidence: "Strong Evidence",
 };
 
 const COMPONENT_WEIGHTS = {
@@ -151,8 +182,11 @@ export function evaluateReliability(inputs: ReliabilityInputs): ReliabilityResul
     dataDensity * COMPONENT_WEIGHTS.data_density
   );
 
-  // Determine reliability tier
-  const reliability_tier = determineReliabilityTier(reliability_score);
+  // Determine reliability tier based on sample size per spec
+  const reliability_tier = determineReliabilityTierFromSampleSize(inputs.patternSampleSize, downgrades);
+
+  // Determine UI guardrails based on reliability tier
+  const ui_guardrails = computeUIGuardrails(reliability_tier, inputs.recommendationTier);
 
   // Determine effective recommendation tier after downgrade
   const { effective_tier, tier_downgraded } = applyTierDowngrade(
@@ -164,6 +198,7 @@ export function evaluateReliability(inputs: ReliabilityInputs): ReliabilityResul
   return {
     reliability_score,
     reliability_tier,
+    reliability_tier_label: TIER_LABELS[reliability_tier],
     reliability_explanations: explanations,
     downgrade_reason_codes: downgrades,
     component_scores: {
@@ -173,9 +208,16 @@ export function evaluateReliability(inputs: ReliabilityInputs): ReliabilityResul
       execution_reliability: executionReliability,
       data_density: dataDensity,
     },
+    ui_guardrails,
     effective_tier,
     tier_downgraded,
     original_tier: inputs.recommendationTier,
+    evidence_stats: {
+      sample_size: inputs.patternSampleSize,
+      success_rate: inputs.successRate,
+      variance: inputs.patternVariance,
+      recency_days: inputs.patternRecencyDays,
+    },
   };
 }
 
@@ -201,11 +243,14 @@ function evaluatePatternAvailability(
     score -= 40;
   }
 
-  // Penalize low sample size
-  if (inputs.patternSampleSize < THRESHOLDS.MIN_PATTERN_SAMPLE_SIZE) {
+  // Penalize low sample size based on spec thresholds
+  if (inputs.patternSampleSize < THRESHOLDS.SAMPLE_SIZE_INSUFFICIENT) {
     downgrades.push("low_sample_size");
-    explanations.push(`Pattern based on ${inputs.patternSampleSize} interventions (minimum: ${THRESHOLDS.MIN_PATTERN_SAMPLE_SIZE})`);
-    score -= 40;
+    explanations.push(`Pattern based on only ${inputs.patternSampleSize} interventions (minimum: ${THRESHOLDS.SAMPLE_SIZE_INSUFFICIENT})`);
+    score -= 60; // Major penalty
+  } else if (inputs.patternSampleSize < THRESHOLDS.SAMPLE_SIZE_EMERGING) {
+    explanations.push(`Pattern based on ${inputs.patternSampleSize} interventions (emerging)`);
+    score -= 30;
   }
 
   // Penalize stale patterns
@@ -268,18 +313,25 @@ function evaluateBaselineIntegrity(
 
   let score = 100;
 
-  if (badRatio > THRESHOLDS.MAX_BAD_BASELINE_RATIO) {
-    downgrades.push("poor_baseline_integrity");
-    explanations.push(`${Math.round(badRatio * 100)}% of interventions have poor baseline quality`);
-    score -= 50;
+  // Per spec: if "bad" baselines dominate => Insufficient Evidence
+  if (badRatio > 0.5) {
+    downgrades.push("bad_baseline_dominant");
+    explanations.push(`${Math.round(badRatio * 100)}% of interventions have poor baseline quality - evidence unreliable`);
+    score = 0;
+    return score;
   }
 
-  if (iffyRatio > THRESHOLDS.MAX_IFFY_BASELINE_RATIO) {
-    if (!downgrades.includes("poor_baseline_integrity")) {
-      downgrades.push("poor_baseline_integrity");
+  // Per spec: if baseline quality is mixed/iffy-heavy => cap at Emerging Pattern
+  if (iffyRatio > THRESHOLDS.MAX_IFFY_BASELINE_RATIO || badRatio > THRESHOLDS.MAX_BAD_BASELINE_RATIO) {
+    downgrades.push("mixed_baseline_quality");
+    if (badRatio > THRESHOLDS.MAX_BAD_BASELINE_RATIO) {
+      explanations.push(`${Math.round(badRatio * 100)}% of interventions have poor baseline quality`);
+      score -= 50;
     }
-    explanations.push(`${Math.round(iffyRatio * 100)}% of interventions have uncertain baseline quality`);
-    score -= 30;
+    if (iffyRatio > THRESHOLDS.MAX_IFFY_BASELINE_RATIO) {
+      explanations.push(`${Math.round(iffyRatio * 100)}% of interventions have uncertain baseline quality`);
+      score -= 30;
+    }
   }
 
   // Penalize proportionally
@@ -329,19 +381,73 @@ function evaluateDataDensity(
   return 100;
 }
 
-// ============= Tier Classification =============
+/**
+ * Determine reliability tier based on sample size per spec:
+ * < 5 => Insufficient Evidence
+ * 5-9 => Emerging Pattern
+ * 10-24 => Reliable Pattern
+ * 25+ => Strong Evidence
+ */
+function determineReliabilityTierFromSampleSize(
+  sampleSize: number,
+  downgrades: DowngradeReasonCode[]
+): ReliabilityTier {
+  // If no pattern clusters, insufficient evidence
+  if (downgrades.includes("no_pattern_clusters")) {
+    return "insufficient_evidence";
+  }
+  
+  // If bad baselines dominate, cap at insufficient
+  if (downgrades.includes("bad_baseline_dominant")) {
+    return "insufficient_evidence";
+  }
 
-function determineReliabilityTier(score: number): ReliabilityTier {
-  if (score >= TIER_SCORE_THRESHOLDS.strong_evidence) {
-    return "strong_evidence";
+  // Sample size based tiers per spec
+  if (sampleSize < THRESHOLDS.SAMPLE_SIZE_INSUFFICIENT) {
+    return "insufficient_evidence";
   }
-  if (score >= TIER_SCORE_THRESHOLDS.reliable_pattern) {
-    return "reliable_pattern";
-  }
-  if (score >= TIER_SCORE_THRESHOLDS.emerging_pattern) {
+  if (sampleSize < THRESHOLDS.SAMPLE_SIZE_EMERGING) {
     return "emerging_pattern";
   }
-  return "insufficient_evidence";
+  if (sampleSize < THRESHOLDS.SAMPLE_SIZE_RELIABLE) {
+    return "reliable_pattern";
+  }
+  return "strong_evidence";
+}
+
+/**
+ * Compute UI guardrails based on reliability tier
+ */
+function computeUIGuardrails(
+  reliabilityTier: ReliabilityTier,
+  originalTier: RecommendationTier
+): UIGuardrails {
+  switch (reliabilityTier) {
+    case "insufficient_evidence":
+      return {
+        allow_recommend_tier: false,
+        force_tier: "explore",
+        tone: "cautious",
+      };
+    case "emerging_pattern":
+      return {
+        allow_recommend_tier: false,
+        force_tier: originalTier === "recommend" ? "suggest" : originalTier,
+        tone: "cautious",
+      };
+    case "reliable_pattern":
+      return {
+        allow_recommend_tier: originalTier === "recommend",
+        force_tier: originalTier,
+        tone: "neutral",
+      };
+    case "strong_evidence":
+      return {
+        allow_recommend_tier: true,
+        force_tier: originalTier,
+        tone: "confident",
+      };
+  }
 }
 
 function applyTierDowngrade(
@@ -535,5 +641,5 @@ export function getReliabilityTierColor(tier: ReliabilityTier): {
 }
 
 export function getInsufficientEvidenceMessage(): string {
-  return "Not enough historical intervention data yet. Recommendation based on limited pattern signals.";
+  return "Not enough historical intervention evidence yet. This is an early hypothesis based on limited signals.";
 }

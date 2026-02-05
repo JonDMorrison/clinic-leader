@@ -49,7 +49,7 @@ export function ReliabilityBadge({
   compact = false,
 }: ReliabilityBadgeProps) {
   const Icon = TIER_ICONS[reliability.reliability_tier];
-  const tierLabel = getReliabilityTierLabel(reliability.reliability_tier);
+  const tierLabel = reliability.reliability_tier_label;
   const tierColor = getReliabilityTierColor(reliability.reliability_tier);
 
   const badge = (
@@ -79,6 +79,32 @@ export function ReliabilityBadge({
               </span>
             </div>
             
+            {/* Evidence Stats Summary */}
+            <div className="grid grid-cols-2 gap-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Sample size:</span>
+                <span className="font-medium">{reliability.evidence_stats.sample_size}</span>
+              </div>
+              {reliability.evidence_stats.success_rate !== null && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Success rate:</span>
+                  <span className="font-medium">{reliability.evidence_stats.success_rate}%</span>
+                </div>
+              )}
+              {reliability.evidence_stats.variance !== null && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Variance:</span>
+                  <span className="font-medium">{reliability.evidence_stats.variance.toFixed(1)}%</span>
+                </div>
+              )}
+              {reliability.evidence_stats.recency_days !== null && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Recency:</span>
+                  <span className="font-medium">{reliability.evidence_stats.recency_days}d</span>
+                </div>
+              )}
+            </div>
+
             {reliability.tier_downgraded && (
               <div className="flex items-center gap-1.5 text-xs text-warning bg-warning/10 rounded px-2 py-1">
                 <AlertTriangle className="h-3 w-3" />
@@ -119,7 +145,7 @@ interface ReliabilityBreakdownPanelProps {
 }
 
 export function ReliabilityBreakdownPanel({ reliability }: ReliabilityBreakdownPanelProps) {
-  const tierLabel = getReliabilityTierLabel(reliability.reliability_tier);
+  const tierLabel = reliability.reliability_tier_label;
 
   return (
     <div className="space-y-3 p-3 rounded-lg border bg-background">
@@ -233,7 +259,7 @@ export function InsufficientEvidenceBanner({ onLearnMore }: InsufficientEvidence
       <div className="flex-1">
         <p className="text-sm font-medium text-muted-foreground">Limited Evidence</p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {getInsufficientEvidenceMessage()}
+          Not enough historical intervention evidence yet. This is an early hypothesis based on limited signals.
         </p>
         {onLearnMore && (
           <button
