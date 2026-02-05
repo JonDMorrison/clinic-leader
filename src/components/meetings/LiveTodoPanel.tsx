@@ -5,12 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CheckCircle2, Circle, X, ListTodo, Calendar as CalendarIcon, User } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, Circle, X, ListTodo, Calendar as CalendarIcon, User, Zap, Link as LinkIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { InterventionSelector } from "@/components/interventions/InterventionSelector";
 
 interface LiveTodoPanelProps {
   organizationId: string;
@@ -26,6 +28,8 @@ export const LiveTodoPanel = ({ organizationId, meetingId, disabled, onTodosChan
   const [newTitle, setNewTitle] = useState("");
   const [newOwnerId, setNewOwnerId] = useState<string>("");
   const [newDueDate, setNewDueDate] = useState<Date | undefined>(undefined);
+  const [newInterventionId, setNewInterventionId] = useState<string | null>(null);
+  const [showInterventionSelector, setShowInterventionSelector] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
 
@@ -35,7 +39,7 @@ export const LiveTodoPanel = ({ organizationId, meetingId, disabled, onTodosChan
     queryFn: async () => {
       const { data, error } = await supabase
         .from("todos")
-        .select("*, users:owner_id(id, full_name)")
+        .select("*, users:owner_id(id, full_name), interventions:intervention_id(id, title)")
         .eq("meeting_id", meetingId)
         .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
@@ -69,6 +73,7 @@ export const LiveTodoPanel = ({ organizationId, meetingId, disabled, onTodosChan
         due_date: newDueDate ? format(newDueDate, "yyyy-MM-dd") : null,
         organization_id: organizationId,
         meeting_id: meetingId,
+        intervention_id: newInterventionId || null,
       });
       if (error) throw error;
     },
@@ -77,6 +82,8 @@ export const LiveTodoPanel = ({ organizationId, meetingId, disabled, onTodosChan
       setNewTitle("");
       setNewOwnerId("");
       setNewDueDate(undefined);
+      setNewInterventionId(null);
+      setShowInterventionSelector(false);
       onTodosChange?.();
       // Keep focus on input for rapid entry
       setTimeout(() => inputRef.current?.focus(), 0);
@@ -175,44 +182,65 @@ export const LiveTodoPanel = ({ organizationId, meetingId, disabled, onTodosChan
               className="h-9"
             />
             {newTitle.trim() && (
-              <div className="flex gap-2 items-center">
-                <Select value={newOwnerId || "none"} onValueChange={(val) => setNewOwnerId(val === "none" ? "" : val)}>
-                  <SelectTrigger className="h-8 flex-1 text-xs">
-                    <SelectValue placeholder="Owner (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Unassigned</SelectItem>
-                    {(users || []).map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
-                      <CalendarIcon className="w-3 h-3 mr-1" />
-                      {newDueDate ? format(newDueDate, "MMM d") : "Due"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={newDueDate}
-                      onSelect={setNewDueDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Button
-                  size="sm"
-                  className="h-8"
-                  onClick={handleAdd}
-                  disabled={addMutation.isPending}
-                >
-                  Add
-                </Button>
+              <div className="space-y-2">
+                <div className="flex gap-2 items-center">
+                  <Select value={newOwnerId || "none"} onValueChange={(val) => setNewOwnerId(val === "none" ? "" : val)}>
+                    <SelectTrigger className="h-8 flex-1 text-xs">
+                      <SelectValue placeholder="Owner (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Unassigned</SelectItem>
+                      {(users || []).map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 px-2 text-xs">
+                        <CalendarIcon className="w-3 h-3 mr-1" />
+                        {newDueDate ? format(newDueDate, "MMM d") : "Due"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={newDueDate}
+                        onSelect={setNewDueDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn("h-8 px-2 text-xs", newInterventionId && "text-primary border-primary")}
+                    onClick={() => setShowInterventionSelector(!showInterventionSelector)}
+                  >
+                    <Zap className="w-3 h-3 mr-1" />
+                    {newInterventionId ? "Linked" : "Link"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8"
+                    onClick={handleAdd}
+                    disabled={addMutation.isPending}
+                  >
+                    Add
+                  </Button>
+                </div>
+                
+                {/* Intervention selector (expandable) */}
+                {showInterventionSelector && (
+                  <InterventionSelector
+                    organizationId={organizationId}
+                    value={newInterventionId}
+                    onChange={setNewInterventionId}
+                    className="text-xs"
+                  />
+                )}
               </div>
             )}
           </div>
@@ -407,6 +435,14 @@ function TodoRow({
                 />
               </PopoverContent>
             </Popover>
+          )}
+          
+          {/* Intervention link badge */}
+          {(todo.interventions as any)?.title && (
+            <Badge variant="outline" className="text-[10px] gap-1 text-primary border-primary/50">
+              <Zap className="w-2.5 h-2.5" />
+              {(todo.interventions as any).title}
+            </Badge>
           )}
         </div>
       </div>

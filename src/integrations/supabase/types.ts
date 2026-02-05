@@ -2738,6 +2738,8 @@ export type Database = {
           end_date: string | null
           estimated_cost: number | null
           estimated_hours: number | null
+          execution_health_calculated_at: string | null
+          execution_health_score: number | null
           expected_time_horizon_days: number
           id: string
           intervention_type: Database["public"]["Enums"]["intervention_type"]
@@ -2763,6 +2765,8 @@ export type Database = {
           end_date?: string | null
           estimated_cost?: number | null
           estimated_hours?: number | null
+          execution_health_calculated_at?: string | null
+          execution_health_score?: number | null
           expected_time_horizon_days?: number
           id?: string
           intervention_type?: Database["public"]["Enums"]["intervention_type"]
@@ -2788,6 +2792,8 @@ export type Database = {
           end_date?: string | null
           estimated_cost?: number | null
           estimated_hours?: number | null
+          execution_health_calculated_at?: string | null
+          execution_health_score?: number | null
           expected_time_horizon_days?: number
           id?: string
           intervention_type?: Database["public"]["Enums"]["intervention_type"]
@@ -6292,6 +6298,7 @@ export type Database = {
           done_at: string | null
           due_date: string | null
           id: string
+          intervention_id: string | null
           issue_id: string | null
           meeting_id: string | null
           organization_id: string | null
@@ -6303,6 +6310,7 @@ export type Database = {
           done_at?: string | null
           due_date?: string | null
           id?: string
+          intervention_id?: string | null
           issue_id?: string | null
           meeting_id?: string | null
           organization_id?: string | null
@@ -6314,6 +6322,7 @@ export type Database = {
           done_at?: string | null
           due_date?: string | null
           id?: string
+          intervention_id?: string | null
           issue_id?: string | null
           meeting_id?: string | null
           organization_id?: string | null
@@ -6321,6 +6330,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "todos_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "todos_issue_id_fkey"
             columns: ["issue_id"]
@@ -7195,6 +7211,65 @@ export type Database = {
           provider_count?: number | null
         }
         Relationships: []
+      }
+      orphan_todos: {
+        Row: {
+          created_at: string | null
+          done_at: string | null
+          due_date: string | null
+          id: string | null
+          intervention_id: string | null
+          issue_id: string | null
+          meeting_id: string | null
+          organization_id: string | null
+          owner_id: string | null
+          owner_name: string | null
+          title: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "todos_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todos_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_data_scope_compliance: {
         Row: {
