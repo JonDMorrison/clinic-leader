@@ -42,6 +42,20 @@ export const INTERVENTION_TYPE_OPTIONS: { value: InterventionType; label: string
   { value: "other", label: "Other" },
 ];
 
+export const EXPECTED_DIRECTION_OPTIONS: { value: ExpectedDirection; label: string }[] = [
+  { value: "up", label: "Increase ↑" },
+  { value: "down", label: "Decrease ↓" },
+  { value: "stable", label: "Stabilize →" },
+];
+
+export const ORIGIN_TYPE_OPTIONS: { value: InterventionOriginType; label: string }[] = [
+  { value: "manual", label: "Manual" },
+  { value: "issue", label: "Issue" },
+  { value: "rock", label: "Rock" },
+  { value: "todo", label: "To-Do" },
+  { value: "ai_recommendation", label: "AI Recommendation" },
+];
+
 export const STATUS_COLORS: Record<InterventionStatus, string> = {
   planned: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
   active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",

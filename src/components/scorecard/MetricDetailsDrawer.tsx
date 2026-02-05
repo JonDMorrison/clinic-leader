@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { format } from "date-fns";
-import { Edit2, Save, X, Target, Plus } from "lucide-react";
+import { Edit2, Save, X, Target, Plus, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { BackfillButton } from "./BackfillButton";
@@ -24,6 +24,7 @@ import { GoalHistoryView } from "./GoalHistoryView";
 import { MetricComments } from "./MetricComments";
 import { BenchmarkPositionPanel } from "./BenchmarkPositionPanel";
 import { LinkedInterventionsPanel } from "@/components/interventions/LinkedInterventionsPanel";
+import { QuickInterventionModal, InterventionOriginContext } from "@/components/interventions/QuickInterventionModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface MetricDetailsDrawerProps {
@@ -46,6 +47,7 @@ export const MetricDetailsDrawer = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editValues, setEditValues] = useState<any>({});
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [interventionModalOpen, setInterventionModalOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -357,13 +359,13 @@ export const MetricDetailsDrawer = ({
               <LinkedInterventionsPanel metricId={metricId} />
               <div className="flex justify-center">
                 <Button 
-                  variant="outline" 
+                  variant="default" 
                   size="sm"
-                  onClick={() => navigate("/interventions")}
+                  onClick={() => setInterventionModalOpen(true)}
                   className="gap-2"
                 >
-                  <Plus className="h-4 w-4" />
-                  Start New Intervention
+                  <Zap className="h-4 w-4" />
+                  Create Intervention
                 </Button>
               </div>
             </div>
@@ -432,6 +434,24 @@ export const MetricDetailsDrawer = ({
             metricName={metric.name}
             organizationId={organizationId}
             currentUserId={currentUser.id}
+          />
+        )}
+
+        {/* Quick Intervention Modal */}
+        {metricId && organizationId && (
+          <QuickInterventionModal
+            open={interventionModalOpen}
+            onClose={() => setInterventionModalOpen(false)}
+            organizationId={organizationId}
+            originContext={{
+              originType: "manual",
+              suggestedTitle: `Improve ${metric?.name || "metric"}`,
+              preSelectedMetricId: metricId,
+            }}
+            onSuccess={() => {
+              setInterventionModalOpen(false);
+              onUpdate();
+            }}
           />
         )}
       </SheetContent>

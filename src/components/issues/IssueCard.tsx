@@ -6,11 +6,11 @@ import { AlertCircle, CheckCircle2, ListTodo, GripVertical, Link as LinkIcon, Tr
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConvertToTodoModal } from "./ConvertToTodoModal";
-import { CreateInterventionFromIssueModal } from "./CreateInterventionFromIssueModal";
 import { CloseTheLoopModal } from "./CloseTheLoopModal";
 import { IssueResolutionSection } from "./IssueResolutionSection";
 import { VTOGoalBadge } from "@/components/vto/VTOGoalBadge";
 import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
+import { QuickInterventionModal } from "@/components/interventions/QuickInterventionModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -274,14 +274,20 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
         itemName={issue.title}
       />
 
-      <CreateInterventionFromIssueModal
+      <QuickInterventionModal
         open={interventionModalOpen}
         onClose={() => setInterventionModalOpen(false)}
-        issue={{
-          id: issue.id,
-          title: issue.title,
-          context: issue.context,
-          organization_id: issue.organization_id,
+        organizationId={issue.organization_id}
+        originContext={{
+          originType: "issue",
+          originId: issue.id,
+          suggestedTitle: issue.title,
+          suggestedDescription: issue.context || undefined,
+          preSelectedIssueId: issue.id,
+        }}
+        onSuccess={() => {
+          setInterventionModalOpen(false);
+          onUpdate();
         }}
       />
 
