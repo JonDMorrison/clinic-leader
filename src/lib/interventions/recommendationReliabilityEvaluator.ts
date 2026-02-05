@@ -15,7 +15,9 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import type { RecommendationTier } from "./recommendationTiers";
+
+// Export RecommendationTier for external use
+export type RecommendationTier = "explore" | "suggest" | "recommend";
 
 // ============= Types =============
 

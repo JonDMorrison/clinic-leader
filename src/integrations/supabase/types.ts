@@ -2412,6 +2412,7 @@ export type Database = {
           evaluator_version: string
           id: string
           intervention_id: string
+          is_synthetic: boolean
           metric_id: string
         }
         Insert: {
@@ -2429,6 +2430,7 @@ export type Database = {
           evaluator_version?: string
           id?: string
           intervention_id: string
+          is_synthetic?: boolean
           metric_id: string
         }
         Update: {
@@ -2446,6 +2448,7 @@ export type Database = {
           evaluator_version?: string
           id?: string
           intervention_id?: string
+          is_synthetic?: boolean
           metric_id?: string
         }
         Relationships: [
@@ -2489,6 +2492,7 @@ export type Database = {
           error_message: string | null
           error_summary: string | null
           id: string
+          include_synthetic: boolean
           interventions_analyzed: number
           orgs_included: number
           outcome_count_processed: number | null
@@ -2506,6 +2510,7 @@ export type Database = {
           error_message?: string | null
           error_summary?: string | null
           id?: string
+          include_synthetic?: boolean
           interventions_analyzed?: number
           orgs_included?: number
           outcome_count_processed?: number | null
@@ -2523,6 +2528,7 @@ export type Database = {
           error_message?: string | null
           error_summary?: string | null
           id?: string
+          include_synthetic?: boolean
           interventions_analyzed?: number
           orgs_included?: number
           outcome_count_processed?: number | null
@@ -2965,6 +2971,7 @@ export type Database = {
           expected_time_horizon_days: number
           id: string
           intervention_type: Database["public"]["Enums"]["intervention_type"]
+          is_synthetic: boolean
           organization_id: string
           origin_id: string | null
           origin_type: Database["public"]["Enums"]["intervention_origin_type"]
@@ -2992,6 +2999,7 @@ export type Database = {
           expected_time_horizon_days?: number
           id?: string
           intervention_type?: Database["public"]["Enums"]["intervention_type"]
+          is_synthetic?: boolean
           organization_id: string
           origin_id?: string | null
           origin_type?: Database["public"]["Enums"]["intervention_origin_type"]
@@ -3019,6 +3027,7 @@ export type Database = {
           expected_time_horizon_days?: number
           id?: string
           intervention_type?: Database["public"]["Enums"]["intervention_type"]
+          is_synthetic?: boolean
           organization_id?: string
           origin_id?: string | null
           origin_type?: Database["public"]["Enums"]["intervention_origin_type"]
@@ -4480,6 +4489,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_synthetic: boolean
           metric_id: string
           note: string | null
           overridden_at: string | null
@@ -4497,6 +4507,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_synthetic?: boolean
           metric_id: string
           note?: string | null
           overridden_at?: string | null
@@ -4514,6 +4525,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_synthetic?: boolean
           metric_id?: string
           note?: string | null
           overridden_at?: string | null
