@@ -134,6 +134,7 @@ export function createDefaultReliability(
   return {
     reliability_score: 50,
     reliability_tier: "emerging_pattern",
+    reliability_tier_label: "Emerging Pattern",
     reliability_explanations: ["Reliability evaluation pending"],
     downgrade_reason_codes: [],
     component_scores: {
@@ -143,8 +144,19 @@ export function createDefaultReliability(
       execution_reliability: 50,
       data_density: 50,
     },
+    ui_guardrails: {
+      allow_recommend_tier: false,
+      force_tier: tier === "recommend" ? "suggest" : tier,
+      tone: "cautious",
+    },
     effective_tier: tier,
     tier_downgraded: false,
     original_tier: tier,
+    evidence_stats: {
+      sample_size: 0,
+      success_rate: null,
+      variance: null,
+      recency_days: null,
+    },
   };
 }

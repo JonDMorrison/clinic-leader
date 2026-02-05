@@ -5154,6 +5154,7 @@ export type Database = {
           organization_id: string
           recommendations: Json
           recommendations_generated: number
+          reliability_summary: Json | null
           run_period_start: string
         }
         Insert: {
@@ -5168,6 +5169,7 @@ export type Database = {
           organization_id: string
           recommendations?: Json
           recommendations_generated?: number
+          reliability_summary?: Json | null
           run_period_start: string
         }
         Update: {
@@ -5182,6 +5184,7 @@ export type Database = {
           organization_id?: string
           recommendations?: Json
           recommendations_generated?: number
+          reliability_summary?: Json | null
           run_period_start?: string
         }
         Relationships: [
