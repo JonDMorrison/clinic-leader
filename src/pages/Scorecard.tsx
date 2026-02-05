@@ -517,14 +517,6 @@ const Scorecard = () => {
         
         {totalMetrics > 0 && (
           <div className="flex items-center gap-3">
-            <Button 
-              onClick={() => navigate("/imports/monthly-report")}
-              className="gradient-brand"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Upload Monthly Data
-            </Button>
-
             {/* Secondary actions dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
