@@ -57,33 +57,31 @@ const ScorecardUpdate = () => {
 
   // Fetch user's organization and role
   const { data: currentUser } = useQuery({
-    queryKey: ["current-user"],
+    queryKey: ["current-user-scorecard-update"],
     queryFn: async () => {
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session?.user) return null;
 
-      const { data } = await supabase
+      // Fetch user data
+      const { data: userData, error: userError } = await supabase
         .from("users")
-        .select(`
-          id, 
-          team_id,
-          user_roles(role)
-        `)
+        .select("id, team_id")
         .eq("email", session.session.user.email)
-        .single();
+        .maybeSingle();
 
-      if (!data) return null;
+      if (userError || !userData) return null;
 
-      // Extract role from the array if available
-      const userRoles = data.user_roles as any;
-      const role = Array.isArray(userRoles) && userRoles.length > 0 
-        ? userRoles[0].role 
-        : "staff";
+      // Fetch role separately
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userData.id)
+        .maybeSingle();
 
       return {
-        id: data.id,
-        team_id: data.team_id,
-        role,
+        id: userData.id,
+        team_id: userData.team_id,
+        role: roleData?.role || "staff",
       };
     },
   });
