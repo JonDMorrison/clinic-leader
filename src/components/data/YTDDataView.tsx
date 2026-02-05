@@ -186,7 +186,29 @@ function normalizeRows(rows: any[][], headerCount: number): any[][] {
  */
 function formatCellValue(value: any): string {
   if (value === null || value === undefined || value === '') return '';
-  return String(value);
+  
+  // Format numbers to 2 decimal places
+  if (typeof value === 'number') {
+    if (Math.abs(value) >= 1000) {
+      return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    }
+    return value.toFixed(value % 1 === 0 ? 0 : 2);
+  }
+  
+  // Check if string represents a number with many decimals
+  const str = String(value);
+  const numMatch = str.match(/^(-?\d+\.\d{3,})$/);
+  if (numMatch) {
+    const num = parseFloat(numMatch[1]);
+    if (!isNaN(num)) {
+      if (Math.abs(num) >= 1000) {
+        return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+      }
+      return num.toFixed(2);
+    }
+  }
+  
+  return str;
 }
 
 /**
