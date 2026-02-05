@@ -59,6 +59,14 @@ export interface InterventionOriginContext {
   suggestedDescription?: string;
   preSelectedMetricId?: string;
   preSelectedIssueId?: string;
+  // Detection source metadata (for assisted detection engine)
+  detectionSource?: {
+    detection_type: string;
+    detection_id: string;
+    confidence: number;
+    context: Record<string, unknown>;
+    detected_at: string;
+  };
 }
 
 interface QuickInterventionModalProps {
@@ -325,12 +333,13 @@ export function QuickInterventionModal({
       queryClient.invalidateQueries({ queryKey: ["interventions"] });
       queryClient.invalidateQueries({ queryKey: ["issues"] });
 
-      // Log event
+      // Log event with detection source if present
       logInterventionEventAsync(data.id, "create_intervention", {
         origin_type: originContext?.originType || "manual",
         origin_id: originContext?.originId,
         metric_id: selectedMetricId,
         expected_direction: expectedDirection,
+        detection_source: originContext?.detectionSource || null,
       });
 
       toast({

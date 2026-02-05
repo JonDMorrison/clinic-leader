@@ -54,6 +54,7 @@ export const ORIGIN_TYPE_OPTIONS: { value: InterventionOriginType; label: string
   { value: "rock", label: "Rock" },
   { value: "todo", label: "To-Do" },
   { value: "ai_recommendation", label: "AI Recommendation" },
+  { value: "detection", label: "Smart Detection" },
 ];
 
 export const STATUS_COLORS: Record<InterventionStatus, string> = {
