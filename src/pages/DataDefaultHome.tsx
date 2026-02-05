@@ -244,7 +244,7 @@ export default function DataDefaultHome() {
         <Button 
           size="sm" 
           onClick={() => navigate("/imports/monthly-report")}
-          className="bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 hover:border-primary/50 backdrop-blur-sm shadow-sm"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 backdrop-blur-sm shadow-sm"
         >
           <Upload className="w-4 h-4 mr-2" />
           Import
