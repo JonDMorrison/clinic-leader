@@ -172,7 +172,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
 
   return (
     <div onClick={onClick} className="cursor-pointer">
-      <Card className={`p-6 hover:border-primary/40 transition-all border-2 ${categoryColors.border} ${categoryColors.bg}`}>
+      <Card className="p-6 hover:border-primary/40 transition-all">
         <div className="space-y-4">
           {/* Tier 1: Title Row - Full width, prominent */}
           <div className="flex items-center gap-2">
