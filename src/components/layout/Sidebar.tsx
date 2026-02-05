@@ -40,8 +40,8 @@ const navGroups: NavGroup[] = [
     label: null, // No label for core items
     items: [
       { title: "Home", path: "/", icon: Home, roles: ["staff", "manager", "director", "owner"] },
+      { title: "Vision", path: "/vto", icon: Compass, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Data", path: "/data", icon: Database, roles: ["manager", "director", "owner"] },
-      { title: "V/TO", path: "/vto", icon: Compass, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Scorecard", path: "/scorecard", icon: BarChart3, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Issues", path: "/issues", icon: AlertCircle, roles: ["staff", "manager", "director", "owner"] },
       { title: "Interventions", path: "/interventions", icon: Zap, roles: ["manager", "director", "owner"], eosOnly: true },
