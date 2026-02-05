@@ -29,7 +29,6 @@ import {
   Target,
   Sparkles,
   Activity,
-  ShieldCheck,
   ExternalLink,
   ArrowUpRight,
   ArrowDownRight,
@@ -37,12 +36,11 @@ import {
 import { Link } from "react-router-dom";
 import { 
   classifyOutcome, 
-  getConfidenceLabel, 
-  getConfidenceVariant,
   type OutcomeClassification 
 } from "@/lib/interventions/outcomeClassification";
 import { BaselineQualityBadge } from "./BaselineQualityBadge";
 import { ExecutionHealthBadge } from "./ExecutionHealthBadge";
+import { ConfidenceScoreBadge, ConfidenceIndicator } from "./ConfidenceScoreBadge";
 import type { BaselineQualityFlag } from "@/lib/interventions/baselineValidation";
 
 export interface OutcomeIntelligenceData {
@@ -116,9 +114,9 @@ export function OutcomeIntelligenceCard({
                   {data.metricName}
                 </Badge>
               )}
-              <Badge variant={getConfidenceVariant(data.confidenceScore)} className="text-[10px]">
-                {getConfidenceLabel(data.confidenceScore)}
-              </Badge>
+              {data.confidenceScore !== null && (
+                <ConfidenceIndicator score={data.confidenceScore} />
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -195,12 +193,11 @@ export function OutcomeIntelligenceCard({
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
               Confidence
             </p>
-            <div className="flex items-center gap-1">
-              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-              <Badge variant={getConfidenceVariant(data.confidenceScore)} className="text-xs">
-                {getConfidenceLabel(data.confidenceScore)}
-              </Badge>
-            </div>
+            {data.confidenceScore !== null ? (
+              <ConfidenceScoreBadge score={data.confidenceScore} size="sm" />
+            ) : (
+              <Badge variant="outline" className="text-xs">Unknown</Badge>
+            )}
           </div>
 
           {/* Execution Health */}
