@@ -42,13 +42,13 @@ function parseNumericValue(value: any): number | null {
  */
 function formatAggregatedValue(value: number, isPercentage: boolean): string {
   if (isPercentage) {
-    return `${value.toFixed(1)}%`;
+    return `${value.toFixed(2)}%`;
   }
-  // Format with commas for large numbers
+  // Format with commas for large numbers, limit to 2 decimal places
   if (Math.abs(value) >= 1000) {
-    return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
   }
-  return value.toFixed(value % 1 === 0 ? 0 : 1);
+  return value.toFixed(value % 1 === 0 ? 0 : 2);
 }
 
 /**
