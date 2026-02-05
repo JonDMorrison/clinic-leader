@@ -7946,6 +7946,7 @@ export type Database = {
         | "todo"
         | "manual"
         | "ai_recommendation"
+        | "detection"
       intervention_status: "planned" | "active" | "completed" | "abandoned"
       intervention_type:
         | "staffing"
@@ -8135,6 +8136,7 @@ export const Constants = {
         "todo",
         "manual",
         "ai_recommendation",
+        "detection",
       ],
       intervention_status: ["planned", "active", "completed", "abandoned"],
       intervention_type: [

@@ -9,6 +9,7 @@ import { NewIssueModal } from "@/components/issues/NewIssueModal";
 import { IssueSuggestionsBanner } from "@/components/issues/IssueSuggestionsBanner";
 import { IDSFollowThroughCard } from "@/components/issues/IDSFollowThroughCard";
 import { IssuesWorkflowBanner } from "@/components/issues/IssuesWorkflowBanner";
+import { SmartInterventionSuggestionList } from "@/components/interventions/SmartInterventionSuggestionList";
 import { HelpHint } from "@/components/help/HelpHint";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
@@ -117,6 +118,9 @@ const Issues = () => {
 
       {/* AI Issue Suggestions Banner */}
       <IssueSuggestionsBanner organizationId={orgId} onIssueCreated={refetch} />
+
+      {/* Smart Intervention Suggestions - compact mode */}
+      <SmartInterventionSuggestionList organizationId={orgId} compact maxVisible={1} />
 
       <Card>
         <CardHeader>

@@ -13,6 +13,7 @@ import { InterventionsTable, InterventionsTableSkeleton } from "@/components/int
 import { NewInterventionModal } from "@/components/interventions/NewInterventionModal";
 import { EmptyInterventions } from "@/components/interventions/EmptyInterventions";
 import { OutcomeIntelligenceList } from "@/components/interventions/OutcomeIntelligenceList";
+import { SmartInterventionSuggestionList } from "@/components/interventions/SmartInterventionSuggestionList";
 
 import { InterventionWorkflowBanner } from "@/components/interventions/InterventionWorkflowBanner";
 import { getInterventionProgress } from "@/lib/interventions/interventionStatus";
@@ -255,6 +256,9 @@ export default function Interventions() {
           New Intervention
         </Button>
       </div>
+
+      {/* Smart Suggestions from Assisted Detection Engine */}
+      <SmartInterventionSuggestionList organizationId={orgId} maxVisible={2} />
 
       {/* Workflow Banner - shows when there are interventions */}
       {!isEmptyWithNoFilters && (
