@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -28,6 +29,8 @@ import {
   Play,
   ExternalLink,
   Sparkles,
+  GitGraph,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -48,6 +51,7 @@ import { BaselineWarningBanner } from "@/components/interventions/BaselineWarnin
 
 import { InterventionRiskBanner } from "@/components/interventions/InterventionRiskBanner";
 import { InterventionTimeline } from "@/components/interventions/InterventionTimeline";
+import { TimelineTab } from "@/components/interventions/TimelineTab";
 import { LinkedIssueCard } from "@/components/interventions/LinkedIssueCard";
 import { CreateIssueFromFailureButton } from "@/components/interventions/CreateIssueFromFailureButton";
 import { InterventionIssueLink } from "@/components/interventions/InterventionIssueLink";
@@ -112,6 +116,7 @@ export default function InterventionDetail() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [linkMetricModalOpen, setLinkMetricModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "timeline">("overview");
 
   // Fetch intervention
   const {
@@ -499,8 +504,23 @@ export default function InterventionDetail() {
         </div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid gap-6 md:grid-cols-3">
+      {/* Tab Navigation */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "overview" | "timeline")}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="overview" className="gap-2">
+            <FileText className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="timeline" className="gap-2">
+            <GitGraph className="h-4 w-4" />
+            Timeline
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Overview Tab Content */}
+        <TabsContent value="overview" className="mt-6 space-y-6">
+          {/* Main Content Grid */}
+          <div className="grid gap-6 md:grid-cols-3">
         {/* Section 1: Overview Card */}
         <Card className="md:col-span-2">
           <CardHeader>
@@ -860,7 +880,7 @@ export default function InterventionDetail() {
         </CardContent>
       </Card>
 
-      {/* Section 5: Timeline */}
+      {/* Section 5: Old Timeline (in overview tab) */}
       <InterventionTimeline
         intervention={{
           created_at: intervention.created_at,
@@ -896,6 +916,48 @@ export default function InterventionDetail() {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        {/* Timeline Tab Content */}
+        <TabsContent value="timeline" className="mt-6">
+          <TimelineTab
+            intervention={{
+              id: intervention.id,
+              organization_id: intervention.organization_id,
+              title: intervention.title,
+              status: intervention.status,
+              created_at: intervention.created_at,
+              start_date: intervention.start_date,
+              end_date: intervention.end_date,
+              expected_time_horizon_days: intervention.expected_time_horizon_days,
+            }}
+            linkedMetrics={linkedMetrics.map((lm) => ({
+              id: lm.id,
+              metric_id: lm.metric_id,
+              metric: lm.metric,
+              expected_direction: lm.expected_direction,
+              expected_magnitude_percent: lm.expected_magnitude_percent,
+              baseline_value: lm.baseline_value,
+              baseline_period_start: lm.baseline_period_start,
+              baseline_quality_flag: lm.baseline_quality_flag,
+            }))}
+            outcomes={outcomes.map((o) => ({
+              id: o.id,
+              metric_id: o.metric_id,
+              metric: o.metric,
+              evaluation_period_start: o.evaluation_period_start,
+              evaluation_period_end: o.evaluation_period_end,
+              actual_delta_value: o.actual_delta_value,
+              actual_delta_percent: o.actual_delta_percent,
+              confidence_score: o.confidence_score,
+              ai_summary: o.ai_summary,
+              baseline_value: o.baseline_value,
+              current_value: o.current_value,
+              evaluated_at: o.evaluated_at,
+            }))}
+          />
+        </TabsContent>
+      </Tabs>
       {editModalOpen && (
         <EditInterventionModal
           open={editModalOpen}
