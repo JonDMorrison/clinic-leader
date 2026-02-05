@@ -4,13 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, AlertCircle, RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, AlertCircle, RefreshCw, LayoutGrid, Table } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
 import { InterventionFilters, type ProgressFilterType } from "@/components/interventions/InterventionFilters";
 import { InterventionsTable, InterventionsTableSkeleton } from "@/components/interventions/InterventionsTable";
 import { NewInterventionModal } from "@/components/interventions/NewInterventionModal";
 import { EmptyInterventions } from "@/components/interventions/EmptyInterventions";
+import { OutcomeIntelligenceList } from "@/components/interventions/OutcomeIntelligenceList";
 
 import { InterventionWorkflowBanner } from "@/components/interventions/InterventionWorkflowBanner";
 import { getInterventionProgress } from "@/lib/interventions/interventionStatus";
@@ -25,6 +27,9 @@ export default function Interventions() {
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
+  
+  // View mode: table or cards
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   // Filter state
   const [search, setSearch] = useState("");
@@ -270,41 +275,69 @@ export default function Interventions() {
         overdueCount={overdueCount}
       />
 
+      {/* View Toggle */}
+      <div className="flex items-center gap-2">
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "cards")}>
+          <TabsList className="h-9">
+            <TabsTrigger value="table" className="gap-1.5">
+              <Table className="h-3.5 w-3.5" />
+              Table
+            </TabsTrigger>
+            <TabsTrigger value="cards" className="gap-1.5">
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Cards
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
       {/* Content */}
-      <Card>
-        <CardContent className="pt-6">
-          {isLoading ? (
-            <InterventionsTableSkeleton />
-          ) : isEmptyWithNoFilters ? (
-            <EmptyInterventions onCreateClick={() => setModalOpen(true)} />
-          ) : isEmpty ? (
-            <div className="text-center py-12 text-muted-foreground">
-              No interventions match your filters.
-            </div>
-          ) : (
-            <>
-              <InterventionsTable
-                interventions={visibleInterventions}
-                onRowClick={handleRowClick}
-              />
+      {viewMode === "table" ? (
+        <Card>
+          <CardContent className="pt-6">
+            {isLoading ? (
+              <InterventionsTableSkeleton />
+            ) : isEmptyWithNoFilters ? (
+              <EmptyInterventions onCreateClick={() => setModalOpen(true)} />
+            ) : isEmpty ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No interventions match your filters.
+              </div>
+            ) : (
+              <>
+                <InterventionsTable
+                  interventions={visibleInterventions}
+                  onRowClick={handleRowClick}
+                />
 
-              {/* Load More */}
-              {hasMore && (
-                <div className="flex justify-center mt-6">
-                  <Button variant="outline" onClick={handleLoadMore}>
-                    Load More ({filteredInterventions.length - visibleCount} remaining)
-                  </Button>
-                </div>
-              )}
+                {/* Load More */}
+                {hasMore && (
+                  <div className="flex justify-center mt-6">
+                    <Button variant="outline" onClick={handleLoadMore}>
+                      Load More ({filteredInterventions.length - visibleCount} remaining)
+                    </Button>
+                  </div>
+                )}
 
-              {/* Results count */}
-              <p className="text-sm text-muted-foreground text-center mt-4">
-                Showing {visibleInterventions.length} of {filteredInterventions.length} interventions
-              </p>
-            </>
-          )}
-        </CardContent>
-      </Card>
+                {/* Results count */}
+                <p className="text-sm text-muted-foreground text-center mt-4">
+                  Showing {visibleInterventions.length} of {filteredInterventions.length} interventions
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        /* Outcome Intelligence Cards View */
+        <OutcomeIntelligenceList
+          organizationId={orgId!}
+          title="Intervention Outcomes"
+          variant="full"
+          showFilters={true}
+          showHeader={false}
+          limit={50}
+        />
+      )}
 
       {/* New Intervention Modal */}
       <NewInterventionModal
