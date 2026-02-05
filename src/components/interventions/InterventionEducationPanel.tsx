@@ -282,8 +282,8 @@ const workflowSteps = [
     id: "issues", 
     label: "Issues", 
     icon: AlertCircle, 
-    color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    borderColor: "border-amber-500/20",
+    color: "bg-muted text-muted-foreground",
+    borderColor: "border-border",
     tooltip: "Surface and discuss problems that need solving"
   },
   { 
@@ -469,7 +469,7 @@ function ExampleStoryCard({ compact }: { compact?: boolean }) {
     },
     { 
       number: 2, 
-      color: "bg-amber-500", 
+      color: "bg-muted-foreground", 
       label: "Issue created", 
       content: "Low referral volume from primary care partners" 
     },

@@ -54,11 +54,11 @@ export function InterventionWorkflowBanner({
 
               {/* Workflow Timeline */}
               <div className="flex items-center gap-1 flex-wrap mb-3">
-                <WorkflowPill icon={AlertCircle} label="Problem Detected" color="amber" />
+                <WorkflowPill icon={AlertCircle} label="Problem Detected" color="muted" />
                 <ArrowRight className="h-3 w-3 text-muted-foreground" />
                 <WorkflowPill icon={Zap} label="Intervention Created" color="primary" active />
                 <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                <WorkflowPill icon={CheckCircle2} label="Outcome Evaluated" color="green" />
+                <WorkflowPill icon={CheckCircle2} label="Outcome Evaluated" color="success" />
               </div>
 
               {/* Learn More Button + Why Link */}
@@ -116,15 +116,15 @@ export function InterventionWorkflowBanner({
 interface WorkflowPillProps {
   icon: React.ElementType;
   label: string;
-  color: "amber" | "primary" | "green";
+  color: "muted" | "primary" | "success";
   active?: boolean;
 }
 
 function WorkflowPill({ icon: Icon, label, color, active }: WorkflowPillProps) {
   const colorClasses = {
-    amber: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+    muted: "bg-muted text-muted-foreground",
     primary: "bg-primary/10 text-primary",
-    green: "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300",
+    success: "bg-success/15 text-success",
   };
 
   return (

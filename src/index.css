@@ -38,9 +38,9 @@ All colors MUST be HSL.
     --success-foreground: 0 0% 100%;
     --success-glow: 142 76% 50%;
 
-    --warning: 38 92% 45%;
+    --warning: 195 80% 35%;
     --warning-foreground: 0 0% 100%;
-    --warning-glow: 38 92% 55%;
+    --warning-glow: 195 80% 45%;
 
     --danger: 0 84% 55%;
     --danger-foreground: 0 0% 100%;
@@ -56,8 +56,8 @@ All colors MUST be HSL.
     --category-clinical: 195 100% 40%;
     --category-clinical-light: 195 100% 95%;
     
-    --category-referrals: 38 92% 45%;
-    --category-referrals-light: 38 92% 95%;
+    --category-referrals: 195 70% 40%;
+    --category-referrals-light: 195 70% 95%;
     
     --category-default: 210 20% 40%;
     --category-default-light: 210 20% 95%;
@@ -89,7 +89,7 @@ All colors MUST be HSL.
     --shadow-elevated: 0 12px 40px hsl(210 20% 20% / 0.14);
     --shadow-brand: 0 4px 16px hsl(210 100% 45% / 0.25);
     --shadow-success: 0 4px 16px hsl(142 76% 36% / 0.25);
-    --shadow-warning: 0 4px 16px hsl(38 92% 45% / 0.25);
+    --shadow-warning: 0 4px 16px hsl(195 80% 35% / 0.25);
 
     --radius: 1.5rem;
   }
