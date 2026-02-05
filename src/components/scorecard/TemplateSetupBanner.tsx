@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileSpreadsheet, Upload, Settings, Lock } from "lucide-react";
+import { FileSpreadsheet, Settings, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 
 export function TemplateSetupBanner() {
@@ -72,24 +72,14 @@ export function TemplateSetupBanner() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => navigate('/scorecard/template')}
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                Manage Template
-              </Button>
-              <Button 
-                size="sm"
-                className="gradient-brand"
-                onClick={() => navigate('/imports/monthly-report')}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Monthly Data
-              </Button>
-            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate('/scorecard/template')}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Manage Template
+            </Button>
           </div>
         </CardContent>
       </Card>
