@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { RecommendationCard } from "./RecommendationCard";
 import { PlaybookSuggestionPanel } from "./PlaybookSuggestionPanel";
 import { RecommendationDetailModal } from "./RecommendationDetailModal";
+import { useRecommendationsReliability } from "@/hooks/useRecommendationReliability";
 import {
   generateRecommendationsForMetric,
   storeRecommendations,
@@ -70,6 +71,22 @@ export function MetricRecommendationsPanel({
     },
     enabled: !!organizationId && !!metricId && isOffTrack,
   });
+
+  // Fetch reliability data for recommendations
+  const reliabilityParams = recommendations.map((rec) => ({
+    id: rec.id,
+    metricId,
+    interventionType: rec.recommended_intervention_template.intervention_type,
+    organizationId: organizationId || "",
+    confidenceScore: rec.confidence_score,
+    sampleSize: rec.recommendation_reason.matched_cases_count,
+    successRate: rec.recommendation_reason.historical_success_rate,
+  }));
+  
+  const { data: reliabilityMap } = useRecommendationsReliability(
+    reliabilityParams,
+    recommendations.length > 0 && !!organizationId
+  );
 
   // Generate new recommendations
   const generateMutation = useMutation({
@@ -285,6 +302,7 @@ export function MetricRecommendationsPanel({
                   isAccepting={acceptingId === rec.id}
                   isDismissing={dismissingId === rec.id}
                   canAccept={canCreate}
+                  reliability={reliabilityMap?.get(rec.id) ?? null}
                 />
               ))}
             </div>

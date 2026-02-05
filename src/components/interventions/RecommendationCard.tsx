@@ -3,6 +3,7 @@
  * 
  * Enhanced with:
  * - Tier labels (Explore, Suggest, Recommend)
+ * - Reliability badges for evidence quality
  * - Expanded evidence panel
  * - Confidence calculation breakdown
  */
@@ -39,6 +40,12 @@ import {
 } from "@/lib/interventions/recommendationSummaryAI";
 import type { RecommendationReason } from "@/lib/interventions/generateRecommendations";
 import { RecommendationTierBadge } from "./RecommendationTierBadge";
+import { 
+  ReliabilityBadge, 
+  ReliabilityBreakdownPanel,
+  InsufficientEvidenceBanner,
+} from "./ReliabilityBadge";
+import type { ReliabilityResult } from "@/lib/interventions/recommendationReliabilityEvaluator";
 
 interface RecommendationCardProps {
   id: string;
@@ -54,6 +61,7 @@ interface RecommendationCardProps {
   isAccepting?: boolean;
   isDismissing?: boolean;
   canAccept?: boolean;
+  reliability?: ReliabilityResult | null;
 }
 
 export function RecommendationCard({
@@ -70,11 +78,16 @@ export function RecommendationCard({
   isAccepting = false,
   isDismissing = false,
   canAccept = true,
+  reliability = null,
 }: RecommendationCardProps) {
   const [expanded, setExpanded] = useState(false);
   const confidenceLabel = getConfidenceLabel(confidenceScore);
   const confidenceExplanations = formatConfidenceExplanation(reason.confidence_components);
   const confidencePercent = Math.round(confidenceScore * 100);
+
+  // Determine if evidence is weak
+  const hasWeakEvidence = reliability?.reliability_tier === "insufficient_evidence";
+  const effectiveTier = reliability?.effective_tier ?? null;
 
   return (
     <Card className="border-primary/20 bg-primary/5">
@@ -94,6 +107,10 @@ export function RecommendationCard({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Reliability Badge */}
+            {reliability && (
+              <ReliabilityBadge reliability={reliability} compact />
+            )}
             <RecommendationTierBadge
               sampleSize={reason.matched_cases_count}
               confidenceScore={confidenceScore}
@@ -120,6 +137,11 @@ export function RecommendationCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* Insufficient Evidence Banner */}
+        {hasWeakEvidence && (
+          <InsufficientEvidenceBanner />
+        )}
+
         {/* Evidence summary */}
         <p className="text-sm text-muted-foreground">{evidenceSummary}</p>
 
@@ -130,7 +152,7 @@ export function RecommendationCard({
             <span>{reason.matched_cases_count} cases</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs">
-            <TrendingUp className="h-3.5 w-3.5 text-green-600" />
+            <TrendingUp className="h-3.5 w-3.5 text-primary" />
             <span>{reason.historical_success_rate}% success</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs">
@@ -165,6 +187,11 @@ export function RecommendationCard({
 
         {expanded && (
           <div className="space-y-4 pt-3 border-t">
+            {/* Reliability Breakdown Panel */}
+            {reliability && (
+              <ReliabilityBreakdownPanel reliability={reliability} />
+            )}
+
             {/* Cohort Description */}
             <div className="p-2.5 rounded-lg bg-background border">
               <div className="flex items-center gap-1.5 mb-1.5">
@@ -190,13 +217,13 @@ export function RecommendationCard({
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="p-2 rounded bg-background">
                   <p className="text-muted-foreground">Avg improvement</p>
-                  <p className="font-medium text-green-600">
+                  <p className="font-medium text-primary">
                     +{reason.avg_improvement_percent.toFixed(1)}%
                   </p>
                 </div>
                 <div className="p-2 rounded bg-background">
                   <p className="text-muted-foreground">Median improvement</p>
-                  <p className="font-medium text-green-600">
+                  <p className="font-medium text-primary">
                     +{reason.median_improvement_percent.toFixed(1)}%
                   </p>
                 </div>
@@ -289,16 +316,22 @@ export function RecommendationCard({
           </div>
         )}
 
-        {/* Action buttons */}
+        {/* Action buttons - tone down CTA for weak evidence */}
         <div className="flex gap-2 pt-2">
           <Button
             size="sm"
             className="flex-1"
+            variant={hasWeakEvidence ? "secondary" : "default"}
             onClick={() => onAccept(id)}
             disabled={isAccepting || isDismissing || !canAccept}
           >
             {isAccepting ? (
               <>Creating...</>
+            ) : hasWeakEvidence ? (
+              <>
+                <Check className="h-3.5 w-3.5 mr-1" />
+                Try This
+              </>
             ) : (
               <>
                 <Check className="h-3.5 w-3.5 mr-1" />
