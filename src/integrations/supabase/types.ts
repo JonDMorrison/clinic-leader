@@ -2514,6 +2514,7 @@ export type Database = {
       }
       intervention_pattern_clusters: {
         Row: {
+          aggregation_parameters: Json | null
           avg_effect_magnitude: number | null
           baseline_range_band: string
           computation_version: string | null
@@ -2528,11 +2529,13 @@ export type Database = {
           pattern_confidence: number | null
           recency_weighted_score: number | null
           sample_size: number
+          source_outcome_ids: string[] | null
           specialty_type: string | null
           success_rate: number
           time_horizon_band: string
         }
         Insert: {
+          aggregation_parameters?: Json | null
           avg_effect_magnitude?: number | null
           baseline_range_band: string
           computation_version?: string | null
@@ -2547,11 +2550,13 @@ export type Database = {
           pattern_confidence?: number | null
           recency_weighted_score?: number | null
           sample_size?: number
+          source_outcome_ids?: string[] | null
           specialty_type?: string | null
           success_rate: number
           time_horizon_band: string
         }
         Update: {
+          aggregation_parameters?: Json | null
           avg_effect_magnitude?: number | null
           baseline_range_band?: string
           computation_version?: string | null
@@ -2566,6 +2571,7 @@ export type Database = {
           pattern_confidence?: number | null
           recency_weighted_score?: number | null
           sample_size?: number
+          source_outcome_ids?: string[] | null
           specialty_type?: string | null
           success_rate?: number
           time_horizon_band?: string
@@ -7894,6 +7900,7 @@ export type Database = {
         Args: { _org_id: string; _resource_type: string; _user_id: string }
         Returns: boolean
       }
+      invalidate_recommendation_caches: { Args: never; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
       is_admin_simple: { Args: never; Returns: boolean }
       is_billing: { Args: never; Returns: boolean }
@@ -7994,6 +8001,7 @@ export type Database = {
           passes: boolean
         }[]
       }
+      recompute_intervention_patterns: { Args: never; Returns: Json }
       select_canonical_metric_result: {
         Args: {
           _metric_id: string
