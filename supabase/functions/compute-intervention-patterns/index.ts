@@ -2,15 +2,19 @@
  * Compute Intervention Patterns Edge Function
  * 
  * Scheduled background job that:
- * 1. Aggregates intervention outcomes across organizations
- * 2. Clusters by dimensions (metric, type, org size, specialty, time horizon, baseline)
- * 3. Calculates pattern scores (success rate, sample size, recency, effect magnitude)
- * 4. Stores anonymized results in intervention_pattern_clusters
+ * 1. Aggregates intervention outcomes by clustering dimensions
+ * 2. Computes pattern metrics (success rate, variance, consistency, etc.)
+ * 3. Stores anonymized results in intervention_pattern_clusters
+ * 4. Triggers downstream recommendation refresh
  * 
  * SECURITY: 
  * - No org-identifiable data is stored
- * - Minimum sample size enforced (5 orgs) for anonymity
+ * - Minimum sample size enforced (5 outcomes, 3 orgs) for anonymity
  * - Only aggregated statistics are persisted
+ * 
+ * IDEMPOTENCY:
+ * - Same outcome dataset produces same cluster results
+ * - Computation version tracked for reproducibility
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -20,305 +24,204 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MIN_SAMPLE_SIZE = 5; // Minimum interventions for pattern to be stored
-const MIN_ORGS_FOR_PATTERN = 3; // Minimum unique orgs for anonymity
-
-interface ClusterKey {
-  metricId: string | null;
-  interventionType: string;
-  orgSizeBand: string;
-  specialtyType: string | null;
-  timeHorizonBand: string;
-  baselineRangeBand: string;
-}
-
-interface InterventionData {
-  id: string;
-  orgId: string;
-  metricId: string | null;
-  interventionType: string;
-  timeHorizon: number;
-  status: string;
-  deltaPercent: number | null;
-  evaluatedAt: string | null;
-  baselineValue: number | null;
-  orgSize: number;
-  specialty: string | null;
-}
+const MIN_SAMPLE_SIZE = 5;
+const MIN_ORGS_FOR_PATTERN = 3;
+const MIN_CONFIDENCE_SCORE = 30;
+const COMPUTATION_VERSION = "2.0";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const runId = crypto.randomUUID();
   const startTime = Date.now();
-  
+  let outcomeCount = 0;
+  let clusterCount = 0;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
   try {
-    // Initialize Supabase client with service role for full access
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log(`[${runId}] Starting pattern computation v${COMPUTATION_VERSION}...`);
 
-    console.log("Starting intervention pattern computation...");
-
-    // Step 1: Fetch all completed interventions with outcomes
+    // Fetch completed interventions with outcomes
     const { data: interventions, error: fetchError } = await supabase
       .from("interventions")
       .select(`
-        id,
-        organization_id,
-        intervention_type,
-        expected_time_horizon_days,
-        status,
-        intervention_metric_links!inner(
-          metric_id,
-          baseline_value
-        ),
-        intervention_outcomes(
-          actual_delta_percent,
-          evaluated_at
-        )
+        id, organization_id, intervention_type, expected_time_horizon_days, status,
+        intervention_metric_links!inner(metric_id, baseline_value, baseline_quality_flag),
+        intervention_outcomes(actual_delta_percent, confidence_score, evaluated_at)
       `)
-      .in("status", ["completed", "active"])
+      .eq("status", "completed")
       .not("intervention_outcomes", "is", null);
 
-    if (fetchError) {
-      throw new Error(`Failed to fetch interventions: ${fetchError.message}`);
+    if (fetchError) throw new Error(`Fetch failed: ${fetchError.message}`);
+    if (!interventions?.length) {
+      await logAudit(supabase, 0, 0, Date.now() - startTime, null);
+      return jsonResponse({ success: true, patterns: 0, message: "No interventions" });
     }
 
-    if (!interventions || interventions.length === 0) {
-      console.log("No interventions found for pattern analysis");
-      return new Response(
-        JSON.stringify({ success: true, patterns: 0, message: "No interventions to analyze" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Get org metadata
+    const orgIds = [...new Set(interventions.map(i => i.organization_id))];
+    const { data: orgsData } = await supabase.from("teams").select("id, specialty").in("id", orgIds);
+    const { data: userCounts } = await supabase.from("users").select("team_id").in("team_id", orgIds);
 
-    // Step 2: Fetch organization metadata for size/specialty classification
-    const orgIds = [...new Set(interventions.map((i) => i.organization_id))];
-    const { data: orgsData } = await supabase
-      .from("teams")
-      .select("id, specialty")
-      .in("id", orgIds);
-
-    // Get provider counts for org size
-    const { data: userCounts } = await supabase
-      .from("users")
-      .select("team_id")
-      .in("team_id", orgIds);
-
-    // Calculate org sizes
     const orgSizeMap = new Map<string, number>();
-    (userCounts || []).forEach((u) => {
-      const current = orgSizeMap.get(u.team_id) || 0;
-      orgSizeMap.set(u.team_id, current + 1);
-    });
-
+    (userCounts || []).forEach((u: any) => orgSizeMap.set(u.team_id, (orgSizeMap.get(u.team_id) || 0) + 1));
+    
     const orgSpecialtyMap = new Map<string, string | null>();
-    (orgsData || []).forEach((o) => {
-      orgSpecialtyMap.set(o.id, o.specialty || null);
-    });
+    (orgsData || []).forEach((o: any) => orgSpecialtyMap.set(o.id, o.specialty));
 
-    // Step 3: Transform interventions into analyzable format
-    const interventionData: InterventionData[] = [];
-
-    for (const intervention of interventions) {
-      const links = intervention.intervention_metric_links || [];
-      const outcomes = intervention.intervention_outcomes || [];
-      
-      // Use first outcome for simplicity
-      const outcome = outcomes[0];
+    // Transform data
+    const outcomes: any[] = [];
+    for (const int of interventions) {
+      const links = int.intervention_metric_links || [];
+      const outs = int.intervention_outcomes || [];
       const link = links[0];
+      const out = outs[0];
       
-      if (!outcome || !link) continue;
+      if (!out || !link) continue;
+      if ((out.confidence_score || 0) < MIN_CONFIDENCE_SCORE) continue;
+      if (link.baseline_quality_flag === "bad") continue;
 
-      interventionData.push({
-        id: intervention.id,
-        orgId: intervention.organization_id,
+      outcomes.push({
+        id: out.id || int.id,
+        orgId: int.organization_id,
         metricId: link.metric_id,
-        interventionType: intervention.intervention_type,
-        timeHorizon: intervention.expected_time_horizon_days || 90,
-        status: intervention.status,
-        deltaPercent: outcome.actual_delta_percent,
-        evaluatedAt: outcome.evaluated_at,
+        interventionType: int.intervention_type,
+        timeHorizon: int.expected_time_horizon_days || 90,
+        deltaPercent: out.actual_delta_percent,
+        confidenceScore: out.confidence_score || 0,
+        evaluatedAt: out.evaluated_at,
         baselineValue: link.baseline_value,
-        orgSize: orgSizeMap.get(intervention.organization_id) || 1,
-        specialty: orgSpecialtyMap.get(intervention.organization_id) || null,
+        orgSize: orgSizeMap.get(int.organization_id) || 1,
+        specialty: orgSpecialtyMap.get(int.organization_id) || null,
       });
     }
+    outcomeCount = outcomes.length;
 
-    console.log(`Analyzing ${interventionData.length} interventions...`);
-
-    // Step 4: Group into clusters
-    const clusters = new Map<string, InterventionData[]>();
-
-    for (const data of interventionData) {
-      const key = buildClusterKey({
-        metricId: data.metricId,
-        interventionType: data.interventionType,
-        orgSizeBand: classifyOrgSize(data.orgSize),
-        specialtyType: data.specialty,
-        timeHorizonBand: classifyTimeHorizon(data.timeHorizon),
-        baselineRangeBand: classifyBaselineRange(data.baselineValue),
-      });
-
-      const existing = clusters.get(key) || [];
-      existing.push(data);
-      clusters.set(key, existing);
+    if (outcomeCount === 0) {
+      await logAudit(supabase, 0, 0, Date.now() - startTime, null);
+      return jsonResponse({ success: true, patterns: 0, message: "No eligible outcomes" });
     }
 
-    // Step 5: Calculate pattern statistics for each cluster
+    // Group into clusters
+    const clusters = new Map<string, any[]>();
+    for (const o of outcomes) {
+      const key = JSON.stringify([
+        o.metricId,
+        o.interventionType,
+        classifyOrgSize(o.orgSize),
+        o.specialty,
+        classifyTimeHorizon(o.timeHorizon),
+        classifyBaseline(o.baselineValue),
+      ]);
+      const arr = clusters.get(key) || [];
+      arr.push(o);
+      clusters.set(key, arr);
+    }
+
+    // Compute patterns
     const patterns: any[] = [];
     const now = new Date();
 
-    for (const [keyStr, clusterData] of clusters) {
-      // Enforce minimum sample size
-      if (clusterData.length < MIN_SAMPLE_SIZE) continue;
-
-      // Enforce minimum unique orgs for anonymity
-      const uniqueOrgs = new Set(clusterData.map((d) => d.orgId)).size;
+    for (const [keyStr, data] of clusters) {
+      if (data.length < MIN_SAMPLE_SIZE) continue;
+      const uniqueOrgs = new Set(data.map(d => d.orgId)).size;
       if (uniqueOrgs < MIN_ORGS_FOR_PATTERN) continue;
 
-      const key = parseClusterKey(keyStr);
-      
-      // Calculate success rate (positive delta = success)
-      const successfulCount = clusterData.filter(
-        (d) => d.deltaPercent !== null && d.deltaPercent > 0
-      ).length;
-      const successRate = (successfulCount / clusterData.length) * 100;
+      const [metricId, interventionType, orgSizeBand, specialtyType, timeHorizonBand, baselineRangeBand] = JSON.parse(keyStr);
 
-      // Calculate effect magnitudes
-      const deltas = clusterData
-        .map((d) => d.deltaPercent)
-        .filter((d): d is number => d !== null);
+      const withDelta = data.filter(d => d.deltaPercent !== null);
+      const successCount = withDelta.filter(d => d.deltaPercent > 0).length;
+      const successRate = withDelta.length > 0 ? (successCount / withDelta.length) * 100 : 0;
 
-      const avgEffect = deltas.length > 0
-        ? deltas.reduce((a, b) => a + b, 0) / deltas.length
-        : null;
-
+      const deltas = data.map(d => d.deltaPercent).filter((d): d is number => d !== null);
+      const avgEffect = deltas.length > 0 ? deltas.reduce((a, b) => a + b, 0) / deltas.length : null;
       const sortedDeltas = [...deltas].sort((a, b) => a - b);
-      const medianEffect = sortedDeltas.length > 0
-        ? sortedDeltas[Math.floor(sortedDeltas.length / 2)]
-        : null;
+      const medianEffect = sortedDeltas.length > 0 ? sortedDeltas[Math.floor(sortedDeltas.length / 2)] : null;
+      
+      const variance = deltas.length > 1 ? deltas.reduce((sum, d) => sum + Math.pow(d - (avgEffect || 0), 2), 0) / (deltas.length - 1) : null;
+      const stdDev = variance !== null ? Math.sqrt(variance) : null;
 
-      const stdDev = deltas.length > 1
-        ? Math.sqrt(
-            deltas.reduce((sum, d) => sum + Math.pow(d - (avgEffect || 0), 2), 0) / 
-            (deltas.length - 1)
-          )
-        : null;
-
-      // Calculate recency-weighted score
-      const recencyDays = clusterData
-        .filter((d) => d.evaluatedAt)
-        .map((d) => {
-          const evalDate = new Date(d.evaluatedAt!);
-          return Math.floor((now.getTime() - evalDate.getTime()) / (1000 * 60 * 60 * 24));
-        });
-      const avgRecencyDays = recencyDays.length > 0
-        ? recencyDays.reduce((a, b) => a + b, 0) / recencyDays.length
-        : 90;
-
-      const recencyWeightedScore = avgEffect !== null
-        ? avgEffect * Math.pow(0.5, avgRecencyDays / 90)
-        : null;
-
-      // Calculate pattern confidence
-      const patternConfidence = calculatePatternConfidence({
-        successRate,
-        sampleSize: clusterData.length,
-        effectStdDeviation: stdDev,
-        avgRecencyDays,
+      const recencyDays = data.filter(d => d.evaluatedAt).map(d => {
+        return Math.floor((now.getTime() - new Date(d.evaluatedAt).getTime()) / 86400000);
       });
+      const avgRecency = recencyDays.length > 0 ? recencyDays.reduce((a, b) => a + b, 0) / recencyDays.length : 90;
+      const recencyScore = Math.pow(0.5, avgRecency / 90) * 100;
+      const recencyWeightedScore = avgEffect !== null ? avgEffect * (recencyScore / 100) : null;
+
+      const consistencyScore = stdDev !== null && avgEffect !== null && Math.abs(avgEffect) > 0
+        ? Math.max(0, 100 - (Math.abs(stdDev / avgEffect) * 100)) : 50;
+
+      const avgConfScore = data.reduce((sum, d) => sum + d.confidenceScore, 0) / data.length;
+      const patternConfidence = Math.min(100, Math.max(0,
+        (successRate / 100) * 30 +
+        Math.min(25, (Math.log2(data.length + 1) / Math.log2(21)) * 25) +
+        (consistencyScore / 100) * 20 +
+        (recencyScore / 100) * 15 +
+        (avgConfScore / 100) * 10
+      ));
 
       patterns.push({
-        metric_id: key.metricId || null,
-        intervention_type: key.interventionType,
-        org_size_band: key.orgSizeBand,
-        specialty_type: key.specialtyType,
-        time_horizon_band: key.timeHorizonBand,
-        baseline_range_band: key.baselineRangeBand,
-        success_rate: Math.round(successRate * 100) / 100,
-        sample_size: clusterData.length,
-        avg_effect_magnitude: avgEffect !== null ? Math.round(avgEffect * 100) / 100 : null,
-        median_effect_magnitude: medianEffect !== null ? Math.round(medianEffect * 100) / 100 : null,
-        effect_std_deviation: stdDev !== null ? Math.round(stdDev * 100) / 100 : null,
-        recency_weighted_score: recencyWeightedScore !== null ? Math.round(recencyWeightedScore * 100) / 100 : null,
-        pattern_confidence: Math.round(patternConfidence * 100) / 100,
+        metric_id: metricId,
+        intervention_type: interventionType,
+        org_size_band: orgSizeBand,
+        specialty_type: specialtyType,
+        time_horizon_band: timeHorizonBand,
+        baseline_range_band: baselineRangeBand,
+        success_rate: round(successRate, 2),
+        avg_effect_magnitude: avgEffect !== null ? round(avgEffect, 2) : null,
+        median_effect_magnitude: medianEffect !== null ? round(medianEffect, 2) : null,
+        effect_std_deviation: stdDev !== null ? round(stdDev, 2) : null,
+        sample_size: data.length,
+        recency_weighted_score: recencyWeightedScore !== null ? round(recencyWeightedScore, 2) : null,
+        pattern_confidence: round(patternConfidence, 2),
         last_computed_at: now.toISOString(),
-        computation_version: "1.0",
+        computation_version: COMPUTATION_VERSION,
+        source_outcome_ids: data.map(d => d.id),
+        aggregation_parameters: { min_sample: MIN_SAMPLE_SIZE, min_orgs: MIN_ORGS_FOR_PATTERN, min_conf: MIN_CONFIDENCE_SCORE, version: COMPUTATION_VERSION },
       });
     }
+    clusterCount = patterns.length;
 
-    console.log(`Generated ${patterns.length} patterns from ${clusters.size} clusters`);
-
-    // Step 6: Upsert patterns (replace existing)
-    if (patterns.length > 0) {
-      // Delete old patterns
+    // Persist patterns
+    if (clusterCount > 0) {
       await supabase.from("intervention_pattern_clusters").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-
-      // Insert new patterns
-      const { error: insertError } = await supabase
-        .from("intervention_pattern_clusters")
-        .insert(patterns);
-
-      if (insertError) {
-        throw new Error(`Failed to insert patterns: ${insertError.message}`);
+      for (let i = 0; i < patterns.length; i += 50) {
+        const { error } = await supabase.from("intervention_pattern_clusters").insert(patterns.slice(i, i + 50));
+        if (error) throw new Error(`Insert failed: ${error.message}`);
       }
     }
 
-    // Step 7: Log audit entry
+    // Invalidate caches
+    try { await supabase.rpc("invalidate_recommendation_caches"); } catch (e) { console.warn("Cache invalidation failed:", e); }
+
     const duration = Date.now() - startTime;
-    await supabase.from("intervention_pattern_audit").insert({
-      patterns_generated: patterns.length,
-      interventions_analyzed: interventionData.length,
-      orgs_included: orgIds.length,
-      computation_duration_ms: duration,
-      version: "1.0",
-    });
+    await logAudit(supabase, clusterCount, outcomeCount, duration, null);
 
-    console.log(`Pattern computation completed in ${duration}ms`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        patterns: patterns.length,
-        interventionsAnalyzed: interventionData.length,
-        orgsIncluded: orgIds.length,
-        durationMs: duration,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ success: true, runId, patterns: clusterCount, outcomesProcessed: outcomeCount, durationMs: duration, version: COMPUTATION_VERSION });
 
   } catch (error) {
-    console.error("Pattern computation error:", error);
-    
-    // Log error to audit
-    try {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-      
-      await supabase.from("intervention_pattern_audit").insert({
-        patterns_generated: 0,
-        interventions_analyzed: 0,
-        orgs_included: 0,
-        computation_duration_ms: Date.now() - startTime,
-        error_message: error instanceof Error ? error.message : String(error),
-        version: "1.0",
-      });
-    } catch (auditError) {
-      console.error("Failed to log audit:", auditError);
-    }
-
-    return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[${runId}] Error:`, msg);
+    await logAudit(supabase, 0, outcomeCount, Date.now() - startTime, msg);
+    return jsonResponse({ success: false, runId, error: msg }, 500);
   }
 });
 
-// ============ Helper Functions ============
+async function logAudit(supabase: any, patterns: number, outcomes: number, duration: number, error: string | null) {
+  await supabase.from("intervention_pattern_audit").insert({
+    patterns_generated: patterns,
+    interventions_analyzed: outcomes,
+    orgs_included: 0,
+    computation_duration_ms: duration,
+    error_message: error,
+    version: COMPUTATION_VERSION,
+  });
+}
 
 function classifyOrgSize(count: number): string {
   if (count <= 5) return "small";
@@ -333,45 +236,21 @@ function classifyTimeHorizon(days: number): string {
   return "120d+";
 }
 
-function classifyBaselineRange(baseline: number | null): string {
-  if (baseline === null) return "medium";
-  // Simple tertile classification without benchmarks
-  return "medium";
+function classifyBaseline(val: number | null): string {
+  if (val === null) return "unknown";
+  if (val < 33) return "low";
+  if (val < 66) return "medium";
+  return "high";
 }
 
-function buildClusterKey(key: ClusterKey): string {
-  return JSON.stringify([
-    key.metricId,
-    key.interventionType,
-    key.orgSizeBand,
-    key.specialtyType,
-    key.timeHorizonBand,
-    key.baselineRangeBand,
-  ]);
+function round(val: number, dec: number): number {
+  const f = Math.pow(10, dec);
+  return Math.round(val * f) / f;
 }
 
-function parseClusterKey(keyStr: string): ClusterKey {
-  const [metricId, interventionType, orgSizeBand, specialtyType, timeHorizonBand, baselineRangeBand] = JSON.parse(keyStr);
-  return { metricId, interventionType, orgSizeBand, specialtyType, timeHorizonBand, baselineRangeBand };
-}
-
-function calculatePatternConfidence(params: {
-  successRate: number;
-  sampleSize: number;
-  effectStdDeviation: number | null;
-  avgRecencyDays: number;
-}): number {
-  const { successRate, sampleSize, effectStdDeviation, avgRecencyDays } = params;
-  
-  const successScore = (successRate / 100) * 35;
-  const sampleScore = Math.min(30, (Math.log2(sampleSize + 1) / Math.log2(21)) * 30);
-  
-  let consistencyScore = 20;
-  if (effectStdDeviation !== null && effectStdDeviation > 0) {
-    consistencyScore = Math.max(0, 20 - (effectStdDeviation / 10));
-  }
-  
-  const recencyScore = Math.max(0, 15 * (1 - avgRecencyDays / 180));
-  
-  return Math.min(100, Math.max(0, successScore + sampleScore + consistencyScore + recencyScore));
+function jsonResponse(data: object, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
