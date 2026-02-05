@@ -1,115 +1,137 @@
 
+# Cleaner Data Page UI: Consolidated Toolbar
 
-# Plan: Clarify the Issues → Interventions Workflow
+## Overview
+Consolidate the two rows of tabs into a single, unified toolbar row. Replace the month tabs (which grow indefinitely) with a compact dropdown selector, and convert the view toggle into a sleek segmented control. This mirrors patterns from Linear, Stripe, and Notion - keeping controls compact while maintaining quick access.
 
-## Problem Analysis
+## Current Issues
+- **Two rows of controls** - month tabs (row 1) + view toggle (row 2) creates visual clutter
+- **Month tabs don't scale** - as more months are imported, the tab row becomes unwieldy
+- **Inconsistent styling** - the two tab rows look slightly different
 
-The current Issues page has several UX clarity problems:
-
-1. **"IDS Board" is confusing** - Users don't know what IDS means (Identify, Discuss, Solve) without context
-2. **Connection to Interventions is unclear** - Users don't understand that solving an issue should ideally lead to an Intervention
-3. **No visual workflow guidance** - There's no indication of what the "next step" is after identifying an issue
-4. **The "Close the Loop" modal is hidden** - Users only see the intervention prompt when they click "Mark Solved"
-
-## Solution Overview
-
-Create a clear, educational UX that shows the Issues → Interventions workflow upfront, using a condensed workflow stepper (similar to the existing `InterventionEducationPanel`).
-
----
-
-## Technical Changes
-
-### 1. Rename "IDS Board" to "Issues List" with IDS subtitle
-
-**File:** `src/pages/Issues.tsx`
-
-- Change CardTitle from "IDS Board" to "Issues List"
-- Add a collapsible workflow hint banner above the card explaining the IDS → Intervention flow
-
-### 2. Create a new `IssuesWorkflowBanner` component
-
-**File:** `src/components/issues/IssuesWorkflowBanner.tsx` (new)
-
-A compact, collapsible education component that:
-- Shows a 3-step horizontal workflow: **Identify → Discuss → Solve → Create Intervention**
-- Highlights the "Intervention" step as the recommended next action
-- Is dismissible (stores dismissal in localStorage to avoid annoyance)
-- Explains in one sentence: "IDS stands for Identify, Discuss, Solve. When you solve an issue, create an Intervention to track your solution's impact."
+## Proposed Layout
 
 ```text
-+-------------------------------------------------------+
-|  🔍 How Issues Work                          [Dismiss] |
-|                                                        |
-|  [Identify] → [Discuss] → [Solve] → [Intervention ✨]  |
-|                                                        |
-|  "When you solve an issue, create an Intervention to   |
-|   track whether your solution actually worked."        |
-+-------------------------------------------------------+
++------------------------------------------------------------------------+
+| [Database Icon] Data                                                    |
+| Monthly clinic metrics                                                  |
++------------------------------------------------------------------------+
+| [January 2026 ▼]  |  [◉ Summary | Raw]  |  Jan 15, 2:30 PM    [Import] |
++------------------------------------------------------------------------+
+|                                                                        |
+|                        (Report Content)                                |
+|                                                                        |
++------------------------------------------------------------------------+
 ```
 
-### 3. Update the IDSBoard component headers
+## Changes
 
-**File:** `src/components/issues/IDSBoard.tsx`
+### 1. Replace Month Tabs with Select Dropdown
+- Use the existing `Select` component from shadcn/ui
+- Shows "January 2026" (full month name) with dropdown chevron
+- Dropdown lists all months + YTD option at the top
+- YTD gets a subtle highlight/separator in the dropdown
 
-- Change "Open Issues (Drag to Prioritize)" → "Open Issues"
-- Add a subtle instruction: "Drag to reorder by priority"
+### 2. Convert View Toggle to Segmented Control
+- Use `ToggleGroup` with `outline` variant for the Summary/Raw toggle
+- More compact than full TabsList
+- Icons only on desktop; icons + text possible but optional
 
-### 4. Update the Issues page card header
+### 3. Merge Into Single Toolbar Row
+- All controls in one `flex` row with proper spacing
+- Left: Period dropdown
+- Center: View segmented control (only when viewing a single month, not YTD)
+- Right: Timestamp metadata + Import button
 
-**File:** `src/pages/Issues.tsx`
-
-- Replace the current `CardTitle` and description with clearer copy
-- Integrate the `IssuesWorkflowBanner` between the header and the card
-
-### 5. Add "IDS" glossary entry enhancement
-
-**File:** `src/lib/help/glossary.ts`
-
-- Already exists, but update the `learnMore` to link to `/issues` 
-- Add reference to Interventions in the definition
-
-### 6. Make the Intervention button more prominent on Issue cards
-
-**File:** `src/components/issues/IssueCard.tsx`
-
-- Move the "Intervention" button to be more visible (currently same level as "Add Todo")
-- Add a subtle visual indicator (e.g., primary color outline) to guide users
+### 4. Styling
+- Dropdown trigger styled with subtle border, matches app aesthetic
+- Segmented control uses muted backgrounds with primary highlight for active state
+- Consistent with glassmorphic/clean design language
 
 ---
 
-## Component Structure
+## Technical Details
 
-```text
-Issues Page
-├── Header (title + subtitle + HelpHint for "Issue")
-├── IDSFollowThroughCard (existing metric)
-├── IssuesWorkflowBanner (new - collapsible education)
-│   └── 4-step horizontal workflow with Intervention highlighted
-├── IssueSuggestionsBanner (existing AI suggestions)
-└── Card
-    ├── Header: "Issues List" (not "IDS Board")
-    ├── Subtitle: "Drag issues to reorder by priority"
-    └── IDSBoard (existing component)
+### Files to Modify
+- `src/pages/DataDefaultHome.tsx` - main restructure
+
+### Component Changes
+
+**Remove:**
+- First `<Tabs>` block (month tabs, lines 263-290)
+- Second `<Tabs>` block wrapper (view toggle, lines 299-327)
+
+**Add:**
+- Import `Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator` from `@/components/ui/select`
+- Import `ToggleGroup, ToggleGroupItem` from `@/components/ui/toggle-group`
+- Single toolbar `<div>` containing:
+  - Period `<Select>` dropdown
+  - View `<ToggleGroup>` (conditional: only for single month, hidden for YTD)
+  - Metadata span + Import button
+
+### Code Structure
+
+```tsx
+{/* Unified Toolbar */}
+<motion.div ...>
+  <div className="flex items-center justify-between gap-4">
+    {/* Left: Period Selector */}
+    <Select value={...} onValueChange={setSelectedPeriod}>
+      <SelectTrigger className="w-[180px]">
+        <Calendar className="w-4 h-4 mr-2" />
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {currentYearMonths.length > 0 && (
+          <>
+            <SelectItem value="ytd">
+              <TrendingUp /> {currentYear} YTD
+            </SelectItem>
+            <SelectSeparator />
+          </>
+        )}
+        {[...availableMonths].reverse().map(month => (
+          <SelectItem key={month.period_key} value={month.period_key}>
+            {formatPeriodKey(month.period_key)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+
+    {/* Center: View Toggle (only for single month) */}
+    {!isYTDSelected && reportData?.payload && (
+      <ToggleGroup type="single" value={viewTab} onValueChange={...}>
+        <ToggleGroupItem value="summary">
+          <BarChart3 /> Summary
+        </ToggleGroupItem>
+        <ToggleGroupItem value="raw">
+          <FileText /> Raw
+        </ToggleGroupItem>
+      </ToggleGroup>
+    )}
+
+    {/* Right: Metadata + Import */}
+    <div className="flex items-center gap-3 ml-auto">
+      {reportData && (
+        <span className="text-sm text-muted-foreground">
+          <Clock /> {format(...)}
+        </span>
+      )}
+      <Button ...>Import</Button>
+    </div>
+  </div>
+</motion.div>
 ```
 
----
+### Visual Polish
+- Dropdown shows months in reverse chronological order (newest first)
+- YTD option appears at top with separator below
+- Toggle group uses `variant="outline"` for subtle borders
+- Metadata (timestamp, filename) moves to far right, secondary styling
 
-## Files to Create/Modify
-
-| File | Action |
-|------|--------|
-| `src/components/issues/IssuesWorkflowBanner.tsx` | Create new education component |
-| `src/pages/Issues.tsx` | Rename card title, add workflow banner |
-| `src/components/issues/IDSBoard.tsx` | Simplify header copy |
-| `src/components/issues/IssueCard.tsx` | Make Intervention button more prominent |
-| `src/lib/help/glossary.ts` | Enhance IDS entry to mention Interventions |
-
----
-
-## Design Notes
-
-- **Minimal visual clutter**: The workflow banner should be compact and dismissible
-- **Consistent styling**: Use the same design tokens as `InterventionEducationPanel` (primary accents, rounded corners, subtle borders)
-- **Mobile responsive**: The 4-step workflow should stack vertically on mobile
-- **No new dependencies**: Use existing framer-motion for animations
+## Benefits
+- **One row instead of two** - cleaner visual hierarchy
+- **Scales gracefully** - dropdown handles any number of months
+- **Faster navigation** - dropdown is quicker than scanning many tabs
+- **Consistent with modern SaaS patterns** - Stripe, Linear, Notion all use this approach
 
