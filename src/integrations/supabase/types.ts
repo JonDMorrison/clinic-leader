@@ -2479,6 +2479,107 @@ export type Database = {
           },
         ]
       }
+      intervention_pattern_audit: {
+        Row: {
+          computation_duration_ms: number | null
+          computed_at: string
+          error_message: string | null
+          id: string
+          interventions_analyzed: number
+          orgs_included: number
+          patterns_generated: number
+          version: string | null
+        }
+        Insert: {
+          computation_duration_ms?: number | null
+          computed_at?: string
+          error_message?: string | null
+          id?: string
+          interventions_analyzed?: number
+          orgs_included?: number
+          patterns_generated?: number
+          version?: string | null
+        }
+        Update: {
+          computation_duration_ms?: number | null
+          computed_at?: string
+          error_message?: string | null
+          id?: string
+          interventions_analyzed?: number
+          orgs_included?: number
+          patterns_generated?: number
+          version?: string | null
+        }
+        Relationships: []
+      }
+      intervention_pattern_clusters: {
+        Row: {
+          avg_effect_magnitude: number | null
+          baseline_range_band: string
+          computation_version: string | null
+          effect_std_deviation: number | null
+          id: string
+          intervention_type: string
+          last_computed_at: string
+          median_effect_magnitude: number | null
+          metric_id: string | null
+          min_interventions_for_pattern: number | null
+          org_size_band: string
+          pattern_confidence: number | null
+          recency_weighted_score: number | null
+          sample_size: number
+          specialty_type: string | null
+          success_rate: number
+          time_horizon_band: string
+        }
+        Insert: {
+          avg_effect_magnitude?: number | null
+          baseline_range_band: string
+          computation_version?: string | null
+          effect_std_deviation?: number | null
+          id?: string
+          intervention_type: string
+          last_computed_at?: string
+          median_effect_magnitude?: number | null
+          metric_id?: string | null
+          min_interventions_for_pattern?: number | null
+          org_size_band: string
+          pattern_confidence?: number | null
+          recency_weighted_score?: number | null
+          sample_size?: number
+          specialty_type?: string | null
+          success_rate: number
+          time_horizon_band: string
+        }
+        Update: {
+          avg_effect_magnitude?: number | null
+          baseline_range_band?: string
+          computation_version?: string | null
+          effect_std_deviation?: number | null
+          id?: string
+          intervention_type?: string
+          last_computed_at?: string
+          median_effect_magnitude?: number | null
+          metric_id?: string | null
+          min_interventions_for_pattern?: number | null
+          org_size_band?: string
+          pattern_confidence?: number | null
+          recency_weighted_score?: number | null
+          sample_size?: number
+          specialty_type?: string | null
+          success_rate?: number
+          time_horizon_band?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_pattern_clusters_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intervention_recommendations: {
         Row: {
           accepted: boolean | null
