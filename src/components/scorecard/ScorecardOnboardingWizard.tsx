@@ -16,15 +16,15 @@ export const ScorecardOnboardingWizard = ({
   const navigate = useNavigate();
 
   return (
-    <div className="max-w-2xl mx-auto py-12">
-      <div className="text-center mb-10">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-          <Target className="w-8 h-8 text-primary" />
+    <div className="max-w-2xl mx-auto py-6 lg:py-8">
+      <div className="text-center mb-6 lg:mb-8">
+        <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+          <Target className="w-6 h-6 lg:w-7 lg:h-7 text-primary" />
         </div>
-        <h2 className="text-3xl font-bold text-foreground mb-3">
+        <h2 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
           Set Up Your Scorecard
         </h2>
-        <p className="text-muted-foreground max-w-lg mx-auto">
+        <p className="text-sm lg:text-base text-muted-foreground max-w-lg mx-auto">
           Track the numbers that drive your clinic's success with weekly accountability
         </p>
       </div>
@@ -32,10 +32,10 @@ export const ScorecardOnboardingWizard = ({
       {/* Single CTA Card */}
       <Card className="glass border-2 border-primary/30 hover:border-primary/50 transition-all hover:scale-[1.01] relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1 gradient-brand" />
-        <CardContent className="p-8">
+        <CardContent className="p-5 lg:p-6">
           {/* What's included */}
-          <div className="space-y-4 mb-8">
-            <h3 className="text-lg font-semibold text-foreground">
+          <div className="space-y-3 mb-5 lg:mb-6">
+            <h3 className="text-base lg:text-lg font-semibold text-foreground">
               The wizard will help you:
             </h3>
             <ul className="space-y-3">
@@ -73,16 +73,16 @@ export const ScorecardOnboardingWizard = ({
 
           {/* VTO Status Indicator */}
           {hasActiveVTO ? (
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 mb-6">
-              <div className="flex items-center gap-2 text-sm">
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-2.5 lg:p-3 mb-4 lg:mb-5">
+              <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <Sparkles className="w-4 h-4 text-primary" />
                 <span className="text-primary font-medium">V/TO detected</span>
                 <span className="text-muted-foreground">— AI will suggest metrics from your goals</span>
               </div>
             </div>
           ) : (
-            <div className="bg-muted/50 border border-border rounded-lg p-3 mb-6">
-              <div className="flex items-center gap-2 text-sm">
+            <div className="bg-muted/50 border border-border rounded-lg p-2.5 lg:p-3 mb-4 lg:mb-5">
+              <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <Target className="w-4 h-4 text-muted-foreground" />
                 <span className="text-muted-foreground">No V/TO yet — you can</span>
                 <button 
@@ -108,12 +108,12 @@ export const ScorecardOnboardingWizard = ({
       </Card>
 
       {/* Tips Section */}
-      <div className="mt-10 p-6 glass rounded-2xl border border-border">
+      <div className="mt-6 lg:mt-8 p-4 lg:p-5 glass rounded-xl border border-border">
         <div className="flex items-start gap-3">
-          <div className="text-2xl">💡</div>
+          <div className="text-xl lg:text-2xl">💡</div>
           <div>
-            <h4 className="font-semibold text-foreground mb-2">Tips for Success</h4>
-            <ul className="text-sm text-muted-foreground space-y-1">
+            <h4 className="font-semibold text-foreground text-sm lg:text-base mb-1.5 lg:mb-2">Tips for Success</h4>
+            <ul className="text-xs lg:text-sm text-muted-foreground space-y-0.5 lg:space-y-1">
               <li>• Start with 5-8 core KPIs to avoid overwhelm</li>
               <li>• Most clinics see results within 4 weeks of consistent tracking</li>
               <li>• Set weekly reminders to update your metrics</li>
