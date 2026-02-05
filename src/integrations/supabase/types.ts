@@ -2329,8 +2329,14 @@ export type Database = {
       }
       intervention_metric_links: {
         Row: {
+          baseline_capture_method: string | null
+          baseline_captured_at: string | null
+          baseline_definition_version: string | null
+          baseline_override_justification: string | null
           baseline_period_start: string | null
           baseline_period_type: string
+          baseline_quality_flag: string | null
+          baseline_source: string | null
           baseline_value: number | null
           created_at: string
           expected_direction: Database["public"]["Enums"]["expected_direction"]
@@ -2340,8 +2346,14 @@ export type Database = {
           metric_id: string
         }
         Insert: {
+          baseline_capture_method?: string | null
+          baseline_captured_at?: string | null
+          baseline_definition_version?: string | null
+          baseline_override_justification?: string | null
           baseline_period_start?: string | null
           baseline_period_type?: string
+          baseline_quality_flag?: string | null
+          baseline_source?: string | null
           baseline_value?: number | null
           created_at?: string
           expected_direction?: Database["public"]["Enums"]["expected_direction"]
@@ -2351,8 +2363,14 @@ export type Database = {
           metric_id: string
         }
         Update: {
+          baseline_capture_method?: string | null
+          baseline_captured_at?: string | null
+          baseline_definition_version?: string | null
+          baseline_override_justification?: string | null
           baseline_period_start?: string | null
           baseline_period_type?: string
+          baseline_quality_flag?: string | null
+          baseline_source?: string | null
           baseline_value?: number | null
           created_at?: string
           expected_direction?: Database["public"]["Enums"]["expected_direction"]

@@ -112,16 +112,19 @@ serve(async (req) => {
       );
     }
 
-    // Fetch baseline value from metric link
+    // Fetch baseline value and quality from metric link
     const { data: metricLink } = await supabase
       .from("intervention_metric_links")
-      .select("baseline_value, expected_direction, expected_magnitude_percent")
+      .select("baseline_value, expected_direction, expected_magnitude_percent, baseline_quality_flag, baseline_source, baseline_override_justification")
       .eq("intervention_id", outcome.intervention_id)
       .eq("metric_id", outcome.metric_id)
       .single();
 
     const baselineValue = metricLink?.baseline_value ?? 0;
     const currentValue = baselineValue + (outcome.actual_delta_value ?? 0);
+    const baselineQualityFlag = metricLink?.baseline_quality_flag || "good";
+    const baselineSource = metricLink?.baseline_source || "unknown";
+    const hasOverride = !!metricLink?.baseline_override_justification;
 
     // Fetch clinic/organization metadata
     const { data: team } = await supabase
@@ -135,6 +138,24 @@ serve(async (req) => {
     const isNegative = (outcome.actual_delta_value ?? 0) < 0;
     const outcomeDirection = isPositive ? "improved" : isNegative ? "declined" : "unchanged";
 
+    // Build baseline quality context for AI
+    let baselineQualityContext = "";
+    if (baselineQualityFlag === "bad") {
+      baselineQualityContext = `
+BASELINE QUALITY WARNING:
+- The baseline data is flagged as UNRELIABLE
+- Reason: ${baselineSource === "manual" ? "Manual data with insufficient history" : "Timing issues with baseline capture"}
+${hasOverride ? "- Note: User has provided override justification" : ""}
+- IMPORTANT: You MUST express LOW CONFIDENCE in any conclusions. Use phrases like "given the unreliable baseline", "results should be interpreted with caution", "baseline quality concerns limit confidence"`;
+    } else if (baselineQualityFlag === "iffy") {
+      baselineQualityContext = `
+BASELINE QUALITY NOTE:
+- The baseline data is flagged as UNCERTAIN
+- Reason: Limited historical data points
+${hasOverride ? "- Note: User has provided override justification" : ""}
+- Use moderate confidence language like "tentatively suggests", "early indicators show"`;
+    }
+
     // Build the prompt with ONLY deterministic data
     const prompt = `You are a healthcare operations analyst providing an advisory insight for a clinic intervention outcome.
 
@@ -144,6 +165,7 @@ CRITICAL RULES:
 3. Do not make definitive claims about causation
 4. Keep response to 2-3 sentences maximum
 5. Focus on plausible explanations and typical next steps for similar clinics
+${baselineQualityFlag !== "good" ? "6. Account for baseline quality issues in your confidence level" : ""}
 
 INTERVENTION DATA (use these exact values):
 - Clinic: ${team?.name || "Healthcare clinic"}
@@ -156,18 +178,21 @@ ${intervention.description ? `- Description: ${intervention.description}` : ""}
 METRIC DATA (use these exact values):
 - Metric: ${metric.name}
 - Baseline Value: ${baselineValue.toLocaleString()}${metric.unit ? ` ${metric.unit}` : ""}
+- Baseline Source: ${baselineSource}
+- Baseline Quality: ${baselineQualityFlag.toUpperCase()}
 - Current Value: ${currentValue.toLocaleString()}${metric.unit ? ` ${metric.unit}` : ""}
 - Change: ${outcome.actual_delta_value !== null ? (outcome.actual_delta_value > 0 ? "+" : "") + outcome.actual_delta_value.toLocaleString() : "N/A"}${metric.unit ? ` ${metric.unit}` : ""}
 - Percent Change: ${outcome.actual_delta_percent !== null ? (outcome.actual_delta_percent > 0 ? "+" : "") + outcome.actual_delta_percent.toFixed(1) + "%" : "N/A"}
 - Outcome Direction: ${outcomeDirection}
 - Evaluation Period: ${outcome.evaluation_period_start} to ${outcome.evaluation_period_end}
 - Expected Direction: ${metricLink?.expected_direction || "increase"}
+${baselineQualityContext}
 
 Generate a brief advisory insight explaining:
 1. Why this ${intervention.intervention_type} intervention ${outcomeDirection === "improved" ? "may have worked" : outcomeDirection === "declined" ? "may not have achieved expected results" : "had minimal impact"}
 2. What similar clinics typically consider next
 
-Remember: Advisory language only. No definitive claims. Reference only the provided data.`;
+Remember: Advisory language only. No definitive claims. Reference only the provided data.${baselineQualityFlag === "bad" ? " EXPRESS LOW CONFIDENCE due to baseline quality issues." : ""}`;
 
     // Call Lovable AI with consistent model
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

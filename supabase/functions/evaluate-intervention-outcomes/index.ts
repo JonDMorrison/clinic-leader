@@ -32,6 +32,7 @@ interface LinkedMetricInfo {
   expected_direction: string;
   expected_magnitude_percent: number | null;
   baseline_value: number | null;
+  baseline_quality_flag: string | null;
 }
 
 interface AIMetaData {
@@ -211,10 +212,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch linked metrics with expected direction
+    // Fetch linked metrics with expected direction and baseline quality
     const { data: links, error: linksError } = await supabase
       .from("intervention_metric_links")
-      .select("id, metric_id, baseline_value, baseline_period_start, baseline_period_type, expected_direction, expected_magnitude_percent")
+      .select("id, metric_id, baseline_value, baseline_period_start, baseline_period_type, expected_direction, expected_magnitude_percent, baseline_quality_flag, baseline_override_justification")
       .eq("intervention_id", intervention_id);
 
     if (linksError) {
@@ -244,6 +245,7 @@ Deno.serve(async (req) => {
       expected_direction: l.expected_direction,
       expected_magnitude_percent: l.expected_magnitude_percent,
       baseline_value: l.baseline_value,
+      baseline_quality_flag: l.baseline_quality_flag,
     }));
 
     const results: EvaluationResult[] = [];
@@ -352,6 +354,21 @@ Deno.serve(async (req) => {
 
       // Prepare outcome for upsert with deterministic IDs
       if (evaluated) {
+        // Cap confidence score based on baseline quality
+        // bad baseline = max 2, iffy baseline = max 3, good baseline = up to 4
+        const baselineQuality = link.baseline_quality_flag || "good";
+        const hasOverride = !!link.baseline_override_justification;
+        
+        let confidenceScore = 3; // default
+        if (baselineQuality === "bad" && !hasOverride) {
+          confidenceScore = 2; // Low confidence - unreliable baseline
+        } else if (baselineQuality === "iffy" && !hasOverride) {
+          confidenceScore = 3; // Medium confidence - uncertain baseline
+        } else {
+          // Good baseline or override provided - higher confidence possible
+          confidenceScore = 4;
+        }
+
         outcomesToUpsert.push({
           intervention_id,
           metric_id: link.metric_id,
@@ -359,7 +376,7 @@ Deno.serve(async (req) => {
           evaluation_period_end: evalEndStr,
           actual_delta_value: actualDeltaValue,
           actual_delta_percent: actualDeltaPercent,
-          confidence_score: 3,
+          confidence_score: confidenceScore,
           baseline_result_id: baselineResultId,
           current_result_id: currentResultId,
           evaluator_version: EVALUATOR_VERSION,

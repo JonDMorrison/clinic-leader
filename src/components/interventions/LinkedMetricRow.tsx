@@ -7,6 +7,8 @@ import { Trash2, Loader2, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ExpectedDirection } from "@/lib/interventions/types";
 import { logInterventionEventAsync } from "@/lib/interventions/eventLogger";
+import { BaselineQualityBadge } from "./BaselineQualityBadge";
+import type { BaselineQualityFlag } from "@/lib/interventions/baselineValidation";
 
 interface LinkedMetricRowProps {
   linkId: string;
@@ -16,6 +18,7 @@ interface LinkedMetricRowProps {
   expectedMagnitudePercent: number | null;
   baselineValue: number | null;
   baselinePeriodStart: string | null;
+  baselineQualityFlag?: BaselineQualityFlag | null;
   canEdit: boolean;
 }
 
@@ -27,6 +30,7 @@ export function LinkedMetricRow({
   expectedMagnitudePercent,
   baselineValue,
   baselinePeriodStart,
+  baselineQualityFlag,
   canEdit,
 }: LinkedMetricRowProps) {
   const queryClient = useQueryClient();
@@ -116,6 +120,11 @@ export function LinkedMetricRow({
               <span className="italic">No baseline yet</span>
             )}
           </div>
+
+          {/* Baseline Quality Badge */}
+          {baselineQualityFlag && baselineQualityFlag !== "good" && (
+            <BaselineQualityBadge flag={baselineQualityFlag} size="sm" />
+          )}
         </div>
       </div>
 
