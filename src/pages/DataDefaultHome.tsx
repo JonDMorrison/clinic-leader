@@ -2,7 +2,15 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { 
   Database, 
   FileSpreadsheet,
@@ -12,8 +20,7 @@ import {
   TrendingUp,
   BarChart3,
   FileText,
-  Beaker,
-  ArrowRight,
+  Calendar,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -241,91 +248,91 @@ export default function DataDefaultHome() {
           </div>
         </div>
 
-        <Button 
-          size="sm" 
-          onClick={() => navigate("/imports/monthly-report")}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 backdrop-blur-sm shadow-sm"
-        >
-          <Upload className="w-4 h-4 mr-2" />
-          Import
-        </Button>
       </motion.div>
 
 
-      {/* Month Tabs */}
-
-      {/* Month Tabs */}
+      {/* Unified Toolbar */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
       >
-        <Tabs 
-          value={isYTDSelected ? YTD_TAB_VALUE : (effectiveSelectedPeriod || undefined)} 
-          onValueChange={setSelectedPeriod}
-          className="w-full"
-        >
-          <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
-            {availableMonths.map((month) => (
-              <TabsTrigger 
-                key={month.period_key} 
-                value={month.period_key}
-                className="whitespace-nowrap"
-              >
-                {formatPeriodShort(month.period_key)}
-              </TabsTrigger>
-            ))}
-            {/* YTD Tab - only show if we have current year data */}
-            {currentYearMonths.length > 0 && (
-              <TabsTrigger 
-                value={YTD_TAB_VALUE}
-                className="whitespace-nowrap ml-2 bg-brand/5 data-[state=active]:bg-brand data-[state=active]:text-brand-foreground"
-              >
-                <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
-                {currentYear} YTD
-              </TabsTrigger>
-            )}
-          </TabsList>
-        </Tabs>
-      </motion.div>
+        <div className="flex items-center justify-between gap-4 py-2">
+          {/* Left: Period Selector */}
+          <Select 
+            value={isYTDSelected ? YTD_TAB_VALUE : (effectiveSelectedPeriod || undefined)} 
+            onValueChange={setSelectedPeriod}
+          >
+            <SelectTrigger className="w-[200px]">
+              <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
+              <SelectValue placeholder="Select period" />
+            </SelectTrigger>
+            <SelectContent>
+              {currentYearMonths.length > 0 && (
+                <>
+                  <SelectItem value={YTD_TAB_VALUE}>
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                      <span>{currentYear} YTD</span>
+                    </div>
+                  </SelectItem>
+                  <SelectSeparator />
+                </>
+              )}
+              {[...availableMonths].reverse().map((month) => (
+                <SelectItem key={month.period_key} value={month.period_key}>
+                  {formatPeriodKey(month.period_key)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-      {/* View Toggle (Summary vs Raw) - only for single month view */}
-      {!isYTDSelected && reportData?.payload && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as ViewTab)} className="w-full">
-            <div className="flex items-center justify-between">
-              <TabsList>
-                <TabsTrigger value="summary" className="gap-1.5">
-                  <BarChart3 className="w-3.5 h-3.5" />
-                  Executive Summary
-                </TabsTrigger>
-                <TabsTrigger value="raw" className="gap-1.5">
-                  <FileText className="w-3.5 h-3.5" />
-                  Raw Monthly Report
-                </TabsTrigger>
-              </TabsList>
-              
-              {/* Compact report header */}
-              <div className="text-sm text-muted-foreground flex items-center gap-3">
-                <span>
-                  {formatPeriodKey(effectiveSelectedPeriod!)}
-                  {reportData.source_file_name && (
-                    <span className="ml-2 text-xs">• {reportData.source_file_name}</span>
-                  )}
-                </span>
-                <span className="flex items-center gap-1.5 text-xs">
-                  <Clock className="w-3.5 h-3.5" />
-                  {format(parseISO(reportData.updated_at), "MMM d, h:mm a")}
-                </span>
-              </div>
-            </div>
-          </Tabs>
-        </motion.div>
-      )}
+          {/* Center: View Toggle (only for single month) */}
+          {!isYTDSelected && reportData?.payload && (
+            <ToggleGroup 
+              type="single" 
+              value={viewTab} 
+              onValueChange={(v) => v && setViewTab(v as ViewTab)}
+              className="bg-muted/50 rounded-lg p-1"
+            >
+              <ToggleGroupItem 
+                value="summary" 
+                aria-label="Executive Summary"
+                className="gap-1.5 px-3 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Summary</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem 
+                value="raw" 
+                aria-label="Raw Monthly Report"
+                className="gap-1.5 px-3 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Raw</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
+
+          {/* Right: Metadata + Import */}
+          <div className="flex items-center gap-3 ml-auto">
+            {reportData && !isYTDSelected && (
+              <span className="text-xs text-muted-foreground hidden md:flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                {format(parseISO(reportData.updated_at), "MMM d, h:mm a")}
+              </span>
+            )}
+            <Button 
+              size="sm" 
+              onClick={() => navigate("/imports/monthly-report")}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import
+            </Button>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Report Content */}
       <motion.div
