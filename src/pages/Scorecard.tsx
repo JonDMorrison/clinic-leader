@@ -31,7 +31,7 @@ import { MilestoneCelebration } from "@/components/scorecard/MilestoneCelebratio
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { MonthlyMetricsDebugPanel } from "@/components/scorecard/MonthlyMetricsDebugPanel";
+
 import { MissingTargetsBanner } from "@/components/scorecard/MissingTargetsBanner";
 import { fetchCanonicalMetricResults, groupResultsByMetric } from "@/hooks/useCanonicalMetricResults";
 
@@ -598,8 +598,6 @@ const Scorecard = () => {
             currentUserId={currentUser?.id}
           />
 
-          {/* Dev Debug Panel */}
-          <MonthlyMetricsDebugPanel organizationId={currentUser?.team_id || null} />
 
           {/* Filters Section */}
           <div className="glass rounded-lg p-4">
