@@ -56,7 +56,7 @@ export function InterventionWorkflowBanner({
               <div className="flex items-center gap-1 flex-wrap mb-3">
                 <WorkflowPill icon={AlertCircle} label="Problem Detected" color="amber" />
                 <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                <WorkflowPill icon={Zap} label="Intervention Created" color="purple" active />
+                <WorkflowPill icon={Zap} label="Intervention Created" color="primary" active />
                 <ArrowRight className="h-3 w-3 text-muted-foreground" />
                 <WorkflowPill icon={CheckCircle2} label="Outcome Evaluated" color="green" />
               </div>
@@ -116,14 +116,14 @@ export function InterventionWorkflowBanner({
 interface WorkflowPillProps {
   icon: React.ElementType;
   label: string;
-  color: "amber" | "purple" | "green";
+  color: "amber" | "primary" | "green";
   active?: boolean;
 }
 
 function WorkflowPill({ icon: Icon, label, color, active }: WorkflowPillProps) {
   const colorClasses = {
     amber: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
-    purple: "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300",
+    primary: "bg-primary/10 text-primary",
     green: "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-300",
   };
 
@@ -132,7 +132,7 @@ function WorkflowPill({ icon: Icon, label, color, active }: WorkflowPillProps) {
       className={`
         flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium
         ${colorClasses[color]}
-        ${active ? "ring-2 ring-purple-400 ring-offset-1" : ""}
+        ${active ? "ring-2 ring-primary/50 ring-offset-1" : ""}
       `}
     >
       <Icon className="h-3 w-3" />
