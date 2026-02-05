@@ -1,5 +1,10 @@
 /**
  * RecommendationCard - Displays a single intervention recommendation
+ * 
+ * Enhanced with:
+ * - Tier labels (Explore, Suggest, Recommend)
+ * - Expanded evidence panel
+ * - Confidence calculation breakdown
  */
 
 import { useState } from "react";
@@ -23,12 +28,17 @@ import {
   Clock,
   TrendingUp,
   AlertCircle,
+  Users,
+  GitCompare,
+  CalendarClock,
+  Calculator,
 } from "lucide-react";
 import {
   getConfidenceLabel,
   formatConfidenceExplanation,
 } from "@/lib/interventions/recommendationSummaryAI";
 import type { RecommendationReason } from "@/lib/interventions/generateRecommendations";
+import { RecommendationTierBadge } from "./RecommendationTierBadge";
 
 interface RecommendationCardProps {
   id: string;
@@ -83,23 +93,30 @@ export function RecommendationCard({
               </p>
             </div>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <Badge variant={confidenceLabel.variant as any}>
-                  {confidencePercent}% confidence
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent side="left" className="max-w-xs">
-                <p className="font-medium mb-1">{confidenceLabel.label} Confidence</p>
-                <ul className="text-xs space-y-0.5">
-                  {confidenceExplanations.map((exp, i) => (
-                    <li key={i}>• {exp}</li>
-                  ))}
-                </ul>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="flex items-center gap-2">
+            <RecommendationTierBadge
+              sampleSize={reason.matched_cases_count}
+              confidenceScore={confidenceScore}
+              successRate={reason.historical_success_rate}
+            />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge variant={confidenceLabel.variant as any}>
+                    {confidencePercent}%
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-xs">
+                  <p className="font-medium mb-1">{confidenceLabel.label} Confidence</p>
+                  <ul className="text-xs space-y-0.5">
+                    {confidenceExplanations.map((exp, i) => (
+                      <li key={i}>• {exp}</li>
+                    ))}
+                  </ul>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -147,10 +164,29 @@ export function RecommendationCard({
         </Button>
 
         {expanded && (
-          <div className="space-y-3 pt-2 border-t">
+          <div className="space-y-4 pt-3 border-t">
+            {/* Cohort Description */}
+            <div className="p-2.5 rounded-lg bg-background border">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Users className="h-3.5 w-3.5 text-primary" />
+                <h4 className="text-xs font-medium">Cohort</h4>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Based on {reason.matched_cases_count} similar interventions of type "{interventionType.replace(/_/g, " ")}"
+              </p>
+              {reason.typical_time_to_result_days > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Typical time to results: {reason.typical_time_to_result_days} days
+                </p>
+              )}
+            </div>
+
             {/* Historical stats */}
             <div className="space-y-1.5">
-              <h4 className="text-xs font-medium">Historical Performance</h4>
+              <h4 className="text-xs font-medium flex items-center gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5 text-primary" />
+                Historical Performance
+              </h4>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="p-2 rounded bg-background">
                   <p className="text-muted-foreground">Avg improvement</p>
@@ -166,6 +202,64 @@ export function RecommendationCard({
                 </div>
               </div>
             </div>
+
+            {/* Similarity Factors */}
+            <div className="space-y-1.5">
+              <h4 className="text-xs font-medium flex items-center gap-1.5">
+                <GitCompare className="h-3.5 w-3.5 text-primary" />
+                Similarity Factors
+              </h4>
+              <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                <div className="p-1.5 rounded bg-muted/30">Same metric</div>
+                <div className="p-1.5 rounded bg-muted/30">Same type</div>
+                <div className="p-1.5 rounded bg-muted/30">Similar deviation</div>
+                <div className="p-1.5 rounded bg-muted/30">Similar timeline</div>
+              </div>
+            </div>
+
+            {/* Confidence Breakdown */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium flex items-center gap-1.5">
+                <Calculator className="h-3.5 w-3.5 text-primary" />
+                Confidence Breakdown
+              </h4>
+              <div className="space-y-1.5 text-xs">
+                <ConfidenceRow 
+                  label="Success Rate" 
+                  value={reason.confidence_components.historicalSuccessRate} 
+                  weight={35} 
+                />
+                <ConfidenceRow 
+                  label="Sample Size" 
+                  value={reason.confidence_components.sampleSizeScore} 
+                  weight={25} 
+                />
+                <ConfidenceRow 
+                  label="Similarity" 
+                  value={reason.confidence_components.similarityScore} 
+                  weight={25} 
+                />
+                <ConfidenceRow 
+                  label="Recency" 
+                  value={reason.confidence_components.recencyScore} 
+                  weight={15} 
+                />
+              </div>
+            </div>
+
+            {/* Cross-Org Insight */}
+            {reason.crossOrgPatternInsight && (
+              <div className="p-2.5 rounded-lg border border-primary/20 bg-primary/5">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                  <h4 className="text-xs font-medium">Cross-Org Insight</h4>
+                  <Badge variant="outline" className="text-[9px]">Anonymized</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {reason.crossOrgPatternInsight.patternSuccessRate.toFixed(0)}% success across {reason.crossOrgPatternInsight.patternSampleSize} organizations
+                </p>
+              </div>
+            )}
 
             {/* Context notes */}
             {reason.similar_context_notes.length > 0 && (
@@ -237,5 +331,34 @@ export function RecommendationCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Inline confidence row for compact display
+ */
+function ConfidenceRow({ 
+  label, 
+  value, 
+  weight 
+}: { 
+  label: string; 
+  value: number; 
+  weight: number; 
+}) {
+  const pct = Math.round(value * 100);
+  const contribution = Math.round(value * weight);
+  
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-2">
+        <Progress value={pct} className="w-16 h-1" />
+        <span className="w-16 text-right text-muted-foreground">
+          {pct}% × {weight}%
+        </span>
+        <span className="w-8 text-right font-medium">={contribution}</span>
+      </div>
+    </div>
   );
 }
