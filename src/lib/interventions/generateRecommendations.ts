@@ -4,6 +4,7 @@
  * Generates intervention recommendations when metrics go off-track.
  * Uses historical intervention outcomes to suggest evidence-based interventions.
  * 
+ * ENHANCED: Now incorporates cross-org pattern clusters for richer recommendations
  * HARDENED: Deterministic eligibility, allowlist enforcement, evidence freezing
  */
 
@@ -20,6 +21,10 @@ import {
   groupInterventions,
   computePatternStats,
 } from "./buildInterventionPatterns";
+import { 
+  fetchMatchingPatterns,
+  type PatternCluster,
+} from "./interventionPatternService";
 import type { InterventionType } from "./types";
 import { checkMetricEligibility, type EligibilityResult } from "./recommendationEligibility";
 import { filterByAllowedTypes, isInterventionTypeAllowed } from "./interventionTypeAllowlist";
@@ -55,6 +60,12 @@ export interface RecommendationReason {
     sampleSizeScore: number;
     similarityScore: number;
     recencyScore: number;
+  };
+  crossOrgPatternInsight?: {
+    patternId: string;
+    patternConfidence: number;
+    patternSuccessRate: number;
+    patternSampleSize: number;
   };
 }
 
@@ -262,7 +273,21 @@ export async function generateRecommendationsForMetric(
       avgTimeToResultDays: pattern.avg_time_to_result_days,
     });
 
-    // Build recommendation reason
+    // Fetch cross-org pattern insights for this intervention type + metric
+    let crossOrgPattern: PatternCluster | null = null;
+    try {
+      const crossOrgPatterns = await fetchMatchingPatterns({
+        metricId,
+        interventionType: interventionType as string,
+        minConfidence: 30,
+        minSampleSize: 5,
+      }, 1);
+      crossOrgPattern = crossOrgPatterns[0] || null;
+    } catch (err) {
+      console.warn("Failed to fetch cross-org patterns:", err);
+    }
+
+    // Build recommendation reason with cross-org insight if available
     const reason: RecommendationReason = {
       matched_cases_count: pattern.sample_size,
       avg_improvement_percent: Math.round(pattern.avg_improvement_percent * 100) / 100,
@@ -273,17 +298,30 @@ export async function generateRecommendationsForMetric(
         `Based on ${pattern.sample_size} historical interventions`,
         `Average improvement: ${pattern.avg_improvement_percent.toFixed(1)}%`,
         `Typical time to see results: ${pattern.avg_time_to_result_days} days`,
+        ...(crossOrgPattern ? [
+          `Cross-org insight: ${crossOrgPattern.successRate.toFixed(0)}% success rate across ${crossOrgPattern.sampleSize} similar organizations`
+        ] : []),
       ],
       confidence_components: confidence.components,
+      ...(crossOrgPattern ? {
+        crossOrgPatternInsight: {
+          patternId: crossOrgPattern.id,
+          patternConfidence: crossOrgPattern.patternConfidence,
+          patternSuccessRate: crossOrgPattern.successRate,
+          patternSampleSize: crossOrgPattern.sampleSize,
+        }
+      } : {}),
     };
 
-    // Build candidate
+    // Build candidate with enhanced evidence summary
     const candidate: RecommendationCandidate = {
       intervention_type: pattern.intervention_type,
       template_id: null,
       template_name: `${pattern.intervention_type.replace("_", " ")} intervention`,
       confidence_score: confidence.score,
-      evidence_summary: `This intervention type has a ${Math.round(pattern.success_rate * 100)}% success rate based on ${pattern.sample_size} historical cases. Average improvement: ${pattern.avg_improvement_percent.toFixed(1)}%.`,
+      evidence_summary: crossOrgPattern 
+        ? `This intervention type has a ${Math.round(pattern.success_rate * 100)}% success rate based on ${pattern.sample_size} historical cases. Cross-org data shows ${crossOrgPattern.successRate.toFixed(0)}% success across ${crossOrgPattern.sampleSize} similar organizations.`
+        : `This intervention type has a ${Math.round(pattern.success_rate * 100)}% success rate based on ${pattern.sample_size} historical cases. Average improvement: ${pattern.avg_improvement_percent.toFixed(1)}%.`,
       recommendation_reason: reason,
       suggested_duration_days: pattern.typical_duration_days,
       suggested_actions: pattern.common_actions,
