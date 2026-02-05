@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Stepper } from "@/components/ui/Stepper";
@@ -21,6 +22,7 @@ export interface MetricDefinition {
 
 const ScorecardSetup = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
   const [metrics, setMetrics] = useState<MetricDefinition[]>([]);
@@ -109,6 +111,9 @@ const ScorecardSetup = () => {
 
         if (resultsError) throw resultsError;
       }
+
+      // Invalidate scorecard queries to ensure fresh data on navigation
+      await queryClient.invalidateQueries({ queryKey: ["scorecard-metrics"] });
 
       toast({
         title: "Success!",
