@@ -2481,33 +2481,54 @@ export type Database = {
       }
       intervention_pattern_audit: {
         Row: {
+          cluster_count_generated: number | null
+          cluster_run_id: string | null
           computation_duration_ms: number | null
           computed_at: string
+          end_time: string | null
           error_message: string | null
+          error_summary: string | null
           id: string
           interventions_analyzed: number
           orgs_included: number
+          outcome_count_processed: number | null
           patterns_generated: number
+          start_time: string | null
+          status: string | null
           version: string | null
         }
         Insert: {
+          cluster_count_generated?: number | null
+          cluster_run_id?: string | null
           computation_duration_ms?: number | null
           computed_at?: string
+          end_time?: string | null
           error_message?: string | null
+          error_summary?: string | null
           id?: string
           interventions_analyzed?: number
           orgs_included?: number
+          outcome_count_processed?: number | null
           patterns_generated?: number
+          start_time?: string | null
+          status?: string | null
           version?: string | null
         }
         Update: {
+          cluster_count_generated?: number | null
+          cluster_run_id?: string | null
           computation_duration_ms?: number | null
           computed_at?: string
+          end_time?: string | null
           error_message?: string | null
+          error_summary?: string | null
           id?: string
           interventions_analyzed?: number
           orgs_included?: number
+          outcome_count_processed?: number | null
           patterns_generated?: number
+          start_time?: string | null
+          status?: string | null
           version?: string | null
         }
         Relationships: []
@@ -8001,7 +8022,7 @@ export type Database = {
           passes: boolean
         }[]
       }
-      recompute_intervention_patterns: { Args: never; Returns: Json }
+      recompute_intervention_patterns: { Args: never; Returns: string }
       select_canonical_metric_result: {
         Args: {
           _metric_id: string

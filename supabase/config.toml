@@ -227,3 +227,6 @@ verify_jwt = false
 
 [functions.ai-recommendation-summary]
 verify_jwt = false
+
+[functions.compute-intervention-pattern-clusters]
+verify_jwt = false
