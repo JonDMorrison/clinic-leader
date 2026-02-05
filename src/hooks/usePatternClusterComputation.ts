@@ -76,8 +76,8 @@ export function useTriggerPatternComputation() {
 
   return useMutation({
     mutationFn: async (): Promise<ComputationResult> => {
-      // First, log the manual trigger via RPC
-      const { error: rpcError } = await supabase.rpc("recompute_intervention_patterns");
+      // First, log the manual trigger via RPC (returns run_id)
+      const { data: runId, error: rpcError } = await supabase.rpc("recompute_intervention_patterns");
       
       if (rpcError) {
         throw new Error(rpcError.message);
@@ -85,9 +85,9 @@ export function useTriggerPatternComputation() {
 
       // Then call the edge function
       const { data, error } = await supabase.functions.invoke<ComputationResult>(
-        "compute-intervention-patterns",
+        "compute-intervention-pattern-clusters",
         {
-          body: { source: "admin_manual", triggered_at: new Date().toISOString() },
+          body: { source: "admin_manual", triggered_at: new Date().toISOString(), run_id: runId },
         }
       );
 
