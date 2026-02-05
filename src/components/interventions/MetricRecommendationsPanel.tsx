@@ -16,6 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Lightbulb, RefreshCw, AlertCircle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { RecommendationCard } from "./RecommendationCard";
+import { PlaybookSuggestionPanel } from "./PlaybookSuggestionPanel";
 import { RecommendationDetailModal } from "./RecommendationDetailModal";
 import {
   generateRecommendationsForMetric,
@@ -288,6 +289,12 @@ export function MetricRecommendationsPanel({
               ))}
             </div>
           )}
+          
+          {/* Playbooks Section */}
+          <PlaybookSuggestionPanel 
+            metricId={metricId} 
+            className="mt-4 border-t pt-4"
+          />
         </CardContent>
       </Card>
 

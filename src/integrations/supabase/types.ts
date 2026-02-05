@@ -2580,6 +2580,90 @@ export type Database = {
           },
         ]
       }
+      intervention_playbooks: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          avg_time_to_impact_days: number | null
+          created_at: string
+          expected_metric_movement: Json
+          generated_at: string
+          id: string
+          implementation_steps: Json
+          is_anonymized: boolean
+          organization_id: string | null
+          rejection_reason: string | null
+          risk_flags: Json
+          sample_size: number
+          source_intervention_ids: string[]
+          source_pattern_cluster_id: string | null
+          status: string
+          success_rate: number
+          summary: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          avg_time_to_impact_days?: number | null
+          created_at?: string
+          expected_metric_movement?: Json
+          generated_at?: string
+          id?: string
+          implementation_steps?: Json
+          is_anonymized?: boolean
+          organization_id?: string | null
+          rejection_reason?: string | null
+          risk_flags?: Json
+          sample_size?: number
+          source_intervention_ids?: string[]
+          source_pattern_cluster_id?: string | null
+          status?: string
+          success_rate?: number
+          summary: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          avg_time_to_impact_days?: number | null
+          created_at?: string
+          expected_metric_movement?: Json
+          generated_at?: string
+          id?: string
+          implementation_steps?: Json
+          is_anonymized?: boolean
+          organization_id?: string | null
+          rejection_reason?: string | null
+          risk_flags?: Json
+          sample_size?: number
+          source_intervention_ids?: string[]
+          source_pattern_cluster_id?: string | null
+          status?: string
+          success_rate?: number
+          summary?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_playbooks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "benchmark_opted_in_orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_playbooks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intervention_recommendations: {
         Row: {
           accepted: boolean | null
@@ -2606,6 +2690,7 @@ export type Database = {
           recommendation_run_id: string | null
           recommended_intervention_template: Json
           recommended_template_id: string | null
+          suggested_playbook_id: string | null
         }
         Insert: {
           accepted?: boolean | null
@@ -2632,6 +2717,7 @@ export type Database = {
           recommendation_run_id?: string | null
           recommended_intervention_template: Json
           recommended_template_id?: string | null
+          suggested_playbook_id?: string | null
         }
         Update: {
           accepted?: boolean | null
@@ -2658,6 +2744,7 @@ export type Database = {
           recommendation_run_id?: string | null
           recommended_intervention_template?: Json
           recommended_template_id?: string | null
+          suggested_playbook_id?: string | null
         }
         Relationships: [
           {
@@ -2700,6 +2787,13 @@ export type Database = {
             columns: ["recommended_template_id"]
             isOneToOne: false
             referencedRelation: "intervention_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_recommendations_suggested_playbook_id_fkey"
+            columns: ["suggested_playbook_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_playbooks"
             referencedColumns: ["id"]
           },
         ]
