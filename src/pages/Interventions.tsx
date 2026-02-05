@@ -11,7 +11,7 @@ import { InterventionFilters, type ProgressFilterType } from "@/components/inter
 import { InterventionsTable, InterventionsTableSkeleton } from "@/components/interventions/InterventionsTable";
 import { NewInterventionModal } from "@/components/interventions/NewInterventionModal";
 import { EmptyInterventions } from "@/components/interventions/EmptyInterventions";
-import { DiagnosticsPanel } from "@/components/interventions/DiagnosticsPanel";
+
 import { InterventionWorkflowBanner } from "@/components/interventions/InterventionWorkflowBanner";
 import { getInterventionProgress } from "@/lib/interventions/interventionStatus";
 import type { InterventionStatus, InterventionType, InterventionWithDetails } from "@/lib/interventions/types";
@@ -313,9 +313,6 @@ export default function Interventions() {
         organizationId={orgId!}
         users={users}
       />
-
-      {/* Dev Diagnostics Panel */}
-      <DiagnosticsPanel />
     </div>
   );
 }
