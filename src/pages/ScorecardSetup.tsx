@@ -6,7 +6,6 @@ import { Stepper } from "@/components/ui/Stepper";
 import { IntroStep } from "@/components/scorecard/setup/IntroStep";
 import { MetricDefinitionsStep } from "@/components/scorecard/setup/MetricDefinitionsStep";
 import { ReviewStep } from "@/components/scorecard/setup/ReviewStep";
-import { DemoDataStep } from "@/components/scorecard/setup/DemoDataStep";
 import { ConfirmationStep } from "@/components/scorecard/setup/ConfirmationStep";
 import { generateImportKey } from "@/lib/scorecard/templateHealth";
 
@@ -25,19 +24,17 @@ const ScorecardSetup = () => {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
   const [metrics, setMetrics] = useState<MetricDefinition[]>([]);
-  const [includeDemoData, setIncludeDemoData] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const steps = [
     { id: 0, label: "Intro", completed: currentStep > 0 },
     { id: 1, label: "Metrics", completed: currentStep > 1 },
     { id: 2, label: "Review", completed: currentStep > 2 },
-    { id: 3, label: "Demo Data", completed: currentStep > 3 },
-    { id: 4, label: "Confirm", completed: currentStep > 4 },
+    { id: 3, label: "Confirm", completed: currentStep > 3 },
   ];
 
   const handleNext = () => {
-    if (currentStep < 4) {
+    if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -101,7 +98,7 @@ const ScorecardSetup = () => {
               period_start: weekStartStr,
               period_type: 'weekly',
               period_key: periodKey,
-              value: includeDemoData ? Math.floor(Math.random() * 100) : null,
+              value: null,
             });
           }
         }
@@ -158,15 +155,6 @@ const ScorecardSetup = () => {
           )}
           
           {currentStep === 3 && (
-            <DemoDataStep
-              includeDemoData={includeDemoData}
-              onToggle={setIncludeDemoData}
-              onNext={handleNext}
-              onBack={handleBack}
-            />
-          )}
-          
-          {currentStep === 4 && (
             <ConfirmationStep
               onSubmit={handleSubmit}
               onBack={handleBack}
