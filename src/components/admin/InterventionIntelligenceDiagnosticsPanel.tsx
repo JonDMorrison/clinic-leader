@@ -3,6 +3,8 @@
  * 
  * Observability dashboard for pattern clusters, recommendations,
  * reliability, and synthetic data management.
+ * 
+ * SECURITY: Requires master admin access
  */
 
 import { useState } from "react";
@@ -14,6 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -35,6 +38,7 @@ import {
   Shield,
   FlaskConical,
   Loader2,
+  ShieldAlert,
 } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,8 +47,10 @@ import {
   getSyntheticDataCounts,
   type ValidationReport,
 } from "@/lib/interventions/interventionSimulationService";
+import { useMasterAdmin } from "@/hooks/useMasterAdmin";
 
 export function InterventionIntelligenceDiagnosticsPanel() {
+  const { data: isMasterAdmin, isLoading: isAdminLoading } = useMasterAdmin();
   const [isRunningValidation, setIsRunningValidation] = useState(false);
   const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
 
@@ -77,6 +83,7 @@ export function InterventionIntelligenceDiagnosticsPanel() {
         byType: Object.entries(byType).map(([type, count]) => ({ type, count })),
       };
     },
+    enabled: !!isMasterAdmin,
   });
 
   // Recommendation tier distribution (uses reliability_summary instead of recommendation_tier)
@@ -108,6 +115,7 @@ export function InterventionIntelligenceDiagnosticsPanel() {
         downgradePercent: data.length > 0 ? (downgrades / data.length) * 100 : 0,
       };
     },
+    enabled: !!isMasterAdmin,
   });
 
   // Reliability tier distribution
@@ -139,6 +147,7 @@ export function InterventionIntelligenceDiagnosticsPanel() {
 
       return { byTier, reasonCounts };
     },
+    enabled: !!isMasterAdmin,
   });
 
   // Cluster computation history
@@ -153,13 +162,36 @@ export function InterventionIntelligenceDiagnosticsPanel() {
 
       return data || [];
     },
+    enabled: !!isMasterAdmin,
   });
 
   // Synthetic data counts
   const { data: syntheticCounts } = useQuery({
     queryKey: ["diagnostics-synthetic-counts"],
     queryFn: getSyntheticDataCounts,
+    enabled: !!isMasterAdmin,
   });
+
+  // SECURITY: Block access for non-admin users (after all hooks)
+  if (isAdminLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isMasterAdmin) {
+    return (
+      <Alert variant="destructive" className="m-4">
+        <ShieldAlert className="h-4 w-4" />
+        <AlertTitle>Access Denied</AlertTitle>
+        <AlertDescription>
+          This diagnostics panel is restricted to platform administrators only.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   const handleRunValidation = async () => {
     setIsRunningValidation(true);

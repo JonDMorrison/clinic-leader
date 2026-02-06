@@ -553,6 +553,7 @@ export async function fetchReliabilityInputs(
   }
 
   // Fetch baseline quality flags from interventions
+  // CRITICAL: Exclude synthetic data from production reliability evaluation
   const { data: interventions } = await supabase
     .from("interventions")
     .select(`
@@ -562,6 +563,7 @@ export async function fetchReliabilityInputs(
     .eq("organization_id", organizationId)
     .eq("intervention_type", interventionType as any)
     .eq("status", "completed")
+    .eq("is_synthetic", false)
     .limit(50);
 
   const baselineQualityFlags: Array<"good" | "iffy" | "bad" | null> = [];
@@ -575,12 +577,14 @@ export async function fetchReliabilityInputs(
   }
 
   // Fetch execution health scores from interventions
+  // CRITICAL: Exclude synthetic data from production reliability evaluation
   const { data: healthScores } = await supabase
     .from("interventions")
     .select("execution_health_score")
     .eq("organization_id", organizationId)
     .eq("intervention_type", interventionType as any)
     .eq("status", "completed")
+    .eq("is_synthetic", false)
     .not("execution_health_score", "is", null)
     .limit(50);
 
@@ -589,11 +593,13 @@ export async function fetchReliabilityInputs(
     .filter((s): s is number => s !== null);
 
   // Fetch data density (metric result count)
+  // CRITICAL: Exclude synthetic data from production reliability evaluation
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { count: dataPointCount } = await supabase
     .from("metric_results")
     .select("*", { count: "exact", head: true })
     .eq("metric_id", metricId)
+    .eq("is_synthetic", false)
     .gte("result_date", thirtyDaysAgo);
 
   return {

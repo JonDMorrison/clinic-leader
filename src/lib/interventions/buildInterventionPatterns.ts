@@ -73,6 +73,7 @@ function median(values: number[]): number {
 
 /**
  * Fetch all completed interventions with outcomes for an organization
+ * CRITICAL: Excludes synthetic data from pattern learning
  */
 export async function fetchInterventionHistory(
   organizationId: string
@@ -84,6 +85,7 @@ export async function fetchInterventionHistory(
       status, expected_time_horizon_days, created_at, tags
     `)
     .eq("organization_id", organizationId)
+    .eq("is_synthetic", false) // Exclude synthetic data from pattern learning
     .in("status", ["completed", "abandoned"]);
 
   if (intError) throw intError;

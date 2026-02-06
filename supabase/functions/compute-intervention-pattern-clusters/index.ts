@@ -91,22 +91,42 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
+    // Parse request body for include_synthetic flag (admin simulation only)
+    let includeSynthetic = false;
+    try {
+      const body = await req.json();
+      includeSynthetic = body?.include_synthetic === true;
+      if (includeSynthetic) {
+        console.log(`[${runId}] WARNING: Including synthetic data (simulation mode)`);
+      }
+    } catch {
+      // No body or invalid JSON - use defaults
+    }
+
     console.log(`[${runId}] Starting pattern cluster computation v${COMPUTATION_VERSION}...`);
 
     // ============= Step 1: Fetch eligible outcomes =============
-    const { data: interventions, error: fetchError } = await supabase
+    // CRITICAL: Exclude synthetic data by default to prevent production pollution
+    let query = supabase
       .from("interventions")
       .select(`
-        id, organization_id, intervention_type, expected_time_horizon_days, status, expected_direction,
+        id, organization_id, intervention_type, expected_time_horizon_days, status, expected_direction, is_synthetic,
         intervention_metric_links!inner(metric_id, baseline_value, baseline_quality_flag),
-        intervention_outcomes(id, actual_delta_percent, confidence_score, evaluated_at, evaluator_version)
+        intervention_outcomes(id, actual_delta_percent, confidence_score, evaluated_at, evaluator_version, is_synthetic)
       `)
       .or("status.eq.completed,intervention_outcomes.evaluator_version.not.is.null");
+    
+    // Apply synthetic filter unless explicitly including synthetic data
+    if (!includeSynthetic) {
+      query = query.eq("is_synthetic", false);
+    }
+    
+    const { data: interventions, error: fetchError } = await query;
 
     if (fetchError) throw new Error(`Fetch failed: ${fetchError.message}`);
     
     if (!interventions?.length) {
-      await logAudit(supabase, runId, startTime, 0, 0, "success", null);
+      await logAudit(supabase, runId, startTime, 0, 0, "success", null, includeSynthetic);
       return jsonResponse({ success: true, runId, patterns: 0, message: "No interventions found" });
     }
 
@@ -161,7 +181,7 @@ Deno.serve(async (req) => {
     outcomeCount = outcomes.length;
 
     if (outcomeCount === 0) {
-      await logAudit(supabase, runId, startTime, 0, 0, "success", null);
+      await logAudit(supabase, runId, startTime, 0, 0, "success", null, includeSynthetic);
       return jsonResponse({ success: true, runId, patterns: 0, message: "No eligible outcomes" });
     }
 
@@ -310,7 +330,7 @@ Deno.serve(async (req) => {
     }
 
     // ============= Step 8: Log audit record =============
-    await logAudit(supabase, runId, startTime, outcomeCount, clusterCount, "success", null);
+    await logAudit(supabase, runId, startTime, outcomeCount, clusterCount, "success", null, includeSynthetic);
 
     const duration = Date.now() - startTime.getTime();
     return jsonResponse({
@@ -327,7 +347,7 @@ Deno.serve(async (req) => {
     console.error(`[${runId}] Error:`, msg);
     
     // On failure: do NOT overwrite existing clusters, only log audit
-    await logAudit(supabase, runId, startTime, outcomeCount, 0, "failure", msg);
+    await logAudit(supabase, runId, startTime, outcomeCount, 0, "failure", msg, false);
     
     return jsonResponse({ success: false, runId, error: msg }, 500);
   }
@@ -342,7 +362,8 @@ async function logAudit(
   outcomeCount: number,
   clusterCount: number,
   status: string,
-  errorSummary: string | null
+  errorSummary: string | null,
+  includeSynthetic: boolean = false
 ) {
   const endTime = new Date();
   const durationMs = endTime.getTime() - startTime.getTime();
@@ -357,6 +378,7 @@ async function logAudit(
     error_summary: errorSummary,
     computation_duration_ms: durationMs,
     version: COMPUTATION_VERSION,
+    include_synthetic: includeSynthetic,
   });
 }
 

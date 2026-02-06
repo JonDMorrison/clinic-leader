@@ -38,10 +38,12 @@ export async function getInterventionMeetingSignals(
   const thirtyDaysAgo = subDays(now, 30);
 
   // Fetch all active interventions for the org
+  // Exclude synthetic data from production meeting signals
   const { data: interventions, error: interventionsError } = await supabase
     .from("interventions")
     .select("id, title, intervention_type, status, created_at, expected_time_horizon_days")
     .eq("organization_id", organizationId)
+    .eq("is_synthetic", false)
     .in("status", ["active", "planned"]); // Only non-terminal interventions
 
   if (interventionsError) throw interventionsError;

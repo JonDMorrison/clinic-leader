@@ -3,6 +3,8 @@
  * 
  * Admin-only UI for generating synthetic intervention data
  * and testing the intelligence pipeline.
+ * 
+ * SECURITY: Requires master admin access
  */
 
 import { useState } from "react";
@@ -30,6 +32,7 @@ import {
   Loader2,
   Database,
   Zap,
+  ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -45,6 +48,7 @@ import {
   type BaselineQuality,
 } from "@/lib/interventions/interventionSimulationService";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useMasterAdmin } from "@/hooks/useMasterAdmin";
 
 const INTERVENTION_TYPES = [
   "workflow_change",
@@ -57,6 +61,7 @@ const INTERVENTION_TYPES = [
 
 export function InterventionSimulationPanel() {
   const { data: currentUser } = useCurrentUser();
+  const { data: isMasterAdmin, isLoading: isAdminLoading } = useMasterAdmin();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRecomputing, setIsRecomputing] = useState(false);
   const [isPurging, setIsPurging] = useState(false);
@@ -109,6 +114,28 @@ export function InterventionSimulationPanel() {
     queryFn: getSyntheticDataCounts,
     refetchInterval: 10000,
   });
+
+  // SECURITY: Block access for non-admin users (after all hooks)
+  if (isAdminLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isMasterAdmin) {
+    return (
+      <Alert variant="destructive" className="m-4">
+        <ShieldAlert className="h-4 w-4" />
+        <AlertTitle>Access Denied</AlertTitle>
+        <AlertDescription>
+          This simulation harness is restricted to platform administrators only.
+          Synthetic data generation requires elevated privileges.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   const handleGenerateSingle = async () => {
     if (!singleConfig.metricId || !teamId || !userId) {
