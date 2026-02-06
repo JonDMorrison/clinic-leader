@@ -82,6 +82,7 @@ import BenchmarkAdmin from "./pages/admin/BenchmarkAdmin";
 import JaneVsNonJaneComparison from "./pages/admin/JaneVsNonJaneComparison";
 import MetricsGovernance from "./pages/admin/MetricsGovernance";
 import ExecutionDashboard from "./pages/ExecutionDashboard";
+import Features from "./pages/Features";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -130,6 +131,7 @@ const App = () => {
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
+            <Route path="/features" element={<Features />} />
             <Route path="/security" element={<Security />} />
             <Route path="/onboarding" element={<AppLayout><Onboarding /></AppLayout>} />
             <Route path="/dashboard" element={<AppLayout><Home /></AppLayout>} />
