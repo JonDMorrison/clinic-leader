@@ -2900,6 +2900,33 @@ export type Database = {
           },
         ]
       }
+      intervention_type_registry: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          status: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          id?: string
+          name: string
+          status?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          status?: string
+        }
+        Relationships: []
+      }
       intervention_types: {
         Row: {
           created_at: string
