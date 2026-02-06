@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { InterventionTypeBackfillPanel } from "./InterventionTypeBackfillPanel";
+import { InterventionGovernanceHealthPanel } from "./InterventionGovernanceHealthPanel";
 import {
   generateSyntheticIntervention,
   generateBatchSyntheticInterventions,
@@ -281,10 +282,11 @@ export function InterventionSimulationPanel() {
       </Alert>
 
       <Tabs defaultValue="single" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="single">Single Intervention</TabsTrigger>
           <TabsTrigger value="batch">Batch Generation</TabsTrigger>
           <TabsTrigger value="backfill">Type Backfill</TabsTrigger>
+          <TabsTrigger value="governance">Governance Health</TabsTrigger>
           <TabsTrigger value="clusters">Cluster Recompute</TabsTrigger>
         </TabsList>
 
@@ -595,6 +597,11 @@ export function InterventionSimulationPanel() {
         {/* Type Backfill Tab */}
         <TabsContent value="backfill" className="space-y-4">
           <InterventionTypeBackfillPanel />
+        </TabsContent>
+
+        {/* Governance Health Tab */}
+        <TabsContent value="governance" className="space-y-4">
+          <InterventionGovernanceHealthPanel />
         </TabsContent>
 
         {/* Cluster Recompute Tab */}
