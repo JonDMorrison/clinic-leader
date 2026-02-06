@@ -19,6 +19,8 @@ import {
   BarChart3,
   Zap,
 } from "lucide-react";
+import emrIntegrationImage from "@/assets/marketing/emr-integration.jpg";
+import dataAnalysisImage from "@/assets/marketing/data-analysis.jpg";
 
 const integrationCards = [
   {
@@ -238,6 +240,40 @@ const IntegrationsPublic = () => {
                   </motion.div>
                 ))}
               </div>
+
+              {/* Documentary image for integrations */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3 }}
+                className="mt-12 grid md:grid-cols-2 gap-6"
+              >
+                <div className="relative">
+                  <img
+                    src={emrIntegrationImage}
+                    alt="Clinic administrator working with EMR system while reviewing performance notes"
+                    className="rounded-2xl shadow-lg border border-border/30 w-full h-64 object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute bottom-4 left-4 right-4 bg-card/90 backdrop-blur-sm rounded-xl p-3 border border-border/30">
+                    <p className="text-sm font-medium">Jane App Integration</p>
+                    <p className="text-xs text-muted-foreground">Automatic scorecard data from your EMR</p>
+                  </div>
+                </div>
+                <div className="relative">
+                  <img
+                    src={dataAnalysisImage}
+                    alt="Healthcare operations leader reviewing data on dual monitors"
+                    className="rounded-2xl shadow-lg border border-border/30 w-full h-64 object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute bottom-4 left-4 right-4 bg-card/90 backdrop-blur-sm rounded-xl p-3 border border-border/30">
+                    <p className="text-sm font-medium">Flexible Data Sources</p>
+                    <p className="text-xs text-muted-foreground">Spreadsheets, EMRs, or manual entry</p>
+                  </div>
+                </div>
+              </motion.div>
             </div>
           </section>
 

@@ -22,6 +22,9 @@ import {
   CheckCircle2,
   ArrowDown,
 } from "lucide-react";
+import scorecardReviewImage from "@/assets/marketing/scorecard-review.jpg";
+import teamMeetingImage from "@/assets/marketing/team-meeting.jpg";
+import workflowReviewImage from "@/assets/marketing/workflow-review.jpg";
 
 const loopSteps = [
   {
@@ -29,18 +32,18 @@ const loopSteps = [
     label: "SEE",
     icon: Eye,
     description: "Understand clinic performance clearly.",
-    color: "from-blue-500 to-cyan-500",
-    bgColor: "bg-blue-500/10",
-    iconColor: "text-blue-500",
+    color: "from-primary to-accent",
+    bgColor: "bg-primary/10",
+    iconColor: "text-primary",
   },
   {
     id: "prioritize",
     label: "PRIORITIZE",
     icon: Target,
     description: "Identify problems early and focus meetings on decisions.",
-    color: "from-emerald-500 to-teal-500",
-    bgColor: "bg-emerald-500/10",
-    iconColor: "text-emerald-500",
+    color: "from-success to-accent",
+    bgColor: "bg-success/10",
+    iconColor: "text-success",
   },
   {
     id: "act",
@@ -56,9 +59,9 @@ const loopSteps = [
     label: "LEARN",
     icon: BookOpen,
     description: "Measure results and build playbooks that scale.",
-    color: "from-rose-500 to-pink-500",
-    bgColor: "bg-rose-500/10",
-    iconColor: "text-rose-500",
+    color: "from-accent to-primary",
+    bgColor: "bg-accent/10",
+    iconColor: "text-accent",
   },
 ];
 
@@ -225,9 +228,9 @@ const Features = () => {
                   viewport={{ once: true }}
                   className="space-y-6"
                 >
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20">
-                    <Eye className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-medium text-blue-500">SEE</span>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+                    <Eye className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium text-primary">SEE</span>
                   </div>
                   
                   <h2 className="text-3xl md:text-4xl font-bold">
@@ -246,7 +249,7 @@ const Features = () => {
                       "Align leadership around the same numbers",
                     ].map((item, i) => (
                       <li key={i} className="flex items-start gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                        <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                         <span className="text-muted-foreground">{item}</span>
                       </li>
                     ))}
@@ -257,36 +260,48 @@ const Features = () => {
                   initial={{ opacity: 0, x: 20 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
-                  className="bg-card rounded-2xl border border-border/50 p-6 shadow-lg"
+                  className="space-y-6"
                 >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">Weekly Scorecard</span>
-                      <span className="text-sm text-muted-foreground">Feb 2026</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { label: "Visits", value: "847", trend: "+12%" },
-                        { label: "Utilization", value: "78%", trend: "+3%" },
-                        { label: "Retention", value: "91%", trend: "-1%" },
-                      ].map((stat, i) => (
-                        <div key={i} className="bg-muted/50 rounded-lg p-3 text-center">
-                          <div className="text-xl font-bold">{stat.value}</div>
-                          <div className="text-xs text-muted-foreground">{stat.label}</div>
-                          <div className={`text-xs ${stat.trend.startsWith('+') ? 'text-emerald-500' : 'text-amber-500'}`}>
-                            {stat.trend}
+                  {/* Documentary image */}
+                  <div className="relative">
+                    <img
+                      src={scorecardReviewImage}
+                      alt="Clinic operations manager reviewing weekly performance scorecards"
+                      className="rounded-2xl shadow-lg border border-border/30 w-full"
+                      loading="lazy"
+                    />
+                  </div>
+
+                  <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-lg">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">Weekly Scorecard</span>
+                        <span className="text-sm text-muted-foreground">Feb 2026</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { label: "Visits", value: "847", trend: "+12%" },
+                          { label: "Utilization", value: "78%", trend: "+3%" },
+                          { label: "Retention", value: "91%", trend: "-1%" },
+                        ].map((stat, i) => (
+                          <div key={i} className="bg-muted/50 rounded-lg p-3 text-center">
+                            <div className="text-xl font-bold">{stat.value}</div>
+                            <div className="text-xs text-muted-foreground">{stat.label}</div>
+                            <div className={`text-xs ${stat.trend.startsWith('+') ? 'text-success' : 'text-warning'}`}>
+                              {stat.trend}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex items-end gap-1 h-20">
-                      {[40, 55, 48, 62, 58, 72, 68, 75, 70, 82, 78, 85].map((h, i) => (
-                        <div
-                          key={i}
-                          className="flex-1 bg-gradient-to-t from-blue-500 to-blue-500/50 rounded-t"
-                          style={{ height: `${h}%` }}
-                        />
-                      ))}
+                        ))}
+                      </div>
+                      <div className="flex items-end gap-1 h-20">
+                        {[40, 55, 48, 62, 58, 72, 68, 75, 70, 82, 78, 85].map((h, i) => (
+                          <div
+                            key={i}
+                            className="flex-1 bg-gradient-to-t from-primary to-primary/50 rounded-t"
+                            style={{ height: `${h}%` }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -302,32 +317,44 @@ const Features = () => {
                   initial={{ opacity: 0, x: -20 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
-                  className="bg-card rounded-2xl border border-border/50 p-6 shadow-lg lg:order-1"
+                  className="space-y-6 lg:order-1"
                 >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">Meeting Agenda</span>
-                      <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-500">Auto-prepared</span>
-                    </div>
-                    {[
-                      { title: "Utilization drop - Provider A", priority: "High", status: "Discuss" },
-                      { title: "New patient conversion rate", priority: "Medium", status: "Decide" },
-                      { title: "Q1 improvement progress", priority: "Low", status: "Update" },
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <AlertCircle className={`w-4 h-4 ${i === 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
-                          <span className="text-sm">{item.title}</span>
-                        </div>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          item.priority === 'High' ? 'bg-amber-500/10 text-amber-500' :
-                          item.priority === 'Medium' ? 'bg-blue-500/10 text-blue-500' :
-                          'bg-muted text-muted-foreground'
-                        }`}>
-                          {item.status}
-                        </span>
+                  {/* Documentary image */}
+                  <div className="relative">
+                    <img
+                      src={teamMeetingImage}
+                      alt="Healthcare leadership team conducting structured weekly meeting"
+                      className="rounded-2xl shadow-lg border border-border/30 w-full"
+                      loading="lazy"
+                    />
+                  </div>
+
+                  <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-lg">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">Meeting Agenda</span>
+                        <span className="text-xs px-2 py-1 rounded-full bg-success/10 text-success">Auto-prepared</span>
                       </div>
-                    ))}
+                      {[
+                        { title: "Utilization drop - Provider A", priority: "High", status: "Discuss" },
+                        { title: "New patient conversion rate", priority: "Medium", status: "Decide" },
+                        { title: "Q1 improvement progress", priority: "Low", status: "Update" },
+                      ].map((item, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <AlertCircle className={`w-4 h-4 ${i === 0 ? 'text-warning' : 'text-muted-foreground'}`} />
+                            <span className="text-sm">{item.title}</span>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            item.priority === 'High' ? 'bg-warning/10 text-warning' :
+                            item.priority === 'Medium' ? 'bg-primary/10 text-primary' :
+                            'bg-muted text-muted-foreground'
+                          }`}>
+                            {item.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </motion.div>
 
@@ -337,9 +364,9 @@ const Features = () => {
                   viewport={{ once: true }}
                   className="space-y-6 lg:order-2"
                 >
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                    <Target className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm font-medium text-emerald-500">PRIORITIZE</span>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20">
+                    <Target className="w-4 h-4 text-success" />
+                    <span className="text-sm font-medium text-success">PRIORITIZE</span>
                   </div>
                   
                   <h2 className="text-3xl md:text-4xl font-bold">
@@ -358,7 +385,7 @@ const Features = () => {
                       "Leadership alignment improves",
                     ].map((item, i) => (
                       <li key={i} className="flex items-start gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                        <CheckCircle2 className="w-5 h-5 text-success mt-0.5 flex-shrink-0" />
                         <span className="text-muted-foreground">{item}</span>
                       </li>
                     ))}
@@ -422,36 +449,48 @@ const Features = () => {
                   initial={{ opacity: 0, x: 20 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
-                  className="bg-card rounded-2xl border border-border/50 p-6 shadow-lg"
+                  className="space-y-6"
                 >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">Active Improvements</span>
-                      <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">3 running</span>
-                    </div>
-                    {[
-                      { name: "Same-day booking pilot", metric: "Utilization", baseline: "72%", current: "78%", status: "Improving" },
-                      { name: "Follow-up reminder calls", metric: "Retention", baseline: "89%", current: "91%", status: "Improving" },
-                      { name: "New patient welcome flow", metric: "Conversion", baseline: "34%", current: "32%", status: "Monitoring" },
-                    ].map((item, i) => (
-                      <div key={i} className="p-3 bg-muted/50 rounded-lg space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{item.name}</span>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            item.status === 'Improving' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
-                          }`}>
-                            {item.status}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>Target: {item.metric}</span>
-                          <span>Baseline: {item.baseline}</span>
-                          <span className={item.current > item.baseline ? 'text-emerald-500' : 'text-amber-500'}>
-                            Now: {item.current}
-                          </span>
-                        </div>
+                  {/* Documentary image */}
+                  <div className="relative">
+                    <img
+                      src={workflowReviewImage}
+                      alt="Healthcare administrator reviewing workflow checklist and operational progress"
+                      className="rounded-2xl shadow-lg border border-border/30 w-full"
+                      loading="lazy"
+                    />
+                  </div>
+
+                  <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-lg">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">Active Improvements</span>
+                        <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">3 running</span>
                       </div>
-                    ))}
+                      {[
+                        { name: "Same-day booking pilot", metric: "Utilization", baseline: "72%", current: "78%", status: "Improving" },
+                        { name: "Follow-up reminder calls", metric: "Retention", baseline: "89%", current: "91%", status: "Improving" },
+                        { name: "New patient welcome flow", metric: "Conversion", baseline: "34%", current: "32%", status: "Monitoring" },
+                      ].map((item, i) => (
+                        <div key={i} className="p-3 bg-muted/50 rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{item.name}</span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              item.status === 'Improving' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                            }`}>
+                              {item.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span>Target: {item.metric}</span>
+                            <span>Baseline: {item.baseline}</span>
+                            <span className={item.current > item.baseline ? 'text-success' : 'text-warning'}>
+                              Now: {item.current}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </motion.div>
               </div>
@@ -481,7 +520,7 @@ const Features = () => {
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">{item.title}</span>
                           <span className={`text-xs px-2 py-1 rounded-full ${
-                            item.confidence === 'Strong' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'
+                            item.confidence === 'Strong' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
                           }`}>
                             {item.confidence}
                           </span>
@@ -489,8 +528,8 @@ const Features = () => {
                         <p className="text-xs text-muted-foreground">{item.reason}</p>
                       </div>
                     ))}
-                    <div className="flex items-center gap-2 p-3 bg-rose-500/5 rounded-lg border border-rose-500/20">
-                      <Lightbulb className="w-4 h-4 text-rose-500" />
+                    <div className="flex items-center gap-2 p-3 bg-accent/5 rounded-lg border border-accent/20">
+                      <Lightbulb className="w-4 h-4 text-accent" />
                       <span className="text-xs text-muted-foreground">
                         2 improvement patterns added to your playbook this quarter
                       </span>
@@ -504,9 +543,9 @@ const Features = () => {
                   viewport={{ once: true }}
                   className="space-y-6 lg:order-2"
                 >
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-rose-500/10 border border-rose-500/20">
-                    <BookOpen className="w-4 h-4 text-rose-500" />
-                    <span className="text-sm font-medium text-rose-500">LEARN</span>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20">
+                    <BookOpen className="w-4 h-4 text-accent" />
+                    <span className="text-sm font-medium text-accent">LEARN</span>
                   </div>
                   
                   <h2 className="text-3xl md:text-4xl font-bold">
@@ -525,7 +564,7 @@ const Features = () => {
                       "Recommendations remain transparent and explainable",
                     ].map((item, i) => (
                       <li key={i} className="flex items-start gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-rose-500 mt-0.5 flex-shrink-0" />
+                        <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" />
                         <span className="text-muted-foreground">{item}</span>
                       </li>
                     ))}

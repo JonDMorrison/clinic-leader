@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, CheckCircle2, Sparkles, TrendingUp, Users } from "lucide-react";
 import { motion } from "framer-motion";
+import heroLeadershipImage from "@/assets/marketing/hero-leadership-meeting.jpg";
 
 export const HeroSection = () => {
   return (
@@ -121,6 +122,22 @@ export const HeroSection = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
+            {/* Documentary image */}
+            <motion.div
+              className="mb-6 relative"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent rounded-2xl blur-xl scale-105" />
+              <img
+                src={heroLeadershipImage}
+                alt="Clinic leadership team reviewing weekly performance metrics"
+                className="relative rounded-2xl shadow-xl border border-border/30 w-full max-w-[520px] mx-auto"
+                loading="eager"
+              />
+            </motion.div>
+
             {/* Browser frame mockup */}
             <div className="relative">
               {/* Glow effect behind */}
