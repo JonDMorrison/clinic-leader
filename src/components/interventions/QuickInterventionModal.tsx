@@ -3,13 +3,14 @@
  * 
  * Features:
  * - Quick mode with minimal required fields (title + metric)
+ * - AI-assisted intervention type suggestion
  * - Advanced mode toggle for additional options
  * - Auto-populates baseline from latest metric_results
  * - Origin type/ID auto-filled based on launch context
  * - Supports all entry points: Scorecard, Issues, Meeting Signals, Recommendations
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,6 +50,7 @@ import {
 import { logInterventionEventAsync } from "@/lib/interventions/eventLogger";
 import { validateBaseline, type BaselineQualityFlag } from "@/lib/interventions/baselineValidation";
 import { format } from "date-fns";
+import { InterventionTypeSuggestion } from "./InterventionTypeSuggestion";
 
 // Origin context passed when opening modal
 export interface InterventionOriginContext {
@@ -117,6 +119,23 @@ export function QuickInterventionModal({
   const [interventionType, setInterventionType] = useState<InterventionType>("other");
   const [ownerUserId, setOwnerUserId] = useState<string>("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Governance type state (from AI suggestion or manual selection)
+  const [governanceTypeId, setGovernanceTypeId] = useState<string | null>(null);
+  const [governanceTypeSource, setGovernanceTypeSource] = useState<"ai" | "user" | null>(null);
+  const [governanceTypeConfidence, setGovernanceTypeConfidence] = useState<number | null>(null);
+
+  // Handle type selection from suggestion component
+  const handleTypeSelected = useCallback((selection: {
+    typeId: string | null;
+    typeName: string | null;
+    source: "ai" | "user" | null;
+    confidence: number | null;
+  }) => {
+    setGovernanceTypeId(selection.typeId);
+    setGovernanceTypeSource(selection.source);
+    setGovernanceTypeConfidence(selection.confidence);
+  }, []);
 
   // Derived baseline from selected metric
   const [baseline, setBaseline] = useState<{
@@ -216,6 +235,11 @@ export function QuickInterventionModal({
       setConfidenceLevel("medium");
       setInterventionType("other");
       setOwnerUserId("");
+      
+      // Reset governance type
+      setGovernanceTypeId(null);
+      setGovernanceTypeSource(null);
+      setGovernanceTypeConfidence(null);
 
       // Apply origin context
       if (originContext) {
@@ -285,6 +309,10 @@ export function QuickInterventionModal({
           created_by: user.id,
           origin_type: originContext?.originType || "manual",
           origin_id: originContext?.originId || null,
+          // Governance type fields
+          intervention_type_id: governanceTypeId,
+          intervention_type_source: governanceTypeSource,
+          intervention_type_confidence: governanceTypeConfidence,
         })
         .select("id")
         .single();
@@ -427,6 +455,15 @@ export function QuickInterventionModal({
               <p className="text-xs text-destructive">Title must be at least 4 characters</p>
             )}
           </div>
+
+          {/* AI Type Suggestion - appears after title is entered */}
+          {title.trim().length >= 4 && (
+            <InterventionTypeSuggestion
+              title={title}
+              description={description}
+              onTypeSelected={handleTypeSelected}
+            />
+          )}
 
           {/* Metric Selection - Required */}
           <div className="grid gap-2">

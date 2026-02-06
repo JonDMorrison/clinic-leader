@@ -58,6 +58,7 @@ import { InterventionIssueLink } from "@/components/interventions/InterventionIs
 import { OutcomeMindsetBanner } from "@/components/interventions/InterventionEducationPanel";
 import { ROICard } from "@/components/interventions/ROICard";
 import { ExecutiveSummary } from "@/components/interventions/ExecutiveSummary";
+import { InterventionTypeDisplay } from "@/components/interventions/InterventionTypeDisplay";
 import { getInterventionProgress, getProgressStatusStyle, type ProgressStatus } from "@/lib/interventions/interventionStatus";
 import {
   canEditIntervention,
@@ -71,6 +72,10 @@ type InterventionWithUsers = InterventionRow & {
   creator: { id: string; full_name: string } | null;
   originIssue: { id: string; title: string } | null;
   ai_summary?: string | null;
+  // Governance type fields
+  intervention_type_id?: string | null;
+  intervention_type_source?: "ai" | "user" | "ai_backfill" | null;
+  intervention_type_confidence?: number | null;
 };
 
 type LinkedMetric = {
@@ -635,6 +640,23 @@ export default function InterventionDetail() {
 
         {/* Metadata Sidebar */}
         <div className="space-y-4">
+          {/* Governance Type Card */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Classification</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <InterventionTypeDisplay
+                interventionId={intervention.id}
+                typeId={intervention.intervention_type_id || null}
+                typeSource={intervention.intervention_type_source || null}
+                typeConfidence={intervention.intervention_type_confidence || null}
+                canEdit={canEdit}
+                onUpdate={() => refetch()}
+              />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Metadata</CardTitle>
