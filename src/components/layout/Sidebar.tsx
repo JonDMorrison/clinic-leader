@@ -151,12 +151,6 @@ export const Sidebar = () => {
             className="transition-transform duration-300 group-hover:scale-[1.02]"
           />
         </div>
-        {/* Data Source Status Pill */}
-        {!isOnboarding && (
-          <div className="mt-3">
-            <DataSourcePill compact className="w-full justify-start" />
-          </div>
-        )}
       </div>
       
       <nav className="flex-1 p-4 overflow-y-auto">
