@@ -25,10 +25,7 @@ export const NavPublic = () => {
             <Link to="/" className="text-foreground hover:text-brand transition-colors">
               Home
             </Link>
-            <Link to="/#about" className="text-foreground hover:text-brand transition-colors">
-              About
-            </Link>
-            <Link to="/#features" className="text-foreground hover:text-brand transition-colors">
+            <Link to="/features" className="text-foreground hover:text-brand transition-colors">
               Features
             </Link>
             <Link to="/#contact" className="text-foreground hover:text-brand transition-colors">
@@ -42,7 +39,7 @@ export const NavPublic = () => {
               <Link to="/auth">Sign In</Link>
             </Button>
             <Button asChild>
-              <Link to="/auth">Get Started</Link>
+              <Link to="/auth">Apply for Pilot</Link>
             </Button>
           </div>
 
@@ -67,14 +64,7 @@ export const NavPublic = () => {
               Home
             </Link>
             <Link
-              to="/#about"
-              className="block py-2 text-foreground hover:text-brand transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              About
-            </Link>
-            <Link
-              to="/#features"
+              to="/features"
               className="block py-2 text-foreground hover:text-brand transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
@@ -92,7 +82,7 @@ export const NavPublic = () => {
                 <Link to="/auth">Sign In</Link>
               </Button>
               <Button className="w-full" asChild>
-                <Link to="/auth">Get Started</Link>
+                <Link to="/auth">Apply for Pilot</Link>
               </Button>
             </div>
           </div>
