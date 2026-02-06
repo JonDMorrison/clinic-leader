@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -15,6 +17,7 @@ import {
   AlertCircle,
   Loader2,
   HelpCircle,
+  Settings2,
 } from "lucide-react";
 import {
   useOrgDataSourceStatus,
@@ -24,6 +27,7 @@ import {
   type DataMode,
 } from "@/hooks/useOrgDataSourceStatus";
 import { format } from "date-fns";
+import { ChangeDataSourceWizard } from "./ChangeDataSourceWizard";
 
 /**
  * Get icon for data source type
@@ -110,6 +114,7 @@ export function DataSourcePill({
   className 
 }: DataSourcePillProps) {
   const status = useOrgDataSourceStatus();
+  const [wizardOpen, setWizardOpen] = useState(false);
   
   if (status.isLoading && showLoading) {
     return (
@@ -237,9 +242,28 @@ export function DataSourcePill({
                 <span className="capitalize text-xs">{status.janeConnectionStatus}</span>
               </div>
             )}
+            
+            {/* Change Data Source Action */}
+            <div className="pt-2 mt-2 border-t">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start text-xs h-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setWizardOpen(true);
+                }}
+              >
+                <Settings2 className="w-3 h-3 mr-1.5" />
+                Change Data Source
+              </Button>
+            </div>
           </div>
         </TooltipContent>
       </Tooltip>
+      
+      {/* Wizard Modal */}
+      <ChangeDataSourceWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </TooltipProvider>
   );
 }
