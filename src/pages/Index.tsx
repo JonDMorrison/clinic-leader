@@ -34,32 +34,32 @@ const Index = () => {
 
   const faqs = [
     {
-      q: "Do I need to use EOS to benefit from ClinicLeader?",
-      a: "No. ClinicLeader is aligned with EOS principles but does not require formal EOS implementation. The structure works for any clinic that values clear goals, weekly accountability, and team alignment."
+      q: "Do I need to follow a specific framework to use ClinicLeader?",
+      a: "No. ClinicLeader provides structure inspired by proven operating systems, but you don't need formal training or certifications. The system guides you through scorecards, meetings, and improvement tracking."
     },
     {
       q: "How long does it take to get started?",
-      a: "Most clinics are running their first structured weekly meeting within two weeks. Setup includes importing your existing goals, SOPs, and team structure."
+      a: "Most clinics run their first structured weekly meeting within two weeks. Setup includes connecting your data source, importing existing goals, and inviting your leadership team."
     },
     {
       q: "Will this create more work for my team?",
-      a: "The opposite. ClinicLeader reduces administrative burden by providing structure that was previously held in spreadsheets, documents, and your head. Teams spend less time preparing and more time executing."
+      a: "The opposite. ClinicLeader replaces scattered spreadsheets, fragmented meeting prep, and untracked improvement efforts. Teams spend less time gathering information and more time making decisions."
     },
     {
       q: "Is my data secure?",
-      a: "Yes. We use enterprise-grade encryption and follow healthcare data security best practices. Your operational data is protected and never shared."
+      a: "Yes. Your clinic data remains yours. We use enterprise-grade encryption and follow healthcare data security best practices. Cross-clinic learning uses only anonymized, aggregated patterns - never identifiable information."
     },
     {
-      q: "Can I import existing metrics and goals?",
-      a: "Yes. We support importing from spreadsheets to get you up and running without starting from scratch."
+      q: "What data sources can ClinicLeader connect to?",
+      a: "ClinicLeader connects to Jane App, other EMR systems, Excel or spreadsheet uploads, and supports manual entry for operational metrics. No disruption to your current workflows is required."
     }
   ];
 
   return (
     <>
       <Helmet>
-        <title>ClinicLeader - Operating System for Clinic Leadership</title>
-        <meta name="description" content="ClinicLeader helps clinic leaders set clear goals, align their teams, and run better weekly operations. An EOS-aligned operating system built specifically for clinics." />
+        <title>ClinicLeader - Decision Intelligence for Clinic Leaders</title>
+        <meta name="description" content="ClinicLeader helps clinic leaders see performance clearly, prioritize issues, track improvement changes, and learn what works. Connects to Jane, other EMRs, or spreadsheets." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-background">
@@ -100,11 +100,11 @@ const Index = () => {
 
                 <div className="grid md:grid-cols-2 gap-4">
                   {[
-                    { title: "Clinic owners", desc: "who want to lead, not just operate" },
-                    { title: "Practice managers", desc: "who need structure to support their teams" },
-                    { title: "Leadership teams", desc: "who want everyone aligned around clear goals" },
-                    { title: "Multi-provider clinics", desc: "where coordination matters" },
-                    { title: "Growing clinics", desc: "that feel the strain of scaling without systems" },
+                    { title: "Clinic owners", desc: "who want clarity on performance and team alignment" },
+                    { title: "Practice managers", desc: "who need a system, not more spreadsheets" },
+                    { title: "Leadership teams", desc: "who want meetings focused on decisions, not updates" },
+                    { title: "Multi-location or multi-discipline clinics", desc: "where visibility matters" },
+                    { title: "Growing clinics", desc: "ready to measure what improvement changes actually work" },
                   ].map((item, i) => (
                     <motion.div
                       key={i}
@@ -125,9 +125,9 @@ const Index = () => {
 
                 <div className="pt-6 border-t border-border/50 text-center">
                   <p className="text-muted-foreground text-sm">
-                    <strong className="text-foreground">Not designed for:</strong> Solo practitioners without a team to align, 
+                    <strong className="text-foreground">Not designed for:</strong> Solo practitioners without a team, 
                     or clinics looking for scheduling or billing software. 
-                    This is an operating system for leadership and execution.
+                    ClinicLeader is for leadership teams who want performance clarity and measurable improvement.
                   </p>
                 </div>
               </motion.div>

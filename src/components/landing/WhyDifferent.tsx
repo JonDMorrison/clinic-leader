@@ -4,36 +4,36 @@ import { Building2, Zap, Scale, BarChart3, Heart } from "lucide-react";
 const differentiators = [
   {
     icon: Building2,
-    title: "Built specifically for clinics",
-    description: "Not adapted from generic project management. Every feature exists because clinic leaders need it.",
+    title: "Designed for clinic operations",
+    description: "Not adapted from project management software. Every feature exists because clinic owners and operators asked for it.",
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
   },
   {
     icon: Scale,
-    title: "EOS-aligned without being rigid",
-    description: "The structure follows proven principles. But you don't need a consultant to use it. The system guides you.",
+    title: "Structured without bureaucracy",
+    description: "Clear frameworks for scorecards, meetings, and improvement tracking - without requiring consultants or certifications.",
     color: "text-emerald-500",
     bgColor: "bg-emerald-500/10",
   },
   {
     icon: Zap,
-    title: "Discipline without bureaucracy",
-    description: "Structure should reduce work, not create it. ClinicLeader enforces accountability without overhead.",
+    title: "Connects data to decisions",
+    description: "See performance signals, surface issues, track improvement changes, and measure outcomes. A complete loop, not a disconnected dashboard.",
     color: "text-amber-500",
     bgColor: "bg-amber-500/10",
   },
   {
     icon: BarChart3,
-    title: "Weekly operations, not passive dashboards",
-    description: "This is not a reporting tool you check occasionally. It's an operating system your team uses every week.",
+    title: "Weekly rhythm, not occasional reports",
+    description: "This is an operating system your leadership team uses every week - not a reporting tool you check when something feels wrong.",
     color: "text-violet-500",
     bgColor: "bg-violet-500/10",
   },
   {
     icon: Heart,
-    title: "Reduces leadership burden",
-    description: "When the system holds the structure, you can focus on leading. Your context moves into a system your team can access.",
+    title: "Reduces what you carry alone",
+    description: "Move context out of your head and into a system your team can access. When the structure holds, you can focus on leading.",
     color: "text-rose-500",
     bgColor: "bg-rose-500/10",
   },
@@ -56,13 +56,13 @@ export const WhyDifferent = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-            Built for how clinics{" "}
+            Why clinics outgrow{" "}
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              actually operate
+              spreadsheets and dashboards
             </span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            We're not another generic business tool. ClinicLeader was designed from the ground up for healthcare practices.
+            Most tools show you data. ClinicLeader helps you see clearly, prioritize issues, act intentionally, and learn from results.
           </p>
         </motion.div>
 

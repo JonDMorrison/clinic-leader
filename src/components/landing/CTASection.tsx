@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, CheckCircle2 } from "lucide-react";
 
 const benefits = [
-  "Free to start, no credit card required",
-  "Set up in under 15 minutes",
-  "Import existing goals & metrics",
-  "Full support during onboarding",
+  "Limited pilot spots available",
+  "Personalized onboarding support",
+  "Connect your existing data sources",
+  "Shape the future of clinic leadership tools",
 ];
 
 export const CTASection = () => {
@@ -59,21 +59,21 @@ export const CTASection = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-primary/20 shadow-lg"
           >
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium">Start leading with clarity today</span>
+            <span className="text-sm font-medium">Limited pilot availability</span>
           </motion.div>
 
           {/* Headline */}
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">
-            Ready to transform how you{" "}
+            Ready to see your{" "}
             <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
-              lead your clinic?
+              clinic clearly?
             </span>
           </h2>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Replace chaos with clarity. 
-            When leaders have structure, teams have direction. 
-            When teams have direction, patients receive better care.
+            Join clinics building real leadership systems. 
+            See performance signals, track improvement changes, 
+            and learn what actually moves results.
           </p>
 
           {/* Benefits list */}
@@ -103,20 +103,20 @@ export const CTASection = () => {
           >
             <Button size="lg" className="text-lg px-10 py-7 shadow-xl shadow-primary/25 group" asChild>
               <Link to="/auth">
-                Get Started Free
+                Apply for Pilot Access
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-10 py-7 bg-card/80 backdrop-blur-sm" asChild>
               <Link to="/auth">
-                Schedule a Walkthrough
+                Book a Walkthrough
               </Link>
             </Button>
           </motion.div>
 
           {/* Trust note */}
           <p className="text-sm text-muted-foreground pt-4">
-            No credit card required • Cancel anytime • HIPAA-aligned security
+            Pilot collaboration • Your data stays private • HIPAA-aligned security
           </p>
         </motion.div>
       </div>
