@@ -33,8 +33,10 @@ import {
   Database,
   Zap,
   ShieldAlert,
+  Tag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { InterventionTypeBackfillPanel } from "./InterventionTypeBackfillPanel";
 import {
   generateSyntheticIntervention,
   generateBatchSyntheticInterventions,
@@ -282,6 +284,7 @@ export function InterventionSimulationPanel() {
         <TabsList>
           <TabsTrigger value="single">Single Intervention</TabsTrigger>
           <TabsTrigger value="batch">Batch Generation</TabsTrigger>
+          <TabsTrigger value="backfill">Type Backfill</TabsTrigger>
           <TabsTrigger value="clusters">Cluster Recompute</TabsTrigger>
         </TabsList>
 
@@ -587,6 +590,11 @@ export function InterventionSimulationPanel() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Type Backfill Tab */}
+        <TabsContent value="backfill" className="space-y-4">
+          <InterventionTypeBackfillPanel />
         </TabsContent>
 
         {/* Cluster Recompute Tab */}
