@@ -32,7 +32,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { MissingTargetsBanner } from "@/components/scorecard/MissingTargetsBanner";
+
 import { fetchCanonicalMetricResults, groupResultsByMetric } from "@/hooks/useCanonicalMetricResults";
 
 
@@ -488,22 +488,6 @@ const Scorecard = () => {
     }).length;
   }, [metricsData]);
 
-  // Find metrics missing targets for banner
-  const metricsWithoutTargets = useMemo(() => {
-    if (!metricsData) return [];
-    return metricsData
-      .filter(m => m.target === null || m.target === undefined)
-      .map(m => ({
-        id: m.id,
-        name: m.name,
-        category: m.category,
-      }));
-  }, [metricsData]);
-
-  // Handler to open metric details for target configuration
-  const handleConfigureTarget = (metricId: string) => {
-    setSelectedMetricId(metricId);
-  };
 
   return (
     <div className="space-y-6">
@@ -586,11 +570,6 @@ const Scorecard = () => {
         />
       ) : (
         <div className="space-y-6">
-          {/* Missing Targets Banner */}
-          <MissingTargetsBanner 
-            metricsWithoutTargets={metricsWithoutTargets}
-            onConfigureTarget={handleConfigureTarget}
-          />
 
           {/* Alerts Panel */}
           <AlertsPanel 
