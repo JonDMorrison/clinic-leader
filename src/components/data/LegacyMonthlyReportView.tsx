@@ -119,7 +119,13 @@ function DataTable({ title, headers, rows, periodKey, organizationId }: DataTabl
             <TableHeader className="sticky top-0 bg-muted/90 z-10">
               <TableRow>
                 {normalizedHeaders.map((header, idx) => (
-                  <TableHead key={idx} className="font-medium text-xs py-1.5 px-1.5 truncate">
+                  <TableHead 
+                    key={idx} 
+                    className={cn(
+                      "font-medium text-xs py-1.5 px-1.5 truncate",
+                      idx === 0 ? "text-left" : "text-center"
+                    )}
+                  >
                     {header}
                   </TableHead>
                 ))}
@@ -133,7 +139,13 @@ function DataTable({ title, headers, rows, periodKey, organizationId }: DataTabl
                   String(row[0]).toLowerCase().includes('total') && "bg-muted/40 font-medium"
                 )}>
                 {row.map((cell, cellIdx) => (
-                    <TableCell key={cellIdx} className="py-1 px-1.5 text-xs truncate">
+                    <TableCell 
+                      key={cellIdx} 
+                      className={cn(
+                        "py-1 px-1.5 text-xs truncate",
+                        cellIdx === 0 ? "text-left" : "text-center"
+                      )}
+                    >
                       {formatCellValue(cell)}
                     </TableCell>
                   ))}
