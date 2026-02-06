@@ -662,21 +662,16 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
   };
 
   /**
-   * Get trend color based on direction and metric preference
-   * For metrics where lower is better (direction: "down"), red = increase, green = decrease
+   * Get trend color based on direction
+   * Simple rule: increase (up) = green, decrease (down) = red
+   * User requested straightforward coloring without semantic meaning
    */
   const getTrendColor = (
     direction: 'up' | 'down' | 'stable',
-    metricDirection: string
+    _metricDirection: string
   ): string => {
     if (direction === 'stable') return 'text-muted-foreground';
-    
-    // For metrics where lower is better (like no-shows, cancellation rate)
-    const isLowerBetter = metricDirection === 'down' || metricDirection === 'lower_is_better';
-    
-    if (isLowerBetter) {
-      return direction === 'up' ? 'text-destructive' : 'text-success';
-    }
+    // Simple: up = green, down = red
     return direction === 'up' ? 'text-success' : 'text-destructive';
   };
 
