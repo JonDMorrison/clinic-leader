@@ -100,31 +100,19 @@ interface SourceStatsResult {
 async function fetchSourceStats(orgId: string): Promise<SourceStatsResult> {
   const sixtyDaysAgo = subDays(new Date(), 60).toISOString().split('T')[0];
   
-  // Workaround for TS2589: Use fetch API directly to bypass Supabase type inference
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  // Use Supabase client - RLS policies will filter by organization
+  // The metric_results table uses RLS, not an explicit organization_id column
+  const { data, error } = await supabase
+    .from("metric_results")
+    .select("source, period_start, created_at")
+    .gte("period_start", sixtyDaysAgo)
+    .order("period_start", { ascending: false });
   
-  const url = new URL(`${supabaseUrl}/rest/v1/metric_results`);
-  url.searchParams.set('select', 'source,period_start,created_at');
-  url.searchParams.set('organization_id', `eq.${orgId}`);
-  url.searchParams.set('period_start', `gte.${sixtyDaysAgo}`);
-  url.searchParams.set('order', 'period_start.desc');
-  
-  const response = await fetch(url.toString(), {
-    headers: {
-      'apikey': supabaseKey,
-      'Authorization': `Bearer ${supabaseKey}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch metric results: ${response.statusText}`);
+  if (error) {
+    throw new Error(`Failed to fetch metric results: ${error.message}`);
   }
   
-  const data: MetricResultRow[] = await response.json();
-  
-  if (data.length === 0) {
+  if (!data || data.length === 0) {
     return {
       primarySource: "unknown",
       secondarySources: [],
