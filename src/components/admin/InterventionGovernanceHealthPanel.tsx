@@ -357,9 +357,11 @@ function getSuccessColor(rate: number): string {
 }
 
 async function fetchTypeCoverage(dateFilter: Date | null): Promise<TypeCoverageStats> {
+  // GOVERNANCE: Exclude synthetic data from all metrics
   let query = supabase
     .from("interventions")
-    .select("id, intervention_type_id", { count: "exact" });
+    .select("id, intervention_type_id", { count: "exact" })
+    .eq("is_synthetic", false);
 
   if (dateFilter) {
     query = query.gte("created_at", dateFilter.toISOString());
@@ -383,9 +385,11 @@ async function fetchTypeCoverage(dateFilter: Date | null): Promise<TypeCoverageS
 }
 
 async function fetchAcceptanceRate(dateFilter: Date | null): Promise<AcceptanceStats> {
+  // GOVERNANCE: Exclude synthetic data from all metrics
   let query = supabase
     .from("interventions")
     .select("id, intervention_type_source")
+    .eq("is_synthetic", false)
     .in("intervention_type_source", ["ai", "user"]);
 
   if (dateFilter) {
@@ -430,7 +434,7 @@ async function fetchTypeSuccessStats(
     return [];
   }
 
-  // Get outcomes with intervention type data
+  // Get outcomes with intervention type data (exclude synthetic)
   // We need to join through interventions to get the type
   let outcomesQuery = supabase
     .from("intervention_outcomes")
@@ -439,7 +443,8 @@ async function fetchTypeSuccessStats(
       actual_delta_percent,
       confidence_score,
       intervention_id
-    `);
+    `)
+    .eq("is_synthetic", false);
 
   if (dateFilter) {
     outcomesQuery = outcomesQuery.gte("evaluated_at", dateFilter.toISOString());
@@ -459,9 +464,11 @@ async function fetchTypeSuccessStats(
     return [];
   }
 
+  // GOVERNANCE: Exclude synthetic interventions from type mapping
   const { data: interventions, error: interventionsError } = await supabase
     .from("interventions")
     .select("id, intervention_type_id, status")
+    .eq("is_synthetic", false)
     .in("id", interventionIds);
 
   if (interventionsError) {
