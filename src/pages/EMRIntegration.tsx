@@ -12,7 +12,33 @@ import {
   MessageSquare,
   FileText,
   Settings,
+  Play,
 } from "lucide-react";
+
+const howItWorks = [
+  {
+    icon: MessageSquare,
+    title: "Discovery call",
+    description: "We discuss your EMR, available reports, and the operational metrics you want to track.",
+  },
+  {
+    icon: FileText,
+    title: "Start with core KPIs",
+    description: "We map a small set of key metrics first — visits, revenue, utilization — and expand over time.",
+  },
+  {
+    icon: Settings,
+    title: "Configure & launch",
+    description: "Set up your upload schedule and start your weekly leadership loop.",
+  },
+];
+
+const whatWeNeed = [
+  { title: "Appointment data", desc: "Visits, no-shows, cancellations by provider or service" },
+  { title: "Revenue metrics", desc: "Collections, charges, payment timing (where available)" },
+  { title: "Schedule utilization", desc: "Booked vs available appointment slots" },
+  { title: "Patient flow", desc: "New patients, retention signals, reactivations" },
+];
 
 const EMRIntegration = () => {
   return (
@@ -21,7 +47,7 @@ const EMRIntegration = () => {
         <title>Other EMRs - ClinicLeader | Connect Your Practice Management System</title>
         <meta
           name="description"
-          content="Connect your EMR or practice management system to ClinicLeader. We can map your operational metrics into our scorecard system."
+          content="Connect your EMR or practice management system to ClinicLeader. We map your operational metrics into scorecards and leadership tools."
         />
       </Helmet>
 
@@ -59,20 +85,21 @@ const EMRIntegration = () => {
                 </div>
 
                 <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mb-8">
-                  Using a different EMR or practice management system? 
-                  We can work with you to map your operational metrics into ClinicLeader's scorecard system.
+                  Using a different EMR or practice management system? We can work with you to map 
+                  your operational metrics into ClinicLeader — start small and expand over time.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <Button size="lg" className="group" asChild>
+                  <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 group" asChild>
+                    <Link to="/auth">
+                      <Play className="mr-2 w-5 h-5" />
+                      Book a Walkthrough
+                    </Link>
+                  </Button>
+                  <Button size="lg" variant="outline" className="text-lg px-8 py-6 group" asChild>
                     <Link to="/auth">
                       Apply for Pilot Access
                       <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                  </Button>
-                  <Button size="lg" variant="outline" asChild>
-                    <Link to="/auth">
-                      Book a Walkthrough
                     </Link>
                   </Button>
                 </div>
@@ -90,26 +117,13 @@ const EMRIntegration = () => {
                 viewport={{ once: true }}
               >
                 <h2 className="text-3xl md:text-4xl font-bold mb-4">How Custom Integration Works</h2>
+                <p className="text-lg text-muted-foreground">
+                  We start with core KPIs and expand over time.
+                </p>
               </motion.div>
 
               <div className="grid md:grid-cols-3 gap-6">
-                {[
-                  {
-                    icon: MessageSquare,
-                    title: "Discovery call",
-                    description: "We discuss your EMR, available reports, and operational metrics you want to track.",
-                  },
-                  {
-                    icon: FileText,
-                    title: "Data mapping",
-                    description: "We map your data exports to ClinicLeader's scorecard structure.",
-                  },
-                  {
-                    icon: Settings,
-                    title: "Setup & launch",
-                    description: "Configure your upload schedule and start your weekly leadership loop.",
-                  },
-                ].map((step, i) => (
+                {howItWorks.map((step, i) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, y: 20 }}
@@ -129,7 +143,7 @@ const EMRIntegration = () => {
             </div>
           </section>
 
-          {/* What We Need */}
+          {/* What We Typically Need */}
           <section className="py-20 md:py-28">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
               <motion.div
@@ -140,17 +154,13 @@ const EMRIntegration = () => {
               >
                 <h2 className="text-3xl md:text-4xl font-bold mb-4">What We Typically Need</h2>
                 <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                  Most EMRs can export the operational data ClinicLeader uses.
+                  Most EMRs can export the operational data ClinicLeader uses. We do NOT require patient names, 
+                  clinical notes, or PHI.
                 </p>
               </motion.div>
 
               <div className="grid md:grid-cols-2 gap-6">
-                {[
-                  { title: "Appointment data", desc: "Visits, no-shows, cancellations by provider/service" },
-                  { title: "Revenue metrics", desc: "Collections, charges, payment timing" },
-                  { title: "Schedule utilization", desc: "Booked vs available appointment slots" },
-                  { title: "Patient flow", desc: "New patients, retention, reactivations" },
-                ].map((item, i) => (
+                {whatWeNeed.map((item, i) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, y: 10 }}
@@ -167,44 +177,32 @@ const EMRIntegration = () => {
                   </motion.div>
                 ))}
               </div>
-
-              <motion.p
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                className="text-center text-muted-foreground mt-8"
-              >
-                We do NOT require patient names, clinical notes, or PHI.
-              </motion.p>
             </div>
           </section>
 
           {/* CTA */}
-          <section className="py-20 md:py-28 bg-gradient-to-b from-muted/30 to-background">
-            <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <section className="py-24 md:py-32 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10" />
+            
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                className="space-y-6"
+                className="text-center space-y-6"
               >
                 <Database className="w-12 h-12 text-primary mx-auto" />
-                <h2 className="text-2xl md:text-3xl font-bold">
+                <h2 className="text-3xl md:text-4xl font-bold">
                   Let's discuss your EMR
                 </h2>
-                <p className="text-muted-foreground">
-                  Book a walkthrough and we'll explore how to connect your system.
+                <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+                  Book a walkthrough and we'll explore how to connect your system to ClinicLeader.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button size="lg" className="group" asChild>
-                    <Link to="/auth">
-                      Apply for Pilot Access
-                      <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                  </Button>
-                  <Button size="lg" variant="outline" asChild>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                  <Button size="lg" className="text-lg px-10 py-7 shadow-xl shadow-primary/25 group" asChild>
                     <Link to="/auth">
                       Book a Walkthrough
+                      <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </Button>
                 </div>
