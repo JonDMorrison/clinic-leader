@@ -7485,6 +7485,71 @@ export type Database = {
         }
         Relationships: []
       }
+      intervention_pattern_clusters_safe: {
+        Row: {
+          avg_effect_magnitude: number | null
+          baseline_range_band: string | null
+          computation_version: string | null
+          effect_std_deviation: number | null
+          id: string | null
+          intervention_type: string | null
+          last_computed_at: string | null
+          median_effect_magnitude: number | null
+          metric_id: string | null
+          org_size_band: string | null
+          pattern_confidence: number | null
+          recency_weighted_score: number | null
+          sample_size: number | null
+          specialty_type: string | null
+          success_rate: number | null
+          time_horizon_band: string | null
+        }
+        Insert: {
+          avg_effect_magnitude?: number | null
+          baseline_range_band?: string | null
+          computation_version?: string | null
+          effect_std_deviation?: number | null
+          id?: string | null
+          intervention_type?: string | null
+          last_computed_at?: string | null
+          median_effect_magnitude?: number | null
+          metric_id?: string | null
+          org_size_band?: string | null
+          pattern_confidence?: number | null
+          recency_weighted_score?: number | null
+          sample_size?: number | null
+          specialty_type?: string | null
+          success_rate?: number | null
+          time_horizon_band?: string | null
+        }
+        Update: {
+          avg_effect_magnitude?: number | null
+          baseline_range_band?: string | null
+          computation_version?: string | null
+          effect_std_deviation?: number | null
+          id?: string | null
+          intervention_type?: string | null
+          last_computed_at?: string | null
+          median_effect_magnitude?: number | null
+          metric_id?: string | null
+          org_size_band?: string | null
+          pattern_confidence?: number | null
+          recency_weighted_score?: number | null
+          sample_size?: number | null
+          specialty_type?: string | null
+          success_rate?: number | null
+          time_horizon_band?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_pattern_clusters_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orphan_todos: {
         Row: {
           created_at: string | null
