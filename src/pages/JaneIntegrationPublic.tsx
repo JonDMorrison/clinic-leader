@@ -13,46 +13,147 @@ import {
   Shield,
   Zap,
   BarChart3,
-  Settings,
+  Eye,
+  Target,
+  Lightbulb,
+  TrendingUp,
+  Users,
+  Calendar,
+  DollarSign,
+  Activity,
+  HelpCircle,
+  ChevronDown,
   Star,
+  Play,
 } from "lucide-react";
 
-const features = [
+const whatYouCanSee = [
   {
-    title: "Automatic daily updates",
-    description: "Scorecards refresh automatically with your latest Jane data—no manual exports needed.",
+    category: "Visit & Volume Signals",
+    items: [
+      "Visits and trends by provider, discipline, and location (where available)",
+      "Appointment volume trends and mix shifts",
+      "Booking patterns over time",
+    ],
   },
   {
-    title: "No credentials required",
-    description: "Jane's secure data delivery means you never share login credentials with ClinicLeader.",
+    category: "Utilization & Capacity",
+    items: [
+      "Provider utilization signals",
+      "Schedule fill rates (where available)",
+      "Capacity trends across providers",
+    ],
   },
   {
-    title: "Operational metrics only",
-    description: "We focus on visits, revenue, utilization, and scheduling—not clinical notes or PHI.",
-  },
-  {
-    title: "15-minute setup",
-    description: "Guided wizard walks you through connecting your Jane clinic to ClinicLeader.",
+    category: "Revenue & Leading Indicators",
+    items: [
+      "Revenue trends (where available)",
+      "Leading indicators that help you spot issues earlier",
+      "Retention and flow signals (where data supports)",
+    ],
   },
 ];
 
-const metrics = [
-  "Visits by provider, discipline, and location",
-  "Revenue and collections tracking",
-  "Schedule utilization rates",
-  "Cancellation and no-show patterns",
-  "New patient flow and retention signals",
-  "Appointment booking trends",
+const loopBlocks = [
+  {
+    phase: "SEE",
+    icon: Eye,
+    title: "Build weekly scorecards automatically",
+    description: "Jane data flows into your scorecard. No manual entry. See performance by provider, discipline, or location at a glance.",
+  },
+  {
+    phase: "PRIORITIZE",
+    icon: Target,
+    title: "Turn signals into issues",
+    description: "When a metric drifts off-track, create an issue with one click and add it to your next leadership meeting.",
+  },
+  {
+    phase: "ACT",
+    icon: Zap,
+    title: "Track improvement changes",
+    description: "Log interventions tied to specific metrics. Know what your clinic has tried, who owns it, and when it started.",
+  },
+  {
+    phase: "LEARN",
+    icon: Lightbulb,
+    title: "Measure outcomes and build playbooks",
+    description: "See whether changes moved the needle. Over time, build a library of what actually works for your clinic.",
+  },
+];
+
+const pilotExpectations = [
+  {
+    icon: Users,
+    title: "Limited spots",
+    description: "We're working closely with a small group of clinics to shape the Jane integration.",
+  },
+  {
+    icon: Calendar,
+    title: "Close onboarding",
+    description: "We walk through setup together and help you configure your first scorecard.",
+  },
+  {
+    icon: Activity,
+    title: "Feedback loops",
+    description: "Your input directly influences what we build next. This is a collaboration.",
+  },
+  {
+    icon: Clock,
+    title: "Typical timeline",
+    description: "First scorecard + first weekly meeting rhythm within ~2 weeks.",
+  },
+];
+
+const privacyPoints = [
+  {
+    title: "Clinic controls access",
+    description: "You decide what's connected and who on your team can see it.",
+  },
+  {
+    title: "Operational metrics, not clinical notes",
+    description: "ClinicLeader focuses on performance signals—visits, revenue, scheduling—not patient records or clinical details.",
+  },
+  {
+    title: "Cross-clinic insights are anonymized",
+    description: "If enabled, benchmarking uses only aggregated, anonymized patterns. Never identifiable data.",
+  },
+  {
+    title: "AI summarizes; leaders decide",
+    description: "AI highlights patterns and outcomes. Your leadership team always makes the final call.",
+  },
+];
+
+const faqs = [
+  {
+    q: "Do we need to change anything in Jane?",
+    a: "Minimal changes. You'll enable a data delivery option inside Jane's admin settings. ClinicLeader handles the rest. No workflow changes, no retraining your team.",
+  },
+  {
+    q: "What if we have multiple locations?",
+    a: "ClinicLeader can handle multi-location clinics. Where Jane supports location-level data, you'll see breakdowns by location in your scorecards.",
+  },
+  {
+    q: "What if some data isn't available?",
+    a: "Not every clinic has every metric. ClinicLeader adapts to what's available. We'll be transparent about what we can and can't pull from your Jane setup.",
+  },
+  {
+    q: "Can we still use spreadsheets too?",
+    a: "Yes. Some clinics use Jane for core metrics and supplement with spreadsheet uploads for operational data Jane doesn't track. Both work together.",
+  },
+  {
+    q: "How is this different from Jane reports?",
+    a: "Jane reports show you data. ClinicLeader turns that data into a leadership system—scorecards, issue tracking, improvement measurement, meeting agendas. It's not a replacement for Jane; it's a layer that helps you act on what Jane shows.",
+  },
 ];
 
 const JaneIntegrationPublic = () => {
   return (
     <>
       <Helmet>
-        <title>Jane App Integration - ClinicLeader | Automatic Clinic Scorecards</title>
+        <title>ClinicLeader + Jane Integration | Operational Scorecards from Jane Data</title>
         <meta
           name="description"
-          content="Connect Jane App to ClinicLeader for automatic scorecards and operational insights. No credentials required. 15-minute setup."
+          content="Connect Jane to ClinicLeader for automatic performance scorecards, issue tracking, and measurable improvement. Turn Jane operational data into leadership clarity."
         />
       </Helmet>
 
@@ -60,12 +161,13 @@ const JaneIntegrationPublic = () => {
         <NavPublic />
 
         <main className="flex-1">
-          {/* Hero */}
+          {/* SECTION 1: Hero */}
           <section className="relative py-24 md:py-32 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
             <div className="absolute top-20 right-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
+            <div className="absolute bottom-10 left-10 w-96 h-96 bg-accent/5 rounded-full blur-3xl" />
 
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -84,31 +186,31 @@ const JaneIntegrationPublic = () => {
                     <Cloud className="w-8 h-8 text-primary" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h1 className="text-3xl md:text-4xl font-bold">Jane App</h1>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold">ClinicLeader + Jane</h1>
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-medium">
                         <Star className="w-3 h-3" />
-                        Featured
+                        Featured Integration
                       </span>
                     </div>
-                    <p className="text-muted-foreground">Automatic scorecards from your Jane data</p>
                   </div>
                 </div>
 
-                <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mb-8">
-                  Connect your Jane clinic to ClinicLeader and get automatic performance scorecards, 
-                  issue detection, and improvement tracking—without changing how you use Jane.
+                <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-3xl mb-8">
+                  Turn your Jane operational data into scorecards, issues, meeting focus, and measurable 
+                  improvements — without changing how your clinic runs day to day.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <Button size="lg" className="group" asChild>
+                  <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 group" asChild>
                     <Link to="/auth">
-                      Apply for Pilot Access
+                      Apply for the Jane Pilot
                       <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </Button>
-                  <Button size="lg" variant="outline" asChild>
+                  <Button size="lg" variant="outline" className="text-lg px-8 py-6 group" asChild>
                     <Link to="/auth">
+                      <Play className="mr-2 w-5 h-5" />
                       Book a Walkthrough
                     </Link>
                   </Button>
@@ -117,42 +219,34 @@ const JaneIntegrationPublic = () => {
             </div>
           </section>
 
-          {/* Key Features */}
+          {/* SECTION 2: What the Jane Integration Means */}
           <section className="py-20 md:py-28 bg-gradient-to-b from-muted/30 to-background">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
               <motion.div
-                className="text-center mb-12"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
+                className="text-center"
               >
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">How Jane Integration Works</h2>
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+                  <Cloud className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-primary">How It Works</span>
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold mb-6">What the Jane Integration Means</h2>
+                <p className="text-lg text-muted-foreground leading-relaxed max-w-3xl mx-auto">
+                  ClinicLeader connects to Jane to pull operational performance signals—visits, revenue trends, 
+                  utilization, scheduling patterns. This data powers your weekly scorecards and trend visibility, 
+                  giving your leadership team a clear picture of what's happening across providers and locations. 
+                  You don't need to rebuild workflows inside Jane. ClinicLeader sits alongside your existing 
+                  operations and uses this data to support leadership decisions and weekly meetings.
+                </p>
               </motion.div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {features.map((feature, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.1 }}
-                    className="flex items-start gap-4 p-4 bg-card rounded-xl border border-border/50"
-                  >
-                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <div className="font-semibold mb-1">{feature.title}</div>
-                      <p className="text-sm text-muted-foreground">{feature.description}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
             </div>
           </section>
 
-          {/* Metrics Available */}
+          {/* SECTION 3: What You Can See */}
           <section className="py-20 md:py-28">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
               <motion.div
                 className="text-center mb-12"
                 initial={{ opacity: 0, y: 20 }}
@@ -163,32 +257,84 @@ const JaneIntegrationPublic = () => {
                   <BarChart3 className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium text-primary">Scorecard Metrics</span>
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">What You Can Track</h2>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">What You Can See</h2>
                 <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                  Jane integration provides the operational metrics your leadership team needs.
+                  Jane integration provides operational signals your leadership team needs — where available in your Jane setup.
                 </p>
               </motion.div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                {metrics.map((metric, i) => (
+              <div className="grid md:grid-cols-3 gap-8">
+                {whatYouCanSee.map((category, i) => (
                   <motion.div
                     key={i}
-                    initial={{ opacity: 0, x: i % 2 === 0 ? -10 : 10 }}
-                    whileInView={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    transition={{ delay: i * 0.05 }}
-                    className="flex items-center gap-3 p-3 bg-card rounded-lg border border-border/50"
+                    transition={{ delay: i * 0.1 }}
+                    className="p-6 bg-card rounded-2xl border border-border/50"
                   >
-                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-                    <span className="text-sm">{metric}</span>
+                    <h3 className="font-semibold text-lg mb-4 text-primary">{category.category}</h3>
+                    <ul className="space-y-3">
+                      {category.items.map((item, j) => (
+                        <li key={j} className="flex items-start gap-3 text-sm text-muted-foreground">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </motion.div>
                 ))}
               </div>
             </div>
           </section>
 
-          {/* Setup Steps */}
+          {/* SECTION 4: What You Can Do With It */}
           <section className="py-20 md:py-28 bg-gradient-to-b from-muted/30 to-background">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+              <motion.div
+                className="text-center mb-12"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+                  <Zap className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-primary">The Leadership Loop</span>
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">What You Can Do With It</h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Jane data feeds a complete leadership system — from visibility to action to learning.
+                </p>
+              </motion.div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                {loopBlocks.map((block, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    className="p-6 bg-card rounded-2xl border border-border/50 hover:border-primary/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <block.icon className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-primary uppercase tracking-wider">{block.phase}</span>
+                        <h3 className="font-semibold">{block.title}</h3>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{block.description}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* SECTION 5: Pilot Expectations */}
+          <section className="py-20 md:py-28">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
               <motion.div
                 className="text-center mb-12"
@@ -197,33 +343,31 @@ const JaneIntegrationPublic = () => {
                 viewport={{ once: true }}
               >
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
-                  <Clock className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-primary">15-Minute Setup</span>
+                  <Star className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-primary">Jane Pilot Program</span>
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">Getting Started</h2>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">What to Expect</h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                  We're building this with clinics, not just for them.
+                </p>
               </motion.div>
 
-              <div className="space-y-4">
-                {[
-                  { step: 1, title: "Create your ClinicLeader account", desc: "Sign up and set up your organization" },
-                  { step: 2, title: "Start the Jane setup wizard", desc: "Follow the guided steps to configure data delivery" },
-                  { step: 3, title: "Enable data delivery in Jane", desc: "One-time configuration in your Jane admin settings" },
-                  { step: 4, title: "Start your leadership loop", desc: "Scorecards populate automatically—you're ready to go" },
-                ].map((item, i) => (
+              <div className="grid md:grid-cols-2 gap-6">
+                {pilotExpectations.map((item, i) => (
                   <motion.div
                     key={i}
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1 }}
-                    className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border/50"
+                    className="flex items-start gap-4 p-4 bg-card rounded-xl border border-border/50"
                   >
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-lg font-bold text-primary">{item.step}</span>
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <item.icon className="w-5 h-5 text-primary" />
                     </div>
-                    <div className="flex-1">
-                      <div className="font-semibold">{item.title}</div>
-                      <div className="text-sm text-muted-foreground">{item.desc}</div>
+                    <div>
+                      <div className="font-semibold mb-1">{item.title}</div>
+                      <p className="text-sm text-muted-foreground">{item.description}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -231,9 +375,9 @@ const JaneIntegrationPublic = () => {
             </div>
           </section>
 
-          {/* Privacy */}
-          <section className="py-20 md:py-28">
-            <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* SECTION 6: Data & Privacy */}
+          <section className="py-20 md:py-28 bg-gradient-to-b from-muted/30 to-background">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
               <motion.div
                 className="text-center mb-12"
                 initial={{ opacity: 0, y: 20 }}
@@ -244,33 +388,70 @@ const JaneIntegrationPublic = () => {
                   <Shield className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium text-primary">Data & Privacy</span>
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">Your Data Stays Safe</h2>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">Your Data, Your Control</h2>
               </motion.div>
 
-              <div className="space-y-4">
-                {[
-                  "No patient names, emails, or phone numbers stored",
-                  "Clinical notes and PHI are excluded from data delivery",
-                  "Jane's secure export—no credentials shared with ClinicLeader",
-                  "You control exactly which metrics are tracked",
-                ].map((item, i) => (
+              <div className="grid md:grid-cols-2 gap-6">
+                {privacyPoints.map((point, i) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.1 }}
-                    className="flex items-center gap-3 p-4 bg-card rounded-xl border border-border/50"
+                    className="flex items-start gap-4 p-4 bg-card rounded-xl border border-border/50"
                   >
-                    <Shield className="w-5 h-5 text-primary flex-shrink-0" />
-                    <span>{item}</span>
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <div className="font-semibold mb-1">{point.title}</div>
+                      <p className="text-sm text-muted-foreground">{point.description}</p>
+                    </div>
                   </motion.div>
                 ))}
               </div>
             </div>
           </section>
 
-          {/* CTA */}
+          {/* SECTION 7: FAQ */}
+          <section className="py-20 md:py-28">
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+              <motion.div
+                className="text-center mb-12"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+                  <HelpCircle className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-primary">FAQs</span>
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold">Jane Integration Questions</h2>
+              </motion.div>
+
+              <div className="space-y-4">
+                {faqs.map((faq, i) => (
+                  <motion.details
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.05 }}
+                    className="group bg-card rounded-xl border border-border/50 hover:border-primary/30 transition-colors overflow-hidden"
+                  >
+                    <summary className="flex items-center justify-between p-6 cursor-pointer font-medium text-lg">
+                      {faq.q}
+                      <ChevronDown className="w-5 h-5 text-muted-foreground group-open:rotate-180 transition-transform" />
+                    </summary>
+                    <div className="px-6 pb-6 -mt-2">
+                      <p className="text-muted-foreground leading-relaxed">{faq.a}</p>
+                    </div>
+                  </motion.details>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* SECTION 8: Final CTA */}
           <section className="py-24 md:py-32 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10" />
             <motion.div
@@ -286,15 +467,21 @@ const JaneIntegrationPublic = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
               >
-                <Zap className="w-12 h-12 text-primary mx-auto" />
+                <TrendingUp className="w-12 h-12 text-primary mx-auto" />
                 <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">
-                  Ready to connect your Jane clinic?
+                  Ready to see what's happening{" "}
+                  <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
+                    beneath the surface?
+                  </span>
                 </h2>
+                <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                  Join the Jane pilot and build a weekly leadership system around real signals.
+                </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
                   <Button size="lg" className="text-lg px-10 py-7 shadow-xl shadow-primary/25 group" asChild>
                     <Link to="/auth">
-                      Apply for Pilot Access
+                      Apply for the Jane Pilot
                       <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </Button>
@@ -306,7 +493,7 @@ const JaneIntegrationPublic = () => {
                 </div>
 
                 <p className="text-sm text-muted-foreground pt-4">
-                  15-minute setup • No credentials required • HIPAA-aligned
+                  Limited pilot spots • Close onboarding support • Your feedback shapes the product
                 </p>
               </motion.div>
             </div>
