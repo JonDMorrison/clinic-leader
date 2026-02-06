@@ -120,28 +120,6 @@ export default function DataJaneHome() {
             </div>
           </div>
 
-        {/* Connection status badges */}
-        <div className="flex items-center gap-3">
-          {isConnected && (
-            <>
-              <Badge variant="outline" className="gap-1.5 py-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-success" />
-                Jane Connected
-              </Badge>
-              <Badge variant="outline" className="gap-1.5 py-1.5">
-                <RefreshCw className="w-3.5 h-3.5" />
-                {lastSync 
-                  ? formatDistanceToNow(new Date(lastSync), { addSuffix: true })
-                  : "Awaiting data"
-                }
-              </Badge>
-              <Badge variant="outline" className="gap-1.5 py-1.5">
-                <BarChart3 className="w-3.5 h-3.5" />
-                {metricsCount?.total || 0} tracked
-              </Badge>
-            </>
-          )}
-        </div>
         </div>
         {/* Data Source Status Line with Change Action */}
         <div className="flex items-center gap-3 ml-14">
