@@ -46,11 +46,12 @@ Deno.serve(async (req) => {
   try {
     console.log(`[${runId}] Starting pattern computation v${COMPUTATION_VERSION}...`);
 
-    // Fetch completed interventions with outcomes
+    // Fetch completed interventions with outcomes - including governance type fields
     const { data: interventions, error: fetchError } = await supabase
       .from("interventions")
       .select(`
         id, organization_id, intervention_type, expected_time_horizon_days, status,
+        intervention_type_id, intervention_type_source,
         intervention_metric_links!inner(metric_id, baseline_value, baseline_quality_flag),
         intervention_outcomes(actual_delta_percent, confidence_score, evaluated_at)
       `)
@@ -62,6 +63,13 @@ Deno.serve(async (req) => {
       await logAudit(supabase, 0, 0, Date.now() - startTime, null);
       return jsonResponse({ success: true, patterns: 0, message: "No interventions" });
     }
+
+    // Fetch intervention type registry for names
+    const { data: typeRegistry } = await supabase
+      .from("intervention_type_registry")
+      .select("id, name")
+      .eq("is_active", true);
+    const typeNameMap = new Map((typeRegistry || []).map((t: any) => [t.id, t.name]));
 
     // Get org metadata
     const orgIds = [...new Set(interventions.map(i => i.organization_id))];
@@ -90,7 +98,10 @@ Deno.serve(async (req) => {
         id: out.id || int.id,
         orgId: int.organization_id,
         metricId: link.metric_id,
+        // Primary: governance type ID, fallback to legacy text type
+        interventionTypeId: int.intervention_type_id || null,
         interventionType: int.intervention_type,
+        interventionTypeSource: int.intervention_type_source || null,
         timeHorizon: int.expected_time_horizon_days || 90,
         deltaPercent: out.actual_delta_percent,
         confidenceScore: out.confidence_score || 0,
@@ -107,12 +118,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, patterns: 0, message: "No eligible outcomes" });
     }
 
-    // Group into clusters
+    // Group into clusters - intervention_type_id is PRIMARY dimension, fallback to text type
     const clusters = new Map<string, any[]>();
     for (const o of outcomes) {
+      // Use governance type ID if available, otherwise fall back to legacy text type
+      const typeKey = o.interventionTypeId || `legacy:${o.interventionType}`;
       const key = JSON.stringify([
         o.metricId,
-        o.interventionType,
+        typeKey, // Primary dimension: governance type ID or legacy bucket
         classifyOrgSize(o.orgSize),
         o.specialty,
         classifyTimeHorizon(o.timeHorizon),
@@ -132,7 +145,14 @@ Deno.serve(async (req) => {
       const uniqueOrgs = new Set(data.map(d => d.orgId)).size;
       if (uniqueOrgs < MIN_ORGS_FOR_PATTERN) continue;
 
-      const [metricId, interventionType, orgSizeBand, specialtyType, timeHorizonBand, baselineRangeBand] = JSON.parse(keyStr);
+      const [metricId, typeKey, orgSizeBand, specialtyType, timeHorizonBand, baselineRangeBand] = JSON.parse(keyStr);
+      
+      // Parse type key - either UUID (governance type) or legacy:text format
+      const isGovernanceType = typeKey && !typeKey.startsWith("legacy:");
+      const interventionTypeId = isGovernanceType ? typeKey : null;
+      const interventionType = isGovernanceType 
+        ? (typeNameMap.get(typeKey) || "unknown") 
+        : typeKey.replace("legacy:", "");
 
       const withDelta = data.filter(d => d.deltaPercent !== null);
       const successCount = withDelta.filter(d => d.deltaPercent > 0).length;
@@ -167,7 +187,8 @@ Deno.serve(async (req) => {
 
       patterns.push({
         metric_id: metricId,
-        intervention_type: interventionType,
+        intervention_type_id: interventionTypeId, // Primary: governance type UUID
+        intervention_type: interventionType, // Fallback: text type name
         org_size_band: orgSizeBand,
         specialty_type: specialtyType,
         time_horizon_band: timeHorizonBand,

@@ -19,6 +19,8 @@ export interface RecommendationRunInputs {
 export interface HistoricalCase {
   interventionId: string;
   interventionType: string;
+  interventionTypeId?: string | null; // Governance type UUID
+  interventionTypeName?: string | null; // Resolved governance type name
   baselineValue: number | null;
   outcomeValue: number | null;
   improvementPercent: number | null;

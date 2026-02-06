@@ -515,7 +515,9 @@ export async function scanForPlaybookCandidates(
     .map((row): PatternCluster => ({
       id: row.id,
       metricId: row.metric_id,
+      interventionTypeId: row.intervention_type_id || null,
       interventionType: row.intervention_type,
+      isLegacyType: !row.intervention_type_id,
       orgSizeBand: row.org_size_band as OrgSizeBand,
       specialtyType: row.specialty_type,
       timeHorizonBand: row.time_horizon_band as TimeHorizonBand,

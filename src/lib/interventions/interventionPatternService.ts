@@ -25,7 +25,9 @@ import { supabase } from "@/integrations/supabase/client";
 export interface PatternCluster {
   id: string;
   metricId: string | null;
-  interventionType: string;
+  interventionTypeId: string | null; // Primary: governance type UUID
+  interventionType: string; // Fallback: legacy text type name
+  isLegacyType: boolean; // True if using text type (no governance type ID)
   orgSizeBand: OrgSizeBand;
   specialtyType: string | null;
   timeHorizonBand: TimeHorizonBand;
@@ -44,7 +46,8 @@ export type BaselineRangeBand = "low" | "medium" | "high";
 
 export interface PatternMatchCriteria {
   metricId?: string;
-  interventionType?: string;
+  interventionTypeId?: string; // Primary filter by governance type
+  interventionType?: string; // Fallback filter by legacy text type
   orgSizeBand?: OrgSizeBand;
   specialtyType?: string;
   timeHorizonBand?: TimeHorizonBand;
@@ -164,11 +167,13 @@ export async function fetchMatchingPatterns(
     .order("pattern_confidence", { ascending: false })
     .limit(limit);
 
-  // Apply filters
+  // Apply filters - prefer governance type ID, fallback to text type
   if (criteria.metricId) {
     query = query.eq("metric_id", criteria.metricId);
   }
-  if (criteria.interventionType) {
+  if (criteria.interventionTypeId) {
+    query = query.eq("intervention_type_id", criteria.interventionTypeId);
+  } else if (criteria.interventionType) {
     query = query.eq("intervention_type", criteria.interventionType);
   }
   if (criteria.orgSizeBand) {
@@ -263,7 +268,9 @@ function mapPatternFromDb(row: any): PatternCluster {
   return {
     id: row.id,
     metricId: row.metric_id,
+    interventionTypeId: row.intervention_type_id || null,
     interventionType: row.intervention_type,
+    isLegacyType: !row.intervention_type_id, // Legacy if no governance type ID
     orgSizeBand: row.org_size_band as OrgSizeBand,
     specialtyType: row.specialty_type,
     timeHorizonBand: row.time_horizon_band as TimeHorizonBand,
