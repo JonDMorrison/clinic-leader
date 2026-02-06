@@ -2998,6 +2998,9 @@ export type Database = {
           expected_time_horizon_days: number
           id: string
           intervention_type: Database["public"]["Enums"]["intervention_type"]
+          intervention_type_confidence: number | null
+          intervention_type_id: string | null
+          intervention_type_source: string | null
           is_synthetic: boolean
           organization_id: string
           origin_id: string | null
@@ -3026,6 +3029,9 @@ export type Database = {
           expected_time_horizon_days?: number
           id?: string
           intervention_type?: Database["public"]["Enums"]["intervention_type"]
+          intervention_type_confidence?: number | null
+          intervention_type_id?: string | null
+          intervention_type_source?: string | null
           is_synthetic?: boolean
           organization_id: string
           origin_id?: string | null
@@ -3054,6 +3060,9 @@ export type Database = {
           expected_time_horizon_days?: number
           id?: string
           intervention_type?: Database["public"]["Enums"]["intervention_type"]
+          intervention_type_confidence?: number | null
+          intervention_type_id?: string | null
+          intervention_type_source?: string | null
           is_synthetic?: boolean
           organization_id?: string
           origin_id?: string | null
@@ -3067,6 +3076,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "interventions_intervention_type_id_fkey"
+            columns: ["intervention_type_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_type_registry"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "interventions_organization_id_fkey"
             columns: ["organization_id"]
