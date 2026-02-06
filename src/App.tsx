@@ -83,6 +83,10 @@ import JaneVsNonJaneComparison from "./pages/admin/JaneVsNonJaneComparison";
 import MetricsGovernance from "./pages/admin/MetricsGovernance";
 import ExecutionDashboard from "./pages/ExecutionDashboard";
 import Features from "./pages/Features";
+import IntegrationsPublic from "./pages/IntegrationsPublic";
+import JaneIntegrationPublic from "./pages/JaneIntegrationPublic";
+import SpreadsheetIntegration from "./pages/SpreadsheetIntegration";
+import EMRIntegration from "./pages/EMRIntegration";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -132,6 +136,10 @@ const App = () => {
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
             <Route path="/features" element={<Features />} />
+            <Route path="/integrations" element={<IntegrationsPublic />} />
+            <Route path="/integrations/jane" element={<JaneIntegrationPublic />} />
+            <Route path="/integrations/spreadsheets" element={<SpreadsheetIntegration />} />
+            <Route path="/integrations/emr" element={<EMRIntegration />} />
             <Route path="/security" element={<Security />} />
             <Route path="/onboarding" element={<AppLayout><Onboarding /></AppLayout>} />
             <Route path="/dashboard" element={<AppLayout><Home /></AppLayout>} />
