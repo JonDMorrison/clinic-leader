@@ -27,7 +27,7 @@ import {
 } from "./interventionPatternService";
 import type { InterventionType } from "./types";
 import { checkMetricEligibility, type EligibilityResult } from "./recommendationEligibility";
-import { filterByAllowedTypes, isInterventionTypeAllowed } from "./interventionTypeAllowlist";
+import { filterByAllowedTypes, isLegacyInterventionTypeAllowed } from "./interventionTypeAllowlist";
 import { 
   createRecommendationRun, 
   type RecommendationRunInputs, 
@@ -181,8 +181,8 @@ export async function generateRecommendationsForMetric(
   for (const group of groups) {
     const interventionType = group.intervention_type;
 
-    // HARDENED: Check allowlist
-    const allowlistCheck = await isInterventionTypeAllowed(organizationId, interventionType);
+    // HARDENED: Check allowlist (using legacy function for string type keys)
+    const allowlistCheck = await isLegacyInterventionTypeAllowed(organizationId, interventionType);
     if (!allowlistCheck.allowed) {
       filteredReasons.push({
         interventionType,

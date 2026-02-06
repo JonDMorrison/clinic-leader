@@ -413,13 +413,14 @@ async function fetchTypeSuccessStats(
   dateFilter: Date | null,
   activeOnly: boolean
 ): Promise<TypeSuccessStats[]> {
-  // Get intervention types
+  // GOVERNANCE: Use intervention_type_registry as single source of truth
+  // intervention_types table is legacy/unused for governance pilot
   let typesQuery = supabase
-    .from("intervention_types")
-    .select("id, display_name");
+    .from("intervention_type_registry")
+    .select("id, name");
   
   if (activeOnly) {
-    typesQuery = typesQuery.eq("is_enabled", true);
+    typesQuery = typesQuery.eq("status", "active");
   }
 
   const { data: types, error: typesError } = await typesQuery;
@@ -506,7 +507,7 @@ async function fetchTypeSuccessStats(
 
     stats.push({
       typeId: type.id,
-      typeName: type.display_name,
+      typeName: type.name, // intervention_type_registry uses 'name' not 'display_name'
       sampleSize: entry.samples,
       successRate: (entry.successes / entry.samples) * 100,
       avgDeltaPercent: entry.deltas.length > 0
