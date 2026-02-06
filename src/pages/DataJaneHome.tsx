@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import {
   RefreshCw,
   BarChart3,
   Loader2,
+  Settings2,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,10 +22,12 @@ import { formatDistanceToNow } from "date-fns";
 import { DataMetricsTable } from "@/components/data/DataMetricsTable";
 import { IntegrationsBanner } from "@/components/data/IntegrationsBanner";
 import { DataSourceStatusLine } from "@/components/data/DataSourcePill";
+import { ChangeDataSourceWizard } from "@/components/data/ChangeDataSourceWizard";
 
 export default function DataJaneHome() {
   const navigate = useNavigate();
   const { data: currentUser } = useCurrentUser();
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // Fetch Jane connector status
   const { data: janeConnector, isLoading: janeLoading } = useQuery({
@@ -139,9 +143,23 @@ export default function DataJaneHome() {
           )}
         </div>
         </div>
-        {/* Data Source Status Line */}
-        <DataSourceStatusLine className="ml-14" />
+        {/* Data Source Status Line with Change Action */}
+        <div className="flex items-center gap-3 ml-14">
+          <DataSourceStatusLine />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setWizardOpen(true)}
+          >
+            <Settings2 className="w-3 h-3 mr-1" />
+            Change
+          </Button>
+        </div>
       </motion.div>
+
+      {/* Change Data Source Wizard */}
+      <ChangeDataSourceWizard open={wizardOpen} onOpenChange={setWizardOpen} />
 
       {/* Main Data Table */}
       <Card>
