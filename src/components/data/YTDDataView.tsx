@@ -265,16 +265,14 @@ function YTDTable({
                   )}>
                     {row.map((cell, cellIdx) => {
                       const formatted = formatCellValue(cell);
-                      const isNumeric = typeof cell === 'number' || /^[\$\-]?[\d,]+\.?\d*%?$/.test(formatted);
                       
                       return (
                         <TableCell 
                           key={cellIdx}
                           className={cn(
                             "py-1 px-1.5 text-xs truncate",
-                            isNumeric && "text-right font-mono",
-                            formatted === '' && "text-muted-foreground",
-                            cellIdx === 0 && "font-medium"
+                            cellIdx === 0 ? "text-left font-medium" : "text-center",
+                            formatted === '' && "text-muted-foreground"
                           )}
                           title={formatted}
                         >
