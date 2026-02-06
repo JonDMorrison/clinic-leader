@@ -85,29 +85,30 @@ export const HeroSection = () => {
           >
             {/* Headline with gradient */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-              Lead Your Clinic.{" "}
+              Stop Guessing.{" "}
               <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
-                Don't Just Manage It.
+                Start Leading.
               </span>
             </h1>
 
             <p className="text-xl text-muted-foreground leading-relaxed max-w-xl">
-              ClinicLeader gives clinic leaders the structure to align their teams, 
-              make better decisions, and deliver more consistent patient care.
+              ClinicLeader is the leadership operating system that helps clinics see performance clearly, 
+              run focused meetings, track improvement changes, and learn what actually works. 
+              Connects to Jane, other EMRs, or your existing spreadsheets.
             </p>
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 group" asChild>
                 <Link to="/auth">
-                  Get Started Free
+                  Apply for Pilot Access
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
               <Button size="lg" variant="outline" className="text-lg px-8 py-6 group" asChild>
                 <Link to="/auth">
                   <Play className="mr-2 w-5 h-5" />
-                  Watch Demo
+                  Book a Walkthrough
                 </Link>
               </Button>
             </div>
@@ -146,9 +147,9 @@ export const HeroSection = () => {
                   {/* Stats row */}
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { label: "Rocks On Track", value: "8/10", color: "text-success" },
-                      { label: "Issues Solved", value: "24", color: "text-primary" },
-                      { label: "Team Score", value: "92%", color: "text-accent" },
+                      { label: "Scorecard Health", value: "8/10", color: "text-success" },
+                      { label: "Issues Resolved", value: "24", color: "text-primary" },
+                      { label: "Meeting Pulse", value: "92%", color: "text-accent" },
                     ].map((stat, i) => (
                       <div key={i} className="bg-card/80 rounded-lg p-3 border border-border/30">
                         <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
@@ -160,7 +161,7 @@ export const HeroSection = () => {
                   {/* Chart placeholder */}
                   <div className="bg-card/80 rounded-lg p-4 border border-border/30">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium">Weekly Scorecard</span>
+                      <span className="text-sm font-medium">Performance Trend</span>
                       <span className="text-xs text-success">↑ 12%</span>
                     </div>
                     <div className="flex items-end gap-1 h-16">
@@ -176,7 +177,7 @@ export const HeroSection = () => {
 
                   {/* Rocks list */}
                   <div className="bg-card/80 rounded-lg p-4 border border-border/30 space-y-2">
-                    <div className="text-sm font-medium mb-2">Q1 Rocks</div>
+                    <div className="text-sm font-medium mb-2">Active Improvements</div>
                     {[
                       { title: "Reduce no-show rate to 8%", status: "on-track" },
                       { title: "Launch patient feedback system", status: "at-risk" },
@@ -209,8 +210,8 @@ export const HeroSection = () => {
                     <CheckCircle2 className="w-4 h-4 text-success" />
                   </div>
                   <div>
-                    <div className="text-xs font-medium">Issue Resolved</div>
-                    <div className="text-[10px] text-muted-foreground">Front desk handoff process</div>
+                    <div className="text-xs font-medium">Improvement Tracked</div>
+                    <div className="text-[10px] text-muted-foreground">Reduced no-shows by 12%</div>
                   </div>
                 </div>
               </motion.div>
@@ -228,7 +229,7 @@ export const HeroSection = () => {
                   </div>
                   <div>
                     <div className="text-xs font-medium">Team Aligned</div>
-                    <div className="text-[10px] text-muted-foreground">12 members active</div>
+                    <div className="text-[10px] text-muted-foreground">Weekly meeting ready</div>
                   </div>
                 </div>
               </motion.div>
