@@ -17,6 +17,9 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+import founderCollaborationImage from "@/assets/marketing/founder-collaboration.jpg";
+import teamMeetingImage from "@/assets/marketing/team-meeting.jpg";
+import dataAnalysisImage from "@/assets/marketing/data-analysis.jpg";
 
 const leadershipLoop = [
   {
@@ -146,6 +149,22 @@ const About = () => {
                     see more clearly, act more intentionally, and learn what actually works.
                   </p>
                 </div>
+
+                {/* Documentary image */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.2 }}
+                  className="pt-4"
+                >
+                  <img
+                    src={founderCollaborationImage}
+                    alt="Healthcare consultant speaking with clinic leadership team in collaborative strategy discussion"
+                    className="rounded-2xl shadow-lg border border-border/30 w-full"
+                    loading="lazy"
+                  />
+                </motion.div>
               </motion.div>
             </div>
           </section>
@@ -268,6 +287,22 @@ const About = () => {
                     ClinicLeader is evolving alongside clinics.
                   </p>
                 </div>
+
+                {/* Documentary image */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.2 }}
+                  className="pt-4"
+                >
+                  <img
+                    src={teamMeetingImage}
+                    alt="Healthcare team reviewing workflow improvements together in collaborative session"
+                    className="rounded-2xl shadow-lg border border-border/30 w-full"
+                    loading="lazy"
+                  />
+                </motion.div>
               </motion.div>
             </div>
           </section>
@@ -351,6 +386,22 @@ const About = () => {
                     are shared, and participation is always optional.
                   </p>
                 </div>
+
+                {/* Documentary image */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.2 }}
+                  className="pt-4"
+                >
+                  <img
+                    src={dataAnalysisImage}
+                    alt="Clinic leadership reviewing operational reports and charts together"
+                    className="rounded-2xl shadow-lg border border-border/30 w-full"
+                    loading="lazy"
+                  />
+                </motion.div>
               </motion.div>
             </div>
           </section>
