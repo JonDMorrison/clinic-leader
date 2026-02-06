@@ -235,6 +235,8 @@ export async function loadInterventionFull(interventionId: string): Promise<Inte
 
 /**
  * Load interventions list with summary counts (for list view)
+ * Note: This includes all interventions for display purposes but synthetic
+ * data is clearly labeled in UI and excluded from learning pipelines
  */
 export async function loadInterventionsList(organizationId: string) {
   const { data: interventions, error } = await supabase

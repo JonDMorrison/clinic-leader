@@ -46,10 +46,12 @@ export async function detectFailedInterventions(
   const now = new Date();
 
   // Fetch all active/planned interventions for the org
+  // Exclude synthetic data from production failure detection
   const { data: interventions, error: interventionsError } = await supabase
     .from("interventions")
     .select("id, title, organization_id, intervention_type, created_at, expected_time_horizon_days, owner_user_id, status")
     .eq("organization_id", organizationId)
+    .eq("is_synthetic", false)
     .in("status", ["active", "planned"]);
 
   if (interventionsError) throw interventionsError;
