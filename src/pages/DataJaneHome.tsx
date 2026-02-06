@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { DataMetricsTable } from "@/components/data/DataMetricsTable";
 import { IntegrationsBanner } from "@/components/data/IntegrationsBanner";
+import { DataSourceStatusLine } from "@/components/data/DataSourcePill";
 
 export default function DataJaneHome() {
   const navigate = useNavigate();
@@ -102,17 +103,18 @@ export default function DataJaneHome() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+        className="flex flex-col gap-2"
       >
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-brand/10">
-            <Database className="w-8 h-8 text-brand" />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-brand/10">
+              <Database className="w-8 h-8 text-brand" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">Data</h1>
+              <p className="text-muted-foreground">View and track your clinic metrics</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold">Data</h1>
-            <p className="text-muted-foreground">View and track your clinic metrics</p>
-          </div>
-        </div>
 
         {/* Connection status badges */}
         <div className="flex items-center gap-3">
@@ -136,6 +138,9 @@ export default function DataJaneHome() {
             </>
           )}
         </div>
+        </div>
+        {/* Data Source Status Line */}
+        <DataSourceStatusLine className="ml-14" />
       </motion.div>
 
       {/* Main Data Table */}

@@ -124,7 +124,15 @@ export function DataSourcePill({
   const flowConfig = getFlowStatusConfig(status.flowStatus);
   const FlowIcon = flowConfig.icon;
   
-  const sourceLabel = SOURCE_LABELS[status.primarySource] || "Unknown";
+  // Determine display label based on primary + secondary sources
+  // Show "Mixed" if there are significant secondary sources
+  const isMixed = status.secondarySources.length > 0 && status.primarySource !== "unknown";
+  const sourceLabel = status.primarySource === "unknown" 
+    ? "Not configured"
+    : isMixed 
+      ? "Mixed" 
+      : SOURCE_LABELS[status.primarySource] || "Unknown";
+  
   const modeLabel = status.mode === "jane" ? "Jane Mode" : "Standard Mode";
   
   // Format coverage window
@@ -132,10 +140,12 @@ export function DataSourcePill({
     ? `${format(new Date(status.coverageWindow.earliest), "MMM yyyy")} - ${format(new Date(status.coverageWindow.latest), "MMM yyyy")}`
     : "No data";
   
-  // Secondary sources text
-  const secondaryText = status.secondarySources.length > 0
-    ? status.secondarySources.map(s => SOURCE_LABELS[s]).join(", ")
-    : null;
+  // Secondary sources text - include primary when showing "Mixed"
+  const sourcesDetailText = isMixed
+    ? `${SOURCE_LABELS[status.primarySource]}, ${status.secondarySources.map(s => SOURCE_LABELS[s]).join(", ")}`
+    : status.secondarySources.length > 0
+      ? status.secondarySources.map(s => SOURCE_LABELS[s]).join(", ")
+      : null;
 
   const pillContent = (
     <Badge 
@@ -189,10 +199,10 @@ export function DataSourcePill({
             </div>
             
             {/* Secondary Sources */}
-            {secondaryText && (
+            {sourcesDetailText && (
               <div className="flex items-center justify-between gap-4">
-                <span className="text-muted-foreground">Secondary:</span>
-                <span className="text-xs">{secondaryText}</span>
+                <span className="text-muted-foreground">{isMixed ? "Sources:" : "Secondary:"}</span>
+                <span className="text-xs">{sourcesDetailText}</span>
               </div>
             )}
             

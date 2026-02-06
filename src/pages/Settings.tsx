@@ -1,13 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { 
   Palette, Users, Building2, 
   GraduationCap, Plug, UserCircle, Cpu, TestTube, 
-  LayoutDashboard, FileSpreadsheet, FileUp, FileBarChart 
+  LayoutDashboard, FileSpreadsheet, FileUp, FileBarChart,
+  Database, Cloud, CheckCircle2, Clock, AlertCircle
 } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { canAccessAdmin } from "@/lib/permissions";
+import { useOrgDataSourceStatus, SOURCE_LABELS } from "@/hooks/useOrgDataSourceStatus";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -15,6 +18,27 @@ const Settings = () => {
   // Use authoritative user_roles via hook
   const { data: roleData } = useIsAdmin();
   const isAdmin = canAccessAdmin(roleData);
+  
+  // Data source status for configuration card
+  const dataSourceStatus = useOrgDataSourceStatus();
+  
+  // Get flow status icon and color
+  const getFlowConfig = () => {
+    switch (dataSourceStatus.flowStatus) {
+      case "flowing":
+        return { icon: CheckCircle2, label: "Data Flowing", colorClass: "text-success" };
+      case "connected_waiting":
+        return { icon: Clock, label: "Waiting for Data", colorClass: "text-warning" };
+      case "stale":
+        return { icon: Clock, label: "Data May Be Stale", colorClass: "text-muted-foreground" };
+      case "error":
+        return { icon: AlertCircle, label: "Connection Error", colorClass: "text-destructive" };
+      default:
+        return { icon: Database, label: "Not Configured", colorClass: "text-muted-foreground" };
+    }
+  };
+  
+  const flowConfig = getFlowConfig();
 
   return (
     <div className="space-y-6">
@@ -42,6 +66,63 @@ const Settings = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Data Configuration Card */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            {dataSourceStatus.mode === "jane" ? (
+              <Cloud className="w-5 h-5 text-primary" />
+            ) : (
+              <Database className="w-5 h-5 text-primary" />
+            )}
+            Data Configuration
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Mode:</span>
+              <p className="font-medium">
+                {dataSourceStatus.mode === "jane" ? "Jane Mode" : "Standard Mode"}
+              </p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Primary Source:</span>
+              <p className="font-medium">
+                {SOURCE_LABELS[dataSourceStatus.primarySource] || "Not configured"}
+              </p>
+            </div>
+            {dataSourceStatus.mode === "jane" && (
+              <div>
+                <span className="text-muted-foreground">Integration Status:</span>
+                <p className="font-medium capitalize">
+                  {dataSourceStatus.janeConnectionStatus || "Not connected"}
+                </p>
+              </div>
+            )}
+            <div>
+              <span className="text-muted-foreground">Flow Status:</span>
+              <div className="flex items-center gap-1.5">
+                <flowConfig.icon className={`w-4 h-4 ${flowConfig.colorClass}`} />
+                <span className={`font-medium ${flowConfig.colorClass}`}>
+                  {flowConfig.label}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/integrations")}>
+              <Plug className="w-4 h-4 mr-2" />
+              Manage Integrations
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/data")}>
+              <Database className="w-4 h-4 mr-2" />
+              View Data
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
