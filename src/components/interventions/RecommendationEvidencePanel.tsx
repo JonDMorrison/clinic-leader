@@ -199,19 +199,29 @@ export function RecommendationEvidencePanel({
                           Sample of cases used (anonymized):
                         </p>
                         <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {runData.evidence.historicalCases.slice(0, 5).map((c, i) => (
-                            <div key={i} className="text-xs bg-muted p-1.5 rounded flex items-center gap-2">
-                              <Badge variant="outline" className="text-[10px]">
-                                {c.interventionType.replace("_", " ")}
-                              </Badge>
-                              <span className={c.wasSuccessful ? "text-green-600" : "text-red-600"}>
-                                {c.wasSuccessful ? "+" : ""}{c.improvementPercent?.toFixed(1)}%
-                              </span>
-                              <span className="text-muted-foreground">
-                                ({c.durationDays}d)
-                              </span>
-                            </div>
-                          ))}
+                          {runData.evidence.historicalCases.slice(0, 5).map((c, i) => {
+                            // Check if this is a legacy (untyped) intervention
+                            const isLegacy = !c.interventionTypeId;
+                            const typeName = c.interventionTypeName || c.interventionType?.replace("_", " ") || "Unknown";
+                            
+                            return (
+                              <div key={i} className="text-xs bg-muted p-1.5 rounded flex items-center gap-2">
+                                <Badge 
+                                  variant={isLegacy ? "secondary" : "outline"} 
+                                  className={`text-[10px] ${isLegacy ? "opacity-70" : ""}`}
+                                >
+                                  {typeName}
+                                  {isLegacy && " (legacy)"}
+                                </Badge>
+                                <span className={c.wasSuccessful ? "text-primary" : "text-destructive"}>
+                                  {c.wasSuccessful ? "+" : ""}{c.improvementPercent?.toFixed(1)}%
+                                </span>
+                                <span className="text-muted-foreground">
+                                  ({c.durationDays}d)
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

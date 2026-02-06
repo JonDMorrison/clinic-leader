@@ -2548,6 +2548,7 @@ export type Database = {
           effect_std_deviation: number | null
           id: string
           intervention_type: string
+          intervention_type_id: string | null
           last_computed_at: string
           median_effect_magnitude: number | null
           metric_id: string | null
@@ -2569,6 +2570,7 @@ export type Database = {
           effect_std_deviation?: number | null
           id?: string
           intervention_type: string
+          intervention_type_id?: string | null
           last_computed_at?: string
           median_effect_magnitude?: number | null
           metric_id?: string | null
@@ -2590,6 +2592,7 @@ export type Database = {
           effect_std_deviation?: number | null
           id?: string
           intervention_type?: string
+          intervention_type_id?: string | null
           last_computed_at?: string
           median_effect_magnitude?: number | null
           metric_id?: string | null
@@ -2604,6 +2607,13 @@ export type Database = {
           time_horizon_band?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "intervention_pattern_clusters_intervention_type_id_fkey"
+            columns: ["intervention_type_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_type_registry"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "intervention_pattern_clusters_metric_id_fkey"
             columns: ["metric_id"]
