@@ -5902,6 +5902,42 @@ export type Database = {
           },
         ]
       }
+      security_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          outcome: string
+          resource: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          outcome: string
+          resource: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          outcome?: string
+          resource?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       staging_appointments: {
         Row: {
           id: string
@@ -7957,6 +7993,7 @@ export type Database = {
           threshold_used: number
         }[]
       }
+      is_org_admin: { Args: { _user_id?: string }; Returns: boolean }
       is_org_admin_for: { Args: { org_id: string }; Returns: boolean }
       is_org_benchmark_opted_in: { Args: { _org_id: string }; Returns: boolean }
       is_recommendation_in_cooldown: {
@@ -7979,6 +8016,10 @@ export type Database = {
       log_intervention_event: {
         Args: { _details?: Json; _event_type: string; _intervention_id: string }
         Returns: string
+      }
+      log_unauthorized_access: {
+        Args: { _action: string; _details?: Json; _resource: string }
+        Returns: undefined
       }
       match_doc_sections: {
         Args: {
@@ -8037,6 +8078,7 @@ export type Database = {
           passes: boolean
         }[]
       }
+      purge_synthetic_data: { Args: never; Returns: Json }
       recompute_intervention_patterns: { Args: never; Returns: string }
       select_canonical_metric_result: {
         Args: {

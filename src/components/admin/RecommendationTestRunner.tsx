@@ -3,6 +3,8 @@
  * 
  * Admin tool to test recommendation engine with specific scenarios
  * and verify reliability guardrails.
+ * 
+ * SECURITY: Requires master admin access
  */
 
 import { useState } from "react";
@@ -15,7 +17,7 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Play,
@@ -25,6 +27,7 @@ import {
   CheckCircle2,
   Info,
   Lightbulb,
+  ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -34,6 +37,7 @@ import {
   type ReliabilityInputs,
 } from "@/lib/interventions/recommendationReliabilityEvaluator";
 import { ReliabilityBadge, ReliabilityBreakdownPanel } from "@/components/interventions/ReliabilityBadge";
+import { useMasterAdmin } from "@/hooks/useMasterAdmin";
 
 interface TestScenario {
   name: string;
@@ -152,6 +156,7 @@ const PRESET_SCENARIOS: TestScenario[] = [
 ];
 
 export function RecommendationTestRunner() {
+  const { data: isMasterAdmin, isLoading: isAdminLoading } = useMasterAdmin();
   const [selectedPreset, setSelectedPreset] = useState<string>("");
   const [customScenario, setCustomScenario] = useState<TestScenario>(PRESET_SCENARIOS[0]);
   const [result, setResult] = useState<ReliabilityResult | null>(null);
@@ -165,6 +170,27 @@ export function RecommendationTestRunner() {
     forceMixedBaselines: false,
     forceLowExecutionHealth: false,
   });
+
+  // SECURITY: Block access for non-admin users (after all hooks)
+  if (isAdminLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isMasterAdmin) {
+    return (
+      <Alert variant="destructive" className="m-4">
+        <ShieldAlert className="h-4 w-4" />
+        <AlertTitle>Access Denied</AlertTitle>
+        <AlertDescription>
+          This test runner is restricted to platform administrators only.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   const handlePresetChange = (presetName: string) => {
     setSelectedPreset(presetName);
