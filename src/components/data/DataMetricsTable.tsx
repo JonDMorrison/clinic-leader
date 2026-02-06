@@ -277,11 +277,6 @@ function SortableMetricRow({
           <span>{metric.dimensionValue || metric.name}</span>
         </div>
       </TableCell>
-      <TableCell>
-        <Badge variant="outline" className="text-xs capitalize whitespace-nowrap">
-          {metric.source === "jane" ? "Jane App" : metric.source}
-        </Badge>
-      </TableCell>
       <TableCell className="text-right font-mono">
         {metric.isTracked ? formatValue(metric.weekValue, metric.unit) : "—"}
       </TableCell>
@@ -795,7 +790,6 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[320px]">Data Point</TableHead>
-              <TableHead>Source</TableHead>
               <TableHead className="text-right">This Week</TableHead>
               <TableHead className="text-right">This Month</TableHead>
               <TableHead className="text-right">YTD</TableHead>
@@ -840,7 +834,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
                       {/* Render inline breakdown panel if expanded */}
                       {isBreakdownExpanded && metric.importKey && currentUser?.team_id && (
                         <tr>
-                          <td colSpan={7} className="p-0">
+                          <td colSpan={6} className="p-0">
                             <InlineMetricBreakdownPanel
                               importKey={metric.importKey}
                               metricName={metric.name}
@@ -897,7 +891,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
             </DndContext>
             {dataMetrics.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   No metrics found. {searchQuery && "Try a different search term."}
                 </TableCell>
               </TableRow>
