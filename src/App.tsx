@@ -87,6 +87,7 @@ import IntegrationsPublic from "./pages/IntegrationsPublic";
 import JaneIntegrationPublic from "./pages/JaneIntegrationPublic";
 import SpreadsheetIntegration from "./pages/SpreadsheetIntegration";
 import EMRIntegration from "./pages/EMRIntegration";
+import About from "./pages/About";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -140,6 +141,7 @@ const App = () => {
             <Route path="/integrations/jane" element={<JaneIntegrationPublic />} />
             <Route path="/integrations/spreadsheets" element={<SpreadsheetIntegration />} />
             <Route path="/integrations/emr" element={<EMRIntegration />} />
+            <Route path="/about" element={<About />} />
             <Route path="/security" element={<Security />} />
             <Route path="/onboarding" element={<AppLayout><Onboarding /></AppLayout>} />
             <Route path="/dashboard" element={<AppLayout><Home /></AppLayout>} />

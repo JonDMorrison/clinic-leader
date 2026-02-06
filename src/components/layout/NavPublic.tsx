@@ -31,6 +31,9 @@ export const NavPublic = () => {
             <Link to="/integrations" className="text-foreground hover:text-brand transition-colors">
               Integrations
             </Link>
+            <Link to="/about" className="text-foreground hover:text-brand transition-colors">
+              About
+            </Link>
             <Link to="/#contact" className="text-foreground hover:text-brand transition-colors">
               Contact
             </Link>
@@ -79,6 +82,13 @@ export const NavPublic = () => {
               onClick={() => setMobileMenuOpen(false)}
             >
               Integrations
+            </Link>
+            <Link
+              to="/about"
+              className="block py-2 text-foreground hover:text-brand transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              About
             </Link>
             <Link
               to="/#contact"
