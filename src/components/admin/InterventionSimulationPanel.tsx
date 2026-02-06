@@ -38,6 +38,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { InterventionTypeBackfillPanel } from "./InterventionTypeBackfillPanel";
 import { InterventionGovernanceHealthPanel } from "./InterventionGovernanceHealthPanel";
+import { InterventionTypeRegistryPanel } from "./InterventionTypeRegistryPanel";
 import {
   generateSyntheticIntervention,
   generateBatchSyntheticInterventions,
@@ -285,6 +286,7 @@ export function InterventionSimulationPanel() {
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="single">Single Intervention</TabsTrigger>
           <TabsTrigger value="batch">Batch Generation</TabsTrigger>
+          <TabsTrigger value="registry">Type Registry</TabsTrigger>
           <TabsTrigger value="backfill">Type Backfill</TabsTrigger>
           <TabsTrigger value="governance">Governance Health</TabsTrigger>
           <TabsTrigger value="clusters">Cluster Recompute</TabsTrigger>
@@ -592,6 +594,11 @@ export function InterventionSimulationPanel() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Type Registry Tab */}
+        <TabsContent value="registry" className="space-y-4">
+          <InterventionTypeRegistryPanel />
         </TabsContent>
 
         {/* Type Backfill Tab */}

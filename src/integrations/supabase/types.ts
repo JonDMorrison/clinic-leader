@@ -3087,6 +3087,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_interventions_type_registry"
+            columns: ["intervention_type_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_type_registry"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "interventions_intervention_type_id_fkey"
             columns: ["intervention_type_id"]
             isOneToOne: false
