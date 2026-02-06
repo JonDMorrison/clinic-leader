@@ -311,18 +311,30 @@ function calculateSimulatedConfidence(config: SimulationConfig): number {
 // ============= Cluster Recompute =============
 
 /**
- * Trigger cluster recomputation with optional synthetic data inclusion
+ * Trigger cluster recomputation with optional synthetic data inclusion.
+ * Uses admin-gated RPC that validates permissions and logs access.
  */
 export async function triggerClusterRecompute(
   includeSynthetic: boolean = false
 ): Promise<ClusterRecomputeResult> {
   try {
-    // Call the RPC to log and get run_id
+    // Call the admin-gated RPC to log and get run_id
     const { data: runId, error: rpcError } = await supabase.rpc(
       "recompute_intervention_patterns"
     );
 
     if (rpcError) {
+      // Check for 403 unauthorized
+      if (rpcError.code === "P0403" || rpcError.message?.includes("Unauthorized")) {
+        return {
+          runId: "",
+          clusterCount: 0,
+          outcomesProcessed: 0,
+          durationMs: 0,
+          success: false,
+          error: "Access denied: Admin privileges required",
+        };
+      }
       throw new Error(rpcError.message);
     }
 
@@ -396,7 +408,9 @@ export async function getSyntheticDataCounts(): Promise<{
 }
 
 /**
- * Purge all synthetic data
+ * Purge all synthetic data via admin-gated RPC
+ * This function now uses the server-side purge_synthetic_data RPC
+ * which validates admin permissions and logs the action.
  */
 export async function purgeSyntheticData(): Promise<{
   success: boolean;
@@ -404,19 +418,24 @@ export async function purgeSyntheticData(): Promise<{
   error?: string;
 }> {
   try {
-    const counts = await getSyntheticDataCounts();
+    const { data, error } = await supabase.rpc("purge_synthetic_data");
+    
+    if (error) {
+      // Check for 403 unauthorized
+      if (error.code === "P0403" || error.message?.includes("Unauthorized")) {
+        return {
+          success: false,
+          deleted: { interventions: 0, outcomes: 0, metricResults: 0 },
+          error: "Access denied: Master admin privileges required",
+        };
+      }
+      throw error;
+    }
 
-    // Delete in order to respect foreign keys
-    await supabase.from("intervention_outcomes").delete().eq("is_synthetic", true);
-    await supabase.from("intervention_metric_links").delete().match({
-      // Delete links for synthetic interventions
-    });
-    await supabase.from("interventions").delete().eq("is_synthetic", true);
-    await supabase.from("metric_results").delete().eq("is_synthetic", true);
-
+    const result = data as { success: boolean; deleted: { interventions: number; outcomes: number; metricResults: number } };
     return {
-      success: true,
-      deleted: counts,
+      success: result.success,
+      deleted: result.deleted,
     };
   } catch (error) {
     return {
