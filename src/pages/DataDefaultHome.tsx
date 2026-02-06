@@ -21,6 +21,7 @@ import {
   BarChart3,
   FileText,
   Calendar,
+  Settings2,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +32,7 @@ import LegacyMonthlyReportView, { LegacyMonthPayload } from "@/components/data/L
 import YTDDataView from "@/components/data/YTDDataView";
 import ExecutiveSummaryCard from "@/components/data/ExecutiveSummaryCard";
 import { DataSourceStatusLine } from "@/components/data/DataSourcePill";
+import { ChangeDataSourceWizard } from "@/components/data/ChangeDataSourceWizard";
 
 const YTD_TAB_VALUE = "ytd";
 
@@ -41,6 +43,7 @@ export default function DataDefaultHome() {
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
   const [viewTab, setViewTab] = useState<ViewTab>("summary");
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // Fetch all available months for current org
   const { data: availableMonths, isLoading: monthsLoading } = useQuery({
@@ -248,9 +251,23 @@ export default function DataDefaultHome() {
             <p className="text-sm text-muted-foreground">Monthly clinic metrics</p>
           </div>
         </div>
-        {/* Data Source Status Line */}
-        <DataSourceStatusLine className="mt-2 ml-12" />
+        {/* Data Source Status Line with Change Action */}
+        <div className="flex items-center gap-3 mt-2 ml-12">
+          <DataSourceStatusLine />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setWizardOpen(true)}
+          >
+            <Settings2 className="w-3 h-3 mr-1" />
+            Change
+          </Button>
+        </div>
       </motion.div>
+      
+      {/* Change Data Source Wizard */}
+      <ChangeDataSourceWizard open={wizardOpen} onOpenChange={setWizardOpen} />
 
 
       {/* Unified Toolbar */}

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,14 +7,16 @@ import {
   Palette, Users, Building2, 
   GraduationCap, Plug, UserCircle, Cpu, TestTube, 
   LayoutDashboard, FileSpreadsheet, FileUp, FileBarChart,
-  Database, Cloud, CheckCircle2, Clock, AlertCircle
+  Database, Cloud, CheckCircle2, Clock, AlertCircle, Settings2
 } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { canAccessAdmin } from "@/lib/permissions";
 import { useOrgDataSourceStatus, SOURCE_LABELS } from "@/hooks/useOrgDataSourceStatus";
+import { ChangeDataSourceWizard } from "@/components/data/ChangeDataSourceWizard";
 
 const Settings = () => {
   const navigate = useNavigate();
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // Use authoritative user_roles via hook
   const { data: roleData } = useIsAdmin();
@@ -111,7 +114,11 @@ const Settings = () => {
               </div>
             </div>
           </div>
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setWizardOpen(true)}>
+              <Settings2 className="w-4 h-4 mr-2" />
+              Change Data Source
+            </Button>
             <Button variant="outline" size="sm" onClick={() => navigate("/integrations")}>
               <Plug className="w-4 h-4 mr-2" />
               Manage Integrations
@@ -123,6 +130,9 @@ const Settings = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Change Data Source Wizard */}
+      <ChangeDataSourceWizard open={wizardOpen} onOpenChange={setWizardOpen} />
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
