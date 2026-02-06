@@ -102,16 +102,49 @@ interface DataTableProps {
   rows: any[][];
   periodKey: string;
   organizationId?: string;
+  showComputedTotal?: boolean;
 }
 
-function DataTable({ title, headers, rows, periodKey, organizationId }: DataTableProps) {
+/**
+ * Compute a total row by summing all numeric values in each column
+ */
+function computeTotalRow(rows: any[][], headerCount: number): any[] {
+  const totals: any[] = new Array(headerCount).fill(0);
+  totals[0] = 'Total';
+  
+  for (const row of rows) {
+    for (let i = 1; i < headerCount; i++) {
+      const value = row[i];
+      if (typeof value === 'number') {
+        totals[i] += value;
+      } else if (value != null && value !== '') {
+        const num = parseFloat(String(value).replace(/[$,]/g, ''));
+        if (!isNaN(num)) {
+          totals[i] += num;
+        }
+      }
+    }
+  }
+  
+  return totals;
+}
+
+function DataTable({ title, headers, rows, periodKey, organizationId, showComputedTotal }: DataTableProps) {
   const normalizedHeaders = normalizeHeaders(headers, rows);
   const normalizedRows = normalizeRows(rows, normalizedHeaders.length);
+  
+  // Add computed total row if requested and no total row already exists
+  const hasExistingTotal = normalizedRows.some(row => 
+    String(row[0]).toLowerCase().includes('total')
+  );
+  const displayRows = (showComputedTotal && !hasExistingTotal && normalizedRows.length > 0)
+    ? [...normalizedRows, computeTotalRow(normalizedRows, normalizedHeaders.length)]
+    : normalizedRows;
   
   return (
     <div className="space-y-2">
       <h3 className="font-semibold text-sm text-foreground">{title}</h3>
-      {normalizedRows.length === 0 ? (
+      {displayRows.length === 0 ? (
         <p className="text-xs text-muted-foreground py-2">No data</p>
       ) : (
         <div className="border rounded-lg max-h-[500px] overflow-y-auto">
@@ -133,7 +166,7 @@ function DataTable({ title, headers, rows, periodKey, organizationId }: DataTabl
               </TableRow>
             </TableHeader>
             <TableBody>
-              {normalizedRows.map((row, rowIdx) => (
+              {displayRows.map((row, rowIdx) => (
                 <TableRow key={rowIdx} className={cn(
                   "group hover:bg-muted/20",
                   String(row[0]).toLowerCase().includes('total') && "bg-muted/40 font-medium"
@@ -185,7 +218,7 @@ export function LegacyMonthlyReportView({ payload, periodKey, organizationId }: 
         <DataTable title="Provider Production" headers={provider_table.headers} rows={provider_table.rows} periodKey={periodKey} organizationId={organizationId} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <DataTable title="Referral Totals" headers={referral_totals.headers} rows={referral_totals.rows} periodKey={periodKey} organizationId={organizationId} />
-          <DataTable title="Referral Sources" headers={referral_sources.headers} rows={referral_sources.rows} periodKey={periodKey} organizationId={organizationId} />
+          <DataTable title="Referral Sources" headers={referral_sources.headers} rows={referral_sources.rows} periodKey={periodKey} organizationId={organizationId} showComputedTotal />
         </div>
       </div>
 
