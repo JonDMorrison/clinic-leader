@@ -142,47 +142,47 @@ function DataTable({ title, headers, rows, periodKey, organizationId, showComput
     : normalizedRows;
   
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <h3 className="font-semibold text-sm text-foreground">{title}</h3>
       {displayRows.length === 0 ? (
-        <p className="text-xs text-muted-foreground py-2">No data</p>
+        <p className="text-sm text-muted-foreground py-2">No data</p>
       ) : (
         <div className="border rounded-lg max-h-[500px] overflow-y-auto">
-          <Table className="text-xs w-full table-fixed">
+          <Table className="w-full table-fixed">
             <TableHeader className="sticky top-0 bg-muted/90 z-10">
               <TableRow>
                 {normalizedHeaders.map((header, idx) => (
                   <TableHead 
                     key={idx} 
                     className={cn(
-                      "font-medium text-xs py-1.5 px-1.5 truncate",
+                      "font-semibold text-sm py-2 px-3 truncate",
                       idx === 0 ? "text-left" : "text-center"
                     )}
                   >
                     {header}
                   </TableHead>
                 ))}
-                <TableHead className="w-10" /> {/* Actions column */}
+                <TableHead className="w-12" /> {/* Actions column */}
               </TableRow>
             </TableHeader>
             <TableBody>
               {displayRows.map((row, rowIdx) => (
                 <TableRow key={rowIdx} className={cn(
-                  "group hover:bg-muted/20",
+                  "group hover:bg-muted/50 transition-colors",
                   String(row[0]).toLowerCase().includes('total') && "bg-muted/40 font-medium"
                 )}>
                 {row.map((cell, cellIdx) => (
                     <TableCell 
                       key={cellIdx} 
                       className={cn(
-                        "py-1 px-1.5 text-xs truncate",
-                        cellIdx === 0 ? "text-left" : "text-center"
+                        "py-2 px-3 text-sm truncate",
+                        cellIdx === 0 ? "text-left font-medium" : "text-center"
                       )}
                     >
                       {formatCellValue(cell)}
                     </TableCell>
                   ))}
-                  <TableCell className="py-1 px-1.5 w-10">
+                  <TableCell className="py-2 px-3 w-12">
                     <LegacyRowActionsMenu
                       rowLabel={String(row[0] ?? '')}
                       rowData={row}
@@ -205,12 +205,12 @@ export function LegacyMonthlyReportView({ payload, periodKey, organizationId }: 
   const { provider_table, referral_totals, referral_sources, extra_blocks, warnings } = payload;
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="text-xs text-muted-foreground">Period: {periodKey}</div>
+    <div className="space-y-6">
+      <div className="text-sm text-muted-foreground">Period: {periodKey}</div>
 
       {warnings && warnings.length > 0 && (
         <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-          <ul className="text-xs text-amber-700">{warnings.map((w, i) => <li key={i}>• {w}</li>)}</ul>
+          <ul className="text-sm text-amber-700">{warnings.map((w, i) => <li key={i}>• {w}</li>)}</ul>
         </div>
       )}
 

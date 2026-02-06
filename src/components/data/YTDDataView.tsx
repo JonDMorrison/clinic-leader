@@ -232,20 +232,20 @@ function YTDTable({
   const hasData = normalizedRows.length > 0;
   
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-3", className)}>
       <h3 className="font-semibold text-sm text-foreground">{title}</h3>
       {!hasData ? (
-        <p className="text-xs text-muted-foreground py-2">No data</p>
+        <p className="text-sm text-muted-foreground py-2">No data</p>
       ) : (
         <div className="border rounded-lg max-h-[500px] overflow-y-auto">
-          <Table className="text-xs w-full table-fixed">
+          <Table className="w-full table-fixed">
             <TableHeader className="sticky top-0 bg-muted/90 z-10">
               <TableRow>
                 {normalizedHeaders.map((header, idx) => (
                   <TableHead 
                     key={idx} 
                     className={cn(
-                      "font-medium text-xs py-1.5 px-1.5 truncate",
+                      "font-semibold text-sm py-2 px-3 truncate",
                       idx === 0 ? "w-[30%] text-left" : "w-auto text-center"
                     )}
                     title={header}
@@ -260,7 +260,7 @@ function YTDTable({
                 const isTotal = String(row[0]).toLowerCase().includes('total');
                 return (
                   <TableRow key={rowIdx} className={cn(
-                    "hover:bg-muted/20",
+                    "hover:bg-muted/50 transition-colors",
                     isTotal && "bg-muted/40 font-medium"
                   )}>
                     {row.map((cell, cellIdx) => {
@@ -270,7 +270,7 @@ function YTDTable({
                         <TableCell 
                           key={cellIdx}
                           className={cn(
-                            "py-1 px-1.5 text-xs truncate",
+                            "py-2 px-3 text-sm truncate",
                             cellIdx === 0 ? "text-left font-medium" : "text-center",
                             formatted === '' && "text-muted-foreground"
                           )}
@@ -337,10 +337,10 @@ export default function YTDDataView({ payloads, periodKeys, year }: YTDDataViewP
   const monthRangeLabel = getMonthRangeLabel(periodKeys);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* YTD Header */}
-      <div className="flex items-center justify-between text-sm px-1">
-        <span className="font-medium">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-semibold text-foreground">
           Year to Date ({monthRangeLabel})
         </span>
         <span className="text-muted-foreground">
