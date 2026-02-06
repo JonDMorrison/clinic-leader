@@ -60,6 +60,8 @@ import {
   Building2,
   FileSpreadsheet,
   TrendingUp,
+  TrendingDown,
+  Minus,
   GripVertical,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
@@ -156,6 +158,7 @@ interface DataMetric {
   importKey?: string; // For identifying breakdown-capable metrics
   weekValue?: number | null;
   monthValue?: number | null;
+  prevMonthValue?: number | null;
   ytdValue?: number | null;
   target?: number | null;
   status?: MetricStatus;
@@ -179,7 +182,7 @@ function SortableMetricRow({
   hasDimensions,
   hasBreakdownExpanded,
   formatValue,
-  getStatusBadge,
+  renderPercentChange,
   toggleExpanded,
   toggleBreakdownExpanded,
   handleAddToScorecard,
@@ -194,7 +197,7 @@ function SortableMetricRow({
   hasDimensions: boolean;
   hasBreakdownExpanded: boolean;
   formatValue: (value: number | null | undefined, unit: string) => string;
-  getStatusBadge: (metric: DataMetric, isChild?: boolean) => React.ReactNode;
+  renderPercentChange: (metric: DataMetric) => React.ReactNode;
   toggleExpanded: (name: string) => void;
   toggleBreakdownExpanded: (importKey: string) => void;
   handleAddToScorecard: (metric: DataMetric) => void;
@@ -288,7 +291,7 @@ function SortableMetricRow({
       <TableCell className="text-right font-mono">
         {metric.isTracked ? formatValue(metric.ytdValue, metric.unit) : "—"}
       </TableCell>
-      <TableCell>{getStatusBadge(metric, isChild)}</TableCell>
+      <TableCell>{renderPercentChange(metric)}</TableCell>
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -525,6 +528,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
         
         let weekValue: number | null = null;
         let monthValue: number | null = null;
+        let prevMonthValue: number | null = null;
         let ytdValue: number | null = null;
 
         if (tracked && metricResults) {
@@ -532,9 +536,14 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
             || metricResults.weekly.find(r => r.metric_id === tracked.id && r.week_start === lastWeekStart);
           weekValue = weekResult?.value ?? null;
 
+          // Current month
           const monthResult = metricResults.monthly.find(r => r.metric_id === tracked.id && r.period_key === currentMonthKey)
             || metricResults.monthly.find(r => r.metric_id === tracked.id && r.period_key === lastMonthKey);
           monthValue = monthResult?.value ?? null;
+          
+          // Previous month for MoM calculation
+          const prevMonthResult = metricResults.monthly.find(r => r.metric_id === tracked.id && r.period_key === lastMonthKey);
+          prevMonthValue = prevMonthResult?.value ?? null;
 
           const ytdResults = metricResults.ytd.filter(r => r.metric_id === tracked.id);
           ytdValue = ytdResults.length > 0 
@@ -569,6 +578,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
           hasBreakdown,
           weekValue,
           monthValue,
+          prevMonthValue,
           ytdValue,
           target: tracked?.target,
           status,
@@ -631,34 +641,80 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
     return value.toLocaleString();
   };
 
-  const getStatusBadge = (metric: DataMetric, isChild?: boolean) => {
-    if (metric.comingSoon) {
-      return <Badge variant="outline" className="text-xs">Coming Soon</Badge>;
+  /**
+   * Calculate percentage change between current and previous values
+   */
+  const calculatePercentChange = (
+    current: number | null | undefined, 
+    previous: number | null | undefined
+  ): { percent: number; direction: 'up' | 'down' | 'stable' } | null => {
+    if (current === null || current === undefined || previous === null || previous === undefined) return null;
+    if (previous === 0 && current === 0) return { percent: 0, direction: 'stable' };
+    if (previous === 0) return { percent: 100, direction: current > 0 ? 'up' : 'down' };
+    
+    const change = ((current - previous) / Math.abs(previous)) * 100;
+    if (Math.abs(change) < 0.5) return { percent: 0, direction: 'stable' };
+    
+    return {
+      percent: Math.abs(Math.round(change)),
+      direction: change > 0 ? 'up' : 'down'
+    };
+  };
+
+  /**
+   * Get trend color based on direction and metric preference
+   * For metrics where lower is better (direction: "down"), red = increase, green = decrease
+   */
+  const getTrendColor = (
+    direction: 'up' | 'down' | 'stable',
+    metricDirection: string
+  ): string => {
+    if (direction === 'stable') return 'text-muted-foreground';
+    
+    // For metrics where lower is better (like no-shows, cancellation rate)
+    const isLowerBetter = metricDirection === 'down' || metricDirection === 'lower_is_better';
+    
+    if (isLowerBetter) {
+      return direction === 'up' ? 'text-destructive' : 'text-success';
     }
-    if (metric.isDimensional && !isChild && metric.dimensions && metric.dimensions.length > 0) {
-      return <Badge variant="secondary" className="text-xs">{metric.dimensions.length} items</Badge>;
+    return direction === 'up' ? 'text-success' : 'text-destructive';
+  };
+
+  /**
+   * Render MoM percentage change indicator with colored arrows
+   */
+  const renderPercentChange = (metric: DataMetric): React.ReactNode => {
+    if (!metric.isTracked) {
+      return <span className="text-sm text-muted-foreground">—</span>;
     }
-    // For Jane-connected orgs: all supported metrics show as "Tracked" 
-    // (they're in the pipeline, even if no data yet)
-    if (metric.source === "jane") {
-      if (metric.isTracked) {
-        if (metric.status === "off_track") {
-          return <Badge variant="destructive" className="text-xs">Off Track</Badge>;
-        }
-        if (metric.status === "on_track" && metric.monthValue !== null) {
-          return <Badge variant="default" className="text-xs bg-success text-success-foreground">Tracked</Badge>;
-        }
-      }
-      // Supported metric but no data yet
-      return <Badge variant="secondary" className="text-xs">Tracked</Badge>;
+    
+    const change = calculatePercentChange(metric.monthValue, metric.prevMonthValue);
+    
+    if (!change) {
+      return <span className="text-sm text-muted-foreground">—</span>;
     }
-    if (metric.isTracked) {
-      if (metric.status === "off_track") {
-        return <Badge variant="destructive" className="text-xs">Off Track</Badge>;
-      }
-      return <Badge variant="default" className="text-xs bg-success text-success-foreground">Tracked</Badge>;
+
+    const trendColor = getTrendColor(change.direction, metric.direction);
+
+    if (change.direction === 'stable') {
+      return (
+        <span className={`flex items-center gap-0.5 text-sm ${trendColor}`}>
+          <Minus className="w-3.5 h-3.5" />
+          0%
+        </span>
+      );
     }
-    return <Badge variant="secondary" className="text-xs">Available</Badge>;
+
+    return (
+      <span className={`flex items-center gap-0.5 text-sm font-medium ${trendColor}`}>
+        {change.direction === 'up' ? (
+          <TrendingUp className="w-3.5 h-3.5" />
+        ) : (
+          <TrendingDown className="w-3.5 h-3.5" />
+        )}
+        {change.direction === 'up' ? '+' : '-'}{change.percent}%
+      </span>
+    );
   };
 
   const toggleExpanded = (metricName: string) => {
@@ -748,7 +804,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
               <TableHead className="text-right">This Week</TableHead>
               <TableHead className="text-right">This Month</TableHead>
               <TableHead className="text-right">YTD</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>MoM</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -778,7 +834,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
                         hasDimensions={hasDimensions}
                         hasBreakdownExpanded={isBreakdownExpanded}
                         formatValue={formatValue}
-                        getStatusBadge={getStatusBadge}
+                        renderPercentChange={renderPercentChange}
                         toggleExpanded={toggleExpanded}
                         toggleBreakdownExpanded={toggleBreakdownExpanded}
                         handleAddToScorecard={handleAddToScorecard}
@@ -829,7 +885,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
                             hasDimensions={false}
                             hasBreakdownExpanded={false}
                             formatValue={formatValue}
-                            getStatusBadge={getStatusBadge}
+                            renderPercentChange={renderPercentChange}
                             toggleExpanded={toggleExpanded}
                             toggleBreakdownExpanded={toggleBreakdownExpanded}
                             handleAddToScorecard={handleAddToScorecard}
