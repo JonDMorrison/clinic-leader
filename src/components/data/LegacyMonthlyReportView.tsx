@@ -64,6 +64,38 @@ function normalizeRows(rows: any[][], headerCount: number): any[][] {
   });
 }
 
+/**
+ * Format a cell value for display - rounds numbers with many decimals to whole numbers
+ */
+function formatCellValue(value: any): string {
+  if (value === null || value === undefined || value === '') return '';
+  
+  // Format numbers - round to whole number for cleaner display
+  if (typeof value === 'number') {
+    // For numbers >= 1000, use locale string with no decimals
+    if (Math.abs(value) >= 1000) {
+      return Math.round(value).toLocaleString('en-US');
+    }
+    // For smaller numbers, round to whole number
+    return Math.round(value).toString();
+  }
+  
+  // Check if string represents a number with many decimals (more than 2)
+  const str = String(value);
+  const numMatch = str.match(/^(-?\d+\.\d{3,})$/);
+  if (numMatch) {
+    const num = parseFloat(numMatch[1]);
+    if (!isNaN(num)) {
+      if (Math.abs(num) >= 1000) {
+        return Math.round(num).toLocaleString('en-US');
+      }
+      return Math.round(num).toString();
+    }
+  }
+  
+  return str;
+}
+
 interface DataTableProps {
   title: string;
   headers: string[];
@@ -100,9 +132,9 @@ function DataTable({ title, headers, rows, periodKey, organizationId }: DataTabl
                   "group hover:bg-muted/20",
                   String(row[0]).toLowerCase().includes('total') && "bg-muted/40 font-medium"
                 )}>
-                  {row.map((cell, cellIdx) => (
+                {row.map((cell, cellIdx) => (
                     <TableCell key={cellIdx} className="py-1 px-1.5 text-xs truncate">
-                      {cell ?? ''}
+                      {formatCellValue(cell)}
                     </TableCell>
                   ))}
                   <TableCell className="py-1 px-1.5 w-10">
