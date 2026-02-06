@@ -227,7 +227,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
 
           {/* Target & Trend */}
           <div className="flex items-center justify-between gap-2">
-            {metric.target && (
+            {metric.target ? (
               <div className="flex items-center gap-1">
                 <span className="text-xs text-muted-foreground">Target:</span>
                 <Badge variant="muted" className="text-xs">
@@ -239,6 +239,10 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
                   {metric.target} {metric.unit}
                 </Badge>
               </div>
+            ) : (
+              <Badge variant="muted" className="text-xs text-muted-foreground/70">
+                Needs Target
+              </Badge>
             )}
             {trend.direction !== "insufficient-data" && (
               <Badge 
