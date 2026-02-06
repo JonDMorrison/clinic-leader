@@ -134,15 +134,15 @@ export default function ExecutiveSummaryCard({ payload, periodKey, previousPaylo
   return (
     <div className="space-y-6">
       {/* Summary Header */}
-      <div className="flex items-center justify-between gap-3 pb-2 border-b">
+      <div className="flex items-center justify-between gap-3 pb-3 border-b">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold">Executive Summary</h2>
-          <Badge variant="outline" className="font-mono">
+          <h2 className="text-lg font-semibold text-foreground">Executive Summary</h2>
+          <Badge variant="outline" className="font-mono text-sm">
             {periodKey}
           </Badge>
         </div>
         {/* Stats summary */}
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span>{metricsWithValues.length} of {extracted.length} metrics populated</span>
           {!hasPreviousData && (
             <span className="text-amber-600">No prior month for comparison</span>
@@ -157,7 +157,7 @@ export default function ExecutiveSummaryCard({ payload, periodKey, previousPaylo
           
           return (
             <div key={category}>
-              <h3 className="text-sm font-medium text-muted-foreground mb-3">
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">
                 {category}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -179,7 +179,7 @@ export default function ExecutiveSummaryCard({ payload, periodKey, previousPaylo
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between">
                           <div className="space-y-1 flex-1">
-                            <p className="text-xs text-muted-foreground leading-tight">
+                            <p className="text-sm text-muted-foreground leading-tight">
                               {metric.display_name}
                             </p>
                             <div className="flex items-baseline gap-2">
@@ -220,7 +220,7 @@ export default function ExecutiveSummaryCard({ payload, periodKey, previousPaylo
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-4 border-t">
+      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground pt-4 border-t">
         <div className="flex items-center gap-1.5">
           <TrendingUp className="w-3.5 h-3.5 text-success" />
           <span>Up vs last month</span>
