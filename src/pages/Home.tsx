@@ -206,7 +206,7 @@ const Home = () => {
   const allStatOptions: StatOption[] = useMemo(() => [
     {
       id: "new_patients",
-      label: "New Patients (This Week)",
+      label: "New Patients",
       value: newPatientsValue,
       icon: <Users className="w-5 h-5 md:w-6 md:h-6 text-brand" />,
       variant: "brand",
