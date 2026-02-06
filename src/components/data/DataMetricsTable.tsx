@@ -277,16 +277,16 @@ function SortableMetricRow({
           <span>{metric.dimensionValue || metric.name}</span>
         </div>
       </TableCell>
-      <TableCell className="text-right font-mono">
+      <TableCell className="text-center text-sm">
         {metric.isTracked ? formatValue(metric.weekValue, metric.unit) : "—"}
       </TableCell>
-      <TableCell className="text-right font-mono">
+      <TableCell className="text-center text-sm">
         {metric.isTracked ? formatValue(metric.monthValue, metric.unit) : "—"}
       </TableCell>
-      <TableCell className="text-right font-mono">
+      <TableCell className="text-center text-sm">
         {metric.isTracked ? formatValue(metric.ytdValue, metric.unit) : "—"}
       </TableCell>
-      <TableCell>{renderPercentChange(metric)}</TableCell>
+      <TableCell className="text-center">{renderPercentChange(metric)}</TableCell>
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -789,11 +789,11 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[320px]">Data Point</TableHead>
-              <TableHead className="text-right">This Week</TableHead>
-              <TableHead className="text-right">This Month</TableHead>
-              <TableHead className="text-right">YTD</TableHead>
-              <TableHead>MoM</TableHead>
+              <TableHead className="w-[320px] font-semibold text-sm">Data Point</TableHead>
+              <TableHead className="text-center font-semibold text-sm">This Week</TableHead>
+              <TableHead className="text-center font-semibold text-sm">This Month</TableHead>
+              <TableHead className="text-center font-semibold text-sm">YTD</TableHead>
+              <TableHead className="text-center font-semibold text-sm">MoM</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
