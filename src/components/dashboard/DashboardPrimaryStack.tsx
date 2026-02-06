@@ -12,8 +12,7 @@ import { motion } from "framer-motion";
  * DashboardPrimaryStack - Guarantees the left column always has meaningful content.
  * Priority order:
  * 1. If no scorecard configured → Show "Set up your Scorecard" CTA
- * 2. Else if no issues exist → Show "Create your first Issue" CTA  
- * 3. Else → Show top 5 issues preview
+ * 2. Else → Show top 5 issues preview (or null if none)
  */
 export const DashboardPrimaryStack = () => {
   const navigate = useNavigate();
@@ -115,37 +114,9 @@ export const DashboardPrimaryStack = () => {
     );
   }
 
-  // Priority 2: No issues exist
+  // Priority 2: No issues - return null (don't show empty state CTA)
   if (!hasIssues) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <Card className="border-dashed border-warning/30 bg-gradient-to-br from-warning/5 to-transparent">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <AlertCircle className="w-5 h-5 text-warning" />
-              Create Your First Issue
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Issues are obstacles, ideas, or topics that need team discussion and resolution. Capture them here to address in your L10 meetings.
-            </p>
-            <Button 
-              variant="outline"
-              className="border-warning/50 hover:bg-warning/10"
-              onClick={() => navigate('/issues')}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Issue
-            </Button>
-          </CardContent>
-        </Card>
-      </motion.div>
-    );
+    return null;
   }
 
   // Priority 3: Show top issues
