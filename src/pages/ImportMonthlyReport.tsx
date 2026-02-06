@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { 
   Upload, Download, Loader2, CheckCircle, AlertTriangle, ArrowLeft, 
   FileWarning, FileSpreadsheet, AlertCircle, RotateCcw, Copy, ExternalLink,
-  Calendar, FileCheck, TrendingUp, Info, ChevronDown
+  Calendar, FileCheck, TrendingUp, Info, ChevronDown, Cloud
 } from "lucide-react";
 import { bridgeMultipleMonths, isLegacyDataMode, type BridgeResult, type DerivedMetricResult } from "@/lib/legacy/legacyMetricBridge";
 import { auditDerivedMetrics, hasBlockingFailures, getBlockingFailures, getInformationalMetrics, type DerivedMetricAuditReport, type MetricAuditResult, type ClassificationInputs } from "@/lib/legacy/legacyDerivedMetricAudit";
@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { getWorkbookSheets, parseSheet, normalizeLabel } from "@/lib/importers/excelProfileParser";
 import { parseCSV } from "@/lib/importers/csvParser";
 import { isLoriWorkbook, parseLoriWorkbookSync, LoriMonthPayload, LoriParseResult } from "@/lib/importers/loriWorkbookImporter";
+import { useOrgDataSourceStatus, SOURCE_LABELS } from "@/hooks/useOrgDataSourceStatus";
 import * as XLSX from 'xlsx';
 
 // Required columns for canonical import
@@ -293,6 +294,9 @@ const ImportMonthlyReport = () => {
   });
 
   const isAlignedMode = orgSettings?.scorecard_mode === 'aligned';
+  
+  // Data source status for conditional banner
+  const dataSourceStatus = useOrgDataSourceStatus();
 
   // Check if template is ready (all metrics have import_key)
   const missingImportKeys = useMemo(() => 
@@ -923,6 +927,34 @@ const ImportMonthlyReport = () => {
                 Fix Template <ExternalLink className="w-3 h-3 ml-1" />
               </a>
             </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Data source info banner - only show for non-Jane orgs */}
+      {dataSourceStatus.mode === "standard" && !dataSourceStatus.isLoading && (
+        <Alert className="border-muted bg-muted/20">
+          <FileSpreadsheet className="h-4 w-4" />
+          <AlertDescription className="flex items-center gap-2">
+            <span>
+              Your clinic updates data through <strong>spreadsheet imports</strong>.
+              {dataSourceStatus.lastUpdatedRelative && (
+                <> Last import: <span className="text-muted-foreground">{dataSourceStatus.lastUpdatedRelative}</span>.</>
+              )}
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Jane mode info - suggest using Jane integration instead */}
+      {dataSourceStatus.mode === "jane" && !dataSourceStatus.isLoading && (
+        <Alert className="border-primary/30 bg-primary/5">
+          <Cloud className="h-4 w-4 text-primary" />
+          <AlertDescription>
+            <span>
+              Your clinic is configured for <strong>Jane integration</strong>. 
+              Data flows automatically — manual imports are for supplemental metrics only.
+            </span>
           </AlertDescription>
         </Alert>
       )}

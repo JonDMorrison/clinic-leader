@@ -30,6 +30,7 @@ import { format, parseISO } from "date-fns";
 import LegacyMonthlyReportView, { LegacyMonthPayload } from "@/components/data/LegacyMonthlyReportView";
 import YTDDataView from "@/components/data/YTDDataView";
 import ExecutiveSummaryCard from "@/components/data/ExecutiveSummaryCard";
+import { DataSourceStatusLine } from "@/components/data/DataSourcePill";
 
 const YTD_TAB_VALUE = "ytd";
 
@@ -236,7 +237,7 @@ export default function DataDefaultHome() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+        className="flex flex-col gap-1"
       >
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-brand/10">
@@ -247,7 +248,8 @@ export default function DataDefaultHome() {
             <p className="text-sm text-muted-foreground">Monthly clinic metrics</p>
           </div>
         </div>
-
+        {/* Data Source Status Line */}
+        <DataSourceStatusLine className="mt-2 ml-12" />
       </motion.div>
 
 
