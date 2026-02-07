@@ -1,50 +1,101 @@
 
-# Plan: Remove Missing Targets Banner, Add Quiet Per-Card Indicator
+# Plan: Make "Create Issue" a Secondary Dropdown Action
 
 ## Overview
-Replace the aggregate "32 metrics missing targets" banner with a subtle, non-judgmental "Needs Target" indicator on individual metric cards. This aligns with the project philosophy of avoiding shame-based aggregate counts.
+Replace the conditional primary action (red "Create Issue" vs "Update") with a consistent layout where "Update" is always the primary action, and "Create Issue" is tucked into a secondary dropdown menu. This removes the alarming visual treatment while keeping the functionality accessible.
 
 ## Changes
 
-### 1. Remove MissingTargetsBanner from Scorecard Page
-**File:** `src/pages/Scorecard.tsx`
-- Remove the import for `MissingTargetsBanner` (line 35)
-- Remove the `metricsWithoutTargets` memo calculation (lines 492-501)
-- Remove the `handleConfigureTarget` function (lines 504-506)
-- Remove the `<MissingTargetsBanner>` component rendering (lines 589-593)
+### File: `src/components/scorecard/MetricCard.tsx`
 
-### 2. Add Quiet "Needs Target" Indicator to MetricCard
-**File:** `src/components/scorecard/MetricCard.tsx`
-- In the "Target & Trend" section (around line 228-258), when `metric.target` is null/undefined, display a subtle muted badge saying "Needs Target" instead of showing nothing
-- Keep it visually quiet: use muted/gray styling, small text, no warning colors
-- The card already opens a detail drawer on click, where users can set the target
+**1. Add dropdown imports (line 6)**
+- Import `MoreHorizontal` icon from lucide-react
+- Import dropdown components from `@/components/ui/dropdown-menu`
 
-## Visual Design
-The indicator will appear in the existing Target & Trend row:
-- **When target exists:** Shows "Target: ↑ 50 visits" (current behavior)  
-- **When target is missing:** Shows a quiet gray badge "Needs Target" - no warning icon, no alarming colors
+**2. Refactor Actions section (lines 332-370)**
+Replace the current conditional logic with:
+- **Primary action**: Always show "Update" button with `variant="ghost"`
+- **Secondary action**: Keep "Link V/TO" button as-is
+- **Overflow menu**: Add a small dropdown button with `MoreHorizontal` icon containing:
+  - "Create Issue" option (visible when metric is off-track)
+
+## Visual Layout
+
+```text
+Current (conditional):
+┌─────────────────────────────────────┐
+│ [🔴 Create Issue]  [Link V/TO]      │  ← When off-track
+│ [Update]           [Link V/TO]      │  ← When on-track
+└─────────────────────────────────────┘
+
+New (consistent):
+┌─────────────────────────────────────┐
+│ [Update]  [Link V/TO]  [⋯]          │  ← Always
+│                         └─ Dropdown │
+│                            • Create Issue (if off-track)
+└─────────────────────────────────────┘
+```
 
 ## Technical Details
 
-```text
-┌────────────────────────────────────────┐
-│  Target & Trend Row (line ~228)        │
-├────────────────────────────────────────┤
-│  IF target exists:                     │
-│    [Target: ↑ 50 visits]  [↑ Trending] │
-│                                        │
-│  IF target is null:                    │
-│    [Needs Target]         [↑ Trending] │
-│    (muted gray badge)                  │
-└────────────────────────────────────────┘
+### New imports to add:
+```tsx
+import { MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 ```
 
-### Code Changes Summary
+### New Actions section structure:
+```tsx
+<div className="flex gap-2">
+  <Button 
+    variant="ghost" 
+    size="sm" 
+    className="flex-1"
+    onClick={handleUpdateClick}
+  >
+    <ExternalLink className="w-3 h-3 mr-2" />
+    Update
+  </Button>
+  <Button 
+    variant="outline" 
+    size="sm" 
+    className="flex-1"
+    onClick={(e) => {
+      e.stopPropagation();
+      setLinkToVTOOpen(true);
+    }}
+  >
+    <LinkIcon className="w-3 h-3 mr-2" />
+    Link V/TO
+  </Button>
+  {isOffTrack && (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="px-2">
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={(e) => {
+          e.stopPropagation();
+          setCreateIssueOpen(true);
+        }}>
+          <AlertTriangle className="w-3 h-3 mr-2" />
+          Create Issue
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )}
+</div>
+```
 
-**Scorecard.tsx removals:**
-- Line 35: Remove `MissingTargetsBanner` import
-- Lines 492-506: Remove unused memo and handler
-- Lines 589-593: Remove banner component
-
-**MetricCard.tsx addition:**
-- Lines 230-242: Add else-branch when `!metric.target` to show a quiet "Needs Target" badge with muted styling
+## Benefits
+- Removes the alarming red "Create Issue" button that disrupts the non-judgmental UI
+- "Update" is always the consistent primary action users expect
+- "Create Issue" remains accessible but in a secondary position
+- The dropdown only appears when relevant (metric is off-track), keeping the UI clean for healthy metrics
