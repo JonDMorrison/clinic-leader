@@ -3,7 +3,13 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sparklines, SparklinesLine } from "react-sparklines";
-import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight, Link as LinkIcon, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight, Link as LinkIcon, AlertTriangle, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
 import { calculateTrend, calculateWeekOverWeek, getCategoryColor } from "@/lib/scorecard/trendCalculator";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -331,30 +337,15 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
 
           {/* Actions */}
           <div className="flex gap-2">
-            {isOffTrack ? (
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                className="flex-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCreateIssueOpen(true);
-                }}
-              >
-                <AlertTriangle className="w-3 h-3 mr-2" />
-                Create Issue
-              </Button>
-            ) : (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="flex-1"
-                onClick={handleUpdateClick}
-              >
-                <ExternalLink className="w-3 h-3 mr-2" />
-                Update
-              </Button>
-            )}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex-1"
+              onClick={handleUpdateClick}
+            >
+              <ExternalLink className="w-3 h-3 mr-2" />
+              Update
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 
@@ -367,6 +358,24 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
               <LinkIcon className="w-3 h-3 mr-2" />
               Link V/TO
             </Button>
+            {isOffTrack && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="px-2">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    setCreateIssueOpen(true);
+                  }}>
+                    <AlertTriangle className="w-3 h-3 mr-2" />
+                    Create Issue
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </Card>
