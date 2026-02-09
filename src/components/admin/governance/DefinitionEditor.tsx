@@ -52,6 +52,7 @@ export function DefinitionEditor({
     unit: "count" as string,
     higher_is_better: true,
     default_period_type: "week" as string,
+    treat_zero_as_missing: false,
   });
 
   // Initialize form with existing data
@@ -63,6 +64,7 @@ export function DefinitionEditor({
         unit: definition.unit || "count",
         higher_is_better: definition.higher_is_better ?? true,
         default_period_type: definition.default_period_type || "week",
+        treat_zero_as_missing: metric?.treat_zero_as_missing ?? false,
       });
     } else if (metric) {
       setFormData({
@@ -71,6 +73,7 @@ export function DefinitionEditor({
         unit: metric.unit === "$" ? "currency" : metric.unit === "%" ? "percent" : "count",
         higher_is_better: metric.direction !== "down",
         default_period_type: metric.cadence === "monthly" ? "month" : "week",
+        treat_zero_as_missing: metric.treat_zero_as_missing ?? false,
       });
     }
   }, [definition, metric]);
@@ -79,8 +82,14 @@ export function DefinitionEditor({
     mutationFn: async (data: typeof formData) => {
       if (!metricId) throw new Error("No metric ID");
 
+      // Update treat_zero_as_missing on the metrics table
+      const { error: metricUpdateError } = await supabase
+        .from("metrics")
+        .update({ treat_zero_as_missing: data.treat_zero_as_missing })
+        .eq("id", metricId);
+      if (metricUpdateError) throw metricUpdateError;
+
       if (definition?.id) {
-        // Update existing
         const { error } = await supabase
           .from("metric_definitions")
           .update({
@@ -92,10 +101,8 @@ export function DefinitionEditor({
             updated_at: new Date().toISOString(),
           })
           .eq("id", definition.id);
-
         if (error) throw error;
       } else {
-        // Create new
         const { error } = await supabase
           .from("metric_definitions")
           .insert({
@@ -106,7 +113,6 @@ export function DefinitionEditor({
             higher_is_better: data.higher_is_better,
             default_period_type: data.default_period_type,
           });
-
         if (error) throw error;
       }
     },
@@ -116,6 +122,8 @@ export function DefinitionEditor({
         description: "Metric definition saved successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["metric-definition", metricId] });
+      queryClient.invalidateQueries({ queryKey: ["governance-metric-detail", metricId] });
+      queryClient.invalidateQueries({ queryKey: ["scorecard"] });
       onUpdate();
     },
     onError: (error) => {
@@ -239,6 +247,21 @@ export function DefinitionEditor({
             <Switch
               checked={formData.higher_is_better}
               onCheckedChange={(checked) => setFormData({ ...formData, higher_is_better: checked })}
+              disabled={!canEdit}
+            />
+          </div>
+
+          {/* Treat Zero as Missing */}
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+              <Label>Treat 0 as "No data" for this metric</Label>
+              <p className="text-sm text-muted-foreground">
+                Use this when zeros usually mean missing data (common in spreadsheet/manual imports)
+              </p>
+            </div>
+            <Switch
+              checked={formData.treat_zero_as_missing}
+              onCheckedChange={(checked) => setFormData({ ...formData, treat_zero_as_missing: checked })}
               disabled={!canEdit}
             />
           </div>
