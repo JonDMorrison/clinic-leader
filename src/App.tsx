@@ -71,6 +71,7 @@ import QuarterlyCloseReport from "./pages/QuarterlyCloseReport";
 
 import ProfileSettings from "./pages/ProfileSettings";
 import DataSafety from "./pages/DataSafety";
+import DataExport from "./pages/DataExport";
 import DataHomeRouter from "./pages/DataHomeRouter";
 import JaneCompliance from "./pages/JaneCompliance";
 import Security from "./pages/Security";
@@ -207,6 +208,7 @@ const App = () => {
             <Route path="/admin/benchmarks" element={<AppLayout><BenchmarkAdmin /></AppLayout>} />
             <Route path="/admin/benchmarks/jane-vs-nonjane" element={<AppLayout><JaneVsNonJaneComparison /></AppLayout>} />
             <Route path="/admin/metrics-governance" element={<AppLayout><MetricsGovernance /></AppLayout>} />
+            <Route path="/export" element={<DataExport />} />
             <Route path="/account/set-password" element={<SetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
