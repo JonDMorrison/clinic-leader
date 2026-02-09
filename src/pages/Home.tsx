@@ -400,6 +400,14 @@ const Home = () => {
             {/* Primary Stack - always has content (scorecard setup, issues CTA, or top issues) */}
             <DashboardPrimaryStack />
 
+            {/* Recent Activity */}
+            <RecentActivityCard
+              metricsCount={metrics?.length || 0}
+              openIssues={openIssues}
+              totalRocks={totalRocks}
+              completedRocks={completedRocks}
+            />
+
             {/* Monthly Pulse Widget */}
             <MonthlyPulseWidget />
 
@@ -414,12 +422,6 @@ const Home = () => {
             <QuickActions />
           </div>
           <VtoCard />
-          <RecentActivityCard
-            metricsCount={metrics?.length || 0}
-            openIssues={openIssues}
-            totalRocks={totalRocks}
-            completedRocks={completedRocks}
-          />
           <CopilotWidget />
           <CoreValueOfWeekCard />
         </aside>
