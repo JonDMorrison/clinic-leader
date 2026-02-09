@@ -11,6 +11,7 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, ChevronDown, Target, AlertCircle, CheckCircle2, Calendar, Plus, Activity, DollarSign, TrendingUp, TrendingDown, Link2, ExternalLink, User2, Armchair } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -54,6 +55,8 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [showAssessmentForm, setShowAssessmentForm] = useState(false);
   const [showLinkClinicianModal, setShowLinkClinicianModal] = useState(false);
+  const [selectedSeatToAssign, setSelectedSeatToAssign] = useState<string>("");
+  const [isAssigningSeat, setIsAssigningSeat] = useState(false);
   
   // Fetch user's seat metrics (accountability)
   const { metrics: seatMetrics, seats: userSeats, isLoading: loadingSeatMetrics } = useUserSeatMetrics(
@@ -66,6 +69,101 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
     userId || undefined,
     currentUser?.team_id
   );
+
+  // Fetch all seats for the organization
+  const { data: allOrgSeats = [], refetch: refetchOrgSeats } = useQuery({
+    queryKey: ["org-seats-for-assignment", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return [];
+      const { data, error } = await supabase
+        .from("seats")
+        .select("id, title, seat_users(user_id)")
+        .eq("organization_id", currentUser.team_id)
+        .order("title");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentUser?.team_id && isOpen,
+  });
+
+  // Fetch this user's current seat_users assignments
+  const { data: userSeatAssignments = [], refetch: refetchUserSeats } = useQuery({
+    queryKey: ["user-seat-assignments", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await supabase
+        .from("seat_users")
+        .select("id, seat_id, is_primary, seats:seat_id(id, title)")
+        .eq("user_id", userId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!userId && isOpen,
+  });
+
+  const handleAssignSeat = async () => {
+    if (!selectedSeatToAssign || !userId || !currentUser?.team_id) return;
+    setIsAssigningSeat(true);
+    try {
+      // Check if there are already users on this seat
+      const { data: existing } = await supabase
+        .from("seat_users")
+        .select("id")
+        .eq("seat_id", selectedSeatToAssign)
+        .limit(1);
+      const isPrimary = !existing || existing.length === 0;
+
+      const { error } = await supabase.from("seat_users").insert({
+        seat_id: selectedSeatToAssign,
+        user_id: userId,
+        organization_id: currentUser.team_id,
+        is_primary: isPrimary,
+      });
+      if (error) throw error;
+
+      // Keep legacy field in sync if primary
+      if (isPrimary) {
+        await supabase.from("seats").update({ user_id: userId }).eq("id", selectedSeatToAssign);
+      }
+
+      toast({ title: "Seat assigned", description: "User has been assigned to the seat." });
+      setSelectedSeatToAssign("");
+      refetchUserSeats();
+      refetchOrgSeats();
+      queryClient.invalidateQueries({ queryKey: ["seats"] });
+      queryClient.invalidateQueries({ queryKey: ["user-detail", userId] });
+      onUpdate();
+    } catch (error) {
+      console.error("Error assigning seat:", error);
+      toast({ title: "Error", description: "Failed to assign seat", variant: "destructive" });
+    } finally {
+      setIsAssigningSeat(false);
+    }
+  };
+
+  const handleRemoveFromSeat = async (seatUserId: string, seatId: string) => {
+    try {
+      const { error } = await supabase.from("seat_users").delete().eq("id", seatUserId);
+      if (error) throw error;
+
+      // Clear legacy field if this was the primary user
+      await supabase.from("seats").update({ user_id: null }).eq("id", seatId).eq("user_id", userId!);
+
+      toast({ title: "Removed", description: "User removed from seat." });
+      refetchUserSeats();
+      refetchOrgSeats();
+      queryClient.invalidateQueries({ queryKey: ["seats"] });
+      queryClient.invalidateQueries({ queryKey: ["user-detail", userId] });
+      onUpdate();
+    } catch (error) {
+      console.error("Error removing from seat:", error);
+      toast({ title: "Error", description: "Failed to remove from seat", variant: "destructive" });
+    }
+  };
+
+  // Seats the user is NOT already assigned to
+  const assignedSeatIds = userSeatAssignments.map((su: any) => su.seat_id);
+  const availableSeats = allOrgSeats.filter((s) => !assignedSeatIds.includes(s.id));
 
   // Fetch user data
   const { data: user, isLoading: userLoading } = useQuery({
@@ -549,23 +647,70 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
             )}
 
             {/* Seat Assignment */}
-            {user.seats && Array.isArray(user.seats) && user.seats.length > 0 && (
-              <div className="p-4 border rounded-lg bg-card">
-                <h3 className="font-semibold mb-3">Seat Assignment</h3>
-                {user.seats.map((seat: any, idx: number) => (
-                  <div key={idx} className="mb-2">
-                    <div className="font-medium">{seat.title}</div>
-                    {seat.responsibilities && Array.isArray(seat.responsibilities) && seat.responsibilities.length > 0 && (
-                      <ul className="text-sm text-muted-foreground list-disc list-inside mt-1">
-                        {seat.responsibilities.map((resp: string, i: number) => (
-                          <li key={i}>{resp}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
+            <div className="p-4 border rounded-lg bg-card">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Armchair className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">Seat Assignment</h3>
+                </div>
               </div>
-            )}
+              
+              {/* Current assignments */}
+              {userSeatAssignments.length > 0 ? (
+                <div className="space-y-2 mb-3">
+                  {userSeatAssignments.map((su: any) => (
+                    <div key={su.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                      <div className="flex items-center gap-2">
+                        <Armchair className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{su.seats?.title || "Unknown Seat"}</span>
+                        {su.is_primary && <Badge variant="outline" className="text-xs">Primary</Badge>}
+                      </div>
+                      {isManager && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-destructive hover:text-destructive"
+                          onClick={() => handleRemoveFromSeat(su.id, su.seat_id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground mb-3">Not assigned to any seat.</p>
+              )}
+
+              {/* Assign to seat */}
+              {isManager && availableSeats.length > 0 && (
+                <div className="flex gap-2">
+                  <Select value={selectedSeatToAssign} onValueChange={setSelectedSeatToAssign}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select a seat to assign..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableSeats.map((seat) => (
+                        <SelectItem key={seat.id} value={seat.id}>
+                          {seat.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={handleAssignSeat}
+                    disabled={!selectedSeatToAssign || isAssigningSeat}
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Assign
+                  </Button>
+                </div>
+              )}
+              {isManager && availableSeats.length === 0 && userSeatAssignments.length > 0 && (
+                <p className="text-xs text-muted-foreground">Assigned to all available seats.</p>
+              )}
+            </div>
 
             {/* GWC Assessment */}
             <div className="p-4 border rounded-lg bg-card">
