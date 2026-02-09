@@ -1,30 +1,68 @@
 
 
-## Admin Avatar Upload for Team Members
+## Inline Data Modals for Meetings
 
-Add the ability for managers/admins to upload a profile photo for any team member directly from the People detail modal.
+Make the meeting page self-contained so you never have to leave it. When you click on a scorecard, rock, or issue agenda item, the relevant data opens in a modal right there.
 
 ### What Changes
 
-**In the Person Detail Modal header** (where the avatar and name are displayed), a camera overlay will appear on hover -- the same pattern used on the Profile Settings page. Clicking it opens a file picker. Only users with manager permissions will see this option.
+**1. Scorecard Modal ("Review the Numbers")**
+When you click on a metric agenda item during a live meeting, instead of just showing an editable title, a modal will pop up showing:
+- All scorecard metrics for the current period (name, owner, actual vs target, on/off track badge)
+- One-click "Create Issue" for any off-track metric (same as the existing ScorecardSnapshot component)
+- The modal uses the metric data already prefetched on the page -- no extra loading
+
+**2. Rock Review Modal**
+Clicking a rock agenda item shows a modal with:
+- Rock title, owner, status, confidence level
+- Linked metrics and their reality gap data (already fetched via `rockGapMap`)
+- Quick actions: reassign owner, add collaborator
+
+**3. Todo Summary Modal**
+Clicking the "To-Do List" section header shows:
+- All open to-dos with owner and due date
+- Overdue items highlighted
+- Ability to check off completed items
+
+**4. Section Header Click Behavior**
+Each section header (Scorecard, Rock Review, etc.) becomes clickable during live meetings. Clicking opens the relevant data modal for that whole section, not just individual items.
+
+---
 
 ### Technical Details
 
-**File: `src/components/people/PersonDetailModal.tsx`**
+**New Component: `src/components/meetings/ScorecardModal.tsx`**
+- A Dialog that fetches all active metrics + results for the org's current period (reusing the same query pattern from `ScorecardSnapshot`)
+- Renders the metric list with status icons, actual/target values, and "Create Issue" buttons
+- Props: `open`, `onClose`, `organizationId`, `periodKey`
 
-1. Add a `useRef` for a hidden file input and state for `isUploading`.
-2. Add a `handleAvatarUpload` function that:
-   - Validates the file (image type, max 5MB)
-   - Uploads to the `avatars` bucket at `{userId}/avatar.{ext}` (with upsert)
-   - Removes the old avatar file if one exists
-   - Gets the public URL and updates the `users.avatar_url` column
-   - Invalidates relevant queries (`user-detail`, `current-user`, `people-list`)
-3. Add a `handleRemoveAvatar` function for clearing the photo.
-4. Replace the static `<UserAvatar>` in the dialog header (line ~437) with a wrapper that includes:
-   - A hover overlay with a camera icon (visible only for managers)
-   - A hidden `<input type="file">` element
-   - A small remove button if an avatar exists
-5. Gate all upload/remove UI behind the `isManager` prop.
+**New Component: `src/components/meetings/RockReviewModal.tsx`**
+- Dialog showing rocks with status, confidence, owner, and linked metric gaps
+- Reuses data from the existing `rockGapMap` query
+- Props: `open`, `onClose`, `organizationId`, `periodKey`
 
-No database or storage changes are needed -- the `avatars` bucket and `users.avatar_url` column already exist and are used by the self-service profile page.
+**New Component: `src/components/meetings/TodoReviewModal.tsx`**
+- Dialog showing all org to-dos (not just meeting-specific ones), with check-off capability
+- Props: `open`, `onClose`, `organizationId`
+
+**Modified: `src/pages/MeetingDetail.tsx`**
+- Add state variables for each modal (`showScorecardModal`, `showRockModal`, `showTodoModal`)
+- Make section headers in the `SECTION_ORDER.map()` loop clickable during live/preview mode
+- For the "scorecard" section, clicking the header opens `ScorecardModal`
+- For the "rock_review" section, clicking opens `RockReviewModal`
+- For the "todo_list" section, clicking opens `TodoReviewModal`
+- Add a small eye/expand icon next to the section title to signal it's clickable
+
+**Modified: `src/components/meetings/AgendaItemRow.tsx`**
+- For metric items: add an "expand" icon that opens the scorecard modal for that specific metric (shows value, target, trend)
+- For rock items: the existing `RockGapPanel` popover already works well; no change needed
+- This keeps the row-level click for editing, while adding a dedicated icon for data preview
+
+### What This Means for You
+
+- During your weekly meeting, clicking "Scorecard" shows all your numbers in a popup -- no navigation needed
+- You can create issues from off-track metrics right from the modal
+- Rock review shows reality gaps inline
+- To-do review lets you check things off without switching pages
+- Everything stays on the meeting page so the team stays focused
 
