@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getStorage, setStorage } from "@/lib/storage/versionedStorage";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ export function GettingStartedWidget() {
   const navigate = useNavigate();
   const { setupProgress, isLoading } = useSetupProgress();
   const [dismissed, setDismissed] = useState(() => {
-    return localStorage.getItem("setup-widget-dismissed") === "true";
+    return getStorage<boolean>("setup-widget-dismissed") === true;
   });
 
   if (isLoading || !setupProgress || dismissed) {
@@ -25,7 +26,7 @@ export function GettingStartedWidget() {
   }
 
   const handleDismiss = () => {
-    localStorage.setItem("setup-widget-dismissed", "true");
+    setStorage("setup-widget-dismissed", true);
     setDismissed(true);
   };
 

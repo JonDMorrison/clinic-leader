@@ -14,6 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useDemoProvisioning } from "@/hooks/useDemoProvisioning";
+import { FunctionHealthBanner } from "@/components/layout/FunctionHealthBanner";
+import { clearLegacyStorage } from "@/lib/storage/versionedStorage";
 import Home from "./pages/Home";
 import Index from "./pages/Index";
 import Scorecard from "./pages/Scorecard";
@@ -98,12 +100,15 @@ const queryClient = new QueryClient({
   },
 });
 
+// Clear stale localStorage on app boot
+clearLegacyStorage();
+
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="flex w-full relative">
       <Sidebar />
-      {/* Content area: min-w-0 prevents flex overflow, no flex-1 so height is content-driven */}
       <div className="min-w-0 w-full relative">
+        <FunctionHealthBanner />
         <div className="fixed top-4 right-8 z-50 transition-all">
           <UserNav />
         </div>

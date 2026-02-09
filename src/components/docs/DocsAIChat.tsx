@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { getStorage, setStorage } from "@/lib/storage/versionedStorage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -64,14 +65,9 @@ export const DocsAIChat = () => {
   useEffect(() => {
     if (user?.id && user?.team_id) {
       const storageKey = `${STORAGE_KEY_PREFIX}_${user.team_id}_${user.id}`;
-      const stored = localStorage.getItem(storageKey);
+      const stored = getStorage<Message[]>(storageKey);
       if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setMessages(parsed.slice(-MAX_MESSAGES));
-        } catch (e) {
-          console.error("Failed to parse stored messages:", e);
-        }
+        setMessages(stored.slice(-MAX_MESSAGES));
       }
     }
   }, [user?.id, user?.team_id]);
@@ -80,7 +76,7 @@ export const DocsAIChat = () => {
   useEffect(() => {
     if (user?.id && user?.team_id && messages.length > 0) {
       const storageKey = `${STORAGE_KEY_PREFIX}_${user.team_id}_${user.id}`;
-      localStorage.setItem(storageKey, JSON.stringify(messages.slice(-MAX_MESSAGES)));
+      setStorage(storageKey, messages.slice(-MAX_MESSAGES));
     }
   }, [messages, user?.id, user?.team_id]);
 

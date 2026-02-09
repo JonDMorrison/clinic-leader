@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { getStorage, setStorage } from "@/lib/storage/versionedStorage";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -366,20 +367,16 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
 
   // Load saved order from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = getStorage<string[]>(STORAGE_KEY);
     if (saved) {
-      try {
-        setMetricOrder(JSON.parse(saved));
-      } catch (e) {
-        // Invalid JSON, ignore
-      }
+      setMetricOrder(saved);
     }
   }, []);
 
   // Save order to localStorage
   const saveOrder = (order: string[]) => {
     setMetricOrder(order);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+    setStorage(STORAGE_KEY, order);
   };
 
   const sensors = useSensors(
