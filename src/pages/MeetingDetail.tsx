@@ -716,15 +716,19 @@ export default function MeetingDetail() {
                 <CardContent className="py-2">
                   {sectionItems.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-2">
-                      No items in this section.{" "}
-                      {canEdit && (
-                        <button
-                          className="text-primary hover:underline"
-                          onClick={() => setShowAddModal(true)}
-                        >
-                          Add one
-                        </button>
-                      )}
+                      {section === "segue"
+                        ? "Go around the table — each person shares one personal or professional win."
+                        : <>No items in this section.{" "}
+                          {canEdit && (
+                            <button
+                              className="text-primary hover:underline"
+                              onClick={() => setShowAddModal(true)}
+                            >
+                              Add one
+                            </button>
+                          )}
+                        </>
+                      }
                     </p>
                   ) : (
                     <div className="space-y-1">

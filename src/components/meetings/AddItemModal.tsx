@@ -35,7 +35,6 @@ const SECTIONS = [
   { value: "rocks", label: "Rock Review" },
   { value: "issues", label: "IDS (Issues)" },
   { value: "todo", label: "To-Do Review" },
-  { value: "segue", label: "Segue" },
   { value: "conclusion", label: "Conclusion" },
   { value: "custom", label: "Custom" },
 ];
