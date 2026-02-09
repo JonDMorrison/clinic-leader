@@ -1,39 +1,73 @@
 
+# Data-First Flow: Restructuring the Scorecard Journey
 
-## Remove Redundant Instructional Line Items from Agenda
+## The Problem
 
-Currently, each meeting section generates two types of items:
-1. An instructional/coaching item (e.g., "Scorecard -- Review the numbers")
-2. Data items OR an empty-state fallback (e.g., "No off-track metrics detected")
+Right now there are two competing paths:
+1. **Scorecard Setup Wizard** (`/scorecard/setup`) — asks users to define metrics from scratch before any data exists
+2. **Data Page** (`/data`) — shows ingested data and lets users "Add to Scorecard" with a target
 
-This creates clutter. The coaching text already exists in the section header descriptions and help hints. The plan is to remove the standalone instructional items and keep only the data-driven or empty-state items, with cleaner titles.
+These create confusion about what comes first. The user's instinct is correct: **data should come first**, and the scorecard should be built by promoting data points the clinic owner cares about.
 
-### Changes
+## The New Mental Model
 
-**`src/lib/meetings/agendaGenerator.ts`**
+```text
+Data Ingestion --> Browse Available Data --> "Track This" (set goal) --> Scorecard --> Off-Track? --> Issue
+```
 
-Remove the instructional text items that precede each section's data:
+1. **Data comes in** (Jane sync, workbook upload, manual entry, CSV)
+2. **Clinic owner browses /data** and sees all available data points with current values
+3. **They click "Track This"** on metrics they care about, setting a target/goal
+4. **Those metrics appear on /scorecard** with status tracking
+5. **Off-track metrics can be escalated** to Issues for the L10 meeting
 
-- **Scorecard** (lines 76-86): Remove the "Scorecard -- Review the numbers" text item. Keep the off-track metric items or the "No off-track metrics" fallback. Simplify the fallback title to just "No off-track metrics detected" (no "Scorecard --" prefix).
+## Changes Required
 
-- **Rocks** (lines 151-161): Remove the "Rocks -- Review quarterly priorities" text item. Keep the individual rock items or the empty-state fallback.
+### 1. Redirect Scorecard Empty State to /data (not /scorecard/setup)
 
-- **Issues** (lines 254-264): Remove the "IDS -- Solve the most important issues" text item. Keep the individual issue items or the empty-state fallback.
+When a user has zero scorecard metrics, instead of showing the setup wizard, guide them to the Data page with a message like: "Connect your data first, then choose which metrics to track."
 
-- **Interventions** (lines 328-338): Remove the "Intervention Check-in" text item. Keep the individual intervention items or the empty-state fallback.
+**Files:** `src/pages/Scorecard.tsx`, `src/components/dashboard/DashboardPrimaryStack.tsx`
 
-- **To-Do** (lines 385-395): Remove the "To-Dos -- Capture action items" text item. The To-Do section relies on its modal, so no items needed here unless data is fetched.
+### 2. Update the Dashboard CTA
 
-- **Segue** (lines 398-408): Remove the "Segue" text item entirely -- this section is verbal-only per the earlier change.
+The "Get Started" button on the dashboard currently points to `/scorecard/setup`. Change it to point to `/data` with copy like "Connect Your Data" or "See Your Data."
 
-- **Conclusion** (lines 410-421): Keep this one as-is since it serves as a checklist for wrapping up.
+**File:** `src/components/dashboard/DashboardPrimaryStack.tsx`
 
-### Result
-Each section will show only its relevant data items (off-track metrics, rocks, issues, interventions) or a single clean empty-state message -- no duplicate instructional lines.
+### 3. Improve "Add to Scorecard" UX on the Data Page
 
-### Technical Details
-- Only `src/lib/meetings/agendaGenerator.ts` needs editing
-- Existing meetings won't be affected (agenda is generated once per meeting)
-- New meetings will get the cleaner agenda
-- Section headers and help hints already provide the coaching context that was in the removed items
+The current "Add to Scorecard" option is buried in a dropdown menu. Make it more prominent:
+- Add a visible "Track" or "Add to Scorecard" button directly on untracked metric rows
+- Show a clear visual distinction between tracked (on scorecard) and untracked metrics
+- Add a banner at the top: "Choose which metrics matter most to your clinic. Set a goal to start tracking."
 
+**File:** `src/components/data/DataMetricsTable.tsx`
+
+### 4. Keep Scorecard Setup Wizard as a Secondary Path
+
+Don't remove `/scorecard/setup` entirely — it's still useful for clinics that want to define custom metrics not tied to Jane. But it should no longer be the primary onboarding path.
+
+**File:** `src/pages/ScorecardSetup.tsx` (no changes needed, just de-prioritized)
+
+### 5. Update ConnectDataCard on Dashboard
+
+The existing `ConnectDataCard` already points users to `/data`. Update its copy to reinforce the data-first message: "Your scorecard starts with your data."
+
+**File:** `src/components/dashboard/ConnectDataCard.tsx`
+
+## Technical Details
+
+- **No database changes required.** The `metrics` table, `metric_results`, and "Add to Scorecard" mutation all work correctly already.
+- The `AddJaneMetricModal` already handles creating a metric with `import_key`, target, direction, and category when promoting from data.
+- The `DataMetricsTable` already distinguishes `isTracked` vs untracked metrics.
+- The key changes are UX routing and visual prominence, not backend logic.
+
+## Summary of File Changes
+
+| File | Change |
+|------|--------|
+| `src/pages/Scorecard.tsx` | Empty state redirects to `/data` instead of `/scorecard/setup` |
+| `src/components/dashboard/DashboardPrimaryStack.tsx` | CTA points to `/data`, updated copy |
+| `src/components/data/DataMetricsTable.tsx` | More prominent "Track This" buttons on untracked rows, guidance banner |
+| `src/components/dashboard/ConnectDataCard.tsx` | Updated messaging |
