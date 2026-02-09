@@ -580,26 +580,62 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
 
             <TabsContent value="overview" className="space-y-6 mt-4">
             {/* Right Person, Right Seat Indicator */}
-            <div className="p-4 border rounded-lg bg-card">
-              <div className="flex items-center gap-2 mb-2">
-                <rprsStatus.icon className="h-5 w-5" />
+            <div className={`p-4 border rounded-lg ${
+              rprsStatus.variant === "default" ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800" :
+              rprsStatus.variant === "secondary" ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" :
+              "bg-destructive/5 border-destructive/20"
+            }`}>
+              <div className="flex items-center gap-2 mb-3">
+                <rprsStatus.icon className={`h-5 w-5 ${
+                  rprsStatus.variant === "default" ? "text-emerald-600 dark:text-emerald-400" :
+                  rprsStatus.variant === "secondary" ? "text-amber-600 dark:text-amber-400" :
+                  "text-destructive"
+                }`} />
                 <h3 className="font-semibold">Right Person, Right Seat</h3>
+                <Badge variant={rprsStatus.variant}>{rprsStatus.label}</Badge>
               </div>
-              <Badge variant={rprsStatus.variant} className="mb-3">
-                {rprsStatus.label}
-              </Badge>
+              <p className="text-xs text-muted-foreground mb-3">
+                In EOS, every team member should be the <strong>Right Person</strong> (aligned with core values) in the <strong>Right Seat</strong> (GWC confirmed + assigned to a seat).
+              </p>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="font-medium mb-1">Right Person</div>
-                  <div className="text-muted-foreground">
-                    {allValuesPositive ? "✓ Aligned with core values" : "Needs value alignment review"}
+                <div className={`p-3 rounded-md ${allValuesPositive ? "bg-emerald-100/50 dark:bg-emerald-900/20" : "bg-muted/50"}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    {allValuesPositive ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="font-medium">Right Person</span>
                   </div>
+                  {allValuesPositive ? (
+                    <p className="text-muted-foreground">All core values rated + or ±</p>
+                  ) : coreValues.length === 0 ? (
+                    <p className="text-muted-foreground">No core values configured for your organization yet.</p>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      {coreValues.filter(v => { const r = getUserRating(v.id); return !r || r.rating === "-"; }).length} of {coreValues.length} core values need rating.
+                      {isManager && <> Scroll to <strong>Core Values Assessment</strong> below to rate.</>}
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <div className="font-medium mb-1">Right Seat</div>
-                  <div className="text-muted-foreground">
-                    {rightSeat ? "✓ GWC complete + seat assigned" : gwcAllChecked ? "GWC complete, assign seat" : "Complete GWC assessment"}
+                <div className={`p-3 rounded-md ${rightSeat ? "bg-emerald-100/50 dark:bg-emerald-900/20" : "bg-muted/50"}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    {rightSeat ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="font-medium">Right Seat</span>
                   </div>
+                  {rightSeat ? (
+                    <p className="text-muted-foreground">GWC confirmed & assigned to a seat</p>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      {!gwcAllChecked && !hasSeats ? "Complete GWC assessment & assign a seat below." :
+                       !gwcAllChecked ? "Complete the GWC assessment below." :
+                       "Assign this person to a seat below."}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
