@@ -28,6 +28,7 @@ const SECTION_BASES = {
   rocks: 2000,
   issues: 3000,
   todo: 4000,
+  interventions: 4500,
   segue: 5000,
   conclusion: 6000,
   custom: 7000,
@@ -56,6 +57,7 @@ export async function generateL10Agenda(
     rocks: 0,
     issues: 0,
     todo: 0,
+    interventions: 0,
     segue: 0,
     conclusion: 0,
     custom: 0,
@@ -319,6 +321,63 @@ export async function generateL10Agenda(
       source_ref_type: null,
       source_ref_id: null,
       sort_order: getSortOrder("issues"),
+    });
+  }
+
+  // ===== SECTION: INTERVENTIONS =====
+  itemsToInsert.push({
+    organization_id: organizationId,
+    meeting_id: meetingId,
+    section: "interventions",
+    item_type: "text",
+    title: "Intervention Check-in",
+    description: "• Review active interventions\n• Flag stalled or overdue items\n• Record outcomes for completed interventions\n• Start new interventions from resolved issues",
+    source_ref_type: null,
+    source_ref_id: null,
+    sort_order: getSortOrder("interventions"),
+  });
+
+  // Fetch active/planned interventions
+  const { data: activeInterventions } = await supabase
+    .from("interventions")
+    .select("id, title, status, created_at, expected_time_horizon_days, intervention_type")
+    .eq("organization_id", organizationId)
+    .eq("is_synthetic", false)
+    .in("status", ["active", "planned"])
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if ((activeInterventions || []).length > 0) {
+    for (const intervention of activeInterventions!) {
+      const daysElapsed = Math.floor((Date.now() - new Date(intervention.created_at).getTime()) / (24 * 60 * 60 * 1000));
+      const daysRemaining = intervention.expected_time_horizon_days - daysElapsed;
+      const isOverdue = daysRemaining < 0;
+      const isAtRisk = daysRemaining >= 0 && daysRemaining <= 14;
+      const statusTag = isOverdue ? "OVERDUE" : isAtRisk ? "AT RISK" : intervention.status.toUpperCase();
+
+      itemsToInsert.push({
+        organization_id: organizationId,
+        meeting_id: meetingId,
+        section: "interventions",
+        item_type: "intervention",
+        title: `Intervention: ${intervention.title}`,
+        description: `Status: ${statusTag} | Day ${daysElapsed} of ${intervention.expected_time_horizon_days}`,
+        source_ref_type: "intervention",
+        source_ref_id: intervention.id,
+        sort_order: getSortOrder("interventions"),
+      });
+    }
+  } else {
+    itemsToInsert.push({
+      organization_id: organizationId,
+      meeting_id: meetingId,
+      section: "interventions",
+      item_type: "text",
+      title: "No active interventions. Consider creating one from a resolved issue.",
+      description: null,
+      source_ref_type: null,
+      source_ref_id: null,
+      sort_order: getSortOrder("interventions"),
     });
   }
 
