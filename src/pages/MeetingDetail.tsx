@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Play, Square, Printer, ArrowLeft, Info, AlertCircle, ListChecks, ExternalLink } from "lucide-react";
+import { HelpHint } from "@/components/help/HelpHint";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -699,6 +700,7 @@ export default function MeetingDetail() {
                       }}
                     >
                       {SECTION_LABELS[section]}
+                      {section === "segue" && <HelpHint term="Segue" size="sm" forceShow />}
                       {(isLiveMode || isPreviewMode) && (section === "rocks" || section === "todo" || section === "interventions") && (
                         <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                       )}
