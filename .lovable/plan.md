@@ -1,20 +1,39 @@
 
 
-## Remove Header Button, Make Line Item Clickable
+## Remove Redundant Instructional Line Items from Agenda
 
-Move the scorecard review action from the section header down to the individual agenda line item, so clicking "Scorecard -- Review the numbers (2026-02)" opens the scorecard modal directly.
+Currently, each meeting section generates two types of items:
+1. An instructional/coaching item (e.g., "Scorecard -- Review the numbers")
+2. Data items OR an empty-state fallback (e.g., "No off-track metrics detected")
+
+This creates clutter. The coaching text already exists in the section header descriptions and help hints. The plan is to remove the standalone instructional items and keep only the data-driven or empty-state items, with cleaner titles.
 
 ### Changes
 
-**1. `src/pages/MeetingDetail.tsx`**
-- Remove `scorecard` from the list of sections that get the clickable header treatment (the `ExternalLink` icon and click handler on the section title).
-- Pass a new `onOpenScorecardModal` callback prop to `AgendaItemRow` for scorecard section items. This callback will call `setShowScorecardModal(true)`.
+**`src/lib/meetings/agendaGenerator.ts`**
 
-**2. `src/components/meetings/AgendaItemRow.tsx`**
-- Accept an optional `onOpenScorecardModal` callback prop.
-- When this prop is provided and the meeting is in live or preview mode, make the line item title clickable (with a visual cue like a subtle link style or small icon) to trigger the modal instead of entering edit mode.
+Remove the instructional text items that precede each section's data:
+
+- **Scorecard** (lines 76-86): Remove the "Scorecard -- Review the numbers" text item. Keep the off-track metric items or the "No off-track metrics" fallback. Simplify the fallback title to just "No off-track metrics detected" (no "Scorecard --" prefix).
+
+- **Rocks** (lines 151-161): Remove the "Rocks -- Review quarterly priorities" text item. Keep the individual rock items or the empty-state fallback.
+
+- **Issues** (lines 254-264): Remove the "IDS -- Solve the most important issues" text item. Keep the individual issue items or the empty-state fallback.
+
+- **Interventions** (lines 328-338): Remove the "Intervention Check-in" text item. Keep the individual intervention items or the empty-state fallback.
+
+- **To-Do** (lines 385-395): Remove the "To-Dos -- Capture action items" text item. The To-Do section relies on its modal, so no items needed here unless data is fetched.
+
+- **Segue** (lines 398-408): Remove the "Segue" text item entirely -- this section is verbal-only per the earlier change.
+
+- **Conclusion** (lines 410-421): Keep this one as-is since it serves as a checklist for wrapping up.
 
 ### Result
-- The "Scorecard Review" section header will look like a normal header (no external link icon).
-- The actual line item "Scorecard -- Review the numbers (2026-02)" will be the clickable entry point to review and navigate historical numbers.
+Each section will show only its relevant data items (off-track metrics, rocks, issues, interventions) or a single clean empty-state message -- no duplicate instructional lines.
+
+### Technical Details
+- Only `src/lib/meetings/agendaGenerator.ts` needs editing
+- Existing meetings won't be affected (agenda is generated once per meeting)
+- New meetings will get the cleaner agenda
+- Section headers and help hints already provide the coaching context that was in the removed items
 
