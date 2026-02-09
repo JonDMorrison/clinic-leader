@@ -47,39 +47,52 @@ export function ScorecardModal({ open, onClose, organizationId, periodKey: initi
   const { data, isLoading } = useQuery({
     queryKey: ["scorecard-modal-metrics", organizationId, viewingPeriod],
     queryFn: async () => {
-      const { data: metrics } = await supabase
-        .from("metrics")
-        .select("id, name, target, direction, unit, owner, category, is_active")
-        .eq("organization_id", organizationId)
-        .eq("is_active", true)
-        .order("category")
-        .order("name");
+      // For current period, show active metrics. For historical, show all metrics that have data.
+      const isHistorical = viewingPeriod !== initialPeriodKey;
 
-      if (!metrics?.length) return [];
-
-      const ownerIds = [...new Set(metrics.map(m => m.owner).filter(Boolean))];
-      const { data: users } = await supabase
-        .from("users")
-        .select("id, full_name")
-        .in("id", ownerIds);
-
-      const userMap = users?.reduce((acc, u) => {
-        acc[u.id] = u.full_name;
-        return acc;
-      }, {} as Record<string, string>) || {};
-
-      const metricIds = metrics.map(m => m.id);
-      const { data: results } = await supabase
+      // First, get results for this period to know which metrics have data
+      const { data: periodResults } = await supabase
         .from("metric_results")
         .select("metric_id, value, period_key")
-        .in("metric_id", metricIds)
         .eq("period_type", "monthly")
         .eq("period_key", viewingPeriod);
 
-      const resultsByMetric = results?.reduce((acc, r) => {
+      const resultsByMetric = (periodResults || []).reduce((acc, r) => {
         acc[r.metric_id] = r;
         return acc;
-      }, {} as Record<string, any>) || {};
+      }, {} as Record<string, any>);
+
+      // Get metrics — for current period use active only, for historical get all that have data
+      let metricsQuery = supabase
+        .from("metrics")
+        .select("id, name, target, direction, unit, owner, category, is_active")
+        .eq("organization_id", organizationId)
+        .order("category")
+        .order("name");
+
+      if (!isHistorical) {
+        metricsQuery = metricsQuery.eq("is_active", true);
+      }
+
+      const { data: allMetrics } = await metricsQuery;
+      if (!allMetrics?.length) return [];
+
+      // For historical periods, only show metrics that have data for that period
+      const metrics = isHistorical
+        ? allMetrics.filter(m => resultsByMetric[m.id] !== undefined)
+        : allMetrics;
+
+      if (!metrics.length) return [];
+
+      const ownerIds = [...new Set(metrics.map(m => m.owner).filter(Boolean))];
+      const { data: users } = ownerIds.length > 0
+        ? await supabase.from("users").select("id, full_name").in("id", ownerIds)
+        : { data: [] };
+
+      const userMap = (users || []).reduce((acc, u) => {
+        acc[u.id] = u.full_name;
+        return acc;
+      }, {} as Record<string, string>);
 
       return metrics.map(metric => ({
         id: metric.id,
