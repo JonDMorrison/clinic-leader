@@ -6,6 +6,7 @@
  * 
  * Rules:
  *   null      → "No data yet" — metric exists but has no result for this period
+ *   0 + treat_zero_as_missing → "No data yet" — zero means no real data for this KPI
  *   0         → Render normally (zero is a valid measurement)
  *   undefined → "—" — ingestion hasn't produced this value
  */
@@ -18,18 +19,28 @@ export interface MetricDisplayResult {
   value: number | null;
 }
 
+export interface MetricDisplayOptions {
+  treatZeroAsMissing?: boolean;
+}
+
 /**
  * Determine display state for a metric value.
  */
 export function resolveMetricDisplay(
   value: number | null | undefined,
-  unit?: string
+  unit?: string,
+  options?: MetricDisplayOptions
 ): MetricDisplayResult {
   if (value === undefined) {
     return { state: "missing", label: "—", value: null };
   }
 
   if (value === null) {
+    return { state: "no_data", label: "No data yet", value: null };
+  }
+
+  // Zero treated as missing for certain KPIs
+  if (value === 0 && options?.treatZeroAsMissing) {
     return { state: "no_data", label: "No data yet", value: null };
   }
 
@@ -55,10 +66,15 @@ export function formatMetricValue(
 
 /**
  * Check if a value represents "has data" (not null/undefined).
- * Zero IS considered valid data.
+ * Zero IS considered valid data unless treatZeroAsMissing is set.
  */
-export function hasMetricData(value: number | null | undefined): value is number {
-  return value !== null && value !== undefined;
+export function hasMetricData(
+  value: number | null | undefined,
+  options?: MetricDisplayOptions
+): value is number {
+  if (value === null || value === undefined) return false;
+  if (value === 0 && options?.treatZeroAsMissing) return false;
+  return true;
 }
 
 /**

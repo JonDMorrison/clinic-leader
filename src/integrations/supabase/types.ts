@@ -4791,6 +4791,7 @@ export type Database = {
           owner: string | null
           sync_source: string
           target: number | null
+          treat_zero_as_missing: boolean | null
           unit: string
           updated_at: string
         }
@@ -4811,6 +4812,7 @@ export type Database = {
           owner?: string | null
           sync_source?: string
           target?: number | null
+          treat_zero_as_missing?: boolean | null
           unit: string
           updated_at?: string
         }
@@ -4831,6 +4833,7 @@ export type Database = {
           owner?: string | null
           sync_source?: string
           target?: number | null
+          treat_zero_as_missing?: boolean | null
           unit?: string
           updated_at?: string
         }

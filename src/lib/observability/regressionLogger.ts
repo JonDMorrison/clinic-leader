@@ -2,17 +2,18 @@
  * Regression Event Logger
  * 
  * Centralized logging for reliability regression events.
- * Writes to system_regression_events table for observability.
+ * Routes through the log-regression-event edge function
+ * to enforce whitelisting and payload sanitization.
  */
 
 import { supabase } from "@/integrations/supabase/client";
 
 export type RegressionEventType =
-  | "ai_schema_failure"
-  | "function_health_failure"
-  | "storage_migration"
-  | "metric_visibility_conflict"
-  | "response_format_error";
+  | "AI_SANITIZATION"
+  | "AI_SCHEMA_FAILURE"
+  | "EDGE_FUNCTION_FAILURE"
+  | "HEALTH_CHECK_FAILURE"
+  | "INGESTION_MAPPING_FAILURE";
 
 interface LogRegressionEventParams {
   eventType: RegressionEventType;
@@ -23,7 +24,8 @@ interface LogRegressionEventParams {
 }
 
 /**
- * Log a regression event. Fails silently to avoid disrupting the user experience.
+ * Log a regression event via edge function.
+ * Fails silently to avoid disrupting the user experience.
  */
 export async function logRegressionEvent({
   eventType,
@@ -33,16 +35,18 @@ export async function logRegressionEvent({
   organizationId,
 }: LogRegressionEventParams): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
 
-    await (supabase.from("system_regression_events") as any).insert({
-      event_type: eventType,
-      severity,
-      message,
-      details,
-      organization_id: organizationId || null,
-      user_id: user.id,
+    await supabase.functions.invoke("log-regression-event", {
+      method: "POST",
+      body: {
+        event_type: eventType,
+        severity,
+        message,
+        details,
+        organization_id: organizationId || null,
+      },
     });
   } catch (e) {
     // Silent failure — observability should never break the app

@@ -3,202 +3,150 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-interface HealthCheckResult {
-  env_ok: boolean;
-  db_ok: boolean;
-  rls_ok: boolean;
-  endpoints_ok: boolean;
-  console_ok: boolean;
-  details: {
-    env: { [key: string]: boolean };
-    db: { connected: boolean; error?: string };
-    rls: { [key: string]: boolean };
-    endpoints: { [key: string]: boolean };
-    errors: string[];
-  };
+const VERSION = "2.0.0";
+
+interface ServiceCheck {
+  status: "healthy" | "degraded" | "down";
+  latency_ms?: number;
+  error?: string;
+}
+
+interface HealthResponse {
+  overall_status: "healthy" | "degraded" | "down";
+  degraded_services: string[];
+  checks: Record<string, ServiceCheck>;
+  last_successful_checks: Record<string, string>;
+  version: string;
   timestamp: string;
 }
 
+async function checkDatabase(supabase: any): Promise<ServiceCheck> {
+  const start = Date.now();
+  try {
+    const { error } = await supabase.from('teams').select('id').limit(1);
+    if (error) {
+      return { status: "down", latency_ms: Date.now() - start, error: error.message };
+    }
+    return { status: "healthy", latency_ms: Date.now() - start };
+  } catch (e) {
+    return { status: "down", latency_ms: Date.now() - start, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function checkEdgeFunction(
+  supabaseUrl: string,
+  serviceKey: string,
+  funcName: string
+): Promise<ServiceCheck> {
+  const start = Date.now();
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/${funcName}`,
+      {
+        method: 'OPTIONS',
+        headers: {
+          'Authorization': `Bearer ${serviceKey}`,
+        },
+      }
+    );
+    const latency = Date.now() - start;
+    if (response.status < 500) {
+      return { status: "healthy", latency_ms: latency };
+    }
+    return { status: "down", latency_ms: latency, error: `HTTP ${response.status}` };
+  } catch (e) {
+    return { status: "down", latency_ms: Date.now() - start, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function checkEnvVars(): Promise<ServiceCheck> {
+  const required = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
+  const missing = required.filter(v => !Deno.env.get(v));
+  if (missing.length > 0) {
+    return { status: "down", error: `Missing: ${missing.join(', ')}` };
+  }
+  return { status: "healthy" };
+}
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const result: HealthCheckResult = {
-      env_ok: true,
-      db_ok: true,
-      rls_ok: true,
-      endpoints_ok: true,
-      console_ok: true,
-      details: {
-        env: {},
-        db: { connected: false },
-        rls: {},
-        endpoints: {},
-        errors: []
-      },
-      timestamp: new Date().toISOString()
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Run all checks in parallel
+    const [envCheck, dbCheck, ...fnChecks] = await Promise.all([
+      checkEnvVars(),
+      checkDatabase(supabase),
+      checkEdgeFunction(supabaseUrl, serviceKey, 'ai-query-docs'),
+      checkEdgeFunction(supabaseUrl, serviceKey, 'jane-sync'),
+      checkEdgeFunction(supabaseUrl, serviceKey, 'ai-intervention-insight'),
+    ]);
+
+    const functionNames = ['ai-query-docs', 'jane-sync', 'ai-intervention-insight'];
+
+    const checks: Record<string, ServiceCheck> = {
+      environment: envCheck,
+      database: dbCheck,
+    };
+    functionNames.forEach((name, i) => {
+      checks[name] = fnChecks[i];
+    });
+
+    // Determine degraded services
+    const degraded_services: string[] = [];
+    const last_successful_checks: Record<string, string> = {};
+    const now = new Date().toISOString();
+
+    for (const [name, check] of Object.entries(checks)) {
+      if (check.status === "healthy") {
+        last_successful_checks[name] = now;
+      } else {
+        degraded_services.push(name);
+      }
+    }
+
+    // Determine overall status
+    let overall_status: "healthy" | "degraded" | "down" = "healthy";
+    if (degraded_services.includes("database") || degraded_services.includes("environment")) {
+      overall_status = "down";
+    } else if (degraded_services.length > 0) {
+      overall_status = "degraded";
+    }
+
+    const result: HealthResponse = {
+      overall_status,
+      degraded_services,
+      checks,
+      last_successful_checks,
+      version: VERSION,
+      timestamp: now,
     };
 
-    // 1. Check Environment Variables
-    console.log("Checking environment variables...");
-    const requiredEnvVars = [
-      'SUPABASE_URL',
-      'SUPABASE_ANON_KEY',
-      'SUPABASE_SERVICE_ROLE_KEY',
-      'LOVABLE_API_KEY'
-    ];
-
-    const optionalEnvVars = [
-      'OPENAI_API_KEY',
-      'RESEND_API_KEY'
-    ];
-
-    for (const envVar of requiredEnvVars) {
-      const exists = !!Deno.env.get(envVar);
-      result.details.env[envVar] = exists;
-      if (!exists) {
-        result.env_ok = false;
-        result.details.errors.push(`Missing required env var: ${envVar}`);
-      }
-    }
-
-    for (const envVar of optionalEnvVars) {
-      result.details.env[envVar] = !!Deno.env.get(envVar);
-    }
-
-    // 2. Check Database Connectivity
-    console.log("Checking database connectivity...");
-    try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
-
-      // Test connection with a simple query
-      const { data, error } = await supabase
-        .from('teams')
-        .select('id')
-        .limit(1);
-
-      if (error) {
-        result.db_ok = false;
-        result.details.db.connected = false;
-        result.details.db.error = error.message;
-        result.details.errors.push(`Database error: ${error.message}`);
-      } else {
-        result.details.db.connected = true;
-      }
-
-      // 3. Check RLS Policies on Key Tables
-      console.log("Checking RLS policies...");
-      const criticalTables = ['users', 'teams', 'kpis', 'rocks', 'issues', 'docs'];
-      
-      for (const table of criticalTables) {
-        try {
-          // Query pg_policies to check if RLS is enabled
-          const { data: policies, error: policyError } = await supabase
-            .from('pg_policies')
-            .select('*')
-            .eq('tablename', table);
-
-          if (policyError) {
-            // If we can't query pg_policies, assume RLS is working (permissions issue)
-            result.details.rls[table] = true;
-          } else {
-            const hasRLS = policies && policies.length > 0;
-            result.details.rls[table] = hasRLS;
-            if (!hasRLS) {
-              result.rls_ok = false;
-              result.details.errors.push(`No RLS policies found for table: ${table}`);
-            }
-          }
-        } catch (e) {
-          // Assume RLS is working if we can't check
-          result.details.rls[table] = true;
-        }
-      }
-
-      // 4. Check Edge Functions
-      console.log("Checking edge functions...");
-      const functionsToCheck = [
-        'ai-generate-insights',
-        'verify-license'
-      ];
-
-      for (const funcName of functionsToCheck) {
-        try {
-          const response = await fetch(
-            `${supabaseUrl}/functions/v1/${funcName}`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${supabaseKey}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ test: true })
-            }
-          );
-
-          // Consider 200-299 or 400 (validation error) as function being accessible
-          result.details.endpoints[funcName] = response.status < 500;
-          
-          if (response.status >= 500) {
-            result.endpoints_ok = false;
-            result.details.errors.push(`Edge function ${funcName} returned ${response.status}`);
-          }
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : String(e);
-          result.details.endpoints[funcName] = false;
-          result.endpoints_ok = false;
-          result.details.errors.push(`Edge function ${funcName} unreachable: ${msg}`);
-        }
-      }
-
-    } catch (dbError: unknown) {
-      result.db_ok = false;
-      result.details.db.connected = false;
-      const msg = dbError instanceof Error ? dbError.message : String(dbError);
-      result.details.db.error = msg;
-      result.details.errors.push(`Database connection failed: ${msg}`);
-    }
-
-    // 5. Console/Runtime Check (always true in this context, actual errors would be logged)
-    result.console_ok = result.details.errors.length === 0;
-
-    console.log("Health check complete:", result);
-
-    return new Response(
-      JSON.stringify(result),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
-      }
-    );
-
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    });
   } catch (error: unknown) {
-    console.error('Error in system-health function:', error);
     const msg = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
+        overall_status: "down",
+        degraded_services: ["system-health"],
+        checks: {},
+        last_successful_checks: {},
+        version: VERSION,
+        timestamp: new Date().toISOString(),
         error: msg,
-        env_ok: false,
-        db_ok: false,
-        rls_ok: false,
-        endpoints_ok: false,
-        console_ok: false,
-        details: {
-          errors: [msg]
-        }
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

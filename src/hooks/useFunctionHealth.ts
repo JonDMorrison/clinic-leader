@@ -1,24 +1,32 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-interface FunctionHealthResult {
-  healthy: boolean;
-  errors: string[];
+interface HealthCheckResult {
+  overall_status: "healthy" | "degraded" | "down";
+  degraded_services: string[];
+  checks: Record<string, { status: string; latency_ms?: number; error?: string }>;
+  version: string;
   timestamp: string;
 }
 
 /**
  * Pings the system-health edge function on app load.
- * Returns health status for admin banner display.
+ * Returns structured health status for admin banner display.
  * Only runs for authenticated users; polls every 10 minutes.
  */
 export function useFunctionHealth() {
-  const { data, isLoading, isError } = useQuery<FunctionHealthResult>({
+  const { data, isLoading, isError } = useQuery<HealthCheckResult>({
     queryKey: ["system-function-health"],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        return { healthy: true, errors: [], timestamp: new Date().toISOString() };
+        return {
+          overall_status: "healthy" as const,
+          degraded_services: [],
+          checks: {},
+          version: "unknown",
+          timestamp: new Date().toISOString(),
+        };
       }
 
       try {
@@ -30,39 +38,45 @@ export function useFunctionHealth() {
         if (error) {
           console.warn("[FunctionHealth] Health check failed:", error.message);
           return {
-            healthy: false,
-            errors: [`Health endpoint error: ${error.message}`],
+            overall_status: "down" as const,
+            degraded_services: ["system-health"],
+            checks: {},
+            version: "unknown",
             timestamp: new Date().toISOString(),
           };
         }
 
-        const result = data as any;
-        const errors: string[] = result?.details?.errors || [];
-        const healthy = result?.env_ok && result?.db_ok && result?.endpoints_ok;
-
+        const result = data as HealthCheckResult;
         return {
-          healthy: !!healthy,
-          errors,
-          timestamp: result?.timestamp || new Date().toISOString(),
+          overall_status: result?.overall_status ?? "healthy",
+          degraded_services: result?.degraded_services ?? [],
+          checks: result?.checks ?? {},
+          version: result?.version ?? "unknown",
+          timestamp: result?.timestamp ?? new Date().toISOString(),
         };
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.warn("[FunctionHealth] Health check unreachable:", msg);
         return {
-          healthy: false,
-          errors: [`Health check unreachable: ${msg}`],
+          overall_status: "down" as const,
+          degraded_services: ["system-health"],
+          checks: {},
+          version: "unknown",
           timestamp: new Date().toISOString(),
         };
       }
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 10 * 60 * 1000,
     retry: 1,
     refetchOnWindowFocus: false,
   });
 
   return {
-    isHealthy: data?.healthy ?? true,
-    errors: data?.errors ?? [],
+    overallStatus: data?.overall_status ?? "healthy",
+    degradedServices: data?.degraded_services ?? [],
+    checks: data?.checks ?? {},
+    version: data?.version ?? "unknown",
+    isHealthy: (data?.overall_status ?? "healthy") === "healthy",
     timestamp: data?.timestamp ?? null,
     isLoading,
     isError,
