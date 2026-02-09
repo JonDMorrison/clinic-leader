@@ -595,27 +595,17 @@ export default function MeetingDetail() {
             Print
           </Button>
           {canEdit && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Everything is editable</span>
               <Button variant="outline" onClick={() => setShowAddModal(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Item
               </Button>
-            </div>
           )}
         </div>
       </div>
 
 
-      {/* Mode Banner */}
-      {isPreviewMode && (
-        <Alert className="border-blue-500/50 bg-blue-500/10 print:hidden">
-          <Info className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-700">
-            <strong>Preview Mode</strong> — This agenda is a starting point. Edit or delete anything before you start.
-          </AlertDescription>
-        </Alert>
-      )}
+
+
       {isLiveMode && (
         <div className="space-y-3 print:hidden">
           <Alert className="border-green-500/50 bg-green-500/10">
@@ -657,19 +647,8 @@ export default function MeetingDetail() {
         </div>
       )}
 
-      {/* Show Deleted Toggle (admin only) */}
-      {canEdit && !isLiveMode && (
-        <div className="flex items-center gap-2 print:hidden">
-          <Switch
-            id="show-deleted"
-            checked={showDeleted}
-            onCheckedChange={setShowDeleted}
-          />
-          <Label htmlFor="show-deleted" className="text-sm text-muted-foreground">
-            Show deleted items
-          </Label>
-        </div>
-      )}
+
+
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 print:block">
         {/* Agenda Sections - Main content */}
