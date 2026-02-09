@@ -113,22 +113,18 @@ export default function ExecutiveSummaryCard({ payload, periodKey, previousPaylo
     grouped.get(cat)!.push(metric);
   }
   
-  // Order categories
+  // Order categories, filtering out groups where every metric is null or zero
   const categoryOrder = ['Volume', 'Revenue', 'Referrals', 'Pain Management', 'Other'];
-  const sortedCategories = Array.from(grouped.keys()).sort(
-    (a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b)
-  );
+  const sortedCategories = Array.from(grouped.keys())
+    .filter(cat => {
+      const metrics = grouped.get(cat) || [];
+      return metrics.some(m => m.value !== null && m.value !== 0);
+    })
+    .sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b));
 
-  // Empty state - no metrics extracted at all
-  if (extracted.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No metrics found in this report.</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          The report format may not be recognized.
-        </p>
-      </div>
-    );
+  // If no metrics have data at all, hide the summary entirely
+  if (extracted.length === 0 || sortedCategories.length === 0) {
+    return null;
   }
 
   return (
