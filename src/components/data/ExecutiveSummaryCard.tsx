@@ -157,7 +157,7 @@ export default function ExecutiveSummaryCard({ payload, periodKey, previousPaylo
                 {category}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {metrics.map((metric) => {
+                {metrics.filter(m => m.value !== null && m.value !== 0).map((metric) => {
                   const isVerifiable = isMetricVerifiable(metric.metric_key);
                   const previousValue = previousValuesMap.get(metric.metric_key);
                   const change = calculateChange(metric.value, previousValue ?? null);
