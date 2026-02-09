@@ -219,9 +219,13 @@ export const DocsAIChat = () => {
                           : "bg-muted"
                       }`}
                     >
-                      <div className="text-sm prose prose-sm prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 max-w-none">
-                        <ReactMarkdown>{message.content}</ReactMarkdown>
-                      </div>
+                      {message.role === "user" ? (
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      ) : (
+                        <div className="text-sm prose prose-sm prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 max-w-none">
+                          <ReactMarkdown>{message.content}</ReactMarkdown>
+                        </div>
+                      )}
                       
                       {message.role === "assistant" && message.structured && (
                         <>
