@@ -69,6 +69,7 @@ interface AgendaItemRowProps {
   rockGapData?: RockGapData | null;
   recurringInfo?: { isRecurring: boolean; meetingCount: number } | null;
   onOpenScorecardModal?: () => void;
+  onOpenSectionModal?: () => void;
 }
 
 export function AgendaItemRow({
@@ -85,6 +86,7 @@ export function AgendaItemRow({
   rockGapData,
   recurringInfo,
   onOpenScorecardModal,
+  onOpenSectionModal,
 }: AgendaItemRowProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -299,13 +301,14 @@ export function AgendaItemRow({
             <div
               className={cn(
                 "cursor-pointer",
-                onOpenScorecardModal && (isLiveMode || !canEdit)
+                (onOpenScorecardModal || onOpenSectionModal) && (isLiveMode || !canEdit)
                   ? "hover:text-primary rounded px-1"
                   : canEdit && "hover:bg-accent/50 rounded px-1"
               )}
               onClick={() => {
-                if (onOpenScorecardModal && (isLiveMode || !item.is_deleted)) {
-                  onOpenScorecardModal();
+                const modalOpener = onOpenScorecardModal || onOpenSectionModal;
+                if (modalOpener && (isLiveMode || !item.is_deleted)) {
+                  modalOpener();
                   return;
                 }
                 if (canEdit && !item.is_deleted) setIsEditing(true);
