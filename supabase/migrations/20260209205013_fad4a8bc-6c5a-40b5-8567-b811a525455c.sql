@@ -1,0 +1,3 @@
+ALTER TABLE public.meeting_items DROP CONSTRAINT meeting_items_section_check;
+
+ALTER TABLE public.meeting_items ADD CONSTRAINT meeting_items_section_check CHECK (section = ANY (ARRAY['segue','scorecard','rocks','headlines','issues','todo','conclusion','checkin','prev_rocks','scorecard_trends','recurring_issues','next_rocks','priority_issues','cascade','expectations','vto_review','core_values','pictures','strategic_issues','leadership','commitments','custom','interventions']));
