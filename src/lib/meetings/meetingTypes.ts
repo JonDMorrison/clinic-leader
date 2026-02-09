@@ -39,6 +39,7 @@ const L10_SECTIONS: MeetingSectionConfig[] = [
   { key: 'scorecard', label: 'Scorecard Review', description: 'Review the numbers. Identify off-track metrics.', timerMinutes: 5, sortBase: 2000 },
   { key: 'rocks', label: 'Rock Review', description: 'On-track or off-track? 30-second updates per owner.', timerMinutes: 5, sortBase: 3000 },
   { key: 'headlines', label: 'Headlines', description: 'Customer/employee news. Good or bad, share it.', timerMinutes: 5, sortBase: 4000 },
+  { key: 'interventions', label: 'Intervention Check-in', description: 'Review active interventions. Flag stalled ones. Record outcomes.', timerMinutes: 5, sortBase: 4500 },
   { key: 'issues', label: 'IDS (Issues)', description: 'Identify, Discuss, Solve. Pick top 1-3 and work them.', timerMinutes: 60, sortBase: 5000 },
   { key: 'todo', label: 'To-Do Review', description: 'Review last week\'s to-dos. 90%+ completion target.', timerMinutes: 5, sortBase: 6000 },
   { key: 'conclusion', label: 'Conclusion', description: 'Recap decisions. Confirm to-dos and owners.', timerMinutes: 5, sortBase: 7000 },
