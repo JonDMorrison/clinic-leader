@@ -6,8 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const VERSION = "3.0.0";
+const VERSION = "3.1.0";
 const LATENCY_THRESHOLD_MS = 2000;
+const RETENTION_STALE_HOURS = 48;
 
 interface ServiceCheck {
   status: "healthy" | "degraded" | "down";
@@ -78,6 +79,35 @@ async function checkEnvVars(): Promise<ServiceCheck> {
   return { status: "healthy" };
 }
 
+async function checkRetentionStaleness(supabase: any): Promise<ServiceCheck> {
+  try {
+    const { data, error } = await supabase
+      .from('system_regression_events')
+      .select('created_at')
+      .eq('event_type', 'MAINTENANCE_PURGE_SUCCESS')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      return { status: "degraded", error: error.message, reason: "failed" };
+    }
+
+    if (!data || data.length === 0) {
+      return { status: "degraded", error: "No purge run recorded", reason: "failed" };
+    }
+
+    const lastPurge = new Date(data[0].created_at);
+    const hoursSince = (Date.now() - lastPurge.getTime()) / (1000 * 60 * 60);
+    if (hoursSince > RETENTION_STALE_HOURS) {
+      return { status: "degraded", error: `Last purge ${Math.round(hoursSince)}h ago`, reason: "slow" };
+    }
+
+    return { status: "healthy" };
+  } catch (e) {
+    return { status: "degraded", error: e instanceof Error ? e.message : String(e), reason: "failed" };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -88,9 +118,10 @@ serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const [envCheck, dbCheck, ...fnChecks] = await Promise.all([
+    const [envCheck, dbCheck, retentionCheck, ...fnChecks] = await Promise.all([
       checkEnvVars(),
       checkDatabase(supabase),
+      checkRetentionStaleness(supabase),
       checkEdgeFunction(supabaseUrl, serviceKey, 'ai-query-docs'),
       checkEdgeFunction(supabaseUrl, serviceKey, 'jane-sync'),
       checkEdgeFunction(supabaseUrl, serviceKey, 'ai-intervention-insight'),
@@ -101,6 +132,7 @@ serve(async (req) => {
     const checks: Record<string, ServiceCheck> = {
       environment: envCheck,
       database: dbCheck,
+      regression_retention: retentionCheck,
     };
     functionNames.forEach((name, i) => {
       checks[name] = fnChecks[i];
