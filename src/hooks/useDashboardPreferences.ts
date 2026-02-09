@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "./useCurrentUser";
+import { getStorage, setStorage } from "@/lib/storage/versionedStorage";
 
 // Default stat slots if user hasn't customized
 const DEFAULT_STATS = ["new_patients", "completed_rocks", "open_issues", "active_kpis"];
@@ -18,9 +19,9 @@ export function useDashboardPreferences() {
     if (!currentUser?.id) return { statSlots: DEFAULT_STATS };
     
     try {
-      const stored = localStorage.getItem(`dashboard_prefs_${currentUser.id}`);
+      const stored = getStorage<DashboardPreferences>(`dashboard_prefs_${currentUser.id}`);
       if (stored) {
-        return JSON.parse(stored);
+        return stored;
       }
     } catch {
       // Ignore parse errors
@@ -52,7 +53,7 @@ export function useDashboardPreferences() {
       newSlots[slotIndex] = statId;
       
       const newPrefs = { ...current, statSlots: newSlots };
-      localStorage.setItem(`dashboard_prefs_${currentUser.id}`, JSON.stringify(newPrefs));
+      setStorage(`dashboard_prefs_${currentUser.id}`, newPrefs);
       
       return newPrefs;
     },

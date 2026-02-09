@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { getStorage, setStorage } from "@/lib/storage/versionedStorage";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -38,14 +39,14 @@ export function InterventionWorkflowBanner({
   const [educationOpen, setEducationOpen] = useState(false);
   const [whyDialogOpen, setWhyDialogOpen] = useState(false);
   const [dismissed, setDismissed] = useState(() => 
-    localStorage.getItem(DISMISS_KEY) === "true"
+    getStorage<boolean>(DISMISS_KEY) === true
   );
 
   if (dismissed) return null;
 
   const handleDismiss = () => {
     setDismissed(true);
-    localStorage.setItem(DISMISS_KEY, "true");
+    setStorage(DISMISS_KEY, true);
     onDismiss?.();
   };
 

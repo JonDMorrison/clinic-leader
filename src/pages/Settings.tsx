@@ -13,7 +13,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { canAccessAdmin } from "@/lib/permissions";
 import { useOrgDataSourceStatus, SOURCE_LABELS } from "@/hooks/useOrgDataSourceStatus";
 import { ChangeDataSourceWizard } from "@/components/data/ChangeDataSourceWizard";
-
+import { ResetCacheButton } from "@/components/settings/ResetCacheButton";
 const Settings = () => {
   const navigate = useNavigate();
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -350,6 +350,19 @@ const Settings = () => {
             <Button variant="outline" onClick={() => navigate("/settings/team")}>
               Manage Team
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Advanced: Cache Reset */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings2 className="w-5 h-5" />
+              Advanced
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResetCacheButton />
           </CardContent>
         </Card>
       </div>

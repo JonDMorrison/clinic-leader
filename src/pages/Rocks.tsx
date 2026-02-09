@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { getStorage, setStorage } from "@/lib/storage/versionedStorage";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -122,14 +123,14 @@ const Rocks = () => {
 
   // Show banner if there are completed or incomplete rocks from last quarter
   useEffect(() => {
-    const dismissed = localStorage.getItem(`transition-banner-dismissed-${currentQuarter}`);
+    const dismissed = getStorage<boolean>(`transition-banner-dismissed-${currentQuarter}`);
     if (!dismissed && (lastQuarterRocks.completed.length > 0 || lastQuarterRocks.incomplete.length > 0)) {
       setShowTransitionBanner(true);
     }
   }, [lastQuarterRocks, currentQuarter]);
 
   const handleDismissBanner = () => {
-    localStorage.setItem(`transition-banner-dismissed-${currentQuarter}`, 'true');
+    setStorage(`transition-banner-dismissed-${currentQuarter}`, true);
     setShowTransitionBanner(false);
   };
 

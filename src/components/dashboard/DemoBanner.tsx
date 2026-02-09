@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getStorage, setStorage } from "@/lib/storage/versionedStorage";
 import { X, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -31,13 +32,13 @@ export const DemoBanner = () => {
 
   // Check localStorage on mount
   useEffect(() => {
-    const dismissed = localStorage.getItem(STORAGE_KEY);
-    setIsDismissed(dismissed === "true");
+    const dismissed = getStorage<boolean>(STORAGE_KEY);
+    setIsDismissed(dismissed === true);
   }, []);
 
   const handleDismiss = () => {
     setIsDismissed(true);
-    localStorage.setItem(STORAGE_KEY, "true");
+    setStorage(STORAGE_KEY, true);
   };
 
   // Don't render if loading, dismissed, or not a demo org
