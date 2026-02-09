@@ -136,6 +136,16 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
     ],
     learnMore: { label: "View Meeting", href: "/meeting" }
   },
+  "Segue": {
+    short: "Start each meeting with a personal win.",
+    definition: "The Segue is the opening 5 minutes of your weekly meeting where each person shares one piece of good news — personal or professional. It shifts the team's mindset from day-to-day stress into a positive, focused state.",
+    why: [
+      "Sets a positive tone for the meeting",
+      "Builds personal connection across the team",
+      "Helps everyone mentally 'arrive' and be present"
+    ],
+    learnMore: { label: "Open Meetings", href: "/meeting" }
+  },
   "IDS": {
     short: "Identify, Discuss, Solve method.",
     definition: "IDS is the three-step process for solving Issues: Identify the root cause, Discuss possible solutions, and Solve by deciding on an action. After solving, create an Intervention to track whether your solution actually works.",
