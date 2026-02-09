@@ -62,6 +62,16 @@ serve(async (req) => {
 
     const duration_ms = Date.now() - start;
 
+    // Proof-of-life: record successful purge
+    try {
+      await adminClient.from('system_regression_events').insert({
+        event_type: 'MAINTENANCE_PURGE_SUCCESS',
+        severity: 'info',
+        message: `Purged ${totalDeleted} events older than ${cutoffISO}`,
+        details: { deleted_count: totalDeleted, cutoff_date: cutoffISO, duration_ms, batches },
+      });
+    } catch { /* silent – don't fail the purge over logging */ }
+
     return new Response(JSON.stringify({
       deleted_count: totalDeleted,
       cutoff_date: cutoffISO,

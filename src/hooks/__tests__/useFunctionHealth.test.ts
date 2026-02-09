@@ -41,4 +41,14 @@ describe("evaluateHealthStatus", () => {
     expect(result.overall_status).toBe("down");
     expect(result.degraded_services).toHaveLength(2);
   });
+
+  it("stale retention → degraded", () => {
+    const result = evaluateHealthStatus({
+      database: { status: "healthy", latency_ms: 50 },
+      environment: { status: "healthy" },
+      regression_retention: { status: "degraded", error: "Last purge 72h ago", reason: "slow" },
+    });
+    expect(result.overall_status).toBe("degraded");
+    expect(result.degraded_services).toContain("regression_retention");
+  });
 });

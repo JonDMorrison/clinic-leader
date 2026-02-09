@@ -27,6 +27,7 @@ const SERVICE_ACTION_MAP: Record<string, string> = {
   "jane-sync": "Check Jane connector status",
   "ai-intervention-insight": "Check AI intervention edge function",
   "system-health": "Check system health endpoint",
+  "regression_retention": "Check purge scheduler",
 };
 
 function getActionSuggestion(service: string): string {
