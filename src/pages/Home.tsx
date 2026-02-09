@@ -413,6 +413,9 @@ const Home = () => {
 
             {/* Issue Suggestions Widget */}
             <IssueSuggestionsWidget />
+
+            {/* Core Value of the Week */}
+            <CoreValueOfWeekCard />
           </div>
         </div>
 
@@ -423,7 +426,6 @@ const Home = () => {
           </div>
           <VtoCard />
           <CopilotWidget />
-          <CoreValueOfWeekCard />
         </aside>
 
         {/* Footer row (full width) */}
