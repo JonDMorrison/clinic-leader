@@ -260,9 +260,9 @@ export default function Interventions() {
       {/* Smart Suggestions from Assisted Detection Engine */}
       <SmartInterventionSuggestionList organizationId={orgId} maxVisible={2} />
 
-      {/* Workflow Banner - shows when there are interventions */}
+      {/* Workflow Banner - shows when there are interventions, dismissible */}
       {!isEmptyWithNoFilters && (
-        <InterventionWorkflowBanner />
+        <InterventionWorkflowBanner dismissible onDismiss={() => {}} />
       )}
 
       {/* Filters */}

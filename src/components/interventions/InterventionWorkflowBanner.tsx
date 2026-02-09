@@ -29,12 +29,25 @@ interface InterventionWorkflowBannerProps {
   dismissible?: boolean;
 }
 
+const DISMISS_KEY = "intervention-banner-dismissed";
+
 export function InterventionWorkflowBanner({ 
   onDismiss,
   dismissible = false,
 }: InterventionWorkflowBannerProps) {
   const [educationOpen, setEducationOpen] = useState(false);
   const [whyDialogOpen, setWhyDialogOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(() => 
+    localStorage.getItem(DISMISS_KEY) === "true"
+  );
+
+  if (dismissed) return null;
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    localStorage.setItem(DISMISS_KEY, "true");
+    onDismiss?.();
+  };
 
   return (
     <>
@@ -76,12 +89,12 @@ export function InterventionWorkflowBanner({
               </div>
             </div>
 
-            {dismissible && onDismiss && (
+            {dismissible && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 shrink-0"
-                onClick={onDismiss}
+                onClick={handleDismiss}
               >
                 <X className="h-4 w-4" />
               </Button>
