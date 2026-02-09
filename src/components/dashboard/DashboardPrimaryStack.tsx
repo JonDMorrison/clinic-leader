@@ -80,32 +80,32 @@ export const DashboardPrimaryStack = () => {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-lg">
               <BarChart3 className="w-5 h-5 text-brand" />
-              Set Up Your Scorecard
+              Connect Your Data
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Track weekly KPIs to keep your team aligned and on target. Your scorecard is the pulse of your clinic's performance.
+              Your scorecard starts with your data. Connect a source, then choose which metrics to track.
             </p>
             <ul className="text-sm text-muted-foreground space-y-1">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-success" />
-                Define key metrics that matter
+                Browse available data points
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-success" />
-                Set weekly targets for accountability
+                Track the metrics that matter most
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-success" />
-                Track trends over time
+                Set goals to measure progress
               </li>
             </ul>
             <Button 
               className="gradient-brand"
-              onClick={() => navigate('/scorecard/setup')}
+              onClick={() => navigate('/data')}
             >
-              Get Started
+              See Your Data
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </CardContent>

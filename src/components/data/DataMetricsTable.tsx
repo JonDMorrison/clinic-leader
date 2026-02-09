@@ -42,6 +42,7 @@ import {
   Search,
   MoreHorizontal,
   Plus,
+  Target,
   AlertTriangle,
   EyeOff,
   Eye,
@@ -288,40 +289,59 @@ function SortableMetricRow({
       </TableCell>
       <TableCell className="text-center">{renderPercentChange(metric)}</TableCell>
       <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="w-4 h-4" />
+        <div className="flex items-center gap-1">
+          {/* Prominent Track This button for untracked metrics */}
+          {!metric.isTracked && !metric.comingSoon && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+              onClick={() => handleAddToScorecard(metric)}
+            >
+              <Target className="w-3 h-3 mr-1" />
+              Track This
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {!metric.isTracked && !metric.comingSoon && (
-              <DropdownMenuItem onClick={() => handleAddToScorecard(metric)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add to Scorecard
-              </DropdownMenuItem>
-            )}
-            {!metric.comingSoon && (
-              <DropdownMenuItem onClick={() => handleCreateIssue(metric)}>
-                <AlertTriangle className="w-4 h-4 mr-2" />
-                Create Issue
-              </DropdownMenuItem>
-            )}
-            {metric.source === "jane" && metric.resourceKey && !isChild && (
-              isHidden ? (
-                <DropdownMenuItem onClick={() => handleUnhide(metric.resourceKey!)}>
-                  <Eye className="w-4 h-4 mr-2" />
-                  Show
+          )}
+          {metric.isTracked && (
+            <Badge variant="secondary" className="text-[10px] bg-success/10 text-success border-success/20">
+              Tracked
+            </Badge>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {!metric.isTracked && !metric.comingSoon && (
+                <DropdownMenuItem onClick={() => handleAddToScorecard(metric)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add to Scorecard
                 </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={() => handleHide(metric.resourceKey!)}>
-                  <EyeOff className="w-4 h-4 mr-2" />
-                  Hide
+              )}
+              {!metric.comingSoon && (
+                <DropdownMenuItem onClick={() => handleCreateIssue(metric)}>
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Create Issue
                 </DropdownMenuItem>
-              )
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              )}
+              {metric.source === "jane" && metric.resourceKey && !isChild && (
+                isHidden ? (
+                  <DropdownMenuItem onClick={() => handleUnhide(metric.resourceKey!)}>
+                    <Eye className="w-4 h-4 mr-2" />
+                    Show
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => handleHide(metric.resourceKey!)}>
+                    <EyeOff className="w-4 h-4 mr-2" />
+                    Hide
+                  </DropdownMenuItem>
+                )
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </TableCell>
     </tr>
   );
@@ -764,6 +784,15 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
 
   return (
     <div className="space-y-4">
+      {/* Guidance banner */}
+      <div className="bg-primary/5 border border-primary/20 rounded-lg px-4 py-3 flex items-center gap-3">
+        <Target className="w-5 h-5 text-primary flex-shrink-0" />
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">Choose which metrics matter most.</span>{" "}
+          Click "Track This" to add a goal and start tracking on your scorecard.
+        </p>
+      </div>
+
       {/* Helper text for Jane-connected orgs */}
       {isConnected && (
         <p className="text-sm text-muted-foreground">
