@@ -687,20 +687,19 @@ export default function MeetingDetail() {
                   <CardTitle className="text-base font-medium flex items-center justify-between">
                     <span
                       className={
-                        (isLiveMode || isPreviewMode) && (section === "scorecard" || section === "rocks" || section === "todo" || section === "interventions")
+                        (isLiveMode || isPreviewMode) && (section === "rocks" || section === "todo" || section === "interventions")
                           ? "cursor-pointer hover:text-primary transition-colors flex items-center gap-1.5"
                           : ""
                       }
                       onClick={() => {
                         if (!isLiveMode && !isPreviewMode) return;
-                        if (section === "scorecard") setShowScorecardModal(true);
-                        else if (section === "rocks") setShowRockModal(true);
+                        if (section === "rocks") setShowRockModal(true);
                         else if (section === "todo") setShowTodoModal(true);
                         else if (section === "interventions") setShowInterventionModal(true);
                       }}
                     >
                       {SECTION_LABELS[section]}
-                      {(isLiveMode || isPreviewMode) && (section === "scorecard" || section === "rocks" || section === "todo" || section === "interventions") && (
+                      {(isLiveMode || isPreviewMode) && (section === "rocks" || section === "todo" || section === "interventions") && (
                         <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                       )}
                       <Badge variant="secondary" className="ml-2">
@@ -761,6 +760,7 @@ export default function MeetingDetail() {
                             metricStatusObj={metricStatusObj}
                             rockGapData={rockGapData}
                             recurringInfo={recurringInfo}
+                            onOpenScorecardModal={section === "scorecard" ? () => setShowScorecardModal(true) : undefined}
                           />
                         );
                       })}
