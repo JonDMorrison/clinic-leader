@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { AgendaItemRow } from "@/components/meetings/AgendaItemRow";
 import { AddItemModal } from "@/components/meetings/AddItemModal";
-import { MeetingPrepChecklist } from "@/components/meetings/MeetingPrepChecklist";
+
 import { MeetingPrepInsights } from "@/components/meetings/MeetingPrepInsights";
 import { MeetingReviewSummary } from "@/components/meetings/MeetingReviewSummary";
 import { MeetingCommitmentsSection } from "@/components/meetings/MeetingCommitmentsSection";
@@ -647,19 +647,13 @@ export default function MeetingDetail() {
         </Alert>
       )}
 
-      {/* Prep Checklist for Preview Mode */}
-      {isPreviewMode && (
-        <div className="print:hidden space-y-4">
-          <MeetingPrepChecklist
-            periodKey={periodKey}
-            onAddItem={handlePrepAddItem}
+      {/* Prep Insights for Preview Mode */}
+      {isPreviewMode && organizationId && meetingId && (
+        <div className="print:hidden">
+          <MeetingPrepInsights
+            meetingId={meetingId}
+            organizationId={organizationId}
           />
-          {organizationId && meetingId && (
-            <MeetingPrepInsights
-              meetingId={meetingId}
-              organizationId={organizationId}
-            />
-          )}
         </div>
       )}
 
