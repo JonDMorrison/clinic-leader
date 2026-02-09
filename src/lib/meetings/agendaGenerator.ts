@@ -71,19 +71,6 @@ export async function generateL10Agenda(
   };
 
   // ===== SECTION: SCORECARD =====
-  
-  // Text intro item
-  itemsToInsert.push({
-    organization_id: organizationId,
-    meeting_id: meetingId,
-    section: "scorecard",
-    item_type: "text",
-    title: `Scorecard — Review the numbers (${periodKey})`,
-    description: `• Confirm the month: ${periodLabel}\n• Review Off-track metrics\n• Review metrics missing data\n• Decide: which metrics require an Issue today?`,
-    source_ref_type: null,
-    source_ref_id: null,
-    sort_order: getSortOrder("scorecard"),
-  });
 
   // Fetch metrics and their results for off-track detection
   const { data: metrics } = await supabase
@@ -138,7 +125,7 @@ export async function generateL10Agenda(
       meeting_id: meetingId,
       section: "scorecard",
       item_type: "text",
-      title: "Scorecard — No off-track metrics detected",
+      title: "No off-track metrics detected",
       description: "Still confirm missing data and missing targets/owners.",
       source_ref_type: null,
       source_ref_id: null,
@@ -147,18 +134,6 @@ export async function generateL10Agenda(
   }
 
   // ===== SECTION: ROCKS =====
-  
-  itemsToInsert.push({
-    organization_id: organizationId,
-    meeting_id: meetingId,
-    section: "rocks",
-    item_type: "text",
-    title: "Rocks — Review quarterly priorities",
-    description: `• Each owner gives a 30-second update\n• If blocked, convert to an Issue\n• Reassign or add help if needed`,
-    source_ref_type: null,
-    source_ref_id: null,
-    sort_order: getSortOrder("rocks"),
-  });
 
   // Fetch active rocks (not Done) - cast to avoid deep type instantiation
   type RockRow = { id: string; title: string; owner_id: string | null; confidence: number | null; status: string };
@@ -250,18 +225,6 @@ export async function generateL10Agenda(
   }
 
   // ===== SECTION: ISSUES =====
-  
-  itemsToInsert.push({
-    organization_id: organizationId,
-    meeting_id: meetingId,
-    section: "issues",
-    item_type: "text",
-    title: "IDS — Solve the most important issues",
-    description: `• Pick the top 1–3 issues\n• Discuss root cause\n• Decide next actions and owners`,
-    source_ref_type: null,
-    source_ref_id: null,
-    sort_order: getSortOrder("issues"),
-  });
 
   // Fetch open issues with priority
   const { data: allIssues } = await supabase
@@ -325,17 +288,6 @@ export async function generateL10Agenda(
   }
 
   // ===== SECTION: INTERVENTIONS =====
-  itemsToInsert.push({
-    organization_id: organizationId,
-    meeting_id: meetingId,
-    section: "interventions",
-    item_type: "text",
-    title: "Intervention Check-in",
-    description: "• Review active interventions\n• Flag stalled or overdue items\n• Record outcomes for completed interventions\n• Start new interventions from resolved issues",
-    source_ref_type: null,
-    source_ref_id: null,
-    sort_order: getSortOrder("interventions"),
-  });
 
   // Fetch active/planned interventions
   const { data: activeInterventions } = await supabase
@@ -380,32 +332,6 @@ export async function generateL10Agenda(
       sort_order: getSortOrder("interventions"),
     });
   }
-
-  // ===== SECTION: TODO =====
-  itemsToInsert.push({
-    organization_id: organizationId,
-    meeting_id: meetingId,
-    section: "todo",
-    item_type: "text",
-    title: "To-Dos — Capture action items",
-    description: "Add any decisions and who owns them.",
-    source_ref_type: null,
-    source_ref_id: null,
-    sort_order: getSortOrder("todo"),
-  });
-
-  // ===== SECTION: SEGUE =====
-  itemsToInsert.push({
-    organization_id: organizationId,
-    meeting_id: meetingId,
-    section: "segue",
-    item_type: "text",
-    title: "Segue",
-    description: "Quick wins and good news.",
-    source_ref_type: null,
-    source_ref_id: null,
-    sort_order: getSortOrder("segue"),
-  });
 
   // ===== SECTION: CONCLUSION =====
   itemsToInsert.push({
