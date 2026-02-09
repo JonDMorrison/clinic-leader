@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
 import { 
   Database, 
   FileSpreadsheet,
@@ -19,7 +19,6 @@ import {
   Clock,
   TrendingUp,
   BarChart3,
-  FileText,
   Calendar,
   Settings2,
 } from "lucide-react";
@@ -36,13 +35,13 @@ import { ChangeDataSourceWizard } from "@/components/data/ChangeDataSourceWizard
 
 const YTD_TAB_VALUE = "ytd";
 
-type ViewTab = "summary" | "raw";
+
 
 export default function DataDefaultHome() {
   const navigate = useNavigate();
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
-  const [viewTab, setViewTab] = useState<ViewTab>("summary");
+  
   const [wizardOpen, setWizardOpen] = useState(false);
 
   // Fetch all available months for current org
@@ -306,32 +305,8 @@ export default function DataDefaultHome() {
             </SelectContent>
           </Select>
 
-          {/* Center: View Toggle (only for single month) */}
-          {!isYTDSelected && reportData?.payload && (
-            <ToggleGroup 
-              type="single" 
-              value={viewTab} 
-              onValueChange={(v) => v && setViewTab(v as ViewTab)}
-              className="bg-muted/50 rounded-lg p-1"
-            >
-              <ToggleGroupItem 
-                value="summary" 
-                aria-label="Executive Summary"
-                className="gap-1.5 px-3 data-[state=on]:bg-background data-[state=on]:shadow-sm"
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Summary</span>
-              </ToggleGroupItem>
-              <ToggleGroupItem 
-                value="raw" 
-                aria-label="Raw Monthly Report"
-                className="gap-1.5 px-3 data-[state=on]:bg-background data-[state=on]:shadow-sm"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Raw</span>
-              </ToggleGroupItem>
-            </ToggleGroup>
-          )}
+          {/* Spacer for layout */}
+          <div />
 
           {/* Right: Metadata + Import */}
           <div className="flex items-center gap-3 ml-auto">
@@ -381,24 +356,23 @@ export default function DataDefaultHome() {
             year={currentYear}
           />
         ) : reportData?.payload ? (
-          <Card>
-            <CardContent className="pt-6">
-              {viewTab === "summary" ? (
-                <ExecutiveSummaryCard
-                  payload={reportData.payload}
-                  periodKey={effectiveSelectedPeriod!}
-                  previousPayload={reportData.previousPayload}
-                />
-              ) : (
+          <div className="space-y-6">
+            <ExecutiveSummaryCard
+              payload={reportData.payload}
+              periodKey={effectiveSelectedPeriod!}
+              previousPayload={reportData.previousPayload}
+            />
+            <Card>
+              <CardContent className="pt-6">
                 <LegacyMonthlyReportView
                   payload={reportData.payload}
                   periodKey={effectiveSelectedPeriod!}
                   updatedAt={reportData.updated_at}
                   organizationId={currentUser?.team_id}
                 />
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         ) : (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
