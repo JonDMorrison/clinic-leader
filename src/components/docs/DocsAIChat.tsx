@@ -215,7 +215,7 @@ export const DocsAIChat = () => {
                     <div
                       className={`max-w-[90%] rounded-lg p-3 ${
                         message.role === "user"
-                          ? "bg-primary text-primary-foreground"
+                          ? "bg-primary text-white"
                           : "bg-muted"
                       }`}
                     >
