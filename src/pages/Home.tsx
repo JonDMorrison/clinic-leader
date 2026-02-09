@@ -405,14 +405,6 @@ const Home = () => {
 
             {/* Issue Suggestions Widget */}
             <IssueSuggestionsWidget />
-
-            {/* Recent Activity */}
-            <RecentActivityCard
-              metricsCount={metrics?.length || 0}
-              openIssues={openIssues}
-              totalRocks={totalRocks}
-              completedRocks={completedRocks}
-            />
           </div>
         </div>
 
@@ -422,6 +414,12 @@ const Home = () => {
             <QuickActions />
           </div>
           <VtoCard />
+          <RecentActivityCard
+            metricsCount={metrics?.length || 0}
+            openIssues={openIssues}
+            totalRocks={totalRocks}
+            completedRocks={completedRocks}
+          />
           <CopilotWidget />
           <CoreValueOfWeekCard />
         </aside>
