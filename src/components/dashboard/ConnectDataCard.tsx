@@ -54,9 +54,9 @@ export const ConnectDataCard = () => {
               <Database className="w-6 h-6 text-brand" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-lg mb-1">Connect Your Data</h3>
+              <h3 className="font-semibold text-lg mb-1">Your Scorecard Starts Here</h3>
               <p className="text-sm text-muted-foreground mb-3">
-                Automate your scorecard with Jane. Get daily data delivery without any manual work.
+                Connect your data source, then choose which metrics to track on your scorecard.
               </p>
               <ul className="space-y-1 text-sm text-muted-foreground mb-4">
                 <li className="flex items-center gap-2">
