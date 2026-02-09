@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Play, Square, Printer, ArrowLeft, Info, AlertCircle, ListChecks } from "lucide-react";
+import { Plus, Play, Square, Printer, ArrowLeft, Info, AlertCircle, ListChecks, ExternalLink } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -17,6 +17,9 @@ import { MeetingPrepInsights } from "@/components/meetings/MeetingPrepInsights";
 import { MeetingReviewSummary } from "@/components/meetings/MeetingReviewSummary";
 import { MeetingCommitmentsSection } from "@/components/meetings/MeetingCommitmentsSection";
 import { MeetingPrintView } from "@/components/meetings/MeetingPrintView";
+import { ScorecardModal } from "@/components/meetings/ScorecardModal";
+import { RockReviewModal } from "@/components/meetings/RockReviewModal";
+import { TodoReviewModal } from "@/components/meetings/TodoReviewModal";
 
 import { SectionNavigator } from "@/components/l10/SectionNavigator";
 import { SectionTimer } from "@/components/l10/SectionTimer";
@@ -67,6 +70,9 @@ export default function MeetingDetail() {
   const [periodKey, setPeriodKey] = useState<string>("");
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [level10Score, setLevel10Score] = useState<number | null>(null);
+  const [showScorecardModal, setShowScorecardModal] = useState(false);
+  const [showRockModal, setShowRockModal] = useState(false);
+  const [showTodoModal, setShowTodoModal] = useState(false);
   const [outcomeHeadline, setOutcomeHeadline] = useState("");
   const [outcomeNotes, setOutcomeNotes] = useState("");
   const generationAttempted = useRef(false);
@@ -706,8 +712,23 @@ export default function MeetingDetail() {
               >
                 <CardHeader className="py-3">
                   <CardTitle className="text-base font-medium flex items-center justify-between">
-                    <span>
+                    <span
+                      className={
+                        (isLiveMode || isPreviewMode) && (section === "scorecard" || section === "rock_review" || section === "todo_list")
+                          ? "cursor-pointer hover:text-primary transition-colors flex items-center gap-1.5"
+                          : ""
+                      }
+                      onClick={() => {
+                        if (!isLiveMode && !isPreviewMode) return;
+                        if (section === "scorecard") setShowScorecardModal(true);
+                        else if (section === "rock_review") setShowRockModal(true);
+                        else if (section === "todo_list") setShowTodoModal(true);
+                      }}
+                    >
                       {SECTION_LABELS[section]}
+                      {(isLiveMode || isPreviewMode) && (section === "scorecard" || section === "rock_review" || section === "todo_list") && (
+                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+                      )}
                       <Badge variant="secondary" className="ml-2">
                         {sectionItems.filter((i) => !i.is_deleted).length}
                       </Badge>
@@ -835,6 +856,31 @@ export default function MeetingDetail() {
         meetingId={meetingId!}
         initialSection={addModalSection}
       />
+
+      {/* Inline Data Modals */}
+      {organizationId && periodKey && (
+        <>
+          <ScorecardModal
+            open={showScorecardModal}
+            onClose={() => setShowScorecardModal(false)}
+            organizationId={organizationId}
+            periodKey={periodKey}
+          />
+          <RockReviewModal
+            open={showRockModal}
+            onClose={() => setShowRockModal(false)}
+            organizationId={organizationId}
+            periodKey={periodKey}
+          />
+        </>
+      )}
+      {organizationId && (
+        <TodoReviewModal
+          open={showTodoModal}
+          onClose={() => setShowTodoModal(false)}
+          organizationId={organizationId}
+        />
+      )}
 
       {/* Print View (hidden on screen, shown when printing) */}
       <MeetingPrintView
