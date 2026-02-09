@@ -33,7 +33,7 @@ interface AddItemModalProps {
 const SECTIONS = [
   { value: "scorecard", label: "Scorecard Review" },
   { value: "rocks", label: "Rock Review" },
-  { value: "issues", label: "IDS (Issues)" },
+  { value: "issues", label: "Issues" },
   { value: "todo", label: "To-Do Review" },
   { value: "conclusion", label: "Conclusion" },
   { value: "custom", label: "Custom" },

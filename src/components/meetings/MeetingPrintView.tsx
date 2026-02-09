@@ -34,7 +34,7 @@ const SECTION_ORDER = ["scorecard", "rocks", "issues", "todo", "segue", "conclus
 const SECTION_LABELS: Record<string, string> = {
   scorecard: "Scorecard Review",
   rocks: "Rock Review",
-  issues: "IDS (Issues)",
+  issues: "Issues",
   todo: "To-Do Review",
   segue: "Segue",
   conclusion: "Conclusion",
