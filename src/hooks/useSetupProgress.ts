@@ -71,19 +71,34 @@ export function useSetupProgress() {
         .eq("organization_id", orgId);
       const docsCount = docsResult.count || 0;
 
+      // Check data pipeline: any configured data source counts
+      const { data: teamInfo } = await supabase
+        .from("teams")
+        .select("data_mode")
+        .eq("id", orgId)
+        .maybeSingle();
+
       const { data: janeIntegration } = await supabase
         .from("jane_integrations")
         .select("status")
         .eq("organization_id", orgId)
         .maybeSingle();
 
+      const hasDataPipeline =
+        teamInfo?.data_mode === "jane" && !!janeIntegration ||
+        teamInfo?.data_mode === "default" && metricsCount > 0 ||
+        janeIntegration?.status === "active" ||
+        janeIntegration?.status === "connected";
+
       const items: SetupChecklistItem[] = [
         {
           id: "jane-integration",
           label: "Connect Your Data Pipeline",
-          completed: janeIntegration?.status === "active",
+          completed: !!hasDataPipeline,
           route: "/data",
-          description: "Automate your scorecard with Jane — saves 2+ hours/week",
+          description: hasDataPipeline
+            ? `Data source configured: ${teamInfo?.data_mode === "jane" ? "Jane" : "Manual / Workbook"}`
+            : "Automate your scorecard with Jane — saves 2+ hours/week",
         },
         {
           id: "org-profile",
