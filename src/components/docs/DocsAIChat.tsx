@@ -11,6 +11,7 @@ import { SourceChips } from "./SourceChips";
 import { StepsToggle } from "./StepsToggle";
 import { SuggestedFollowups } from "./SuggestedFollowups";
 import { SectionViewerModal } from "./SectionViewerModal";
+import ReactMarkdown from "react-markdown";
 
 interface Source {
   doc_id: string;
@@ -218,7 +219,9 @@ export const DocsAIChat = () => {
                           : "bg-muted"
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      <div className="text-sm prose prose-sm prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 max-w-none">
+                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                      </div>
                       
                       {message.role === "assistant" && message.structured && (
                         <>

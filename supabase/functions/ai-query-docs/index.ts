@@ -330,15 +330,16 @@ async function generateAnswer(
 
 FORMAT:
 - Start with 1-3 sentences that DIRECTLY answer the question
-- Use bullets ONLY for steps or explicit lists
-- If the user asks for steps/process, return a "steps" array; otherwise omit it
+- Use markdown formatting: **bold** for emphasis, bullet lists for key points
+- If the user asks for steps/process, return a "steps" array with clear numbered instructions; otherwise omit it
 - NEVER dump entire SOP text unless the user explicitly asks to "show the full SOP" or "paste the SOP"
 - Do NOT merge multiple unrelated procedures into one answer
 
-CITATIONS:
-- Every factual claim MUST cite its source inline using [S1], [S2], etc.
-- ALWAYS include the "sources" array when any section is referenced
-- Use label format: "{Doc Title} → {heading_path} → {section_title}"
+IMPORTANT - ANSWER FIELD:
+- The "answer" field should be a clean, readable response WITHOUT citation markers like [S1], [S2]
+- Do NOT include source references, JSON objects, or raw data in the answer text
+- Do NOT repeat steps in the answer if they are in the "steps" array
+- The answer should read like a natural, well-formatted explanation
 
 WHEN YOU CANNOT FIND THE ANSWER:
 - Say clearly: "I couldn't find this in the available SOPs."
@@ -352,12 +353,12 @@ ${sourceLabels}
 SECTIONS:
 ${context}
 
-OUTPUT (JSON only, no markdown):
+OUTPUT (JSON only, no markdown fences):
 {
-  "answer": "Direct answer citing [S1], [S2] inline. Keep it concise.",
-  "steps": ["step 1", "step 2"] // ONLY if question explicitly asks for steps/process/how-to, else omit
+  "answer": "Clean, readable answer without citation markers. Use markdown formatting for readability.",
+  "steps": ["Step 1 description", "Step 2 description"] // ONLY if question asks for steps/process/how-to, else omit
   "sources": [
-    {"doc_id": "uuid", "section_id": "uuid", "label": "Doc Title → Path → Section Title", "confidence": "high|med|low"}
+    {"doc_id": "uuid", "section_id": "uuid", "label": "Doc Title → Section Title", "confidence": "high|med|low"}
   ],
   "suggested_followups": ["question 1", "question 2"] // optional, max 3
 }`;
