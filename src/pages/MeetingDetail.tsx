@@ -13,9 +13,7 @@ import { format } from "date-fns";
 import { AgendaItemRow } from "@/components/meetings/AgendaItemRow";
 import { AddItemModal } from "@/components/meetings/AddItemModal";
 
-import { MeetingPrepInsights } from "@/components/meetings/MeetingPrepInsights";
 import { MeetingReviewSummary } from "@/components/meetings/MeetingReviewSummary";
-import { MeetingCommitmentsSection } from "@/components/meetings/MeetingCommitmentsSection";
 import { MeetingPrintView } from "@/components/meetings/MeetingPrintView";
 import { ScorecardModal } from "@/components/meetings/ScorecardModal";
 import { RockReviewModal } from "@/components/meetings/RockReviewModal";
@@ -646,17 +644,6 @@ export default function MeetingDetail() {
           </AlertDescription>
         </Alert>
       )}
-
-      {/* Prep Insights for Preview Mode */}
-      {isPreviewMode && organizationId && meetingId && (
-        <div className="print:hidden">
-          <MeetingPrepInsights
-            meetingId={meetingId}
-            organizationId={organizationId}
-          />
-        </div>
-      )}
-
       {/* Review Summary for Completed Mode */}
       {isCompleted && (
         <div className="print:hidden">
@@ -665,16 +652,6 @@ export default function MeetingDetail() {
             discussedCount={discussedCount}
             totalItems={totalItems}
             issues={meetingIssues || []}
-          />
-        </div>
-      )}
-
-      {/* Commitments Section - shows intervention signals and prompts */}
-      {organizationId && meetingId && (
-        <div className="print:hidden">
-          <MeetingCommitmentsSection
-            meetingId={meetingId}
-            organizationId={organizationId}
           />
         </div>
       )}
