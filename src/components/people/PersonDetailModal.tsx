@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, ChevronDown, Target, AlertCircle, CheckCircle2, Calendar, Plus, Activity, DollarSign, TrendingUp, TrendingDown, Link2, ExternalLink, User2, Armchair } from "lucide-react";
+import { Trash2, ChevronDown, Target, AlertCircle, CheckCircle2, Calendar, Plus, Activity, DollarSign, TrendingUp, TrendingDown, Link2, ExternalLink, User2, Armchair, Camera, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { GWCAssessmentForm } from "./GWCAssessmentForm";
@@ -50,6 +50,7 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
   const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [localNotes, setLocalNotes] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
@@ -57,6 +58,7 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
   const [showLinkClinicianModal, setShowLinkClinicianModal] = useState(false);
   const [selectedSeatToAssign, setSelectedSeatToAssign] = useState<string>("");
   const [isAssigningSeat, setIsAssigningSeat] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   
   // Fetch user's seat metrics (accountability)
   const { metrics: seatMetrics, seats: userSeats, isLoading: loadingSeatMetrics } = useUserSeatMetrics(
@@ -427,6 +429,82 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
 
   const rprsStatus = getRightPersonRightSeatStatus();
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please select an image file", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Image must be less than 5MB", variant: "destructive" });
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${userId}/avatar.${fileExt}`;
+
+      if (user?.avatar_url) {
+        const oldPath = user.avatar_url.split("/").slice(-2).join("/");
+        await supabase.storage.from("avatars").remove([oldPath]);
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ avatar_url: publicUrl })
+        .eq("id", userId);
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ["user-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["current-user"] });
+      queryClient.invalidateQueries({ queryKey: ["people-list"] });
+      toast({ title: "Avatar updated successfully" });
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({ title: "Failed to upload avatar", variant: "destructive" });
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!userId || !user?.avatar_url) return;
+    setIsUploadingAvatar(true);
+    try {
+      const filePath = user.avatar_url.split("/").slice(-2).join("/");
+      await supabase.storage.from("avatars").remove([filePath]);
+
+      const { error } = await supabase
+        .from("users")
+        .update({ avatar_url: null })
+        .eq("id", userId);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["user-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["current-user"] });
+      queryClient.invalidateQueries({ queryKey: ["people-list"] });
+      toast({ title: "Avatar removed" });
+    } catch (error) {
+      console.error("Remove error:", error);
+      toast({ title: "Failed to remove avatar", variant: "destructive" });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -434,7 +512,39 @@ export function PersonDetailModal({ userId, isOpen, onClose, isManager, onUpdate
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <UserAvatar user={user} size="xl" />
+                <div className="relative group">
+                  <UserAvatar user={user} size="xl" />
+                  {isManager && (
+                    <>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingAvatar}
+                        className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      >
+                        {isUploadingAvatar ? (
+                          <Loader2 className="h-6 w-6 text-white animate-spin" />
+                        ) : (
+                          <Camera className="h-6 w-6 text-white" />
+                        )}
+                      </button>
+                      {user?.avatar_url && !isUploadingAvatar && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRemoveAvatar(); }}
+                          className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                      />
+                    </>
+                  )}
+                </div>
                 <div>
                   <div className="text-2xl font-bold">{user.full_name}</div>
                   <div className="text-sm text-muted-foreground">{user.email}</div>
