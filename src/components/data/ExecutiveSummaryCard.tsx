@@ -166,11 +166,7 @@ export default function ExecutiveSummaryCard({ payload, periodKey, previousPaylo
                   return (
                     <Card 
                       key={metric.metric_key} 
-                      className={`transition-colors ${
-                        isVerifiable 
-                          ? 'border-brand/30 bg-brand/5' 
-                          : 'border-muted bg-muted/20'
-                      }`}
+                      className="transition-colors border-border bg-background"
                     >
                       <CardContent className="pt-4 pb-3 px-4">
                         <div className="flex items-start justify-between">
