@@ -42,6 +42,7 @@ import {
   getOrgDataModeDescription,
   getModeBullets,
   getJaneStatusLine,
+  getWizardNextStepCTA,
   type DataModeLabel,
 } from "@/lib/dataMode/dataModeUtils";
 
@@ -198,19 +199,9 @@ export default function SettingsData() {
     }
   };
 
-  const getNextCta = (): { label: string; path: string } => {
-    switch (targetSource) {
-      case "jane":
-        return janeStatus === "active" || janeStatus === "receiving_data"
-          ? { label: "Go to Data", path: "/data" }
-          : { label: "Connect Jane", path: "/integrations/jane" };
-      case "spreadsheet":
-        return { label: "Upload First Workbook", path: "/imports/monthly-report" };
-      case "manual":
-        return { label: "Enter First Values", path: "/scorecard" };
-      default:
-        return { label: "Go to Data", path: "/data" };
-    }
+  const getNextCta = () => {
+    if (!targetSource) return { title: "", description: "", buttonLabel: "Go to Data", href: "/data" };
+    return getWizardNextStepCTA(targetSource, janeStatus, hasLegacyImports || false);
   };
 
   if (isLoading) {
@@ -518,29 +509,38 @@ export default function SettingsData() {
             )}
 
             {/* Step 3: Success */}
-            {wizardStep === "success" && (
-              <div className="space-y-6 text-center">
-                <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
-                  <CheckCircle2 className="w-8 h-8 text-success" />
+            {wizardStep === "success" && (() => {
+              const cta = getNextCta();
+              return (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
+                      <CheckCircle2 className="w-8 h-8 text-success" />
+                    </div>
+                    <h3 className="text-lg font-semibold mt-4">Mode Updated</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Switched from <strong>{result?.old}</strong> to <strong>{result?.new}</strong>
+                    </p>
+                  </div>
+
+                  <Card className="border-primary/20 bg-primary/5">
+                    <CardContent className="p-4 space-y-3">
+                      <h4 className="text-sm font-semibold text-foreground">{cta.title}</h4>
+                      <p className="text-sm text-muted-foreground">{cta.description}</p>
+                      <Button
+                        onClick={() => {
+                          setWizardOpen(false);
+                          navigate(cta.href);
+                        }}
+                      >
+                        {cta.buttonLabel}
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </CardContent>
+                  </Card>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Mode Updated</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Switched from <strong>{result?.old}</strong> to <strong>{result?.new}</strong>
-                  </p>
-                </div>
-                <Button
-                  onClick={() => {
-                    setWizardOpen(false);
-                    const cta = getNextCta();
-                    navigate(cta.path);
-                  }}
-                >
-                  {getNextCta().label}
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Navigation buttons */}
