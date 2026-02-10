@@ -18,12 +18,12 @@ export async function getLastDataActivity(orgId: string): Promise<LastDataActivi
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const [janeRes, spreadsheetRes, manualRes, automatedRes] = await Promise.all([
-    // Jane deliveries from data_ingestion_ledger
+    // Jane deliveries from data_ingestion_ledger (match jane, jane_pipe, etc.)
     supabase
       .from("data_ingestion_ledger")
       .select("created_at")
       .eq("organization_id", orgId)
-      .eq("source_system", "jane")
+      .like("source_system", "jane%")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),

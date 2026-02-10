@@ -77,8 +77,8 @@ export function getWizardNextStepCard(params: NextStepParams): NextStepCard {
         return {
           title,
           body: "Upload your monthly workbook to populate your metrics.",
-          primaryCta: { label: "Upload Monthly Workbook", href: "/imports/monthly-report" },
-          proofLine: "No workbook uploaded yet",
+        primaryCta: { label: "Upload Monthly Workbook", href: "/imports/monthly-report" },
+        proofLine: "No workbook uploaded yet",
           secondaryLink: secondary,
         };
       }
@@ -87,7 +87,7 @@ export function getWizardNextStepCard(params: NextStepParams): NextStepCard {
         body: "Upload your latest month when it's ready. Your Scorecard will update automatically.",
         primaryCta: { label: "Upload Latest Workbook", href: "/imports/monthly-report" },
         proofLine: lastActivity.spreadsheetLastUploadAt
-          ? `Last upload: ${formatProofDate(lastActivity.spreadsheetLastUploadAt)}`
+          ? `Last workbook upload: ${formatProofDate(lastActivity.spreadsheetLastUploadAt)}`
           : "No workbook uploaded yet",
         secondaryLink: secondary,
       };
@@ -108,7 +108,7 @@ export function getWizardNextStepCard(params: NextStepParams): NextStepCard {
         body: "Enter this period's values to keep your Scorecard up to date.",
         primaryCta: { label: "Enter Scorecard Values", href: "/scorecard" },
         proofLine: lastActivity.manualLastEntryAt
-          ? `Last entry: ${formatProofDate(lastActivity.manualLastEntryAt)}`
+          ? `Last manual entry: ${formatProofDate(lastActivity.manualLastEntryAt)}`
           : "No manual entries yet",
         secondaryLink: secondary,
       };
