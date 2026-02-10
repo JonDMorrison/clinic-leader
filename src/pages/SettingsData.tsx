@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ import {
   ExternalLink,
   Info,
   Mail,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -42,9 +43,10 @@ import {
   getOrgDataModeDescription,
   getModeBullets,
   getJaneStatusLine,
-  getWizardNextStepCTA,
   type DataModeLabel,
 } from "@/lib/dataMode/dataModeUtils";
+import { getLastDataActivity, type LastDataActivity } from "@/lib/dataMode/dataModeActivity";
+import { getWizardNextStepCard } from "@/lib/dataMode/dataModeNextStep";
 
 type WizardStep = "choose" | "confirm" | "success";
 type TargetSource = "jane" | "spreadsheet" | "manual" | "other_emr";
@@ -199,10 +201,27 @@ export default function SettingsData() {
     }
   };
 
-  const getNextCta = () => {
-    if (!targetSource) return { title: "", description: "", buttonLabel: "Go to Data", href: "/data" };
-    return getWizardNextStepCTA(targetSource, janeStatus, hasLegacyImports || false);
-  };
+  // Fetch last activity timestamps for proof lines
+  const { data: lastActivity } = useQuery<LastDataActivity>({
+    queryKey: ["settings-data-last-activity", currentUser?.team_id],
+    queryFn: () => getLastDataActivity(currentUser!.team_id!),
+    enabled: !!currentUser?.team_id,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Check if org has any metrics at all (lightweight count)
+  const { data: hasAnyMetrics } = useQuery({
+    queryKey: ["settings-data-has-metrics", currentUser?.team_id],
+    queryFn: async () => {
+      if (!currentUser?.team_id) return false;
+      const { count } = await supabase
+        .from("metric_results")
+        .select("id", { count: "exact", head: true });
+      return (count ?? 0) > 0;
+    },
+    enabled: !!currentUser?.team_id,
+    staleTime: 2 * 60 * 1000,
+  });
 
   if (isLoading) {
     return (
@@ -510,7 +529,15 @@ export default function SettingsData() {
 
             {/* Step 3: Success */}
             {wizardStep === "success" && (() => {
-              const cta = getNextCta();
+              const card = targetSource
+                ? getWizardNextStepCard({
+                    targetSource,
+                    janeStatus,
+                    hasSpreadsheetUploads: !!lastActivity?.spreadsheetLastUploadAt || (hasLegacyImports || false),
+                    hasAnyMetrics: hasAnyMetrics || false,
+                    lastActivity: lastActivity || {},
+                  })
+                : null;
               return (
                 <div className="space-y-6">
                   <div className="text-center">
@@ -523,21 +550,41 @@ export default function SettingsData() {
                     </p>
                   </div>
 
-                  <Card className="border-primary/20 bg-primary/5">
-                    <CardContent className="p-4 space-y-3">
-                      <h4 className="text-sm font-semibold text-foreground">{cta.title}</h4>
-                      <p className="text-sm text-muted-foreground">{cta.description}</p>
-                      <Button
-                        onClick={() => {
-                          setWizardOpen(false);
-                          navigate(cta.href);
-                        }}
-                      >
-                        {cta.buttonLabel}
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </Button>
-                    </CardContent>
-                  </Card>
+                  {card && (
+                    <Card className="border-primary/20 bg-primary/5">
+                      <CardContent className="p-4 space-y-3">
+                        <h4 className="text-sm font-semibold text-foreground">{card.title}</h4>
+                        <p className="text-sm text-muted-foreground">{card.body}</p>
+
+                        {/* Proof line */}
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>{card.proofLine}</span>
+                        </div>
+
+                        <Button
+                          onClick={() => {
+                            setWizardOpen(false);
+                            navigate(card.primaryCta.href);
+                          }}
+                        >
+                          {card.primaryCta.label}
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </Button>
+                      </CardContent>
+
+                      {/* Secondary footer link */}
+                      <div className="px-4 pb-3 pt-0">
+                        <Link
+                          to={card.secondaryLink.href}
+                          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setWizardOpen(false)}
+                        >
+                          {card.secondaryLink.label} →
+                        </Link>
+                      </div>
+                    </Card>
+                  )}
                 </div>
               );
             })()}
