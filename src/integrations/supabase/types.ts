@@ -8317,6 +8317,10 @@ export type Database = {
         Args: { _opt_in: boolean; _org_id: string }
         Returns: boolean
       }
+      set_team_data_mode: {
+        Args: { p_data_mode: string; p_ehr_system?: string; p_team_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       ar_bucket: "30-60" | "60-90" | "90-120" | "120+"

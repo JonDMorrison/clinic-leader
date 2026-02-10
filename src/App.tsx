@@ -91,6 +91,7 @@ import JaneIntegrationPublic from "./pages/JaneIntegrationPublic";
 import SpreadsheetIntegration from "./pages/SpreadsheetIntegration";
 import EMRIntegration from "./pages/EMRIntegration";
 import About from "./pages/About";
+import SettingsData from "./pages/SettingsData";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -194,6 +195,7 @@ const App = () => {
             <Route path="/settings/organization" element={<AppLayout><OrganizationSettings /></AppLayout>} />
             <Route path="/settings/profile" element={<AppLayout><ProfileSettings /></AppLayout>} />
             <Route path="/settings/team" element={<AppLayout><TeamManagement /></AppLayout>} />
+            <Route path="/settings/data" element={<AppLayout><SettingsData /></AppLayout>} />
             <Route path="/settings/integrations" element={<AppLayout><Integrations /></AppLayout>} />
             <Route path="/settings/integrations/jane" element={<AppLayout><JaneIntegration /></AppLayout>} />
             <Route path="/settings/integrations/bulk-analytics" element={<AppLayout><BulkAnalyticsConnector /></AppLayout>} />

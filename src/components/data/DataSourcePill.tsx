@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +26,7 @@ import {
   type DataMode,
 } from "@/hooks/useOrgDataSourceStatus";
 import { format } from "date-fns";
-import { ChangeDataSourceWizard } from "./ChangeDataSourceWizard";
+
 
 /**
  * Get icon for data source type
@@ -114,7 +113,6 @@ export function DataSourcePill({
   className 
 }: DataSourcePillProps) {
   const status = useOrgDataSourceStatus();
-  const [wizardOpen, setWizardOpen] = useState(false);
   
   if (status.isLoading && showLoading) {
     return (
@@ -251,7 +249,7 @@ export function DataSourcePill({
                 className="w-full justify-start text-xs h-7"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setWizardOpen(true);
+                  window.location.href = "/settings/data";
                 }}
               >
                 <Settings2 className="w-3 h-3 mr-1.5" />
@@ -261,9 +259,6 @@ export function DataSourcePill({
           </div>
         </TooltipContent>
       </Tooltip>
-      
-      {/* Wizard Modal */}
-      <ChangeDataSourceWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </TooltipProvider>
   );
 }
