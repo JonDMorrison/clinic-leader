@@ -257,7 +257,7 @@ export default function DataDefaultHome() {
             variant="ghost" 
             size="sm" 
             className="h-6 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setWizardOpen(true)}
+            onClick={() => navigate("/settings/data")}
           >
             <Settings2 className="w-3 h-3 mr-1" />
             Change

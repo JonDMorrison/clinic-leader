@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { 
   Palette, Users, Building2, 
@@ -12,11 +10,9 @@ import {
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { canAccessAdmin } from "@/lib/permissions";
 import { useOrgDataSourceStatus, SOURCE_LABELS } from "@/hooks/useOrgDataSourceStatus";
-import { ChangeDataSourceWizard } from "@/components/data/ChangeDataSourceWizard";
 import { ResetCacheButton } from "@/components/settings/ResetCacheButton";
 const Settings = () => {
   const navigate = useNavigate();
-  const [wizardOpen, setWizardOpen] = useState(false);
 
   // Use authoritative user_roles via hook
   const { data: roleData } = useIsAdmin();
@@ -71,7 +67,7 @@ const Settings = () => {
       )}
 
       {/* Data Configuration Card */}
-      <Card className="border-primary/20">
+      <Card className="border-primary/20 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/settings/data")}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             {dataSourceStatus.mode === "jane" ? (
@@ -96,14 +92,6 @@ const Settings = () => {
                 {SOURCE_LABELS[dataSourceStatus.primarySource] || "Not configured"}
               </p>
             </div>
-            {dataSourceStatus.mode === "jane" && (
-              <div>
-                <span className="text-muted-foreground">Integration Status:</span>
-                <p className="font-medium capitalize">
-                  {dataSourceStatus.janeConnectionStatus || "Not connected"}
-                </p>
-              </div>
-            )}
             <div>
               <span className="text-muted-foreground">Flow Status:</span>
               <div className="flex items-center gap-1.5">
@@ -114,25 +102,14 @@ const Settings = () => {
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => setWizardOpen(true)}>
-              <Settings2 className="w-4 h-4 mr-2" />
-              Change Data Source
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/integrations")}>
-              <Plug className="w-4 h-4 mr-2" />
-              Manage Integrations
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/data")}>
-              <Database className="w-4 h-4 mr-2" />
-              View Data
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate("/settings/data"); }}>
+            <Settings2 className="w-4 h-4 mr-2" />
+            Configure Data Source
+          </Button>
         </CardContent>
       </Card>
       
-      {/* Change Data Source Wizard */}
-      <ChangeDataSourceWizard open={wizardOpen} onOpenChange={setWizardOpen} />
+      {/* Wizard removed - now on /settings/data */}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
