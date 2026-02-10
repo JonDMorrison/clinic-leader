@@ -177,10 +177,16 @@ export default function SettingsData() {
 
       // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ["settings-data-team"] });
+      queryClient.invalidateQueries({ queryKey: ["settings-data-jane"] });
+      queryClient.invalidateQueries({ queryKey: ["settings-data-bulk"] });
+      queryClient.invalidateQueries({ queryKey: ["settings-data-legacy"] });
+      queryClient.invalidateQueries({ queryKey: ["settings-data-last-activity"] });
+      queryClient.invalidateQueries({ queryKey: ["settings-data-has-metrics"] });
       queryClient.invalidateQueries({ queryKey: ["org-data-mode"] });
       queryClient.invalidateQueries({ queryKey: ["team-data-mode"] });
       queryClient.invalidateQueries({ queryKey: ["metric-source-stats"] });
       queryClient.invalidateQueries({ queryKey: ["jane-integration-status"] });
+      queryClient.invalidateQueries({ queryKey: ["data-sources-health"] });
 
       setResult({
         old: rpcData?.old_data_mode || "unknown",
