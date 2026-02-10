@@ -536,6 +536,7 @@ export default function SettingsData() {
                     hasSpreadsheetUploads: !!lastActivity?.spreadsheetLastUploadAt || (hasLegacyImports || false),
                     hasAnyMetrics: hasAnyMetrics || false,
                     lastActivity: lastActivity || {},
+                    hasRecentAutomatedDeliveries: lastActivity?.hasRecentAutomatedDeliveries,
                   })
                 : null;
               return (

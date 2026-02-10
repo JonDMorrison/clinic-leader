@@ -8,13 +8,16 @@ export interface LastDataActivity {
   janeLastDeliveryAt?: string;
   spreadsheetLastUploadAt?: string;
   manualLastEntryAt?: string;
+  hasRecentAutomatedDeliveries?: boolean;
 }
 
 export async function getLastDataActivity(orgId: string): Promise<LastDataActivity> {
   const result: LastDataActivity = {};
 
   // Run all three queries in parallel
-  const [janeRes, spreadsheetRes, manualRes] = await Promise.all([
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [janeRes, spreadsheetRes, manualRes, automatedRes] = await Promise.all([
     // Jane deliveries from data_ingestion_ledger
     supabase
       .from("data_ingestion_ledger")
@@ -42,6 +45,14 @@ export async function getLastDataActivity(orgId: string): Promise<LastDataActivi
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+
+    // Recent automated (non-manual, non-spreadsheet) deliveries in last 30 days
+    supabase
+      .from("data_ingestion_ledger")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId)
+      .not("source_system", "in", "(manual,legacy_workbook,csv,google_sheet)")
+      .gte("created_at", thirtyDaysAgo),
   ]);
 
   if (janeRes.data?.created_at) {
@@ -53,6 +64,7 @@ export async function getLastDataActivity(orgId: string): Promise<LastDataActivi
   if (manualRes.data?.created_at) {
     result.manualLastEntryAt = manualRes.data.created_at;
   }
+  result.hasRecentAutomatedDeliveries = (automatedRes.count ?? 0) > 0;
 
   return result;
 }

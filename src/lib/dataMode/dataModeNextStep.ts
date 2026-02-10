@@ -20,6 +20,7 @@ interface NextStepParams {
   hasSpreadsheetUploads: boolean;
   hasAnyMetrics: boolean;
   lastActivity: LastDataActivity;
+  hasRecentAutomatedDeliveries?: boolean;
 }
 
 export function getWizardNextStepCard(params: NextStepParams): NextStepCard {
@@ -109,13 +110,27 @@ export function getWizardNextStepCard(params: NextStepParams): NextStepCard {
       };
     }
 
-    case "other_emr":
+    case "other_emr": {
+      if (params.hasRecentAutomatedDeliveries) {
+        return {
+          title,
+          body: "Your EMR is delivering data. Go to Data to review available metrics and choose what to track.",
+          primaryCta: { label: "View Your Data", href: "/data" },
+          proofLine: lastActivity.spreadsheetLastUploadAt
+            ? `Last workbook upload: ${formatProofDate(lastActivity.spreadsheetLastUploadAt)}`
+            : "Automated deliveries detected",
+          secondaryLink: secondary,
+        };
+      }
       return {
         title,
-        body: "Your EMR preference is recorded. Use spreadsheet or manual entry until automated sync is available.",
-        primaryCta: { label: "Go to Data", href: "/data" },
-        proofLine: "Automated sync coming soon",
+        body: "Automated sync for your EMR is coming later. You can start today using Spreadsheet Import.",
+        primaryCta: { label: "Set Up Spreadsheet Import", href: "/imports/monthly-report" },
+        proofLine: lastActivity.spreadsheetLastUploadAt
+          ? `Last workbook upload: ${formatProofDate(lastActivity.spreadsheetLastUploadAt)}`
+          : "No workbook uploaded yet",
         secondaryLink: secondary,
       };
+    }
   }
 }
