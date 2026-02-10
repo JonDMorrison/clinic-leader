@@ -9,9 +9,11 @@ import { type LastDataActivity, formatProofDate } from "./dataModeActivity";
 export interface NextStepCard {
   title: string;
   body: string;
+  bodyMuted?: string;
   primaryCta: { label: string; href: string };
   proofLine: string;
   secondaryLink: { label: string; href: string };
+  inlineLink?: { label: string; href: string };
 }
 
 interface NextStepParams {
@@ -51,10 +53,12 @@ export function getWizardNextStepCard(params: NextStepParams): NextStepCard {
         // State 2: Connected but no deliveries yet
         return {
           title,
-          body: "Jane is connected. Your first sync should arrive shortly. Once it does, you'll be able to choose which metrics to track on your Scorecard.",
+          body: "Jane is connected, but ClinicLeader hasn't received your first sync yet.",
+          bodyMuted: "If you don't see a sync within 24 hours, open Integrations to re-check the connection.",
           primaryCta: { label: "Go to Data", href: "/data" },
           proofLine: "No sync received yet",
           secondaryLink: secondary,
+          inlineLink: { label: "Open Jane Integration", href: "/integrations/jane" },
         };
       }
 
