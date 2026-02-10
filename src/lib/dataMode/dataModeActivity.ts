@@ -4,6 +4,20 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Conservative allowlist of source_system values that represent
+ * automated clinical system (Jane) deliveries.
+ * Extend only when a new real integration tag is confirmed in production.
+ */
+export const JANE_SOURCE_SYSTEMS = ["jane", "jane_pipe"];
+
+/**
+ * Conservative allowlist for all automated EMR deliveries.
+ * Used for hasRecentAutomatedDeliveries — avoids false positives
+ * from internal/system sources by only matching known clinical integrations.
+ */
+export const AUTOMATED_SOURCE_SYSTEMS = [...JANE_SOURCE_SYSTEMS];
+
 export interface LastDataActivity {
   janeLastDeliveryAt?: string;
   spreadsheetLastUploadAt?: string;
@@ -18,12 +32,12 @@ export async function getLastDataActivity(orgId: string): Promise<LastDataActivi
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const [janeRes, spreadsheetRes, manualRes, automatedRes] = await Promise.all([
-    // Jane deliveries from data_ingestion_ledger (match jane, jane_pipe, etc.)
+    // Jane deliveries from data_ingestion_ledger (strict allowlist)
     supabase
       .from("data_ingestion_ledger")
       .select("created_at")
       .eq("organization_id", orgId)
-      .like("source_system", "jane%")
+      .in("source_system", JANE_SOURCE_SYSTEMS)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -46,12 +60,13 @@ export async function getLastDataActivity(orgId: string): Promise<LastDataActivi
       .limit(1)
       .maybeSingle(),
 
-    // Recent automated (non-manual, non-spreadsheet) deliveries in last 30 days
+    // Conservative by design to avoid false positives.
+    // Only counts deliveries from known automated clinical integrations.
     supabase
       .from("data_ingestion_ledger")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
-      .not("source_system", "in", "(manual,legacy_workbook,csv,google_sheet)")
+      .in("source_system", AUTOMATED_SOURCE_SYSTEMS)
       .gte("created_at", thirtyDaysAgo),
   ]);
 
