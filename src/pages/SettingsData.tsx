@@ -556,6 +556,9 @@ export default function SettingsData() {
                       <CardContent className="p-4 space-y-3">
                         <h4 className="text-sm font-semibold text-foreground">{card.title}</h4>
                         <p className="text-sm text-muted-foreground">{card.body}</p>
+                        {card.bodyMuted && (
+                          <p className="text-xs text-muted-foreground/70">{card.bodyMuted}</p>
+                        )}
 
                         {/* Proof line */}
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -572,6 +575,16 @@ export default function SettingsData() {
                           {card.primaryCta.label}
                           <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>
+
+                        {card.inlineLink && (
+                          <Link
+                            to={card.inlineLink.href}
+                            className="block text-xs text-primary hover:underline"
+                            onClick={() => setWizardOpen(false)}
+                          >
+                            {card.inlineLink.label} →
+                          </Link>
+                        )}
                       </CardContent>
 
                       {/* Secondary footer link */}
