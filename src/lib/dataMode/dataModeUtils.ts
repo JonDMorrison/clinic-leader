@@ -132,119 +132,12 @@ export function getModeBullets(label: DataModeLabel): string[] {
 }
 
 /**
- * Next step CTA after a data mode change
+ * @deprecated Use getWizardNextStepCard from dataModeNextStep.ts instead.
+ * Kept temporarily for any remaining call sites.
  */
 export interface NextStepCTA {
   title: string;
   description: string;
   buttonLabel: string;
   href: string;
-}
-
-interface NextStepInput {
-  dataMode: string;
-  janeStatus: string | null | undefined;
-  hasUploads: boolean;
-}
-
-export function getNextStepCTA(input: NextStepInput): NextStepCTA {
-  const { dataMode, janeStatus, hasUploads } = input;
-
-  if (dataMode === "jane") {
-    const connected = janeStatus === "active" || janeStatus === "receiving_data";
-    if (connected) {
-      return {
-        title: "What happens next",
-        description: "Jane is connected. Your data will appear automatically as it syncs.",
-        buttonLabel: "View Your Data",
-        href: "/data",
-      };
-    }
-    return {
-      title: "What happens next",
-      description: "ClinicLeader is ready for Jane data. Connect Jane to start syncing performance metrics automatically.",
-      buttonLabel: "Connect Jane",
-      href: "/integrations/jane",
-    };
-  }
-
-  // Manual mode: data_mode is NOT jane AND no uploads
-  if (dataMode !== "jane" && !hasUploads) {
-    // Could be spreadsheet-intended with no uploads, or manual
-    // We distinguish by checking if they just chose "manual" vs "spreadsheet"
-    // but since we only have dataMode here, default to manual guidance when no uploads
-    return {
-      title: "What happens next",
-      description: "You can enter values manually on your scorecard to begin tracking performance.",
-      buttonLabel: "Go to Scorecard",
-      href: "/scorecard",
-    };
-  }
-
-  // Spreadsheet with existing uploads
-  return {
-    title: "What happens next",
-    description: "Your spreadsheet data is available. Choose which metrics to track.",
-    buttonLabel: "View Data",
-    href: "/data",
-  };
-}
-
-/**
- * Wizard-aware next step CTA that uses the selected target source
- * for more precise guidance right after a mode switch.
- */
-export function getWizardNextStepCTA(
-  targetSource: "jane" | "spreadsheet" | "manual" | "other_emr",
-  janeStatus: string | null | undefined,
-  hasUploads: boolean,
-): NextStepCTA {
-  switch (targetSource) {
-    case "jane": {
-      const connected = janeStatus === "active" || janeStatus === "receiving_data";
-      if (connected) {
-        return {
-          title: "What happens next",
-          description: "Jane is connected. Your data will appear automatically as it syncs.",
-          buttonLabel: "View Your Data",
-          href: "/data",
-        };
-      }
-      return {
-        title: "What happens next",
-        description: "ClinicLeader is ready for Jane data. Connect Jane to start syncing performance metrics automatically.",
-        buttonLabel: "Connect Jane",
-        href: "/integrations/jane",
-      };
-    }
-    case "spreadsheet":
-      if (hasUploads) {
-        return {
-          title: "What happens next",
-          description: "Your spreadsheet data is available. Choose which metrics to track.",
-          buttonLabel: "View Data",
-          href: "/data",
-        };
-      }
-      return {
-        title: "What happens next",
-        description: "Upload your monthly workbook to populate your metrics.",
-        buttonLabel: "Upload Monthly Workbook",
-        href: "/imports/monthly-report",
-      };
-    case "manual":
-      return {
-        title: "What happens next",
-        description: "You can enter values manually on your scorecard to begin tracking performance.",
-        buttonLabel: "Go to Scorecard",
-        href: "/scorecard",
-      };
-    case "other_emr":
-      return {
-        title: "What happens next",
-        description: "Your EMR preference is recorded. Use spreadsheet or manual entry until automated sync is available.",
-        buttonLabel: "Go to Data",
-        href: "/data",
-      };
-  }
 }
