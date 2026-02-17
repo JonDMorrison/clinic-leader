@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getStorage, setStorage } from "@/lib/storage/versionedStorage";
+import { logger } from "@/utils/logger";
 
 interface ServiceCheck {
   status: "healthy" | "degraded" | "down";
@@ -62,7 +63,11 @@ export function useFunctionHealth() {
         });
 
         if (error) {
-          console.warn("[FunctionHealth] Health check failed:", error.message);
+          logger.warn("System health check failed", {
+            component: "HealthCheck",
+            error: error.message,
+            suggestion: "Check if 'system-health' edge function is deployed and accessible."
+          });
           return {
             overall_status: "down" as const,
             degraded_services: ["system-health"],
@@ -74,6 +79,14 @@ export function useFunctionHealth() {
         }
 
         const result = data as HealthCheckResult;
+
+        if (result.overall_status !== "healthy") {
+          logger.warn(`System health degraded: ${result.degraded_services.join(', ')}`, {
+            component: "HealthCheck",
+            checks: result.checks
+          });
+        }
+
         const resolved = {
           overall_status: result?.overall_status ?? "healthy",
           degraded_services: result?.degraded_services ?? [],
@@ -94,7 +107,10 @@ export function useFunctionHealth() {
         return resolved;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        console.warn("[FunctionHealth] Health check unreachable:", msg);
+        logger.error("Health check unreachable (Network/CORS error)", e, {
+          component: "HealthCheck",
+          suggestion: "Verify network connectivity or Supabase Edge Function URL."
+        });
         return {
           overall_status: "down" as const,
           degraded_services: ["system-health"],

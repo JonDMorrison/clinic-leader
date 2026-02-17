@@ -34,6 +34,8 @@ import { CSS } from "@dnd-kit/utilities";
 
 
 import { fetchCanonicalMetricResults, groupResultsByMetric } from "@/hooks/useCanonicalMetricResults";
+import { ScorecardSkeleton } from "@/components/skeletons/ScorecardSkeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 
 const Scorecard = () => {
@@ -47,7 +49,7 @@ const Scorecard = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
-  
+
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [celebratingMilestone, setCelebratingMilestone] = useState<any>(null);
   const [customOrder, setCustomOrder] = useState<string[]>([]);
@@ -108,167 +110,199 @@ const Scorecard = () => {
   const { data: metricsData, isLoading, isError, refetch } = useQuery({
     queryKey: ["scorecard-metrics", orgId],
     queryFn: async () => {
-      if (!orgId) return []; // MULTI-TENANCY: Guard against missing org
+      try {
+        if (!orgId) return [];
 
-      // Get last 12 weeks for weekly metrics
-      const weeks = Array.from({ length: 12 }, (_, i) => {
-        const date = subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), i);
-        return format(date, "yyyy-MM-dd");
-      }).reverse();
+        // Get last 12 weeks for weekly metrics
+        const weeks = Array.from({ length: 12 }, (_, i) => {
+          const date = subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), i);
+          return format(date, "yyyy-MM-dd");
+        }).reverse();
 
-      // Get last 12 months for monthly metrics
-      const months = Array.from({ length: 12 }, (_, i) => {
-        const date = subMonths(startOfMonth(new Date()), i);
-        return format(date, "yyyy-MM-dd"); // period_start format
-      }).reverse();
+        // Get last 12 months for monthly metrics
+        const months = Array.from({ length: 12 }, (_, i) => {
+          const date = subMonths(startOfMonth(new Date()), i);
+          return format(date, "yyyy-MM-dd"); // period_start format
+        }).reverse();
 
-      const { data: metrics, error: metricsError } = await supabase
-        .from("metrics")
-        .select("*, is_favorite")
-        .eq("organization_id", currentUser.team_id)
-        .order("is_favorite", { ascending: false })
-        .order("category")
-        .order("name");
+        const { data: metrics, error: metricsError } = await supabase
+          .from("metrics")
+          .select("*")
+          .eq("organization_id", orgId)
+          .order("category")
+          .order("name");
 
-      if (metricsError) throw metricsError;
+        if (metricsError) throw metricsError;
 
-      const metricIds = metrics?.map(m => m.id) || [];
-      
-      // Separate metrics by cadence
-      const weeklyMetricIds = metrics?.filter(m => m.cadence !== 'monthly').map(m => m.id) || [];
-      const monthlyMetricIds = metrics?.filter(m => m.cadence === 'monthly').map(m => m.id) || [];
+        const metricIds = metrics?.map(m => m.id) || [];
 
-      // ========== CANONICAL-FIRST QUERY STRATEGY ==========
-      // 1. Try metric_canonical_results first (computed by selection engine)
-      // 2. Fall back to raw metric_results if canonical not computed yet
-      
-      let weeklyResults: any[] = [];
-      let monthlyResults: any[] = [];
-      let fallbackMetricIds: string[] = [];
-      
-      // Fetch weekly results (canonical first)
-      if (weeklyMetricIds.length > 0) {
-        const { results, fallbackMetricIds: weeklyFallback } = await fetchCanonicalMetricResults({
-          organizationId: currentUser.team_id,
-          metricIds: weeklyMetricIds,
-          periodType: 'week',
-          periodStarts: weeks,
-        });
-        
-        // Convert to legacy format for compatibility
-        weeklyResults = results.map(r => ({
-          metric_id: r.metric_id,
-          value: r.value,
-          week_start: r.period_start,
-          period_start: r.period_start,
-          period_type: 'weekly',
-          source: r.source,
-          is_canonical: r.is_canonical,
-          selection_reason: r.selection_reason,
-        }));
-        
-        if (weeklyFallback.length > 0) {
-          fallbackMetricIds.push(...weeklyFallback);
+        // Separate metrics by cadence
+        const weeklyMetricIds = metrics?.filter(m => m.cadence !== 'monthly').map(m => m.id) || [];
+        const monthlyMetricIds = metrics?.filter(m => m.cadence === 'monthly').map(m => m.id) || [];
+
+        // ========== CANONICAL-FIRST QUERY STRATEGY ==========
+        // 1. Try metric_canonical_results first (computed by selection engine)
+        // 2. Fall back to raw metric_results if canonical not computed yet
+
+        interface MetricResult {
+          metric_id: string;
+          value: number | null;
+          period_start: string;
+          week_start?: string;
+          period_key?: string;
+          period_type: string;
+          source?: string;
+          is_canonical?: boolean;
+          selection_reason?: string;
+          created_at?: string;
         }
-      }
 
-      // Fetch monthly results (canonical first)
-      if (monthlyMetricIds.length > 0) {
-        const { results, fallbackMetricIds: monthlyFallback } = await fetchCanonicalMetricResults({
-          organizationId: currentUser.team_id,
-          metricIds: monthlyMetricIds,
-          periodType: 'month',
-          periodStarts: months,
-        });
-        
-        // Convert to legacy format for compatibility
-        monthlyResults = results.map(r => ({
-          metric_id: r.metric_id,
-          value: r.value,
-          period_start: r.period_start,
-          period_key: format(new Date(r.period_start), "yyyy-MM"),
-          period_type: 'monthly',
-          source: r.source,
-          is_canonical: r.is_canonical,
-          selection_reason: r.selection_reason,
-        }));
-        
-        if (monthlyFallback.length > 0) {
-          fallbackMetricIds.push(...monthlyFallback);
+        let weeklyResults: MetricResult[] = [];
+        let monthlyResults: MetricResult[] = [];
+        let fallbackMetricIds: string[] = [];
+
+        // Fetch weekly results (canonical first)
+        if (weeklyMetricIds.length > 0) {
+          const { results, fallbackMetricIds: weeklyFallback } = await fetchCanonicalMetricResults({
+            organizationId: orgId,
+            metricIds: weeklyMetricIds,
+            periodType: 'week',
+            periodStarts: weeks,
+          });
+
+          // Convert to legacy format for compatibility
+          weeklyResults = results.map(r => ({
+            metric_id: r.metric_id,
+            value: r.value,
+            week_start: r.period_start,
+            period_start: r.period_start,
+            period_type: 'weekly',
+            source: r.source,
+            is_canonical: r.is_canonical,
+            selection_reason: r.selection_reason,
+          }));
+
+          if (weeklyFallback.length > 0) {
+            fallbackMetricIds.push(...weeklyFallback);
+          }
         }
+
+        // Fetch monthly results (canonical first)
+        if (monthlyMetricIds.length > 0) {
+          const { results, fallbackMetricIds: monthlyFallback } = await fetchCanonicalMetricResults({
+            organizationId: orgId,
+            metricIds: monthlyMetricIds,
+            periodType: 'month',
+            periodStarts: months,
+          });
+
+          // Convert to legacy format for compatibility
+          monthlyResults = results.map(r => {
+            let pKey = "—";
+            try {
+              if (r.period_start) {
+                pKey = format(new Date(r.period_start), "yyyy-MM");
+              }
+            } catch (e) {
+              console.warn("Invalid period_start:", r.period_start);
+            }
+            return {
+              metric_id: r.metric_id,
+              value: r.value,
+              period_start: r.period_start,
+              period_key: pKey,
+              period_type: 'monthly',
+              source: r.source,
+              is_canonical: r.is_canonical,
+              selection_reason: r.selection_reason,
+            };
+          });
+
+          if (monthlyFallback.length > 0) {
+            fallbackMetricIds.push(...monthlyFallback);
+          }
+        }
+
+        // Log fallback metrics in dev mode for visibility
+        if (import.meta.env.DEV && fallbackMetricIds.length > 0) {
+          console.warn("[Scorecard] Using raw fallback for metrics (canonical not computed):", fallbackMetricIds);
+        }
+
+        const allResults = [...weeklyResults, ...monthlyResults];
+
+        // Fetch owner names
+        const ownerIds = Array.from(new Set(metrics?.map(m => m.owner).filter(Boolean) || [])) as string[];
+        let userMap: Record<string, string> = {};
+
+        if (ownerIds.length > 0) {
+          const { data: users, error: usersError } = await supabase
+            .from("users")
+            .select("id, full_name")
+            .in("id", ownerIds);
+
+          if (usersError) throw usersError;
+
+          userMap = users?.reduce((acc, u) => {
+            acc[u.id] = u.full_name;
+            return acc;
+          }, {} as Record<string, string>) || {};
+        }
+
+        // ========== NO ZERO FILTERING ==========
+        // Zeros are valid for real months (month_has_data=true).
+        // NO_DATA months are never written by the bridge, so no filtering needed here.
+        // Only exclude explicit null values.
+        const filteredResults = allResults.filter(r => r.value !== null);
+
+        // Group results by metric
+        const resultsByMetric = filteredResults.reduce((acc, r) => {
+          if (!acc[r.metric_id]) acc[r.metric_id] = [];
+          acc[r.metric_id].push(r);
+          return acc;
+        }, {} as Record<string, MetricResult[]>);
+
+        // Enrich metrics with computed data including provenance
+        return metrics?.map(metric => {
+          const metricResults = resultsByMetric[metric.id] || [];
+          // Sort by period_start safely
+          const sortedResults = [...metricResults].sort((a, b) => {
+            const dateA = a.period_start ? new Date(a.period_start).getTime() : 0;
+            const dateB = b.period_start ? new Date(b.period_start).getTime() : 0;
+            return dateA - dateB;
+          });
+          const last8 = sortedResults.slice(-8);
+          const current = sortedResults[sortedResults.length - 1];
+
+          // Track if this metric is using fallback (non-canonical) data
+          const hasNonCanonical = metricResults.some(r => r.is_canonical === false);
+
+          return {
+            id: metric.id,
+            name: metric.name,
+            category: metric.category,
+            unit: metric.unit,
+            target: metric.target,
+            direction: metric.direction,
+            sync_source: metric.sync_source,
+            cadence: metric.cadence || "weekly",
+            owner_name: metric.owner ? userMap[metric.owner] : null,
+            owner_id: metric.owner,
+            current_value: current?.value ?? null,
+            last_8_weeks: last8.map(r => r.value),
+            is_favorite: (metric as any).is_favorite || false,
+            // Provenance fields
+            latest_result_source: current?.source || null,
+            latest_result_updated_at: current?.created_at || null,
+            // Canonical selection fields
+            is_canonical: current?.is_canonical ?? null,
+            selection_reason: current?.selection_reason || null,
+            using_fallback: hasNonCanonical,
+          };
+        }) || [];
+      } catch (error) {
+        console.error("Scorecard critical logic error:", error);
+        throw error;
       }
-
-      // Log fallback metrics in dev mode for visibility
-      if (import.meta.env.DEV && fallbackMetricIds.length > 0) {
-        console.warn("[Scorecard] Using raw fallback for metrics (canonical not computed):", fallbackMetricIds);
-      }
-
-      const allResults = [...weeklyResults, ...monthlyResults];
-
-      // Fetch owner names
-      const ownerIds = Array.from(new Set(metrics?.map(m => m.owner).filter(Boolean) || []));
-      const { data: users } = await supabase
-        .from("users")
-        .select("id, full_name")
-        .in("id", ownerIds);
-
-      const userMap = users?.reduce((acc, u) => {
-        acc[u.id] = u.full_name;
-        return acc;
-      }, {} as Record<string, string>) || {};
-
-      // ========== NO ZERO FILTERING ==========
-      // Zeros are valid for real months (month_has_data=true).
-      // NO_DATA months are never written by the bridge, so no filtering needed here.
-      // Only exclude explicit null values.
-      const filteredResults = allResults.filter(r => r.value !== null);
-
-      // Group results by metric
-      const resultsByMetric = filteredResults.reduce((acc, r) => {
-        if (!acc[r.metric_id]) acc[r.metric_id] = [];
-        acc[r.metric_id].push(r);
-        return acc;
-      }, {} as Record<string, any[]>);
-
-      // Enrich metrics with computed data including provenance
-      return metrics?.map(metric => {
-        const metricResults = resultsByMetric[metric.id] || [];
-        // Sort by appropriate date field
-        const sortedResults = [...metricResults].sort((a, b) => {
-          const dateA = metric.cadence === 'monthly' ? a.period_start : a.week_start;
-          const dateB = metric.cadence === 'monthly' ? b.period_start : b.week_start;
-          return new Date(dateA).getTime() - new Date(dateB).getTime();
-        });
-        const last8 = sortedResults.slice(-8);
-        const current = sortedResults[sortedResults.length - 1];
-
-        // Track if this metric is using fallback (non-canonical) data
-        const hasNonCanonical = metricResults.some(r => r.is_canonical === false);
-
-        return {
-          id: metric.id,
-          name: metric.name,
-          category: metric.category,
-          unit: metric.unit,
-          target: metric.target,
-          direction: metric.direction,
-          sync_source: metric.sync_source,
-          cadence: metric.cadence || "weekly",
-          owner_name: metric.owner ? userMap[metric.owner] : null,
-          owner_id: metric.owner,
-          current_value: current?.value ?? null,
-          last_8_weeks: last8.map(r => r.value),
-          is_favorite: metric.is_favorite || false,
-          // Provenance fields
-          latest_result_source: current?.source || null,
-          latest_result_updated_at: current?.created_at || null,
-          latest_period_key: current?.period_key || null,
-          // Canonical selection fields
-          is_canonical: current?.is_canonical ?? null,
-          selection_reason: current?.selection_reason || null,
-          using_fallback: hasNonCanonical,
-        };
-      }) || [];
     },
     enabled: !!currentUser?.team_id,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
@@ -284,7 +318,7 @@ const Scorecard = () => {
         .select("id, full_name")
         .eq("team_id", currentUser.team_id)
         .order("full_name");
-      
+
       if (error) throw error;
       return data;
     },
@@ -313,14 +347,14 @@ const Scorecard = () => {
     queryKey: ["jane-last-sync", currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return null;
-      
+
       // Get integration ID first
       const { data: integration } = await supabase
         .from("jane_integrations")
         .select("id")
         .eq("organization_id", currentUser.team_id)
         .maybeSingle();
-        
+
       if (!integration) return null;
 
       const { data } = await supabase
@@ -474,7 +508,7 @@ const Scorecard = () => {
   const owners = Array.from(new Set(metricsData?.map(m => m.owner_name).filter(Boolean) || []));
 
   const totalMetrics = metricsData?.length || 0;
-  
+
   // Use metricStatus() for authoritative on-track calculation
   const onTrackCount = useMemo(() => {
     if (!metricsData) return 0;
@@ -491,14 +525,14 @@ const Scorecard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold gradient-brand bg-clip-text text-transparent mb-2 flex items-center">
             Scorecard
             <HelpHint term="Scorecard" context="scorecard_header" />
           </h1>
         </div>
-        
+
         {totalMetrics > 0 && (
           <div className="flex items-center gap-3">
             {/* Secondary actions dropdown */}
@@ -517,7 +551,7 @@ const Scorecard = () => {
                       <Plus className="w-4 h-4 mr-2" />
                       Add Custom Metric
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => setLoadDefaultsOpen(true)}
                       disabled={!currentUser?.team_id}
                     >
@@ -541,7 +575,7 @@ const Scorecard = () => {
                   </>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={handleResetScorecard}
                   className="text-destructive focus:text-destructive"
                 >
@@ -556,9 +590,7 @@ const Scorecard = () => {
 
       {/* Main Content */}
       {isLoading ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Loading your scorecard...</p>
-        </div>
+        <ScorecardSkeleton />
       ) : isError ? (
         <div className="text-center py-12">
           <p className="text-destructive">Failed to load scorecard. Please try refreshing.</p>
@@ -572,82 +604,114 @@ const Scorecard = () => {
         <div className="space-y-6">
 
           {/* Alerts Panel */}
-          <AlertsPanel 
+          <AlertsPanel
             organizationId={currentUser?.team_id}
             currentUserId={currentUser?.id}
           />
 
 
           {/* Filters Section */}
-          <div className="glass rounded-lg p-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Search */}
-              <div className="md:col-span-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search metrics..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
+          <div className="sticky top-[72px] z-20 mb-6 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-sm border-b md:relative md:top-0 md:bg-transparent md:backdrop-blur-none md:border-0 md:p-0 md:mb-6 md:mx-0">
+            <div className="glass rounded-lg p-4 shadow-sm border-border/50">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Search */}
+                <div className="md:col-span-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search metrics..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
+
+                {/* Category Filter */}
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Source Filter */}
+                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    <SelectItem value="jane">Jane</SelectItem>
+                    <SelectItem value="manual">Manual</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Category Filter */}
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Owner Filter & Favorites Row */}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                  <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by owner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Owners</SelectItem>
+                      {owners.map(owner => (
+                        <SelectItem key={owner} value={owner}>{owner}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              {/* Source Filter */}
-              <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Source" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sources</SelectItem>
-                  <SelectItem value="jane">Jane</SelectItem>
-                  <SelectItem value="manual">Manual</SelectItem>
-                </SelectContent>
-              </Select>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={showOnlyFavorites ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                    className="gap-2"
+                  >
+                    <Star className={`h-4 w-4 ${showOnlyFavorites ? "fill-current" : ""}`} />
+                    <span className="hidden sm:inline">Favorites Only</span>
+                    <span className="sm:hidden">Favorites</span>
+                  </Button>
+
+                  {(searchQuery || categoryFilter !== "all" || ownerFilter !== "all" || sourceFilter !== "all" || showOnlyFavorites) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setCategoryFilter("all");
+                        setOwnerFilter("all");
+                        setSourceFilter("all");
+                        setShowOnlyFavorites(false);
+                      }}
+                      className="text-muted-foreground"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
+          </div>
 
-            {/* Owner Filter & Favorites Row */}
-            <div className="mt-3 flex items-center gap-3">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-                <SelectTrigger className="w-[250px]">
-                  <SelectValue placeholder="Filter by owner" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Owners</SelectItem>
-                  {owners.map(owner => (
-                    <SelectItem key={owner} value={owner}>{owner}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Button
-                variant={showOnlyFavorites ? "default" : "outline"}
-                size="sm"
-                onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
-                className="gap-2"
-              >
-                <Star className={`h-4 w-4 ${showOnlyFavorites ? "fill-current" : ""}`} />
-                Favorites Only
-              </Button>
-
-              {(searchQuery || categoryFilter !== "all" || ownerFilter !== "all" || sourceFilter !== "all" || showOnlyFavorites) && (
-                <Button 
-                  variant="ghost" 
+          {/* Metrics Grid */}
+          {filteredMetrics.length === 0 ? (
+            <EmptyState
+              icon={<Search className="w-12 h-12" />}
+              title="No metrics found"
+              description="Review your active filters and search terms."
+              action={
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => {
                     setSearchQuery("");
@@ -657,17 +721,10 @@ const Scorecard = () => {
                     setShowOnlyFavorites(false);
                   }}
                 >
-                  Clear Filters
+                  Clear all filters
                 </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Metrics Grid */}
-          {filteredMetrics.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No metrics match your filters</p>
-            </div>
+              }
+            />
           ) : (
             <DndContext
               sensors={sensors}
@@ -686,6 +743,7 @@ const Scorecard = () => {
                       onClick={() => setSelectedMetricId(metric.id)}
                       onDelete={handleDeleteMetric}
                       janeLastSync={janeLastSync}
+                      isDeleting={deleteMetricMutation.isPending && deleteMetricMutation.variables === metric.id}
                     />
                   ))}
                 </div>
@@ -727,17 +785,29 @@ const Scorecard = () => {
         />
       )}
 
-        <CreateFromVTODialog
-          open={createFromVTOOpen}
-          onClose={() => setCreateFromVTOOpen(false)}
-          onSuccess={refetch}
-        />
+      <CreateFromVTODialog
+        open={createFromVTOOpen}
+        onClose={() => setCreateFromVTOOpen(false)}
+        onSuccess={refetch}
+      />
     </div>
   );
 };
 
 // Sortable wrapper for MetricCard with delete functionality
-function SortableMetricCard({ metric, onClick, onDelete, janeLastSync }: { metric: any; onClick: () => void; onDelete: (id: string) => void; janeLastSync?: string | null }) {
+function SortableMetricCard({
+  metric,
+  onClick,
+  onDelete,
+  janeLastSync,
+  isDeleting = false
+}: {
+  metric: any;
+  onClick: () => void;
+  onDelete: (id: string) => void;
+  janeLastSync?: string | null;
+  isDeleting?: boolean;
+}) {
   const {
     attributes,
     listeners,
@@ -750,7 +820,7 @@ function SortableMetricCard({ metric, onClick, onDelete, janeLastSync }: { metri
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging || isDeleting ? 0.5 : 1,
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -770,14 +840,21 @@ function SortableMetricCard({ metric, onClick, onDelete, janeLastSync }: { metri
       >
         <GripVertical className="w-4 h-4 text-muted-foreground" />
       </div>
+
       {/* Delete button - top right */}
       <button
         onClick={handleDelete}
-        className="absolute top-4 right-4 z-10 p-2 hover:bg-destructive/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+        disabled={isDeleting}
+        className="absolute top-4 right-4 z-10 p-2 hover:bg-destructive/10 rounded opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
         title="Delete metric"
       >
-        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+        {isDeleting ? (
+          <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent animate-spin rounded-full" />
+        ) : (
+          <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+        )}
       </button>
+
       <MetricCard metric={metric} onClick={onClick} janeLastSync={janeLastSync} />
     </div>
   );

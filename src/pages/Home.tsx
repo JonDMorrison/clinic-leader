@@ -22,6 +22,7 @@ import { VtoCard } from "@/components/dashboard/VtoCard";
 import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 import { DashboardPrimaryStack } from "@/components/dashboard/DashboardPrimaryStack";
+import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
 
 const INSPIRATIONAL_MESSAGES = [
   "Lead your clinic. Not just manage it.",
@@ -129,7 +130,7 @@ const Home = () => {
         .select("id, name, metric_results(value, week_start)")
         .eq("organization_id", currentUser.team_id)
         .order("week_start", { foreignTable: "metric_results", ascending: false });
-      
+
       if (error) throw error;
       return data;
     },
@@ -155,7 +156,7 @@ const Home = () => {
         .from("rocks")
         .select("status")
         .in("owner_id", userIds);
-      
+
       if (error) throw error;
       return data;
     },
@@ -172,7 +173,7 @@ const Home = () => {
         .from("issues")
         .select("status")
         .eq("organization_id", currentUser.team_id);
-      
+
       if (error) throw error;
       return data;
     },
@@ -192,7 +193,7 @@ const Home = () => {
   // Get other metric values for customizable stats
   const visitsMetric = metrics?.find(m => m.name?.toLowerCase().includes("visit"));
   const visitsValue = visitsMetric?.metric_results?.[0]?.value || 0;
-  
+
   const revenueMetric = metrics?.find(m => m.name?.toLowerCase().includes("revenue") || m.name?.toLowerCase().includes("collected"));
   const revenueValue = revenueMetric?.metric_results?.[0]?.value || 0;
 
@@ -329,18 +330,7 @@ const Home = () => {
   }, [mounted, isInitialLoading]);
 
   if (isInitialLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-4">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full mx-auto"
-          />
-          <p className="text-muted-foreground">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   const firstName = currentUser?.full_name?.includes(" ")

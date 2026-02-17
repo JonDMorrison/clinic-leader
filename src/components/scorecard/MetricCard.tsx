@@ -89,12 +89,12 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
   const { toast } = useToast();
   const [linkToVTOOpen, setLinkToVTOOpen] = useState(false);
   const [createIssueOpen, setCreateIssueOpen] = useState(false);
-  
+
   // Determine if metric is off-track
-  const isOffTrack = metric.current_value !== null && 
-    metric.target !== null && 
-    ((metric.direction === "up" || metric.direction === ">=") 
-      ? metric.current_value < metric.target 
+  const isOffTrack = metric.current_value !== null &&
+    metric.target !== null &&
+    ((metric.direction === "up" || metric.direction === ">=")
+      ? metric.current_value < metric.target
       : metric.current_value > metric.target);
 
   // Count consecutive off-track periods
@@ -103,7 +103,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
     let count = 0;
     const target = metric.target;
     const isHigherBetter = metric.direction === "up" || metric.direction === ">=";
-    
+
     // Start from most recent and count backwards
     for (let i = metric.last_8_weeks.length - 1; i >= 0; i--) {
       const val = metric.last_8_weeks[i];
@@ -117,7 +117,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
     }
     return count;
   })();
-  
+
   const performanceColor = getPerformanceColor(
     metric.current_value,
     metric.target,
@@ -132,7 +132,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
   const trend = calculateTrend(metric.last_8_weeks, targetDir);
 
   // Calculate week-over-week
-  const previousWeekValue = metric.last_8_weeks.length >= 2 
+  const previousWeekValue = metric.last_8_weeks.length >= 2
     ? metric.last_8_weeks[metric.last_8_weeks.length - 2]
     : null;
   const weekOverWeek = calculateWeekOverWeek(metric.current_value, previousWeekValue);
@@ -178,25 +178,26 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
 
   return (
     <div onClick={onClick} className="cursor-pointer">
-      <Card className="p-6 hover:border-primary/40 transition-all">
-        <div className="space-y-4">
+      <Card className="p-4 md:p-6 hover:border-primary/40 transition-all">
+        <div className="space-y-3 md:space-y-4">
           {/* Tier 1: Title Row - Full width, prominent */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-2">
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 shrink-0 -ml-1"
+              className="h-7 w-7 p-0 shrink-0 -ml-1 mt-0.5"
               onClick={handleFavoriteClick}
+              disabled={toggleFavoriteMutation.isPending}
+              aria-label={metric.is_favorite ? "Remove from favorites" : "Add to favorites"}
             >
               <Star
-                className={`h-4 w-4 ${
-                  metric.is_favorite
-                    ? "fill-amber-400 text-amber-400"
-                    : "text-muted-foreground/50 hover:text-muted-foreground"
-                }`}
+                className={`h-4 w-4 ${metric.is_favorite
+                  ? "fill-amber-400 text-amber-400"
+                  : "text-muted-foreground/50 hover:text-muted-foreground"
+                  } ${toggleFavoriteMutation.isPending ? "opacity-50" : ""}`}
               />
             </Button>
-            <h3 className="text-lg font-semibold text-foreground leading-tight">
+            <h3 className="text-base md:text-lg font-semibold text-foreground leading-tight">
               {metric.name}
             </h3>
           </div>
@@ -251,15 +252,14 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
               </Badge>
             )}
             {trend.direction !== "insufficient-data" && (
-              <Badge 
+              <Badge
                 variant="muted"
-                className={`text-xs border ${
-                  trend.direction === "up"
-                    ? "border-green-300 bg-green-50 text-green-700"
-                    : trend.direction === "down"
+                className={`text-xs border ${trend.direction === "up"
+                  ? "border-green-300 bg-green-50 text-green-700"
+                  : trend.direction === "down"
                     ? "border-red-300 bg-red-50 text-red-700"
                     : "border-gray-300 bg-gray-50 text-gray-700"
-                }`}
+                  }`}
               >
                 <span className="mr-1">{trend.icon}</span>
                 {trend.label}
@@ -271,11 +271,11 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
           {hasData && (
             <div className="h-12">
               <Sparklines data={sparklineData} width={200} height={40}>
-                <SparklinesLine 
+                <SparklinesLine
                   color={
                     performanceColor === "green" ? "#22c55e" :
-                    performanceColor === "amber" ? "#f59e0b" :
-                    performanceColor === "red" ? "#ef4444" : "#9ca3af"
+                      performanceColor === "amber" ? "#f59e0b" :
+                        performanceColor === "red" ? "#ef4444" : "#9ca3af"
                   }
                   style={{ strokeWidth: 2, fill: "none" }}
                 />
@@ -290,8 +290,8 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
                 <div>
                   <p className="text-xs font-medium opacity-80">This Week</p>
                   <p className="text-lg font-bold">
-                    {metric.current_value !== null 
-                      ? `${metric.current_value} ${metric.unit}` 
+                    {metric.current_value !== null
+                      ? `${metric.current_value} ${metric.unit}`
                       : "No data"}
                   </p>
                 </div>
@@ -304,7 +304,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
                   </div>
                 )}
               </div>
-              
+
               {/* Week-over-Week Comparison */}
               {weekOverWeek && (
                 <div className="flex items-center gap-1 text-xs pt-1 border-t border-current/20">
@@ -337,18 +337,18 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
 
           {/* Actions */}
           <div className="flex gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="flex-1"
               onClick={handleUpdateClick}
             >
               <ExternalLink className="w-3 h-3 mr-2" />
               Update
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="flex-1"
               onClick={(e) => {
                 e.stopPropagation();

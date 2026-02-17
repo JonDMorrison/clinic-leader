@@ -33,7 +33,7 @@ export default function LibraryDetail() {
     } catch (error: any) {
       console.error('Error fetching playbook:', error);
       toast.error('Failed to load playbook');
-      navigate('/library');
+      navigate('/docs');
     } finally {
       setLoading(false);
     }
@@ -98,9 +98,9 @@ export default function LibraryDetail() {
   return (
     <div className="container mx-auto py-6 px-4 max-w-4xl">
       <div className="mb-6">
-        <Button variant="ghost" onClick={() => navigate('/library')}>
+        <Button variant="ghost" onClick={() => navigate('/docs')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Library
+          Back to Docs
         </Button>
       </div>
 

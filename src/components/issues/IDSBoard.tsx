@@ -19,6 +19,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { IssueCard } from "./IssueCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { AlertCircle, Plus } from "lucide-react";
 
 interface SortableIssueProps {
   issue: any;
@@ -111,7 +113,7 @@ export const IDSBoard = ({ issues, onUpdate }: IDSBoardProps) => {
   // Update local state when issues prop changes (compare full data, not just IDs)
   const issuesKey = JSON.stringify(issues.map(i => ({ id: i.id, status: i.status, priority: i.priority })));
   const itemsKey = JSON.stringify(items.map(i => ({ id: i.id, status: i.status, priority: i.priority })));
-  
+
   if (issuesKey !== itemsKey) {
     setItems(issues);
   }
@@ -158,9 +160,11 @@ export const IDSBoard = ({ issues, onUpdate }: IDSBoardProps) => {
       )}
 
       {openIssues.length === 0 && solvedIssues.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          No issues yet. Create your first issue to get started.
-        </div>
+        <EmptyState
+          icon={<AlertCircle className="w-12 h-12" />}
+          title="No Issues Yet"
+          description="Identify and solve problems to move your organization forward."
+        />
       )}
     </div>
   );

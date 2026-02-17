@@ -3,13 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Calendar, Play, Eye, Copy, Trash2, PlayCircle, FileText, AlertTriangle } from "lucide-react";
+import { Plus, Calendar, Play, Eye, Copy, Trash2, PlayCircle, FileText, AlertTriangle, History } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { format, addDays } from "date-fns";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 import { CreateMeetingModal } from "@/components/meetings/CreateMeetingModal";
 import {
@@ -227,80 +230,108 @@ export default function Meetings() {
     navigate(`/meetings/${newMeetingId}`);
   };
 
-  const MeetingRow = ({ meeting, showDuplicate = false }: { meeting: MeetingWithCounts; showDuplicate?: boolean }) => (
-    <div 
-      className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
+  const MeetingRow = ({
+    meeting,
+    showDuplicate = false,
+    isDeleting = false
+  }: {
+    meeting: MeetingWithCounts;
+    showDuplicate?: boolean;
+    isDeleting?: boolean;
+  }) => (
+    <div
+      className={cn(
+        "flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer gap-3",
+        isDeleting && "opacity-50 pointer-events-none"
+      )}
       onClick={() => navigate(`/meetings/${meeting.id}`)}
     >
-      <div className="flex items-center gap-4 flex-1 min-w-0">
-        <Calendar className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="p-2 rounded-full bg-muted flex-shrink-0">
+          <Calendar className="w-5 h-5 text-muted-foreground" />
+        </div>
         <div className="min-w-0 flex-1">
-          <p className="font-medium truncate">{meeting.title || "Level 10 Meeting"}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-medium truncate">{meeting.title || "Level 10 Meeting"}</p>
+            <Badge variant="outline" className={cn("text-[10px] uppercase tracking-wider", statusColors[meeting.status])}>
+              {statusLabels[meeting.status]}
+            </Badge>
+          </div>
           <p className="text-sm text-muted-foreground">
             {format(new Date(meeting.scheduled_for), "PPP 'at' p")}
           </p>
         </div>
-        <Badge className={statusColors[meeting.status]}>
-          {statusLabels[meeting.status]}
-        </Badge>
+      </div>
+
+      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1" title="Agenda items">
             <FileText className="w-3 h-3" />
             {meeting.itemCount}
           </span>
           {meeting.issueCount > 0 && (
-            <span className="flex items-center gap-1 text-amber-600">
+            <span className="flex items-center gap-1 text-amber-600" title="Open issues">
               <AlertTriangle className="w-3 h-3" />
               {meeting.issueCount}
             </span>
           )}
           {meeting.level10_score && (
-            <span className="font-medium text-muted-foreground">
+            <span className="font-medium text-muted-foreground" title="Meeting score">
               {meeting.level10_score}/10
             </span>
           )}
         </div>
-      </div>
-      <div className="flex items-center gap-2 flex-shrink-0 ml-4" onClick={(e) => e.stopPropagation()}>
-        {(meeting.status === "draft" || meeting.status === "scheduled") && (
-          <Button
-            size="sm"
-            onClick={() => navigate(`/meetings/${meeting.id}?start=1`)}
-          >
-            <Play className="w-4 h-4 mr-1" />
-            Start
-          </Button>
-        )}
-        {meeting.status === "in_progress" && (
-          <Button
-            size="sm"
-            variant="default"
-            onClick={() => navigate(`/meetings/${meeting.id}`)}
-          >
-            <Play className="w-4 h-4 mr-1" />
-            Resume
-          </Button>
-        )}
-        {showDuplicate && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => duplicateMutation.mutate(meeting.id)}
-            disabled={duplicateMutation.isPending}
-          >
-            <Copy className="w-4 h-4 mr-1" />
-            Duplicate
-          </Button>
-        )}
-        {meeting.status !== "completed" && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setDeleteTarget(meeting.id)}
-          >
-            <Trash2 className="w-4 h-4 text-destructive" />
-          </Button>
-        )}
+
+        <div className="flex items-center gap-2">
+          {isDeleting ? (
+            <div className="flex items-center justify-center p-2">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              {(meeting.status === "draft" || meeting.status === "scheduled") && (
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/meetings/${meeting.id}?start=1`)}
+                >
+                  <Play className="w-4 h-4 mr-1" />
+                  Start
+                </Button>
+              )}
+              {meeting.status === "in_progress" && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => navigate(`/meetings/${meeting.id}`)}
+                >
+                  <Play className="w-4 h-4 mr-1" />
+                  Resume
+                </Button>
+              )}
+              {showDuplicate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => duplicateMutation.mutate(meeting.id)}
+                  disabled={duplicateMutation.isPending}
+                >
+                  <Copy className="w-4 h-4 mr-1" />
+                  Duplicate
+                </Button>
+              )}
+              {meeting.status !== "completed" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDeleteTarget(meeting.id)}
+                  aria-label="Delete meeting"
+                >
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -370,11 +401,26 @@ export default function Meetings() {
             </CardHeader>
             <CardContent>
               {meetings?.upcoming.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No upcoming meetings scheduled.</p>
+                <EmptyState
+                  icon={<Calendar className="w-12 h-12" />}
+                  title="No upcoming meetings"
+                  description="Stay on track by scheduling your next Level 10 meeting."
+                  action={
+                    <Button onClick={() => setShowCreateModal(true)} variant="outline">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Schedule Meeting
+                    </Button>
+                  }
+                  className="py-12"
+                />
               ) : (
                 <div className="space-y-2">
                   {meetings?.upcoming.map((meeting) => (
-                    <MeetingRow key={meeting.id} meeting={meeting} />
+                    <MeetingRow
+                      key={meeting.id}
+                      meeting={meeting}
+                      isDeleting={deleteMutation.isPending && deleteMutation.variables === meeting.id}
+                    />
                   ))}
                 </div>
               )}
@@ -389,11 +435,21 @@ export default function Meetings() {
             </CardHeader>
             <CardContent>
               {meetings?.past.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No past meetings.</p>
+                <EmptyState
+                  icon={<History className="w-12 h-12" />}
+                  title="No past meetings"
+                  description="Complete your first meeting to see your history and Level 10 scores here."
+                  className="py-12"
+                />
               ) : (
                 <div className="space-y-2">
                   {meetings?.past.slice(0, 20).map((meeting) => (
-                    <MeetingRow key={meeting.id} meeting={meeting} showDuplicate />
+                    <MeetingRow
+                      key={meeting.id}
+                      meeting={meeting}
+                      showDuplicate
+                      isDeleting={deleteMutation.isPending && deleteMutation.variables === meeting.id}
+                    />
                   ))}
                 </div>
               )}
@@ -409,7 +465,12 @@ export default function Meetings() {
             <CardContent>
               <div className="space-y-2">
                 {[...(meetings?.upcoming || []), ...(meetings?.past || [])].map((meeting) => (
-                  <MeetingRow key={meeting.id} meeting={meeting} showDuplicate={meeting.status === "completed"} />
+                  <MeetingRow
+                    key={meeting.id}
+                    meeting={meeting}
+                    showDuplicate={meeting.status === "completed"}
+                    isDeleting={deleteMutation.isPending && deleteMutation.variables === meeting.id}
+                  />
                 ))}
               </div>
             </CardContent>

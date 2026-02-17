@@ -40,7 +40,7 @@ const navGroups: NavGroup[] = [
   {
     label: null, // No label for core items
     items: [
-      { title: "Home", path: "/", icon: Home, roles: ["staff", "manager", "director", "owner"] },
+      { title: "Home", path: "/dashboard", icon: Home, roles: ["staff", "manager", "director", "owner"] },
       { title: "Vision", path: "/vto", icon: Compass, roles: ["manager", "director", "owner"], eosOnly: true },
       { title: "Data", path: "/data", icon: Database, roles: ["manager", "director", "owner"] },
       { title: "Scorecard", path: "/scorecard", icon: BarChart3, roles: ["manager", "director", "owner"], eosOnly: true },
@@ -70,11 +70,17 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-export const Sidebar = () => {
+export const Sidebar = ({ onItemClick }: { onItemClick?: () => void }) => {
   const location = useLocation();
   const isOnboarding = location.pathname === "/onboarding";
-  
-  // Fetch team_id only (role comes from useIsAdmin hook)
+
+  // Handle click on nav items
+  const handleItemClick = () => {
+    if (onItemClick) {
+      onItemClick();
+    }
+  };
+
   const { data: currentUser } = useQuery({
     queryKey: ["currentUser-teamId"],
     queryFn: async () => {
@@ -93,13 +99,13 @@ export const Sidebar = () => {
     queryKey: ["team", currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return null;
-      
+
       const { data } = await supabase
         .from("teams")
         .select("eos_enabled")
         .eq("id", currentUser.team_id)
         .maybeSingle();
-      
+
       return data;
     },
     enabled: !!currentUser?.team_id,
@@ -110,29 +116,23 @@ export const Sidebar = () => {
   const eosEnabled = team?.eos_enabled || false;
 
   // Filter groups and items based on role permissions and EOS status
-  // During onboarding, show all core navigation items to make the app feel complete
   const filteredGroups = navGroups.map(group => ({
     ...group,
     items: group.items.filter(item => {
-      // During onboarding, show all non-EOS items to make sidebar look complete
       if (isOnboarding) {
-        // Show basic items during onboarding
         if (item.eosOnly) return false;
         return true;
       }
-      
-      // Filter by role using permission helpers
+
       const permissionLevel = getNavPermissionLevel(item.roles);
       if (!canSeeNavItem(permissionLevel, roleData)) return false;
-      
-      // Filter EOS-specific items if EOS is not enabled
+
       if (item.eosOnly && !eosEnabled) return false;
-      
+
       return true;
     }),
-  })).filter(group => group.items.length > 0); // Remove empty groups
+  })).filter(group => group.items.length > 0);
 
-  // Check if current path is in a group to keep it open
   const isGroupActive = (items: NavItem[]) => {
     return items.some(item => {
       if (item.path === "/") {
@@ -143,16 +143,16 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className="w-64 h-screen sticky top-0 flex flex-col glass border-r border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)]">
-      <div className="p-6 border-b border-white/10">
+    <aside className="w-64 h-full flex flex-col glass border-r border-white/20 shadow-[0_8px_32px_rgba(31,38,135,0.15)] overflow-hidden">
+      <div className="p-6 border-b border-white/10 shrink-0">
         <div className="group cursor-pointer transition-all duration-300 hover:opacity-90">
-          <ClinicLeaderLogo 
-            size={LOGO_SIZES.sidebar} 
+          <ClinicLeaderLogo
+            size={LOGO_SIZES.sidebar}
             className="transition-transform duration-300 group-hover:scale-[1.02]"
           />
         </div>
       </div>
-      
+
       <nav className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-6">
           {filteredGroups.map((group, groupIndex) => (
@@ -173,12 +173,11 @@ export const Sidebar = () => {
               <CollapsibleContent>
                 <ul className="space-y-1">
                   {group.items.map((item) => {
-                    const isActive = item.path === "/" 
-                      ? location.pathname === "/" 
+                    const isActive = item.path === "/"
+                      ? location.pathname === "/"
                       : location.pathname.startsWith(item.path);
                     const isChildActive = item.children?.some(child => location.pathname.startsWith(child.path));
-                    
-                    // If item has children, render as collapsible submenu
+
                     if (item.children) {
                       return (
                         <li key={item.path}>
@@ -206,6 +205,7 @@ export const Sidebar = () => {
                                     <li key={child.path}>
                                       <NavLink
                                         to={child.path}
+                                        onClick={handleItemClick}
                                         className={cn(
                                           "flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-300 text-sm",
                                           isChildItemActive
@@ -225,12 +225,13 @@ export const Sidebar = () => {
                         </li>
                       );
                     }
-                    
+
                     return (
                       <li key={item.path}>
                         <NavLink
                           to={item.path}
                           end={item.path === "/"}
+                          onClick={handleItemClick}
                           className={cn(
                             "flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden",
                             isActive

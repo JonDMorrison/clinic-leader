@@ -11,6 +11,8 @@ import { IDSFollowThroughCard } from "@/components/issues/IDSFollowThroughCard";
 import { IssuesWorkflowBanner } from "@/components/issues/IssuesWorkflowBanner";
 import { SmartInterventionSuggestionList } from "@/components/interventions/SmartInterventionSuggestionList";
 import { HelpHint } from "@/components/help/HelpHint";
+import { Skeleton } from "@/components/ui/skeleton";
+import { IssuesSkeleton } from "@/components/skeletons/IssuesSkeleton";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useOrgSafetyCheck } from "@/hooks/useOrgSafetyCheck";
 
@@ -23,22 +25,23 @@ const Issues = () => {
     queryKey: ["issues", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      
+
       const { data, error } = await supabase
         .from("issues")
         .select("*, users(full_name), todos(id, title, done_at)")
-        .eq("organization_id", orgId) // MULTI-TENANCY: Explicit org filter
-        .order("created_at", { ascending: false });
-      
+        .eq("organization_id", orgId)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
       if (error) throw error;
-      
+
       // Sort by source priority: Scorecard > Rock > Manual, then by manual priority
       const getSourceOrder = (issue: any) => {
         if (issue.metric_id) return 0; // Scorecard
         if (issue.rock_id) return 1;   // Rock
         return 2;                       // Manual
       };
-      
+
       return (data || []).sort((a, b) => {
         // First by source
         const sourceA = getSourceOrder(a);
@@ -60,7 +63,7 @@ const Issues = () => {
         .from("teams")
         .select("id, name")
         .eq("id", orgId); // MULTI-TENANCY: Only current org
-      
+
       if (error) throw error;
       return data;
     },
@@ -71,13 +74,13 @@ const Issues = () => {
     queryKey: ["users", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      
+
       const { data, error } = await supabase
         .from("users")
         .select("id, full_name")
         .eq("team_id", orgId) // MULTI-TENANCY: Explicit org filter
         .order("full_name");
-      
+
       if (error) throw error;
       return data;
     },
@@ -85,7 +88,7 @@ const Issues = () => {
   });
 
   if (userLoading) {
-    return <div className="space-y-6"><p className="text-muted-foreground">Loading...</p></div>;
+    return <IssuesSkeleton />;
   }
 
   if (!isValid) {
@@ -94,7 +97,7 @@ const Issues = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center">
             Issues
@@ -131,7 +134,9 @@ const Issues = () => {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground">Loading issues...</p>
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
           ) : (
             <IDSBoard issues={issues || []} onUpdate={refetch} />
           )}

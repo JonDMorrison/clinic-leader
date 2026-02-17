@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { startOfWeek, subWeeks, format } from "date-fns";
+import { JobTracker } from "@/utils/jobTracker";
 
 interface BackfillResult {
   success: boolean;
@@ -24,34 +25,43 @@ export const useJaneBackfill = (organizationId: string | undefined) => {
         throw new Error("No organization ID provided");
       }
 
-      // Generate last 12 weeks (Mondays)
-      const weekStarts = Array.from({ length: 12 }, (_, i) => {
-        const date = subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), i);
-        return format(date, "yyyy-MM-dd");
-      }).reverse();
+      const job = await JobTracker.startJob("jane-sync-backfill", { organizationId });
 
-      setProgress(10);
+      try {
+        // Generate last 12 weeks (Mondays)
+        const weekStarts = Array.from({ length: 12 }, (_, i) => {
+          const date = subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), i);
+          return format(date, "yyyy-MM-dd");
+        }).reverse();
 
-      const { data, error } = await supabase.functions.invoke('backfill-jane-history', {
-        body: { organizationId, weekStarts }
-      });
+        setProgress(10);
 
-      if (error) {
-        throw error;
+        const { data, error } = await supabase.functions.invoke('backfill-jane-history', {
+          body: { organizationId, weekStarts }
+        });
+
+        if (error) {
+          await job.complete(false, error);
+          throw error;
+        }
+
+        setProgress(100);
+        await job.complete(true, data);
+        return data as BackfillResult;
+      } catch (e) {
+        await job.complete(false, e);
+        throw e;
       }
-
-      setProgress(100);
-      return data as BackfillResult;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["metric-results"] });
       queryClient.invalidateQueries({ queryKey: ["metrics"] });
-      
+
       toast({
         title: "Backfill complete",
         description: `✓ ${data.inserted} entries added, ${data.skipped} skipped, ${data.errors} errors across ${data.totalMetrics} metrics.`,
       });
-      
+
       setProgress(0);
     },
     onError: (error) => {

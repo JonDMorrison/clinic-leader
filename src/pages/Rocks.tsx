@@ -16,6 +16,7 @@ import { LoadDefaultRocksDialog } from "@/components/rocks/LoadDefaultRocksDialo
 import { QuarterTransitionBanner } from "@/components/rocks/QuarterTransitionBanner";
 import { ArchiveRocksDialog } from "@/components/rocks/ArchiveRocksDialog";
 import { getCurrentQuarter } from "@/lib/rocks/templates";
+import { RocksSkeleton } from "@/components/skeletons/RocksSkeleton";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
   DndContext,
@@ -52,13 +53,13 @@ const Rocks = () => {
     queryKey: ["rocks", organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
-      
+
       const { data, error } = await supabase
         .from("rocks")
         .select("*, users(full_name)")
         .eq("organization_id", organizationId)
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
       return data;
     },
@@ -69,13 +70,13 @@ const Rocks = () => {
     queryKey: ["users", organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
-      
+
       const { data, error } = await supabase
         .from("users")
         .select("id, full_name")
         .eq("team_id", organizationId)
         .order("full_name");
-      
+
       if (error) throw error;
       return data;
     },
@@ -109,11 +110,11 @@ const Rocks = () => {
   // Check if we should show transition banner
   const lastQuarterRocks = useMemo(() => {
     if (!rocks) return { completed: [], incomplete: [] };
-    
+
     // Get the previous quarter's rocks
     const lastQuarter = quarters[quarters.length - 2]; // Second to last quarter
     if (!lastQuarter) return { completed: [], incomplete: [] };
-    
+
     const lastQuarterRocksFiltered = rocks.filter(r => r.quarter === lastQuarter);
     return {
       completed: lastQuarterRocksFiltered.filter(r => r.status === 'done'),
@@ -171,7 +172,7 @@ const Rocks = () => {
 
     toast.success("Rock status updated");
     refetch();
-    
+
     setActiveId(null);
     setActiveRock(null);
   };
@@ -213,12 +214,7 @@ const Rocks = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-foreground">Rocks</h1>
-        <p className="text-muted-foreground">Loading rocks...</p>
-      </div>
-    );
+    return <RocksSkeleton />;
   }
 
   return (
@@ -287,44 +283,46 @@ const Rocks = () => {
         organizationId={currentUser?.team_id || ""}
       />
 
-      <div className="flex items-end gap-4 p-4 bg-card rounded-lg border border-border">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Filter className="w-4 h-4" />
-          <span className="text-sm font-medium">Filters:</span>
-        </div>
-        <div className="flex-1 flex gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="quarter-filter" className="text-xs">Quarter</Label>
-            <Select value={quarterFilter} onValueChange={(v) => handleFilterChange("quarter", v)}>
-              <SelectTrigger id="quarter-filter" className="w-[180px]">
-                <SelectValue placeholder="All Quarters" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Quarters</SelectItem>
-                {quarters.map((q) => (
-                  <SelectItem key={q} value={q}>
-                    {q}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="sticky top-[72px] z-20 bg-background/95 backdrop-blur-sm -mx-4 px-4 py-2 md:static md:bg-transparent md:p-0 md:mx-0 mb-6">
+        <div className="flex flex-col md:flex-row md:items-end gap-4 p-4 bg-card rounded-lg border border-border shadow-sm">
+          <div className="flex items-center gap-2 text-muted-foreground md:pb-2">
+            <Filter className="w-4 h-4" />
+            <span className="text-sm font-medium">Filters:</span>
           </div>
+          <div className="flex-1 flex flex-wrap gap-4">
+            <div className="space-y-2 flex-1 min-w-[140px]">
+              <Label htmlFor="quarter-filter" className="text-xs">Quarter</Label>
+              <Select value={quarterFilter} onValueChange={(v) => handleFilterChange("quarter", v)}>
+                <SelectTrigger id="quarter-filter" className="w-full">
+                  <SelectValue placeholder="All Quarters" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Quarters</SelectItem>
+                  {quarters.map((q) => (
+                    <SelectItem key={q} value={q}>
+                      {q}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="owner-filter" className="text-xs">Owner</Label>
-            <Select value={ownerFilter} onValueChange={(v) => handleFilterChange("owner", v)}>
-              <SelectTrigger id="owner-filter" className="w-[180px]">
-                <SelectValue placeholder="All Owners" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Owners</SelectItem>
-                {users?.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.full_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2 flex-1 min-w-[140px]">
+              <Label htmlFor="owner-filter" className="text-xs">Owner</Label>
+              <Select value={ownerFilter} onValueChange={(v) => handleFilterChange("owner", v)}>
+                <SelectTrigger id="owner-filter" className="w-full">
+                  <SelectValue placeholder="All Owners" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Owners</SelectItem>
+                  {users?.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
@@ -364,7 +362,7 @@ const Rocks = () => {
           <DragOverlay>
             {activeId && activeRock ? (
               <div className="opacity-90 rotate-2 scale-105">
-                <RockCard rock={activeRock} onUpdate={() => {}} />
+                <RockCard rock={activeRock} onUpdate={() => { }} />
               </div>
             ) : null}
           </DragOverlay>
@@ -372,8 +370,8 @@ const Rocks = () => {
       )}
 
       <NewRockModal open={isModalOpen} onClose={() => setIsModalOpen(false)} users={users || []} onSuccess={refetch} organizationId={organizationId || ''} />
-      
-      <LoadDefaultRocksDialog 
+
+      <LoadDefaultRocksDialog
         open={loadDefaultsOpen}
         onOpenChange={setLoadDefaultsOpen}
         organizationId={currentUser?.team_id || ''}

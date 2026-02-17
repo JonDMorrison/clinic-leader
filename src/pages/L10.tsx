@@ -65,11 +65,11 @@ const L10 = () => {
     queryKey: ["metrics-l10", organizationId],
     queryFn: async () => {
       if (!organizationId) return { metrics: [], periodKey: null };
-      
+
       // Get the latest period for this org
       const periodSelection = await getMonthlyPeriodSelection(organizationId);
       const periodKey = periodSelection.selectedPeriodKey;
-      
+
       // Fetch active metrics
       const { data: metrics, error: metricsError } = await supabase
         .from("metrics")
@@ -78,7 +78,7 @@ const L10 = () => {
         .eq("is_active", true)
         .order("category")
         .order("name");
-      
+
       if (metricsError) throw metricsError;
       if (!metrics?.length) return { metrics: [], periodKey };
 
@@ -88,7 +88,7 @@ const L10 = () => {
         .from("users")
         .select("id, full_name")
         .in("id", ownerIds);
-      
+
       const userMap = users?.reduce((acc, u) => {
         acc[u.id] = u.full_name;
         return acc;
@@ -120,7 +120,7 @@ const L10 = () => {
         current_value: resultsByMetric[metric.id]?.value ?? null,
         period_key: periodKey,
       }));
-      
+
       return { metrics: enrichedMetrics, periodKey };
     },
     enabled: !!organizationId,
@@ -136,7 +136,7 @@ const L10 = () => {
         .eq("organization_id", organizationId)
         .neq("status", "done")
         .order("level");
-      
+
       if (error) throw error;
       return data;
     },
@@ -152,7 +152,7 @@ const L10 = () => {
         .select("*, users(full_name)")
         .eq("organization_id", organizationId)
         .order("due_date");
-      
+
       if (error) throw error;
       return data;
     },
@@ -169,7 +169,7 @@ const L10 = () => {
         .eq("organization_id", organizationId)
         .neq("status", "solved")
         .order("priority");
-      
+
       if (error) throw error;
       return data;
     },
@@ -185,7 +185,7 @@ const L10 = () => {
         .select("id, name")
         .eq("id", organizationId)
         .single();
-      
+
       return data;
     },
     enabled: !!organizationId,
@@ -195,7 +195,7 @@ const L10 = () => {
     try {
       const metrics = metricsData?.metrics || [];
       const periodKey = metricsData?.periodKey || null;
-      
+
       // Prepare metric snapshot using metricStatus
       const metricSnapshot = metrics.map(metric => {
         const statusResult = metricStatus(
@@ -271,7 +271,7 @@ const L10 = () => {
   const handleExportMinutes = () => {
     const metrics = metricsData?.metrics || [];
     const periodKey = metricsData?.periodKey || null;
-    
+
     if (!metrics.length && !rocks?.length) {
       toast({
         title: "Error",
@@ -336,7 +336,7 @@ const L10 = () => {
     <div className="space-y-6">
       {/* Redirect Banner */}
       <Alert className="border-blue-500/50 bg-blue-500/10">
-        <AlertDescription className="flex items-center justify-between">
+        <AlertDescription className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <span className="text-blue-700">
             <strong>Meetings have moved!</strong> Use the new Meetings page for scheduling, agenda editing, and live meeting mode.
           </span>
@@ -386,10 +386,10 @@ const L10 = () => {
 
       <div className="space-y-4">
         <AgendaTimer sectionName="Segue (Good News)" defaultMinutes={5} />
-        
+
         {/* Core Values Shout-Out Section */}
         <ShoutoutSection />
-        
+
         <div className="space-y-4">
           <AgendaTimer sectionName="Scorecard" defaultMinutes={5} />
           <ScorecardSnapshot metrics={metrics} periodKey={periodKey} />

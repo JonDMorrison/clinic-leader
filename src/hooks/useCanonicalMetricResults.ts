@@ -18,6 +18,7 @@ export interface CanonicalResult {
   is_canonical: boolean;
   selection_reason?: string;
   computed_at?: string;
+  created_at?: string;
   // Original result ID for tracing
   result_id?: string;
 }
@@ -69,6 +70,7 @@ export async function fetchCanonicalMetricResults({
     is_canonical: true,
     selection_reason: r.selection_reason,
     computed_at: r.computed_at,
+    created_at: r.computed_at,
     result_id: r.chosen_metric_result_id || undefined,
   }));
 
@@ -95,7 +97,7 @@ export async function fetchCanonicalMetricResults({
 
   // 5. Query raw metric_results for missing combos
   const missingMetricIds = [...new Set(missingCombos.map(c => c.metric_id))];
-  
+
   // For weekly, use week_start; for monthly, use period_start
   const rawQuery = supabase
     .from("metric_results")
@@ -125,6 +127,7 @@ export async function fetchCanonicalMetricResults({
       value: r.value,
       source: r.source,
       is_canonical: false, // FALLBACK - not from canonical engine
+      created_at: r.created_at,
       result_id: r.id,
     }));
 

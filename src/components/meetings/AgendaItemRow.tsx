@@ -495,6 +495,7 @@ export function AgendaItemRow({
                     className="p-1 h-6 w-6"
                     onClick={() => moveMutation.mutate("up")}
                     disabled={isFirst || moveMutation.isPending}
+                    aria-label="Move item up"
                   >
                     <ChevronUp className="w-4 h-4" />
                   </Button>
@@ -504,6 +505,7 @@ export function AgendaItemRow({
                     className="p-1 h-6 w-6"
                     onClick={() => moveMutation.mutate("down")}
                     disabled={isLast || moveMutation.isPending}
+                    aria-label="Move item down"
                   >
                     <ChevronDown className="w-4 h-4" />
                   </Button>
@@ -513,6 +515,7 @@ export function AgendaItemRow({
                     className="p-1 h-6 w-6 text-destructive hover:text-destructive"
                     onClick={() => deleteMutation.mutate()}
                     disabled={deleteMutation.isPending}
+                    aria-label="Delete item"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>

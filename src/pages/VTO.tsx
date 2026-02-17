@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   Plus, Pencil, History, Target, FileText, AlertCircle, BarChart3,
   Heart, Crosshair, Mountain, TrendingUp, Calendar
 } from "lucide-react";
@@ -18,6 +18,7 @@ import { BentoGrid, BentoCard } from "@/components/ui/BentoGrid";
 import { VTOStatsRow } from "@/components/vto/VTOStatsRow";
 import { VisionSectionCard } from "@/components/vto/VisionSectionCard";
 import { ExecutionLinkCard } from "@/components/vto/ExecutionLinkCard";
+import { VTOSkeleton } from "@/components/skeletons/VTOSkeleton";
 
 const VTO = () => {
   const { toast } = useToast();
@@ -96,7 +97,7 @@ const VTO = () => {
             .eq("organization_id", userProfile.team_id)
             .eq("status", "open");
 
-          return { 
+          return {
             vto, versions, latestVersion, progress, teamId: userProfile.team_id,
             rocksCount: rocksCount || 0,
             issuesCount: issuesCount || 0
@@ -152,19 +153,7 @@ const VTO = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="space-y-6 p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-12 bg-muted/50 rounded-lg w-1/3" />
-          <div className="h-6 bg-muted/50 rounded w-1/2" />
-          <div className="grid grid-cols-3 gap-4 mt-8">
-            <div className="h-40 bg-muted/50 rounded-2xl" />
-            <div className="h-40 bg-muted/50 rounded-2xl" />
-            <div className="h-40 bg-muted/50 rounded-2xl" />
-          </div>
-        </div>
-      </div>
-    );
+    return <VTOSkeleton />;
   }
 
   // Empty state - show create VTO card
@@ -235,7 +224,7 @@ const VTO = () => {
               <HelpHint term="V/TO" context="vto_header" />
             </h1>
             <div className="flex items-center gap-3 mt-3">
-              <Badge 
+              <Badge
                 variant={latestVersion?.status === 'published' ? 'default' : 'secondary'}
                 className="text-sm"
               >
@@ -257,7 +246,7 @@ const VTO = () => {
         </div>
 
         {/* Stats Row */}
-        <VTOStatsRow 
+        <VTOStatsRow
           visionScore={progress?.vision_score || null}
           goalsCount={goalsCount}
           linksCount={rocksCount || 0}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 import { Loader2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CoreValuesOnboardingStep } from "@/components/core-values/CoreValuesOnboardingStep";
@@ -26,51 +27,70 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
       }
 
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-        if (!user) {
+        if (authError || !user) {
+          logger.info("No authenticated user found, redirecting to /auth", { component: "OnboardingGuard" });
           navigate("/auth");
           return;
         }
 
-        // Get user's team and onboarding status
-        // Note: public.users.id is NOT the same as auth.users.id, so we query by email
-        const { data: userData, error } = await supabase
-          .from("users")
-          .select("id, team_id, teams(onboarding_status)")
-          .eq("email", user.email)
-          .maybeSingle();
+        logger.info("Checking onboarding status for user", {
+          component: "OnboardingGuard",
+          userId: user.id,
+          email: user.email
+        });
 
-        if (error) {
-          console.error("Error fetching user data:", error);
-          // On error, allow access to prevent blocking legitimate users
-          setNeedsOnboarding(false);
+        // Get user's team and onboarding status
+        const { data: userData, error: dbError } = await supabase
+          .from('users')
+          .select(`
+            *,
+            teams (
+              onboarding_status
+            )
+          `)
+          .eq('email', user.email)
+          .single();
+
+        if (dbError) {
+          logger.error("Failed to fetch user data from public schema", dbError, {
+            component: "OnboardingGuard",
+            email: user.email
+          });
+          // Fix: Fail-closed. If we can't verify status, don't let them in.
           setLoading(false);
           return;
         }
 
         if (!userData?.team_id) {
-          // No organization - needs onboarding
+          logger.info("User has no team_id, redirecting to onboarding", { component: "OnboardingGuard" });
           setNeedsOnboarding(true);
-          navigate("/onboarding");
+          if (location.pathname !== "/onboarding") {
+            navigate("/onboarding", { replace: true });
+          }
+          setLoading(false);
           return;
         }
 
         const teamData = userData.teams as any;
-        
+
         // Check if onboarding is incomplete
         // Only redirect to onboarding if status is explicitly 'draft' or null
-        if (teamData?.onboarding_status === "draft" || !teamData?.onboarding_status) {
-          console.log("Onboarding incomplete, status:", teamData?.onboarding_status);
+        if (!teamData?.onboarding_status || teamData?.onboarding_status === "draft") {
+          logger.info("Onboarding incomplete, redirecting", {
+            component: "OnboardingGuard",
+            status: teamData?.onboarding_status
+          });
           setNeedsOnboarding(true);
-          navigate("/onboarding");
+          if (location.pathname !== "/onboarding") {
+            navigate("/onboarding", { replace: true });
+          }
+          setLoading(false);
           return;
         }
 
         // Check if user has acknowledged core values
-        // Use userData.id (public.users.id) not user.id (auth.users.id)
         try {
           const { data: ack } = await supabase
             .from("core_values_ack")
@@ -93,16 +113,13 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
             }
           }
         } catch (coreValuesError) {
-          console.error("Error checking core values:", coreValuesError);
-          // Continue without blocking - core values check is not critical
+          logger.error("Error checking core values commitment", coreValuesError, { component: "OnboardingGuard" });
         }
 
-        console.log("Onboarding complete, status:", teamData?.onboarding_status);
+        setNeedsOnboarding(false);
         setLoading(false);
       } catch (error) {
-        console.error("Error in onboarding guard:", error);
-        // On error, allow access to prevent blocking users
-        setNeedsOnboarding(false);
+        logger.error("Critical error in onboarding guard", error as Error, { component: "OnboardingGuard" });
         setLoading(false);
       }
     };
@@ -125,9 +142,9 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   return (
     <>
       {children}
-      
+
       {/* Core Values Commitment Modal */}
-      <Dialog open={showCoreValuesStep} onOpenChange={() => {}}>
+      <Dialog open={showCoreValuesStep} onOpenChange={() => { }}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" hideCloseButton>
           <CoreValuesOnboardingStep onComplete={() => setShowCoreValuesStep(false)} />
         </DialogContent>

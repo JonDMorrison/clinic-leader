@@ -254,22 +254,22 @@ export default function MeetingDetail() {
       // Fetch metrics
       const { data: metrics } = allLinkedMetricIds.length > 0
         ? await supabase
-            .from("metrics")
-            .select("id, name, target, direction, owner, unit")
-            .eq("organization_id", organizationId)
-            .eq("is_active", true)
-            .in("id", allLinkedMetricIds)
+          .from("metrics")
+          .select("id, name, target, direction, owner, unit")
+          .eq("organization_id", organizationId)
+          .eq("is_active", true)
+          .in("id", allLinkedMetricIds)
         : { data: [] };
 
       // Fetch metric results for the period
       const periodStart = periodKeyToStart(periodKey);
       const { data: results } = allLinkedMetricIds.length > 0
         ? await supabase
-            .from("metric_results")
-            .select("metric_id, value, period_key")
-            .in("metric_id", allLinkedMetricIds)
-            .eq("period_type", "monthly")
-            .eq("period_start", periodStart)
+          .from("metric_results")
+          .select("metric_id, value, period_key")
+          .in("metric_id", allLinkedMetricIds)
+          .eq("period_type", "monthly")
+          .eq("period_start", periodStart)
         : { data: [] };
 
       // Build result lookup
@@ -595,10 +595,10 @@ export default function MeetingDetail() {
             Print
           </Button>
           {canEdit && (
-              <Button variant="outline" onClick={() => setShowAddModal(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Item
-              </Button>
+            <Button variant="outline" onClick={() => setShowAddModal(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Item
+            </Button>
           )}
         </div>
       </div>
@@ -607,7 +607,7 @@ export default function MeetingDetail() {
 
 
       {isLiveMode && (
-        <div className="space-y-3 print:hidden">
+        <div className="space-y-3 print:hidden sticky top-[72px] z-50 bg-background/95 backdrop-blur-sm -mx-6 px-6 py-3 border-b border-green-500/20 shadow-sm">
           <Alert className="border-green-500/50 bg-green-500/10">
             <Info className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-700 flex items-center justify-between flex-wrap gap-2">
@@ -658,8 +658,8 @@ export default function MeetingDetail() {
             if (sectionItems.length === 0 && isCompleted) return null;
 
             return (
-              <Card 
-                key={section} 
+              <Card
+                key={section}
                 ref={(el) => { sectionRefs.current[section] = el; }}
                 id={`section-${section}`}
               >
@@ -710,9 +710,9 @@ export default function MeetingDetail() {
                         // Get recurring issue info for issue items
                         const recurringInfo = item.item_type === "issue" && item.source_ref_id
                           ? {
-                              isRecurring: recurringIssueMap.has(item.source_ref_id),
-                              meetingCount: recurringIssueMap.get(item.source_ref_id) || 0,
-                            }
+                            isRecurring: recurringIssueMap.has(item.source_ref_id),
+                            meetingCount: recurringIssueMap.get(item.source_ref_id) || 0,
+                          }
                           : null;
 
                         return (
@@ -733,9 +733,9 @@ export default function MeetingDetail() {
                             onOpenScorecardModal={section === "scorecard" ? () => setShowScorecardModal(true) : undefined}
                             onOpenSectionModal={
                               section === "rocks" ? () => setShowRockModal(true)
-                              : section === "todo" ? () => setShowTodoModal(true)
-                              : section === "interventions" ? () => setShowInterventionModal(true)
-                              : undefined
+                                : section === "todo" ? () => setShowTodoModal(true)
+                                  : section === "interventions" ? () => setShowInterventionModal(true)
+                                    : undefined
                             }
                           />
                         );
@@ -759,7 +759,7 @@ export default function MeetingDetail() {
                 disabled={isCompleted}
               />
             )}
-            
+
             {/* Issues created in this meeting */}
             <Card>
               <CardHeader className="py-3">
@@ -879,7 +879,7 @@ export default function MeetingDetail() {
             <AlertDialogDescription asChild>
               <div className="space-y-4">
                 <p>This completes the meeting. You can still review it later.</p>
-                
+
                 {/* Recap summary */}
                 <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
                   <p className="font-medium text-foreground">Meeting Summary</p>
@@ -907,11 +907,10 @@ export default function MeetingDetail() {
                           key={score}
                           type="button"
                           onClick={() => setLevel10Score(level10Score === score ? null : score)}
-                          className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
-                            level10Score === score
+                          className={`w-8 h-8 rounded text-sm font-medium transition-colors ${level10Score === score
                               ? "bg-primary text-primary-foreground"
                               : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                          }`}
+                            }`}
                         >
                           {score}
                         </button>
@@ -948,7 +947,7 @@ export default function MeetingDetail() {
                   <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-amber-700">
                     <p className="font-medium">⚠ Open To-Dos remaining</p>
                     <p className="text-sm mt-1">
-                      You have {openTodosCount} open To-Do{openTodosCount > 1 ? 's' : ''}. 
+                      You have {openTodosCount} open To-Do{openTodosCount > 1 ? 's' : ''}.
                       Do you want to review them before ending the meeting?
                     </p>
                   </div>

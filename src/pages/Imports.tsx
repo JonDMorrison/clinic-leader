@@ -63,7 +63,6 @@ const Imports = () => {
       if (error) throw error;
 
       toast.success('ETL process completed successfully');
-      console.log('ETL results:', data);
     } catch (error: any) {
       toast.error(error.message || 'ETL process failed');
     } finally {

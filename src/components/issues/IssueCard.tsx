@@ -100,7 +100,10 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
     }
   };
 
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleDelete = async () => {
+    setIsDeleting(true);
     try {
       const { error } = await supabase
         .from("issues")
@@ -120,6 +123,7 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
         description: error.message,
         variant: "destructive",
       });
+      setIsDeleting(false);
     }
   };
 
@@ -130,7 +134,7 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
 
   return (
     <>
-      <Card className={`transition-all ${issue.status === "solved" ? "opacity-60" : ""}`}>
+      <Card className={`transition-all ${issue.status === "solved" ? "opacity-60" : ""} ${isDeleting ? "opacity-50 pointer-events-none" : ""}`}>
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
             {dragHandleProps && issue.status !== "solved" && (
@@ -138,7 +142,7 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                 <GripVertical className="w-5 h-5 text-muted-foreground" />
               </div>
             )}
-            
+
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex-1">
@@ -171,9 +175,12 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <div className="flex items-center gap-4">
-                  <span>Owner: {issue.users?.full_name || "Unassigned"}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between text-sm text-muted-foreground gap-4 mt-4">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <span className="flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    {issue.users?.full_name || "Unassigned"}
+                  </span>
                   {issue.todos && issue.todos.length > 0 && (
                     <span className="flex items-center gap-1">
                       <ListTodo className="w-4 h-4" />
@@ -181,38 +188,41 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                     </span>
                   )}
                   {issue.solved_at && (
-                    <span className="text-success">
+                    <span className="text-success flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
                       Solved {new Date(issue.solved_at).toLocaleDateString()}
                     </span>
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap sm:justify-end">
                   {issue.status !== "solved" && (
                     <>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => setConvertModalOpen(true)}
+                        className="h-8"
                       >
                         <ListTodo className="w-4 h-4 mr-1" />
-                        Add Todo
+                        Todo
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
+                        className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary h-8"
                         onClick={() => setInterventionModalOpen(true)}
+                        title="Create Intervention"
                       >
-                        <Zap className="w-4 h-4 mr-1" />
-                        Create Intervention
+                        <Zap className="w-4 h-4" />
                       </Button>
                       <Button
                         size="sm"
                         onClick={handleMarkSolvedClick}
+                        className="h-8"
                       >
                         <CheckCircle2 className="w-4 h-4 mr-1" />
-                        Mark Solved
+                        Solved
                       </Button>
                     </>
                   )}
@@ -221,6 +231,7 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                       size="sm"
                       variant="outline"
                       onClick={handleReopenIssue}
+                      className="h-8"
                     >
                       <AlertCircle className="w-4 h-4 mr-1" />
                       Reopen
@@ -228,7 +239,7 @@ export const IssueCard = ({ issue, onUpdate, dragHandleProps }: IssueCardProps) 
                   )}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0">
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </AlertDialogTrigger>

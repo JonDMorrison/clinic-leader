@@ -40,6 +40,7 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
   const [title, setTitle] = useState(rock.title);
   const [confidence, setConfidence] = useState(rock.confidence?.toString() || "");
   const [dueDate, setDueDate] = useState(rock.due_date || "");
+  const [isSaving, setIsSaving] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
   // Fetch last outcome for completed rocks
@@ -71,6 +72,7 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
   };
 
   const handleTitleUpdate = async () => {
+    if (isSaving) return;
     const trimmedTitle = title.trim();
     if (trimmedTitle.length < 3) {
       toast.error("Title must be at least 3 characters");
@@ -82,10 +84,18 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
       return;
     }
 
+    if (trimmedTitle === rock.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+
+    setIsSaving(true);
     const { error } = await supabase
       .from("rocks")
       .update({ title: trimmedTitle })
       .eq("id", rock.id);
+
+    setIsSaving(false);
 
     if (error) {
       toast.error("Failed to update title");
@@ -98,16 +108,25 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
   };
 
   const handleConfidenceUpdate = async () => {
+    if (isSaving) return;
     const confidenceValue = parseInt(confidence);
     if (isNaN(confidenceValue) || confidenceValue < 1 || confidenceValue > 5) {
       toast.error("Confidence must be between 1 and 5");
       return;
     }
 
+    if (confidenceValue === rock.confidence) {
+      setIsEditingConfidence(false);
+      return;
+    }
+
+    setIsSaving(true);
     const { error } = await supabase
       .from("rocks")
       .update({ confidence: confidenceValue })
       .eq("id", rock.id);
+
+    setIsSaving(false);
 
     if (error) {
       toast.error("Failed to update confidence");
@@ -120,15 +139,24 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
   };
 
   const handleDueDateUpdate = async () => {
+    if (isSaving) return;
     if (!dueDate) {
       toast.error("Please enter a valid date");
       return;
     }
 
+    if (dueDate === rock.due_date) {
+      setIsEditingDueDate(false);
+      return;
+    }
+
+    setIsSaving(true);
     const { error } = await supabase
       .from("rocks")
       .update({ due_date: dueDate })
       .eq("id", rock.id);
+
+    setIsSaving(false);
 
     if (error) {
       toast.error("Failed to update due date");
@@ -169,7 +197,7 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
           <div className="flex items-start justify-between gap-2">
-            <div 
+            <div
               {...listeners}
               className="cursor-grab active:cursor-grabbing p-1 -m-1 hover:bg-muted/50 rounded"
             >
@@ -192,9 +220,10 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
                   onPointerDown={(e) => e.stopPropagation()}
                   className="h-7 text-sm font-semibold"
                   autoFocus
+                  disabled={isSaving}
                 />
               ) : (
-                <div 
+                <div
                   className="cursor-pointer hover:opacity-80 flex-1"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -209,9 +238,9 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
               )}
             </div>
             {rock.users && (
-              <UserAvatar 
-                user={{ id: rock.owner_id || undefined, full_name: rock.users.full_name, avatar_url: rock.users.avatar_url }} 
-                size="sm" 
+              <UserAvatar
+                user={{ id: rock.owner_id || undefined, full_name: rock.users.full_name, avatar_url: rock.users.avatar_url }}
+                size="sm"
                 className="shrink-0"
               />
             )}
@@ -234,6 +263,7 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
                   onPointerDown={(e) => e.stopPropagation()}
                   className="h-6 text-xs"
                   autoFocus
+                  disabled={isSaving}
                 />
               ) : (
                 <span
@@ -257,18 +287,17 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
                   {rock.quarter}
                 </Badge>
                 <VTOGoalBadge linkType="rock" linkId={rock.id} />
-                
+
                 {/* Outcome badge for completed rocks */}
                 {rock.status === "done" && lastOutcome && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs gap-1 ${
-                          lastOutcome.outcome_status === 'achieved' ? 'border-green-500/50 text-green-600' :
+                      <Badge
+                        variant="outline"
+                        className={`text-xs gap-1 ${lastOutcome.outcome_status === 'achieved' ? 'border-green-500/50 text-green-600' :
                           lastOutcome.outcome_status === 'partial' ? 'border-amber-500/50 text-amber-600' :
-                          'border-red-500/50 text-red-600'
-                        }`}
+                            'border-red-500/50 text-red-600'
+                          }`}
                       >
                         {getOutcomeIcon(lastOutcome.outcome_status)}
                         {lastOutcome.completion_percent !== null && `${lastOutcome.completion_percent}%`}
@@ -303,6 +332,7 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
                   onPointerDown={(e) => e.stopPropagation()}
                   className="h-6 w-16 text-xs"
                   autoFocus
+                  disabled={isSaving}
                 />
               ) : (
                 <div
@@ -314,11 +344,10 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
                   className="cursor-pointer flex items-center gap-1"
                 >
                   <span
-                    className={`text-xs font-medium ${
-                      rock.confidence
-                        ? getConfidenceColor(rock.confidence)
-                        : "text-muted-foreground"
-                    }`}
+                    className={`text-xs font-medium ${rock.confidence
+                      ? getConfidenceColor(rock.confidence)
+                      : "text-muted-foreground"
+                      }`}
                   >
                     {rock.confidence ? `${rock.confidence}/5` : "No confidence"}
                   </span>
@@ -332,8 +361,8 @@ export const RockCard = ({ rock, onUpdate }: RockCardProps) => {
                 <span className="text-[10px] text-muted-foreground">Linked KPIs</span>
                 <RealityGapBadge rockId={rock.id} rockTitle={rock.title} />
               </div>
-              <LinkedMetricsBadges 
-                rock={{ id: rock.id, title: rock.title, quarter: rock.quarter }} 
+              <LinkedMetricsBadges
+                rock={{ id: rock.id, title: rock.title, quarter: rock.quarter }}
                 onUpdate={onUpdate}
               />
             </div>
