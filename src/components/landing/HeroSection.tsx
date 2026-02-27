@@ -34,16 +34,15 @@ export const HeroSection = () => {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-              Know what's happening{" "}
+              Stop guessing.{" "}
               <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
-                in your clinic.
+                See your clinic clearly.
               </span>
             </h1>
 
             <p className="text-xl text-muted-foreground leading-relaxed max-w-xl">
-              Your EMR holds the data. ClinicLeader turns it into a clear weekly picture
-              of cancellations, utilization, revenue, and team performance — so you
-              catch problems early and stay in control.
+              Cancellations, no-shows, revenue gaps, provider schedules — ClinicLeader
+              pulls it from your EMR and shows you what matters every week.
             </p>
 
             {/* Bullet points */}
