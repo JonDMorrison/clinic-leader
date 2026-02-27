@@ -11,14 +11,14 @@ const steps = [
   {
     icon: BarChart3,
     number: "2",
-    title: "See what's happening across the business",
-    description: "Cancellations, utilization, revenue, trends. Updated weekly without you lifting a finger.",
+    title: "See what actually matters",
+    description: "Cancellations, utilization, revenue, trends. Updated weekly so you always know where things stand.",
   },
   {
     icon: Users,
     number: "3",
-    title: "Run focused weekly meetings",
-    description: "Your agenda is ready. Your team knows what to discuss. Meetings end with decisions, not updates.",
+    title: "Run better weekly leadership meetings",
+    description: "Your priorities are clear. Your team knows what to focus on. Meetings end with decisions and follow-through.",
   },
 ];
 

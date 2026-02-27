@@ -24,15 +24,15 @@ export const CTASection = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">
-            You shouldn't have to{" "}
+            Stop guessing.{" "}
             <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
-              guess.
+              Start moving the numbers.
             </span>
           </h2>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-             Your clinic generates data every day. ClinicLeader turns it into
-             a clear picture so you know what's working, what's not, and what to do next.
+            You shouldn't have to hope things are improving. ClinicLeader shows you
+            what's happening and helps your team follow through every week.
           </p>
 
           <motion.div

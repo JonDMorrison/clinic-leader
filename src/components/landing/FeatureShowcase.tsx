@@ -4,25 +4,25 @@ import { Eye, Target, TrendingUp, Shield } from "lucide-react";
 const outcomes = [
   {
     icon: Eye,
-    title: "See what's really happening",
+    title: "See what's happening",
     description:
-      "Cancellations, no-shows, provider utilization, revenue by week. Pulled from your EMR automatically. No spreadsheets required.",
+      "Cancellations, no-shows, provider utilization, revenue trends. Pulled from your EMR automatically. No spreadsheets required.",
     bgColor: "bg-primary/10",
     iconColor: "text-primary",
   },
   {
     icon: Target,
-    title: "Focus your team on what matters",
+    title: "Focus your team",
     description:
-      "Every week, ClinicLeader highlights what needs attention. Your leadership meeting starts with facts, not feelings.",
+      "Every week, ClinicLeader highlights what needs attention. Your leadership meeting starts with priorities, not guesswork.",
     bgColor: "bg-accent/10",
     iconColor: "text-accent",
   },
   {
     icon: TrendingUp,
-    title: "Improve every week",
+    title: "Track real improvement",
     description:
-      "Track the changes you make and see whether they actually moved the numbers. Stop guessing. Start measuring.",
+      "Make a change. See if it worked. Follow up next week. ClinicLeader keeps your team accountable to actual results.",
     bgColor: "bg-success/10",
     iconColor: "text-success",
   },
@@ -57,13 +57,13 @@ export const FeatureShowcase = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-            What ClinicLeader{" "}
+            From data to{" "}
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              does for you
+              momentum
             </span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Simple outcomes. No jargon.
+            Data becomes clarity. Clarity becomes decisions. Decisions become results you can measure.
           </p>
         </motion.div>
 
