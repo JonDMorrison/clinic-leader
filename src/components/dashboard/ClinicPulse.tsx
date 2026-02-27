@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { getLatestCompletedWeek } from "@/lib/weekBoundaries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,12 +70,26 @@ export function ClinicPulse() {
     queryKey: ["clinic-pulse", currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return [];
-      const { weekStart } = getLatestCompletedWeek();
+
+      // 1. Find the latest period_start for this org (DB is source of truth)
+      const { data: latest, error: latestErr } = await supabase
+        .from("clinic_insights")
+        .select("period_start")
+        .eq("organization_id", currentUser.team_id)
+        .order("period_start", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestErr) throw latestErr;
+      if (!latest) return [];
+
+      // 2. Fetch all insights for that period
       const { data, error } = await supabase
         .from("clinic_insights")
         .select("*")
         .eq("organization_id", currentUser.team_id)
-        .eq("period_start", weekStart);
+        .eq("period_start", latest.period_start);
+
       if (error) throw error;
       return data ?? [];
     },
@@ -148,8 +161,8 @@ export function ClinicPulse() {
     .map((key) => insights.find((i) => i.insight_key === key))
     .filter(Boolean) as typeof insights;
 
-  const periodLabel = sorted[0]
-    ? `${sorted[0].period_start} → ${sorted[0].period_end ?? ""}`
+  const periodLabel = sorted[0]?.period_start
+    ? `Week of ${new Date(sorted[0].period_start + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
     : "";
 
   return (
