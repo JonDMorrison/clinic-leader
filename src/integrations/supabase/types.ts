@@ -881,6 +881,48 @@ export type Database = {
         }
         Relationships: []
       }
+      clinic_insights: {
+        Row: {
+          clinic_guid: string
+          created_at: string
+          data_json: Json | null
+          id: string
+          insight_key: string
+          money_impact: number | null
+          severity: string
+          summary: string | null
+          title: string
+          value_primary: number | null
+          value_secondary: number | null
+        }
+        Insert: {
+          clinic_guid: string
+          created_at?: string
+          data_json?: Json | null
+          id?: string
+          insight_key: string
+          money_impact?: number | null
+          severity?: string
+          summary?: string | null
+          title: string
+          value_primary?: number | null
+          value_secondary?: number | null
+        }
+        Update: {
+          clinic_guid?: string
+          created_at?: string
+          data_json?: Json | null
+          id?: string
+          insight_key?: string
+          money_impact?: number | null
+          severity?: string
+          summary?: string | null
+          title?: string
+          value_primary?: number | null
+          value_secondary?: number | null
+        }
+        Relationships: []
+      }
       configuration_events: {
         Row: {
           created_at: string
