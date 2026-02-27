@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCurrentWeek, getCurrentMonth, getYTDBoundaries } from "../_shared/week-boundaries.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -97,35 +98,29 @@ Deno.serve(async (req) => {
 
     console.log(`[jane-kpi-rollup] Starting rollup for org: ${organization_id}, period: ${period_type}`);
 
-    // Calculate period boundaries
+    // Calculate period boundaries using canonical LA-timezone helpers
     const now = new Date();
-    let periodStart: Date;
-    let periodEnd: Date;
+    let periodStartStr: string;
+    let periodEndStr: string;
     let periodKey: string;
 
     if (period_type === "monthly") {
-      periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const month = getCurrentMonth(now);
+      periodStartStr = month.monthStart;
+      periodEndStr = month.monthEnd;
+      periodKey = month.monthKey;
     } else {
-      const dayOfWeek = now.getDay();
-      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      periodStart = new Date(now);
-      periodStart.setDate(now.getDate() + diff);
-      periodStart.setHours(0, 0, 0, 0);
-      periodEnd = new Date(periodStart);
-      periodEnd.setDate(periodStart.getDate() + 6);
-      periodKey = periodStart.toISOString().slice(0, 10);
+      const week = getCurrentWeek(now);
+      periodStartStr = week.weekStart;
+      periodEndStr = week.weekEnd;
+      periodKey = week.weekStart; // YYYY-MM-DD of Monday
     }
 
-    const periodStartStr = periodStart.toISOString().slice(0, 10);
-    const periodEndStr = periodEnd.toISOString().slice(0, 10);
-
-    // YTD period (Jan 1 to now)
-    const ytdStart = new Date(now.getFullYear(), 0, 1);
-    const ytdStartStr = ytdStart.toISOString().slice(0, 10);
-    const ytdEndStr = now.toISOString().slice(0, 10);
-    const ytdKey = `${now.getFullYear()}-YTD`;
+    // YTD period (Jan 1 to today, LA time)
+    const ytd = getYTDBoundaries(now);
+    const ytdStartStr = ytd.ytdStart;
+    const ytdEndStr = ytd.ytdEnd;
+    const ytdKey = ytd.ytdKey;
 
     console.log(`[jane-kpi-rollup] Period: ${periodStartStr} to ${periodEndStr}, key: ${periodKey}`);
     console.log(`[jane-kpi-rollup] YTD: ${ytdStartStr} to ${ytdEndStr}`);

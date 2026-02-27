@@ -1,47 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getLatestCompletedWeek, getPriorWeek } from "../_shared/week-boundaries.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-// ── Timezone-aware week boundary helpers (America/Los_Angeles) ──
-// IMPORTANT: These are mirrored exactly from src/lib/weekBoundaries.ts.
-// Any changes must be made in BOTH places.
-
-const TZ = "America/Los_Angeles";
-
-function formatDateLA(d: Date): string {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
-  const y = parts.find(p => p.type === "year")!.value;
-  const m = parts.find(p => p.type === "month")!.value;
-  const da = parts.find(p => p.type === "day")!.value;
-  return `${y}-${m}-${da}`;
-}
-
-function weekdayLA(d: Date): number {
-  const dayStr = new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short" }).format(d);
-  return { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[dayStr] ?? 0;
-}
-
-interface WeekBoundary { weekStart: string; weekEnd: string }
-
-function getLatestCompletedWeek(now: Date = new Date()): WeekBoundary {
-  const wd = weekdayLA(now);
-  const daysSinceMonday = wd === 0 ? 6 : wd - 1;
-  const thisMonday = new Date(now.getTime() - daysSinceMonday * 86400000);
-  const prevMonday = new Date(thisMonday.getTime() - 7 * 86400000);
-  const prevSunday = new Date(prevMonday.getTime() + 6 * 86400000);
-  return { weekStart: formatDateLA(prevMonday), weekEnd: formatDateLA(prevSunday) };
-}
-
-function getPriorWeek(weekStart: string): WeekBoundary {
-  const d = new Date(weekStart + "T12:00:00");
-  const prev = new Date(d.getTime() - 7 * 86400000);
-  const prevEnd = new Date(prev.getTime() + 6 * 86400000);
-  return { weekStart: formatDateLA(prev), weekEnd: formatDateLA(prevEnd) };
-}
 
 // ── Types ──
 
