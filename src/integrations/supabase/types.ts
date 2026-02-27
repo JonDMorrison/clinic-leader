@@ -884,11 +884,15 @@ export type Database = {
       clinic_insights: {
         Row: {
           clinic_guid: string
+          computed_at: string
           created_at: string
           data_json: Json | null
           id: string
           insight_key: string
           money_impact: number | null
+          period_end: string | null
+          period_start: string
+          run_id: string | null
           severity: string
           summary: string | null
           title: string
@@ -897,11 +901,15 @@ export type Database = {
         }
         Insert: {
           clinic_guid: string
+          computed_at?: string
           created_at?: string
           data_json?: Json | null
           id?: string
           insight_key: string
           money_impact?: number | null
+          period_end?: string | null
+          period_start: string
+          run_id?: string | null
           severity?: string
           summary?: string | null
           title: string
@@ -910,11 +918,15 @@ export type Database = {
         }
         Update: {
           clinic_guid?: string
+          computed_at?: string
           created_at?: string
           data_json?: Json | null
           id?: string
           insight_key?: string
           money_impact?: number | null
+          period_end?: string | null
+          period_start?: string
+          run_id?: string | null
           severity?: string
           summary?: string | null
           title?: string
