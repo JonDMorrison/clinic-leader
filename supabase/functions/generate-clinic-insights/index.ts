@@ -160,18 +160,47 @@ function computeInsights(
     const baseSeverity = collectionRate < 50 ? "critical" : collectionRate < 70 ? "warning" : collectionRate > 100 ? "positive" : "info";
     const severity = isAnomalous ? "warning" : baseSeverity;
 
-    const summary = isAnomalous
-      ? `$${cwInvoiced.toFixed(0)} invoiced, $${cwRevenue.toFixed(0)} collected (${collectionRate.toFixed(0)}%). Rate exceeds 150% — likely includes payments for prior-period invoices or a bulk settlement.`
-      : `$${cwInvoiced.toFixed(0)} invoiced, $${cwRevenue.toFixed(0)} collected (${collectionRate.toFixed(0)}%). Gap: $${gap.toFixed(0)}.`;
+    // ── Title by severity band ──
+    // critical (<50%):  "Low Collection Rate (Cash Basis)"
+    // warning  (<70%):  "Collection Rate Below Target (Cash Basis)"
+    // warning  (>150%): "Collection Rate Anomaly (Cash Basis)"
+    // positive (>100%): "Strong Collection Rate (Cash Basis)"
+    // info:             "Collection Rate (Cash Basis)"
+    const title = isAnomalous
+      ? "Collection Rate Anomaly (Cash Basis)"
+      : collectionRate < 50
+        ? "Low Collection Rate (Cash Basis)"
+        : collectionRate < 70
+          ? "Collection Rate Below Target (Cash Basis)"
+          : collectionRate > 100
+            ? "Strong Collection Rate (Cash Basis)"
+            : "Collection Rate (Cash Basis)";
+
+    // ── Summary templates ──
+    // Base: "Payments received this week ÷ invoices issued this week = X%."
+    // >100%: append catch-up note
+    // >150%: anomaly note
+    // <70%:  append cash shortfall
+    let summary: string;
+    if (isAnomalous) {
+      summary = `Payments received this week ÷ invoices issued this week = ${collectionRate.toFixed(0)}%. Rate exceeds 150% — likely includes catch-up payments from prior invoices or a bulk settlement. ($${cwRevenue.toFixed(0)} collected / $${cwInvoiced.toFixed(0)} invoiced.)`;
+    } else if (collectionRate > 100) {
+      summary = `Payments received this week ÷ invoices issued this week = ${collectionRate.toFixed(0)}%. Includes catch-up payments from prior invoices. ($${cwRevenue.toFixed(0)} collected / $${cwInvoiced.toFixed(0)} invoiced.)`;
+    } else if (collectionRate < 70) {
+      summary = `Payments received this week ÷ invoices issued this week = ${collectionRate.toFixed(0)}%. Cash shortfall vs this week's invoicing: $${gap.toFixed(0)}. ($${cwRevenue.toFixed(0)} collected / $${cwInvoiced.toFixed(0)} invoiced.)`;
+    } else {
+      summary = `Payments received this week ÷ invoices issued this week = ${collectionRate.toFixed(0)}%. ($${cwRevenue.toFixed(0)} collected / $${cwInvoiced.toFixed(0)} invoiced.)`;
+    }
 
     insights.push({
       ...base,
       insight_key: "collection_gap",
-      title: isAnomalous ? "Collection Rate Anomaly" : collectionRate < 70 ? "Large Collection Gap" : "Collection Rate",
+      title,
       summary,
       severity,
       value_primary: Math.round(collectionRate),
       value_secondary: null,
+      // money_impact = cash shortfall vs this week's invoicing (0 when rate ≥ 100%)
       money_impact: Math.round(gap),
       data_json: { invoiced: Math.round(cwInvoiced), collected: Math.round(cwRevenue), anomalous: isAnomalous },
     });
