@@ -7,6 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** Rates above this % are flagged as anomalous (e.g. 150 = 150%). */
+const COLLECTION_RATE_ANOMALY_THRESHOLD = 150;
+
 // ── Types ──
 
 interface Insight {
@@ -145,8 +148,8 @@ function computeInsights(
   // Limitation: Payments and invoices are matched by time period, NOT by invoice.
   //   A payment received this week may settle an invoice from a prior week,
   //   causing the rate to exceed 100%. This is expected and acceptable — rates
-  //   above 100% indicate catch-up collection, not an error. Rates above 150%
-  //   are flagged as anomalous (likely a data quality issue or bulk settlement).
+   //   above 100% indicate catch-up collection, not an error. Rates above
+   //   COLLECTION_RATE_ANOMALY_THRESHOLD are flagged as anomalous.
   //
   const cwInvoiced = currentInvoices.reduce((s, i) => s + (Number(i.subtotal) || 0), 0);
   // NOTE: Do NOT clamp here — rate can legitimately exceed 100% due to timing
@@ -155,15 +158,15 @@ function computeInsights(
   const gap = Math.max(0, cwInvoiced - cwRevenue);
 
   if (cwInvoiced > 0) {
-    // Sanity check: rate outside 0–150% indicates data anomaly
-    const isAnomalous = collectionRate > 150;
+    // Sanity check: rate above threshold indicates data anomaly
+    const isAnomalous = collectionRate > COLLECTION_RATE_ANOMALY_THRESHOLD;
     const baseSeverity = collectionRate < 50 ? "critical" : collectionRate < 70 ? "warning" : collectionRate > 100 ? "positive" : "info";
     const severity = isAnomalous ? "warning" : baseSeverity;
 
     // ── Title by severity band ──
     // critical (<50%):  "Low Collection Rate (Cash Basis)"
     // warning  (<70%):  "Collection Rate Below Target (Cash Basis)"
-    // warning  (>150%): "Collection Rate Anomaly (Cash Basis)"
+    // warning  (>COLLECTION_RATE_ANOMALY_THRESHOLD): "Collection Rate Anomaly (Cash Basis)"
     // positive (>100%): "Strong Collection Rate (Cash Basis)"
     // info:             "Collection Rate (Cash Basis)"
     const title = isAnomalous
@@ -179,11 +182,11 @@ function computeInsights(
     // ── Summary templates ──
     // Base: "Payments received this week ÷ invoices issued this week = X%."
     // >100%: append catch-up note
-    // >150%: anomaly note
+    // >COLLECTION_RATE_ANOMALY_THRESHOLD: anomaly note
     // <70%:  append cash shortfall
     let summary: string;
     if (isAnomalous) {
-      summary = `Payments received this week ÷ invoices issued this week = ${collectionRate.toFixed(0)}%. Rate exceeds 150% — likely includes catch-up payments from prior invoices or a bulk settlement. ($${cwRevenue.toFixed(0)} collected / $${cwInvoiced.toFixed(0)} invoiced.)`;
+      summary = `Payments received this week ÷ invoices issued this week = ${collectionRate.toFixed(0)}%. Rate exceeds ${COLLECTION_RATE_ANOMALY_THRESHOLD}% — likely includes catch-up payments from prior invoices or a bulk settlement. ($${cwRevenue.toFixed(0)} collected / $${cwInvoiced.toFixed(0)} invoiced.)`;
     } else if (collectionRate > 100) {
       summary = `Payments received this week ÷ invoices issued this week = ${collectionRate.toFixed(0)}%. Includes catch-up payments from prior invoices. ($${cwRevenue.toFixed(0)} collected / $${cwInvoiced.toFixed(0)} invoiced.)`;
     } else if (collectionRate < 70) {
