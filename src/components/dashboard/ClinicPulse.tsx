@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { getLatestCompletedWeek } from "@/lib/weekBoundaries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,22 +70,15 @@ export function ClinicPulse() {
     queryFn: async () => {
       if (!currentUser?.team_id) return [];
 
-      // Get the most recent period_start, then fetch all insights for that period
-      const { data: latest } = await supabase
-        .from("clinic_insights")
-        .select("period_start")
-        .eq("organization_id", currentUser.team_id)
-        .order("period_start", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!latest?.period_start) return [];
+      // Deterministic: compute the latest completed week client-side
+      // (same logic as generate-clinic-insights edge function)
+      const { weekStart } = getLatestCompletedWeek();
 
       const { data, error } = await supabase
         .from("clinic_insights")
         .select("*")
         .eq("organization_id", currentUser.team_id)
-        .eq("period_start", latest.period_start);
+        .eq("period_start", weekStart);
 
       if (error) throw error;
       return data ?? [];

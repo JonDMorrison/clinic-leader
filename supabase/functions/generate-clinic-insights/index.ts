@@ -7,11 +7,12 @@ const corsHeaders = {
 };
 
 // ── Timezone-aware week boundary helpers (America/Los_Angeles) ──
+// IMPORTANT: These are mirrored exactly from src/lib/weekBoundaries.ts.
+// Any changes must be made in BOTH places.
 
 const TZ = "America/Los_Angeles";
 
-/** Returns YYYY-MM-DD for a Date in America/Los_Angeles */
-function fmtLA(d: Date): string {
+function formatDateLA(d: Date): string {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
   const y = parts.find(p => p.type === "year")!.value;
   const m = parts.find(p => p.type === "month")!.value;
@@ -19,35 +20,27 @@ function fmtLA(d: Date): string {
   return `${y}-${m}-${da}`;
 }
 
-/** Returns the weekday (0=Sun..6=Sat) in LA timezone */
 function weekdayLA(d: Date): number {
   const dayStr = new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short" }).format(d);
   return { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[dayStr] ?? 0;
 }
 
-/**
- * Returns the most recent completed Monday-Sunday week boundaries in LA time.
- * "Completed" = the Sunday has already passed.
- * Returns { weekStart: YYYY-MM-DD (Monday), weekEnd: YYYY-MM-DD (Sunday) }.
- */
-function lastCompletedWeek(now: Date): { weekStart: string; weekEnd: string } {
-  const todayLA = fmtLA(now);
-  const wd = weekdayLA(now); // 0=Sun..6=Sat
-  // Days since last Monday: Mon=0, Tue=1, ..., Sun=6
+interface WeekBoundary { weekStart: string; weekEnd: string }
+
+function getLatestCompletedWeek(now: Date = new Date()): WeekBoundary {
+  const wd = weekdayLA(now);
   const daysSinceMonday = wd === 0 ? 6 : wd - 1;
-  // This week's Monday
   const thisMonday = new Date(now.getTime() - daysSinceMonday * 86400000);
-  // Last completed week = the Monday before thisMonday
   const prevMonday = new Date(thisMonday.getTime() - 7 * 86400000);
   const prevSunday = new Date(prevMonday.getTime() + 6 * 86400000);
-  return { weekStart: fmtLA(prevMonday), weekEnd: fmtLA(prevSunday) };
+  return { weekStart: formatDateLA(prevMonday), weekEnd: formatDateLA(prevSunday) };
 }
 
-function priorWeek(weekStart: string): { weekStart: string; weekEnd: string } {
-  const d = new Date(weekStart + "T12:00:00"); // noon to avoid DST edge
+function getPriorWeek(weekStart: string): WeekBoundary {
+  const d = new Date(weekStart + "T12:00:00");
   const prev = new Date(d.getTime() - 7 * 86400000);
   const prevEnd = new Date(prev.getTime() + 6 * 86400000);
-  return { weekStart: fmtLA(prev), weekEnd: fmtLA(prevEnd) };
+  return { weekStart: formatDateLA(prev), weekEnd: formatDateLA(prevEnd) };
 }
 
 // ── Types ──
@@ -250,8 +243,8 @@ Deno.serve(async (req) => {
 
     // Calculate deterministic week boundaries in America/Los_Angeles
     const now = new Date();
-    const cw = lastCompletedWeek(now);   // most recent completed Mon–Sun
-    const pw = priorWeek(cw.weekStart);  // the week before that
+    const cw = getLatestCompletedWeek(now);   // most recent completed Mon–Sun
+    const pw = getPriorWeek(cw.weekStart);  // the week before that
 
     console.log(`[generate-clinic-insights] run_id=${runId} org=${organization_id} clinic=${clinicGuid}`);
     console.log(`[generate-clinic-insights] current_week=${cw.weekStart}..${cw.weekEnd}, prior_week=${pw.weekStart}..${pw.weekEnd}`);
