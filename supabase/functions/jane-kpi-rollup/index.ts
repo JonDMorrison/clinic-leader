@@ -5,6 +5,28 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/**
+ * Paginated fetch helper — works around Supabase's 1000-row default limit.
+ * Fetches all matching rows by requesting pages of PAGE_SIZE until exhausted.
+ */
+const PAGE_SIZE = 1000;
+
+async function fetchAllRows<T = Record<string, unknown>>(
+  query: ReturnType<ReturnType<typeof createClient>["from"]>["select"] extends (...args: any) => infer R ? R : never,
+): Promise<T[]> {
+  const all: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await (query as any).range(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(`Paginated fetch error: ${error.message}`);
+    if (!data || data.length === 0) break;
+    all.push(...(data as T[]));
+    if (data.length < PAGE_SIZE) break; // last page
+    from += PAGE_SIZE;
+  }
+  return all;
+}
+
 interface RollupRequest {
   organization_id: string;
   period_start?: string; // YYYY-MM-DD, defaults to start of current week
@@ -115,25 +137,33 @@ Deno.serve(async (req) => {
     // ORGANIZATION-LEVEL METRICS
     // ========================================
 
-    // Fetch all appointments for the period (include discipline_name and location fields)
-    const { data: allAppointments, error: apptError } = await supabase
-      .from("staging_appointments_jane")
-      .select("id, staff_member_guid, staff_member_name, cancelled_at, no_show_at, arrived_at, first_visit, discipline_name, location_name")
-      .eq("organization_id", organization_id)
-      .gte("start_at", periodStartStr)
-      .lte("start_at", periodEndStr);
-
-    if (apptError) {
-      console.error(`[jane-kpi-rollup] Failed to fetch appointments: ${apptError.message}`);
+    // Fetch all appointments for the period (paginated to avoid 1000-row limit)
+    let allAppointments: any[] = [];
+    try {
+      allAppointments = await fetchAllRows(
+        supabase.from("staging_appointments_jane")
+          .select("id, staff_member_guid, staff_member_name, cancelled_at, no_show_at, arrived_at, first_visit, discipline_name, location_name")
+          .eq("organization_id", organization_id)
+          .gte("start_at", periodStartStr)
+          .lte("start_at", periodEndStr)
+      );
+    } catch (e) {
+      console.error(`[jane-kpi-rollup] Failed to fetch appointments: ${(e as Error).message}`);
     }
 
-    // Fetch YTD appointments
-    const { data: ytdAppointments } = await supabase
-      .from("staging_appointments_jane")
-      .select("id, staff_member_guid, staff_member_name, cancelled_at, no_show_at, arrived_at, first_visit, discipline_name, location_name")
-      .eq("organization_id", organization_id)
-      .gte("start_at", ytdStartStr)
-      .lte("start_at", ytdEndStr);
+    // Fetch YTD appointments (paginated — critical for orgs with >1000 appts/year)
+    let ytdAppointments: any[] = [];
+    try {
+      ytdAppointments = await fetchAllRows(
+        supabase.from("staging_appointments_jane")
+          .select("id, staff_member_guid, staff_member_name, cancelled_at, no_show_at, arrived_at, first_visit, discipline_name, location_name")
+          .eq("organization_id", organization_id)
+          .gte("start_at", ytdStartStr)
+          .lte("start_at", ytdEndStr)
+      );
+    } catch (e) {
+      console.error(`[jane-kpi-rollup] Failed to fetch YTD appointments: ${(e as Error).message}`);
+    }
 
     const appointments = allAppointments || [];
     const nonCancelled = appointments.filter(a => !a.cancelled_at);
@@ -450,28 +480,33 @@ Deno.serve(async (req) => {
     });
     console.log(`[jane-kpi-rollup] Cancellation Rate: ${cancellationRate}%`);
 
-    // Fetch payments for revenue metrics (now includes staff_member_guid for clinician/discipline breakdowns)
-    const { data: paymentsData, error: paymentsError } = await supabase
-      .from("staging_payments_jane")
-      .select("amount, location_guid, staff_member_guid, staff_member_name")
-      .eq("organization_id", organization_id)
-      .gte("received_at", periodStartStr)
-      .lte("received_at", periodEndStr);
-
-    if (paymentsError) {
-      console.error(`[jane-kpi-rollup] Failed to fetch payments: ${paymentsError.message}`);
+    // Fetch payments for revenue metrics (paginated to avoid 1000-row limit)
+    let payments: any[] = [];
+    try {
+      payments = await fetchAllRows(
+        supabase.from("staging_payments_jane")
+          .select("amount, location_guid, staff_member_guid, staff_member_name")
+          .eq("organization_id", organization_id)
+          .gte("received_at", periodStartStr)
+          .lte("received_at", periodEndStr)
+      );
+    } catch (e) {
+      console.error(`[jane-kpi-rollup] Failed to fetch payments: ${(e as Error).message}`);
     }
 
-    // Fetch YTD payments
-    const { data: ytdPaymentsData } = await supabase
-      .from("staging_payments_jane")
-      .select("amount, location_guid, staff_member_guid, staff_member_name")
-      .eq("organization_id", organization_id)
-      .gte("received_at", ytdStartStr)
-      .lte("received_at", ytdEndStr);
-
-    const payments = paymentsData || [];
-    const ytdPayments = ytdPaymentsData || [];
+    // Fetch YTD payments (paginated)
+    let ytdPayments: any[] = [];
+    try {
+      ytdPayments = await fetchAllRows(
+        supabase.from("staging_payments_jane")
+          .select("amount, location_guid, staff_member_guid, staff_member_name")
+          .eq("organization_id", organization_id)
+          .gte("received_at", ytdStartStr)
+          .lte("received_at", ytdEndStr)
+      );
+    } catch (e) {
+      console.error(`[jane-kpi-rollup] Failed to fetch YTD payments: ${(e as Error).message}`);
+    }
     const totalCollected = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
     // KPI 7: Total Collected Revenue
@@ -610,27 +645,33 @@ Deno.serve(async (req) => {
     console.log(`[jane-kpi-rollup] Total Collected breakdowns (YTD): ${ytdCollectedBreakdowns.clinicians} clinicians, ${ytdCollectedBreakdowns.locations} locations, ${ytdCollectedBreakdowns.disciplines} disciplines`);
 
     // Fetch invoices for invoiced revenue and per-provider breakdown (no location_name in invoices table)
-    const { data: invoicesData, error: invoicesError } = await supabase
-      .from("staging_invoices_jane")
-      .select("subtotal, amount_paid, staff_member_guid, staff_member_name, location_guid")
-      .eq("organization_id", organization_id)
-      .gte("invoiced_at", periodStartStr)
-      .lte("invoiced_at", periodEndStr);
-
-    if (invoicesError) {
-      console.error(`[jane-kpi-rollup] Failed to fetch invoices: ${invoicesError.message}`);
+    // Fetch invoices (paginated to avoid 1000-row limit)
+    let invoices: any[] = [];
+    try {
+      invoices = await fetchAllRows(
+        supabase.from("staging_invoices_jane")
+          .select("subtotal, amount_paid, staff_member_guid, staff_member_name, location_guid")
+          .eq("organization_id", organization_id)
+          .gte("invoiced_at", periodStartStr)
+          .lte("invoiced_at", periodEndStr)
+      );
+    } catch (e) {
+      console.error(`[jane-kpi-rollup] Failed to fetch invoices: ${(e as Error).message}`);
     }
 
-    // Fetch YTD invoices
-    const { data: ytdInvoicesData } = await supabase
-      .from("staging_invoices_jane")
-      .select("subtotal, amount_paid, staff_member_guid, staff_member_name, location_guid")
-      .eq("organization_id", organization_id)
-      .gte("invoiced_at", ytdStartStr)
-      .lte("invoiced_at", ytdEndStr);
-
-    const invoices = invoicesData || [];
-    const ytdInvoices = ytdInvoicesData || [];
+    // Fetch YTD invoices (paginated)
+    let ytdInvoices: any[] = [];
+    try {
+      ytdInvoices = await fetchAllRows(
+        supabase.from("staging_invoices_jane")
+          .select("subtotal, amount_paid, staff_member_guid, staff_member_name, location_guid")
+          .eq("organization_id", organization_id)
+          .gte("invoiced_at", ytdStartStr)
+          .lte("invoiced_at", ytdEndStr)
+      );
+    } catch (e) {
+      console.error(`[jane-kpi-rollup] Failed to fetch YTD invoices: ${(e as Error).message}`);
+    }
     const totalInvoiced = invoices.reduce((sum, i) => sum + (Number(i.subtotal) || 0), 0);
 
     // KPI 8: Total Invoiced
