@@ -337,21 +337,6 @@ Deno.serve(async (req) => {
       const { orgId, resource, accountGuid, fileName } = parsed;
       console.log(`[jane-s3-webhook] Parsed: org=${orgId}, resource=${resource}, accountGuid=${accountGuid}`);
       
-      // Find the connector for this org
-      // Unique constraint uq_org_source guarantees at most one row
-      const { data: connector, error: connectorError } = await supabase
-        .from("bulk_analytics_connectors")
-        .select("*")
-        .eq("organization_id", orgId)
-        .eq("source_system", "jane")
-        .maybeSingle();
-      
-      if (connectorError || !connector) {
-        console.error(`[jane-s3-webhook] Connector not found for org ${orgId}`);
-        results.push({ key: s3Key, success: false, error: "Connector not found" });
-        continue;
-      }
-      
       try {
         // Fetch CSV from S3
         const csvContent = await fetchFromS3(bucket.name || s3Bucket, s3Key, s3Region);
@@ -366,12 +351,15 @@ Deno.serve(async (req) => {
           continue;
         }
         
-        // Call bulk-ingest-jane to process the data
+        // Route through bulk-ingest-router (handles connector lookup + validation)
         const { data: ingestResult, error: ingestError } = await supabase.functions.invoke(
-          "bulk-ingest-jane",
+          "bulk-ingest-router",
           {
             body: {
-              connector_id: connector.id,
+              organization_id: orgId,
+              source_system: "jane",
+              resource_type: resource,
+              s3_key: s3Key,
               file_info: {
                 resource,
                 file_date: new Date().toISOString().split('T')[0],
@@ -392,11 +380,12 @@ Deno.serve(async (req) => {
         console.log(`[jane-s3-webhook] Ingest result:`, ingestResult);
         
         // Delete file from S3 on success
-        if (ingestResult?.success) {
+        const routerResult = ingestResult?.result ?? ingestResult;
+        if (routerResult?.success) {
           await deleteFromS3(bucket.name || s3Bucket, s3Key, s3Region);
         }
         
-        results.push({ key: s3Key, success: true });
+        results.push({ key: s3Key, success: !!routerResult?.success });
         
       } catch (err) {
         console.error(`[jane-s3-webhook] Processing error:`, err);
