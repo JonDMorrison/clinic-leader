@@ -34,23 +34,24 @@ export const HeroSection = () => {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-              Stop guessing.{" "}
+              Your clinic has the data.{" "}
               <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
-                See your clinic clearly.
+                Now turn it into progress.
               </span>
             </h1>
 
             <p className="text-xl text-muted-foreground leading-relaxed max-w-xl">
-              Cancellations, no-shows, revenue gaps, provider schedules. ClinicLeader
-              pulls it from your EMR and shows you what matters every week.
+              Cancellations, no-shows, revenue gaps, provider schedules. The information
+              is there. ClinicLeader helps you see it clearly, decide what to do, and
+              follow through every week.
             </p>
 
             {/* Bullet points */}
             <ul className="space-y-3 text-foreground">
               {[
-                { icon: Eye, text: "See cancellations, no-shows, and revenue gaps as they happen" },
-                { icon: TrendingUp, text: "Track provider utilization and weekly performance trends" },
-                { icon: Users, text: "Run 30-minute leadership meetings that end with decisions" },
+                { icon: Eye, text: "See cancellations, utilization, and revenue gaps as they happen" },
+                { icon: TrendingUp, text: "Track weekly performance so you know if things are actually improving" },
+                { icon: Users, text: "Align your team around what matters most this week" },
               ].map((item, i) => (
                 <motion.li
                   key={i}

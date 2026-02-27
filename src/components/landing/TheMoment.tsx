@@ -2,16 +2,20 @@ import { motion } from "framer-motion";
 
 const moments = [
   {
-    feeling: "The week felt busy, but revenue didn't match.",
-    detail: "Providers were booked, the front desk was slammed, yet the numbers say otherwise.",
+    feeling: "Reports everywhere, but no clear priorities.",
+    detail: "Your EMR has data. Your spreadsheets have data. But when the meeting starts, nobody knows what to focus on first.",
   },
   {
-    feeling: "Staff seem overloaded, but gaps appear in the schedule.",
-    detail: "Some providers are underbooked while others are stretched thin. You can feel it, but can't see it clearly.",
+    feeling: "Meetings end without decisions.",
+    detail: "You talk about the same issues every week. Nothing gets assigned. Nothing gets tracked. The next meeting feels the same.",
   },
   {
-    feeling: "Reports exist, but nobody knows what to focus on.",
-    detail: "Your EMR has data. Your spreadsheets have data. But when Monday's meeting starts, you're still guessing.",
+    feeling: "Problems noticed too late.",
+    detail: "By the time you see cancellations climbing or utilization dropping, the damage is already done.",
+  },
+  {
+    feeling: "Improvements that don't stick.",
+    detail: "You make a change, it works for a week, then nobody follows up. There's no system to track whether things actually got better.",
   },
 ];
 
@@ -30,13 +34,13 @@ export const TheMoment = () => {
         >
           <div className="text-center">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-              You already know{" "}
+              The data is there.{" "}
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                something's off.
+                The clarity isn't.
               </span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Most clinic owners have the same experience. Things feel off, but they can't point to exactly what or how much it's costing.
+              Most clinics have plenty of information. What's missing is a way to turn it into focus, decisions, and follow-through.
             </p>
           </div>
 
@@ -64,7 +68,7 @@ export const TheMoment = () => {
             transition={{ delay: 0.5 }}
           >
             <p className="text-lg text-foreground font-medium">
-              ClinicLeader shows you exactly what's happening, every week, without building another spreadsheet.
+              ClinicLeader connects your data to your decisions, so your team actually moves the numbers every week.
             </p>
           </motion.div>
         </motion.div>
