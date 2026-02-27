@@ -887,6 +887,7 @@ export type Database = {
           computed_at: string
           created_at: string
           data_json: Json | null
+          data_source: string
           id: string
           insight_key: string
           money_impact: number | null
@@ -905,6 +906,7 @@ export type Database = {
           computed_at?: string
           created_at?: string
           data_json?: Json | null
+          data_source?: string
           id?: string
           insight_key: string
           money_impact?: number | null
@@ -923,6 +925,7 @@ export type Database = {
           computed_at?: string
           created_at?: string
           data_json?: Json | null
+          data_source?: string
           id?: string
           insight_key?: string
           money_impact?: number | null

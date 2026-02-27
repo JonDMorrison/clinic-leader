@@ -10,6 +10,14 @@ const corsHeaders = {
 /** Rates above this % are flagged as anomalous (e.g. 150 = 150%). */
 const COLLECTION_RATE_ANOMALY_THRESHOLD = 150;
 
+// ── Staging table names per source_system ──
+// Each source has its own set of staging tables with identical column schemas.
+const STAGING_TABLES = ["appointments", "payments", "invoices", "shifts"] as const;
+
+function stagingTable(resource: typeof STAGING_TABLES[number], source: string): string {
+  return `staging_${resource}_${source}`;
+}
+
 // ── Types ──
 
 interface Insight {
@@ -23,6 +31,7 @@ interface Insight {
   value_secondary: number | null;
   money_impact: number | null;
   data_json: Record<string, unknown>;
+  data_source: string;
   period_start: string;
   period_end: string;
   run_id: string;
@@ -44,9 +53,10 @@ function computeInsights(
   periodEnd: string,
   runId: string,
   computedAt: string,
+  dataSource: string,
 ): Insight[] {
   const insights: Insight[] = [];
-  const base = { clinic_guid: clinicGuid, organization_id: organizationId, period_start: periodStart, period_end: periodEnd, run_id: runId, computed_at: computedAt };
+  const base = { clinic_guid: clinicGuid, organization_id: organizationId, period_start: periodStart, period_end: periodEnd, run_id: runId, computed_at: computedAt, data_source: dataSource };
 
   const cwTotal = currentAppts.length;
   const pwTotal = priorAppts.length;
@@ -259,44 +269,81 @@ Deno.serve(async (req) => {
     const runId = crypto.randomUUID();
     const computedAt = new Date().toISOString();
 
-    // Resolve clinic_guid
-    const { data: connector } = await supabase
+    // ── Resolve primary connector ──
+    // Priority: status='active' > 'receiving_data', then most recently updated
+    const { data: connectors, error: connError } = await supabase
       .from("bulk_analytics_connectors")
-      .select("locked_account_guid")
+      .select("id, source_system, status, locked_account_guid")
       .eq("organization_id", organization_id)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
+      .in("status", ["active", "receiving_data"])
+      .order("status", { ascending: true })   // 'active' < 'receiving_data' alphabetically
+      .order("updated_at", { ascending: false })
+      .limit(5);
 
-    const clinicGuid = connector?.locked_account_guid ?? organization_id;
+    if (connError) throw connError;
+
+    if (!connectors || connectors.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "No active connector found for this organization" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const connector = connectors[0];
+    const sourceSystem = connector.source_system;
+    const clinicGuid = connector.locked_account_guid ?? organization_id;
+
+    // ── Validate staging tables exist for this source_system ──
+    // Attempt a lightweight probe (limit 0 still validates table existence)
+    const tableNames = STAGING_TABLES.map((r) => stagingTable(r, sourceSystem));
+    const probeResults = await Promise.all(
+      tableNames.map((t) =>
+        supabase.from(t).select("*", { count: "exact", head: true }).eq("organization_id", organization_id).limit(0)
+      )
+    );
+
+    const missingTables = tableNames.filter((_, i) => probeResults[i].error != null);
+    if (missingTables.length > 0) {
+      const msg = `Staging tables not found for source_system="${sourceSystem}": ${missingTables.join(", ")}. Create these tables before running insights.`;
+      console.error(`[generate-clinic-insights] ${msg}`);
+      return new Response(
+        JSON.stringify({ error: msg, source_system: sourceSystem, missing_tables: missingTables }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Calculate deterministic week boundaries in America/Los_Angeles
     const now = new Date();
     const cw = getLatestCompletedWeek(now);   // most recent completed Mon–Sun
     const pw = getPriorWeek(cw.weekStart);  // the week before that
 
-    console.log(`[generate-clinic-insights] run_id=${runId} org=${organization_id} clinic=${clinicGuid}`);
+    console.log(`[generate-clinic-insights] run_id=${runId} org=${organization_id} source=${sourceSystem} clinic=${clinicGuid}`);
     console.log(`[generate-clinic-insights] current_week=${cw.weekStart}..${cw.weekEnd}, prior_week=${pw.weekStart}..${pw.weekEnd}`);
 
     // Fetch data for both weeks in parallel (explicit limit to avoid 1000-row default)
     const SAFE_LIMIT = 10000;
+    const apptTable = stagingTable("appointments", sourceSystem);
+    const payTable = stagingTable("payments", sourceSystem);
+    const invTable = stagingTable("invoices", sourceSystem);
+    const shiftTable = stagingTable("shifts", sourceSystem);
+
     const fetchWeek = (start: string, end: string) => Promise.all([
-      supabase.from("staging_appointments_jane")
+      supabase.from(apptTable)
         .select("start_at, end_at, cancelled_at, no_show_at, first_visit, price, staff_member_guid, patient_guid")
         .eq("organization_id", organization_id)
         .gte("start_at", start).lte("start_at", end + "T23:59:59")
         .limit(SAFE_LIMIT),
-      supabase.from("staging_payments_jane")
+      supabase.from(payTable)
         .select("amount, received_at, payment_type, payer_type")
         .eq("organization_id", organization_id)
         .gte("received_at", start).lte("received_at", end + "T23:59:59")
         .limit(SAFE_LIMIT),
-      supabase.from("staging_invoices_jane")
+      supabase.from(invTable)
         .select("subtotal, amount_paid, invoiced_at, staff_member_guid")
         .eq("organization_id", organization_id)
         .gte("invoiced_at", start).lte("invoiced_at", end + "T23:59:59")
         .limit(SAFE_LIMIT),
-      supabase.from("staging_shifts_jane")
+      supabase.from(shiftTable)
         .select("start_at, end_at, staff_member_guid")
         .eq("organization_id", organization_id)
         .gte("start_at", start).lte("start_at", end + "T23:59:59")
@@ -314,7 +361,7 @@ Deno.serve(async (req) => {
     // Compute deterministic insights
     const insights = computeInsights(
       cwAppts, pwAppts, cwPayments, pwPayments, cwInvoices, cwShifts,
-      clinicGuid, organization_id, cw.weekStart, cw.weekEnd, runId, computedAt,
+      clinicGuid, organization_id, cw.weekStart, cw.weekEnd, runId, computedAt, sourceSystem,
     );
 
     // Upsert (keyed on clinic_guid + insight_key + period_start)
@@ -336,6 +383,7 @@ Deno.serve(async (req) => {
         success: true,
         run_id: runId,
         computed_at: computedAt,
+        source_system: sourceSystem,
         period: { start: cw.weekStart, end: cw.weekEnd },
         prior_period: { start: pw.weekStart, end: pw.weekEnd },
         insights_count: insights.length,
