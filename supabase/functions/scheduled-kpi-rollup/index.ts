@@ -8,8 +8,11 @@ const corsHeaders = {
 /** Map source_system → rollup edge function name. Add new sources here. */
 const ROLLUP_FUNCTION_MAP: Record<string, string> = {
   jane: "jane-kpi-rollup",
-  advancedmd: "advancedmd-kpi-rollup", // stub — function does not exist yet
+  advancedmd: "advancedmd-kpi-rollup",
 };
+
+/** Sources that support clinic insights generation */
+const INSIGHTS_SUPPORTED: Set<string> = new Set(["jane"]);
 
 /**
  * Scheduled KPI Rollup - runs nightly to ensure all orgs have fresh metric data
@@ -48,20 +51,20 @@ Deno.serve(async (req) => {
     const rows = connectors || [];
     console.log(`[scheduled-kpi-rollup] Found ${rows.length} active connector(s) across ${new Set(rows.map(r => r.organization_id)).size} org(s)`);
 
-    const results: { org: string; source: string; rollup_fn: string; weekly: string; monthly: string }[] = [];
+    const results: { org: string; source: string; rollup_fn: string; weekly: string; monthly: string; insights: string }[] = [];
 
-    // Process each connector (not deduped — one org may have multiple sources)
+    // Process each connector row individually (not deduped — one org may have multiple sources)
     for (const row of rows) {
       const { organization_id: orgId, source_system: source } = row;
       const rollupFn = ROLLUP_FUNCTION_MAP[source];
 
       if (!rollupFn) {
         console.warn(`[scheduled-kpi-rollup] Skipping org=${orgId} — unsupported source_system="${source}"`);
-        results.push({ org: orgId, source, rollup_fn: "none", weekly: "skipped", monthly: "skipped" });
+        results.push({ org: orgId, source, rollup_fn: "none", weekly: "skipped", monthly: "skipped", insights: "skipped" });
         continue;
       }
 
-      const entry = { org: orgId, source, rollup_fn: rollupFn, weekly: "pending", monthly: "pending" };
+      const entry = { org: orgId, source, rollup_fn: rollupFn, weekly: "pending", monthly: "pending", insights: "skipped" };
 
       try {
         // Run weekly rollup
@@ -81,8 +84,22 @@ Deno.serve(async (req) => {
         entry.monthly = `exception: ${errorMsg}`;
       }
 
+      // Invoke insights generation for supported sources
+      if (INSIGHTS_SUPPORTED.has(source)) {
+        try {
+          const { error: insightsError } = await supabase.functions.invoke("generate-clinic-insights", {
+            body: { organization_id: orgId, source_system: source },
+          });
+          entry.insights = insightsError ? `error: ${insightsError.message}` : "success";
+        } catch (err) {
+          entry.insights = `exception: ${err instanceof Error ? err.message : "Unknown"}`;
+        }
+      } else {
+        console.log(`[scheduled-kpi-rollup] Insights skipped for org=${orgId} source=${source} — not yet supported`);
+      }
+
       results.push(entry);
-      console.log(`[scheduled-kpi-rollup] org=${orgId} source=${source} fn=${rollupFn} weekly=${entry.weekly} monthly=${entry.monthly}`);
+      console.log(`[scheduled-kpi-rollup] org=${orgId} source=${source} fn=${rollupFn} weekly=${entry.weekly} monthly=${entry.monthly} insights=${entry.insights}`);
     }
 
     const duration = Date.now() - startTime;
