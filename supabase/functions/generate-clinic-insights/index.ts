@@ -129,21 +129,51 @@ function computeInsights(
   });
 
   // 5: Collection Gap
+  //
+  // DEFINITION (Option A — cash-basis collection rate):
+  //   collection_rate = (payments_collected_in_period / invoices_subtotal_in_period) × 100
+  //
+  // Numerator:  Sum of staging_payments_jane.amount   for the current week
+  // Denominator: Sum of staging_invoices_jane.subtotal for the current week
+  //
+  // Why Option A over Option B (invoices.amount_paid / invoices.subtotal):
+  //   - Option A reflects actual cash received vs. billed work, which is the
+  //     operationally relevant signal for clinic owners ("did we collect?").
+  //   - Option B would only reflect the invoice-level paid status, which can
+  //     lag behind actual payment receipt and double-count partial payments.
+  //
+  // Limitation: Payments and invoices are matched by time period, NOT by invoice.
+  //   A payment received this week may settle an invoice from a prior week,
+  //   causing the rate to exceed 100%. This is expected and acceptable — rates
+  //   above 100% indicate catch-up collection, not an error. Rates above 150%
+  //   are flagged as anomalous (likely a data quality issue or bulk settlement).
+  //
   const cwInvoiced = currentInvoices.reduce((s, i) => s + (Number(i.subtotal) || 0), 0);
-  const collectionRate = cwInvoiced > 0 ? clamp((cwRevenue / cwInvoiced) * 100) : 100;
+  // NOTE: Do NOT clamp here — rate can legitimately exceed 100% due to timing
+  const rawCollectionRate = cwInvoiced > 0 ? (cwRevenue / cwInvoiced) * 100 : 100;
+  const collectionRate = Math.max(0, Math.round(rawCollectionRate * 10) / 10);
   const gap = Math.max(0, cwInvoiced - cwRevenue);
 
   if (cwInvoiced > 0) {
+    // Sanity check: rate outside 0–150% indicates data anomaly
+    const isAnomalous = collectionRate > 150;
+    const baseSeverity = collectionRate < 50 ? "critical" : collectionRate < 70 ? "warning" : collectionRate > 100 ? "positive" : "info";
+    const severity = isAnomalous ? "warning" : baseSeverity;
+
+    const summary = isAnomalous
+      ? `$${cwInvoiced.toFixed(0)} invoiced, $${cwRevenue.toFixed(0)} collected (${collectionRate.toFixed(0)}%). Rate exceeds 150% — likely includes payments for prior-period invoices or a bulk settlement.`
+      : `$${cwInvoiced.toFixed(0)} invoiced, $${cwRevenue.toFixed(0)} collected (${collectionRate.toFixed(0)}%). Gap: $${gap.toFixed(0)}.`;
+
     insights.push({
       ...base,
       insight_key: "collection_gap",
-      title: collectionRate < 70 ? "Large Collection Gap" : "Collection Rate",
-      summary: `$${cwInvoiced.toFixed(0)} invoiced, $${cwRevenue.toFixed(0)} collected (${collectionRate.toFixed(0)}%). Gap: $${gap.toFixed(0)}.`,
-      severity: collectionRate < 50 ? "critical" : collectionRate < 70 ? "warning" : "info",
+      title: isAnomalous ? "Collection Rate Anomaly" : collectionRate < 70 ? "Large Collection Gap" : "Collection Rate",
+      summary,
+      severity,
       value_primary: Math.round(collectionRate),
       value_secondary: null,
       money_impact: Math.round(gap),
-      data_json: { invoiced: Math.round(cwInvoiced), collected: Math.round(cwRevenue) },
+      data_json: { invoiced: Math.round(cwInvoiced), collected: Math.round(cwRevenue), anomalous: isAnomalous },
     });
   }
 
