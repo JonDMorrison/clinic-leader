@@ -72,23 +72,31 @@ export function useSetupProgress() {
       const docsCount = docsResult.count || 0;
 
       // Check data pipeline: any configured data source counts
-      const { data: teamInfo } = await supabase
-        .from("teams")
-        .select("data_mode")
-        .eq("id", orgId)
-        .maybeSingle();
-
       const { data: janeIntegration } = await supabase
         .from("jane_integrations")
         .select("status")
         .eq("organization_id", orgId)
         .maybeSingle();
 
+      // Check for any active connector (source-agnostic)
+      const { data: activeConnectors } = await supabase
+        .from("bulk_analytics_connectors")
+        .select("source_system, status")
+        .eq("organization_id", orgId)
+        .in("status", ["active", "receiving_data"]);
+
+      const hasActiveConnector = (activeConnectors ?? []).length > 0;
+      const activeSource = (activeConnectors ?? [])[0]?.source_system;
+
       const hasDataPipeline =
-        teamInfo?.data_mode === "jane" && !!janeIntegration ||
-        teamInfo?.data_mode === "default" && metricsCount > 0 ||
+        hasActiveConnector ||
+        metricsCount > 0 ||
         janeIntegration?.status === "active" ||
         janeIntegration?.status === "connected";
+
+      const sourceLabel = hasActiveConnector
+        ? activeSource === "jane" ? "Jane" : activeSource ?? "Automated"
+        : metricsCount > 0 ? "Manual / Workbook" : null;
 
       const items: SetupChecklistItem[] = [
         {
@@ -97,8 +105,8 @@ export function useSetupProgress() {
           completed: !!hasDataPipeline,
           route: "/data",
           description: hasDataPipeline
-            ? `Data source configured: ${teamInfo?.data_mode === "jane" ? "Jane" : "Manual / Workbook"}`
-            : "Automate your scorecard with Jane — saves 2+ hours/week",
+            ? `Data source configured: ${sourceLabel}`
+            : "Automate your scorecard — saves 2+ hours/week",
         },
         {
           id: "org-profile",

@@ -3,41 +3,42 @@
  * Used to render proof lines in the "What happens next" card.
  */
 import { supabase } from "@/integrations/supabase/client";
-
-/**
- * Conservative allowlist of source_system values that represent
- * automated clinical system (Jane) deliveries.
- * Extend only when a new real integration tag is confirmed in production.
- */
-export const JANE_SOURCE_SYSTEMS = ["jane", "jane_pipe"];
-
-/**
- * Conservative allowlist for all automated EMR deliveries.
- * Used for hasRecentAutomatedDeliveries — avoids false positives
- * from internal/system sources by only matching known clinical integrations.
- */
-export const AUTOMATED_SOURCE_SYSTEMS = [...JANE_SOURCE_SYSTEMS];
+import { getActiveConnectorsForOrg } from "@/hooks/useActiveConnectors";
 
 export interface LastDataActivity {
-  janeLastDeliveryAt?: string;
+  /** Last automated delivery from any active connector */
+  automatedLastDeliveryAt?: string;
+  /** Source system of that delivery (e.g. 'jane', 'advancedmd') */
+  automatedSourceSystem?: string;
   spreadsheetLastUploadAt?: string;
   manualLastEntryAt?: string;
   hasRecentAutomatedDeliveries?: boolean;
+  /** @deprecated Use automatedLastDeliveryAt. Kept for backward compat. */
+  janeLastDeliveryAt?: string;
 }
 
 export async function getLastDataActivity(orgId: string): Promise<LastDataActivity> {
   const result: LastDataActivity = {};
 
-  // Run all three queries in parallel
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [janeRes, spreadsheetRes, manualRes, automatedRes] = await Promise.all([
-    // Jane deliveries from data_ingestion_ledger (strict allowlist)
+  // Dynamically resolve which source_systems are active for this org
+  // instead of using a hardcoded allowlist
+  const activeConnectors = await getActiveConnectorsForOrg(orgId);
+  const activeSources = activeConnectors.map((c) => c.source_system);
+
+  // If no active connectors, still check for legacy 'jane' / 'jane_pipe' entries
+  const sourcesToCheck = activeSources.length > 0
+    ? activeSources
+    : ["jane", "jane_pipe"];
+
+  const [automatedRes, spreadsheetRes, manualRes, recentCountRes] = await Promise.all([
+    // Latest automated delivery from any active source
     supabase
       .from("data_ingestion_ledger")
-      .select("created_at")
+      .select("created_at, source_system")
       .eq("organization_id", orgId)
-      .in("source_system", JANE_SOURCE_SYSTEMS)
+      .in("source_system", sourcesToCheck)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -60,18 +61,20 @@ export async function getLastDataActivity(orgId: string): Promise<LastDataActivi
       .limit(1)
       .maybeSingle(),
 
-    // Conservative by design to avoid false positives.
-    // Only counts deliveries from known automated clinical integrations.
+    // Recent automated deliveries count (any active source)
     supabase
       .from("data_ingestion_ledger")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
-      .in("source_system", AUTOMATED_SOURCE_SYSTEMS)
+      .in("source_system", sourcesToCheck)
       .gte("created_at", thirtyDaysAgo),
   ]);
 
-  if (janeRes.data?.created_at) {
-    result.janeLastDeliveryAt = janeRes.data.created_at;
+  if (automatedRes.data?.created_at) {
+    result.automatedLastDeliveryAt = automatedRes.data.created_at;
+    result.automatedSourceSystem = (automatedRes.data as any).source_system;
+    // Backward compat alias
+    result.janeLastDeliveryAt = automatedRes.data.created_at;
   }
   if ((spreadsheetRes.data as any)?.created_at) {
     result.spreadsheetLastUploadAt = (spreadsheetRes.data as any).created_at;
@@ -79,7 +82,7 @@ export async function getLastDataActivity(orgId: string): Promise<LastDataActivi
   if (manualRes.data?.created_at) {
     result.manualLastEntryAt = manualRes.data.created_at;
   }
-  result.hasRecentAutomatedDeliveries = (automatedRes.count ?? 0) > 0;
+  result.hasRecentAutomatedDeliveries = (recentCountRes.count ?? 0) > 0;
 
   return result;
 }
