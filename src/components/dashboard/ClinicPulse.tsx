@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
 
 const INSIGHT_META: Record<string, { icon: typeof Activity; label: string }> = {
   cancellation_rate_trend: { icon: CalendarX, label: "Cancellations" },
@@ -64,22 +65,18 @@ function WowDelta({ primary, secondary }: { primary: number | null; secondary: n
 export function ClinicPulse() {
   const { data: currentUser } = useCurrentUser();
   const [explaining, setExplaining] = useState<string | null>(null);
+  const [explanations, setExplanations] = useState<Record<string, string>>({});
 
   const { data: insights, isLoading } = useQuery({
     queryKey: ["clinic-pulse", currentUser?.team_id],
     queryFn: async () => {
       if (!currentUser?.team_id) return [];
-
-      // Deterministic: compute the latest completed week client-side
-      // (same logic as generate-clinic-insights edge function)
       const { weekStart } = getLatestCompletedWeek();
-
       const { data, error } = await supabase
         .from("clinic_insights")
         .select("*")
         .eq("organization_id", currentUser.team_id)
         .eq("period_start", weekStart);
-
       if (error) throw error;
       return data ?? [];
     },
@@ -87,11 +84,40 @@ export function ClinicPulse() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const handleExplain = async (insightKey: string) => {
-    setExplaining(insightKey);
-    // Placeholder — swap with real AI endpoint when available
-    toast.info("AI explanation coming soon. This will analyze the insight in context.");
-    setTimeout(() => setExplaining(null), 1200);
+  const handleExplain = async (insight: NonNullable<typeof insights>[number]) => {
+    const key = insight.insight_key;
+
+    // Toggle off if already showing
+    if (explanations[key]) {
+      setExplanations((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      return;
+    }
+
+    setExplaining(key);
+    try {
+      const { data, error } = await supabase.functions.invoke("explain-clinic-insight", {
+        body: {
+          clinic_guid: insight.clinic_guid,
+          insight_key: key,
+          period_start: insight.period_start,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) {
+        toast.error(data.error);
+      } else {
+        setExplanations((prev) => ({ ...prev, [key]: data.explanation }));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to generate explanation");
+    } finally {
+      setExplaining(null);
+    }
   };
 
   if (isLoading) {
@@ -185,11 +211,21 @@ export function ClinicPulse() {
                   size="sm"
                   className="h-7 text-xs gap-1 px-2"
                   disabled={explaining === insight.insight_key}
-                  onClick={() => handleExplain(insight.insight_key)}
+                  onClick={() => handleExplain(insight)}
                 >
                   <Lightbulb className="w-3 h-3" />
-                  {explaining === insight.insight_key ? "Thinking…" : "Explain"}
+                  {explaining === insight.insight_key
+                    ? "Thinking…"
+                    : explanations[insight.insight_key]
+                      ? "Hide"
+                      : "Explain"}
                 </Button>
+
+                {explanations[insight.insight_key] && (
+                  <div className="mt-1 text-xs text-muted-foreground prose prose-xs prose-neutral dark:prose-invert max-w-none">
+                    <ReactMarkdown>{explanations[insight.insight_key]}</ReactMarkdown>
+                  </div>
+                )}
               </div>
             );
           })}
