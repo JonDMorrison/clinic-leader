@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { organization_id } = await req.json();
+    const { organization_id, source_system: requestedSource } = await req.json();
     if (!organization_id) {
       return new Response(
         JSON.stringify({ error: "organization_id is required" }),
@@ -269,27 +269,56 @@ Deno.serve(async (req) => {
     const runId = crypto.randomUUID();
     const computedAt = new Date().toISOString();
 
-    // ── Resolve primary connector ──
-    // Priority: status='active' > 'receiving_data', then most recently updated
-    const { data: connectors, error: connError } = await supabase
-      .from("bulk_analytics_connectors")
-      .select("id, source_system, status, locked_account_guid")
-      .eq("organization_id", organization_id)
-      .in("status", ["active", "receiving_data"])
-      .order("status", { ascending: true })   // 'active' < 'receiving_data' alphabetically
-      .order("updated_at", { ascending: false })
-      .limit(5);
+    // ── Resolve connector deterministically ──
+    // 1. If source_system provided in input, use that exact connector
+    // 2. Otherwise: prefer status='active', then source_system='jane' (backward compat), then most recently updated
+    let connector: { id: string; source_system: string; status: string; locked_account_guid: string | null } | null = null;
 
-    if (connError) throw connError;
+    if (requestedSource) {
+      const { data, error } = await supabase
+        .from("bulk_analytics_connectors")
+        .select("id, source_system, status, locked_account_guid")
+        .eq("organization_id", organization_id)
+        .eq("source_system", requestedSource)
+        .in("status", ["active", "receiving_data"])
+        .single();
 
-    if (!connectors || connectors.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "No active connector found for this organization" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (error && error.code === "PGRST116") {
+        return new Response(
+          JSON.stringify({ error: `No active connector found for source_system="${requestedSource}"` }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (error) throw error;
+      connector = data;
+    } else {
+      // Fetch all active/receiving connectors, pick deterministically
+      const { data: connectors, error: connError } = await supabase
+        .from("bulk_analytics_connectors")
+        .select("id, source_system, status, locked_account_guid")
+        .eq("organization_id", organization_id)
+        .in("status", ["active", "receiving_data"])
+        .order("updated_at", { ascending: false })
+        .limit(10);
+
+      if (connError) throw connError;
+
+      if (!connectors || connectors.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "No active connector found for this organization" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Deterministic selection:
+      //   1) status='active' first
+      //   2) among same-status, prefer source_system='jane' for backward compat
+      //   3) otherwise most recently updated (already sorted by updated_at desc)
+      const active = connectors.filter(c => c.status === "active");
+      const pool = active.length > 0 ? active : connectors;
+      connector = pool.find(c => c.source_system === "jane") ?? pool[0];
     }
 
-    const connector = connectors[0];
     const sourceSystem = connector.source_system;
     const clinicGuid = connector.locked_account_guid ?? organization_id;
 
