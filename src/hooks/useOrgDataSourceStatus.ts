@@ -214,13 +214,15 @@ export function useOrgDataSourceStatus(): OrgDataSourceStatus {
     queryKey: ["bulk-connector-status", orgId],
     queryFn: async () => {
       if (!orgId) return null;
+      // Unique constraint uq_org_source guarantees at most one row
       const { data, error } = await supabase
         .from("bulk_analytics_connectors")
         .select("status, last_received_at, last_processed_at, last_error, source_system")
         .eq("organization_id", orgId)
         .eq("source_system", "jane")
-        .maybeSingle();
-      if (error && error.code !== "PGRST116") throw error;
+        .single();
+      if (error && error.code === "PGRST116") return null; // not found
+      if (error) throw error;
       return data;
     },
     enabled: !!orgId,
