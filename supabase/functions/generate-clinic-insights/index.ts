@@ -84,11 +84,14 @@ function computeInsights(
   const cwTotal = currentAppts.length;
   const pwTotal = priorAppts.length;
 
+  /** Clamp a percentage to [0, 100] */
+  const clamp = (v: number) => Math.min(100, Math.max(0, v));
+
   // 1: Cancellation Rate Trend
   const cwCancelled = currentAppts.filter(a => a.cancelled_at).length;
   const pwCancelled = priorAppts.filter(a => a.cancelled_at).length;
-  const cwCancelRate = cwTotal > 0 ? (cwCancelled / cwTotal) * 100 : 0;
-  const pwCancelRate = pwTotal > 0 ? (pwCancelled / pwTotal) * 100 : 0;
+  const cwCancelRate = cwTotal > 0 ? clamp((cwCancelled / cwTotal) * 100) : 0;
+  const pwCancelRate = pwTotal > 0 ? clamp((pwCancelled / pwTotal) * 100) : 0;
   const cancelDelta = cwCancelRate - pwCancelRate;
 
   if (cwTotal > 0) {
@@ -109,8 +112,8 @@ function computeInsights(
   // 2: No-Show Rate
   const cwNoShows = currentAppts.filter(a => a.no_show_at).length;
   const pwNoShows = priorAppts.filter(a => a.no_show_at).length;
-  const cwNoShowRate = cwTotal > 0 ? (cwNoShows / cwTotal) * 100 : 0;
-  const pwNoShowRate = pwTotal > 0 ? (pwNoShows / pwTotal) * 100 : 0;
+  const cwNoShowRate = cwTotal > 0 ? clamp((cwNoShows / cwTotal) * 100) : 0;
+  const pwNoShowRate = pwTotal > 0 ? clamp((pwNoShows / pwTotal) * 100) : 0;
 
   if (cwTotal > 0) {
     insights.push({
@@ -146,8 +149,8 @@ function computeInsights(
   }
 
   // 4: New Patient Volume
-  const cwNewPatients = currentAppts.filter(a => a.first_visit === true).length;
-  const pwNewPatients = priorAppts.filter(a => a.first_visit === true).length;
+  const cwNewPatients = currentAppts.filter(a => a.first_visit === true && !a.cancelled_at && !a.no_show_at).length;
+  const pwNewPatients = priorAppts.filter(a => a.first_visit === true && !a.cancelled_at && !a.no_show_at).length;
 
   insights.push({
     ...base,
@@ -163,8 +166,8 @@ function computeInsights(
 
   // 5: Collection Gap
   const cwInvoiced = currentInvoices.reduce((s, i) => s + (Number(i.subtotal) || 0), 0);
-  const collectionRate = cwInvoiced > 0 ? (cwRevenue / cwInvoiced) * 100 : 100;
-  const gap = cwInvoiced - cwRevenue;
+  const collectionRate = cwInvoiced > 0 ? clamp((cwRevenue / cwInvoiced) * 100) : 100;
+  const gap = Math.max(0, cwInvoiced - cwRevenue);
 
   if (cwInvoiced > 0) {
     insights.push({
@@ -187,7 +190,7 @@ function computeInsights(
   const apptHours = currentAppts.filter(a => !a.cancelled_at && !a.no_show_at).reduce((sum, a) => {
     return sum + (new Date(a.end_at).getTime() - new Date(a.start_at).getTime()) / 3600000;
   }, 0);
-  const utilization = shiftHours > 0 ? (apptHours / shiftHours) * 100 : 0;
+  const utilization = shiftHours > 0 ? clamp((apptHours / shiftHours) * 100) : 0;
 
   if (shiftHours > 0) {
     insights.push({
