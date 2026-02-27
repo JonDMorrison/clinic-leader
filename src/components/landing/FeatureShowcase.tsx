@@ -6,7 +6,7 @@ const outcomes = [
     icon: Eye,
     title: "See what's really happening",
     description:
-      "Cancellations, no-shows, provider utilization, revenue by week — pulled from your EMR automatically. No spreadsheets required.",
+      "Cancellations, no-shows, provider utilization, revenue by week. Pulled from your EMR automatically. No spreadsheets required.",
     bgColor: "bg-primary/10",
     iconColor: "text-primary",
   },

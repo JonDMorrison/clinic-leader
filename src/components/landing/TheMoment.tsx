@@ -2,15 +2,15 @@ import { motion } from "framer-motion";
 
 const moments = [
   {
-    feeling: "The week felt busy — but revenue didn't match.",
+    feeling: "The week felt busy, but revenue didn't match.",
     detail: "Providers were booked, the front desk was slammed, yet the numbers say otherwise.",
   },
   {
-    feeling: "Staff seem overloaded — but gaps appear in the schedule.",
+    feeling: "Staff seem overloaded, but gaps appear in the schedule.",
     detail: "Some providers are underbooked while others are stretched thin. You can feel it, but can't see it clearly.",
   },
   {
-    feeling: "Reports exist — but nobody knows what to focus on.",
+    feeling: "Reports exist, but nobody knows what to focus on.",
     detail: "Your EMR has data. Your spreadsheets have data. But when Monday's meeting starts, you're still guessing.",
   },
 ];
@@ -36,7 +36,7 @@ export const TheMoment = () => {
               </span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Most clinic owners have the same experience. Things feel off, but they can't point to exactly what — or how much it's costing.
+              Most clinic owners have the same experience. Things feel off, but they can't point to exactly what or how much it's costing.
             </p>
           </div>
 
@@ -64,7 +64,7 @@ export const TheMoment = () => {
             transition={{ delay: 0.5 }}
           >
             <p className="text-lg text-foreground font-medium">
-              ClinicLeader shows you exactly what's happening — every week, without building another spreadsheet.
+              ClinicLeader shows you exactly what's happening, every week, without building another spreadsheet.
             </p>
           </motion.div>
         </motion.div>

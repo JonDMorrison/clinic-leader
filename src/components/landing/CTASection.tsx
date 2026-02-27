@@ -31,8 +31,8 @@ export const CTASection = () => {
           </h2>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Your clinic generates data every day. ClinicLeader turns it into
-            a clear picture — so you know what's working, what's not, and what to do next.
+             Your clinic generates data every day. ClinicLeader turns it into
+             a clear picture so you know what's working, what's not, and what to do next.
           </p>
 
           <motion.div

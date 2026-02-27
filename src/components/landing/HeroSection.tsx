@@ -41,7 +41,7 @@ export const HeroSection = () => {
             </h1>
 
             <p className="text-xl text-muted-foreground leading-relaxed max-w-xl">
-              Cancellations, no-shows, revenue gaps, provider schedules — ClinicLeader
+              Cancellations, no-shows, revenue gaps, provider schedules. ClinicLeader
               pulls it from your EMR and shows you what matters every week.
             </p>
 

@@ -12,7 +12,7 @@ const steps = [
     icon: BarChart3,
     number: "2",
     title: "See what's happening across the business",
-    description: "Cancellations, utilization, revenue, trends — updated weekly without you lifting a finger.",
+    description: "Cancellations, utilization, revenue, trends. Updated weekly without you lifting a finger.",
   },
   {
     icon: Users,
