@@ -23,6 +23,7 @@ import { MonthlyPulseWidget } from "@/components/dashboard/MonthlyPulseWidget";
 import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 import { DashboardPrimaryStack } from "@/components/dashboard/DashboardPrimaryStack";
 import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
+import { ClinicPulse } from "@/components/dashboard/ClinicPulse";
 
 const INSPIRATIONAL_MESSAGES = [
   "Lead your clinic. Not just manage it.",
@@ -397,6 +398,9 @@ const Home = () => {
               totalRocks={totalRocks}
               completedRocks={completedRocks}
             />
+
+            {/* Clinic Pulse — weekly insights from Jane pipeline */}
+            <ClinicPulse />
 
             {/* Monthly Pulse Widget */}
             <MonthlyPulseWidget />
