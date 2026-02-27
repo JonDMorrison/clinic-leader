@@ -30,13 +30,15 @@ export default function DataHome() {
     queryFn: async () => {
       if (!currentUser?.team_id) return null;
       
-      const { data } = await supabase
+      // Unique constraint uq_org_source guarantees at most one row
+      const { data, error } = await supabase
         .from("bulk_analytics_connectors")
         .select("*")
         .eq("organization_id", currentUser.team_id)
         .eq("source_system", "jane")
-        .maybeSingle();
-      
+        .single();
+      if (error && error.code === "PGRST116") return null; // not found
+      if (error) throw error;
       return data;
     },
     enabled: !!currentUser?.team_id,

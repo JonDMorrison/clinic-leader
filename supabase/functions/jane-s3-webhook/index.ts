@@ -338,6 +338,7 @@ Deno.serve(async (req) => {
       console.log(`[jane-s3-webhook] Parsed: org=${orgId}, resource=${resource}, accountGuid=${accountGuid}`);
       
       // Find the connector for this org
+      // Unique constraint uq_org_source guarantees at most one row
       const { data: connector, error: connectorError } = await supabase
         .from("bulk_analytics_connectors")
         .select("*")
