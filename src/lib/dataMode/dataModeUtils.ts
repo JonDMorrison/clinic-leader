@@ -24,11 +24,10 @@ interface DataModeInput {
  * This is the ONLY function that should determine which label to show.
  */
 export function getOrgDataModeLabel(input: DataModeInput): DataModeLabel {
-  const { dataMode, janeStatus, hasLegacyImports, ehrSystem } = input;
+  const { janeStatus, hasLegacyImports, ehrSystem } = input;
 
-  // Primary signal: check if there's an active Jane connector status
-  // Falls back to teams.data_mode for backward compatibility
-  if (janeStatus === "active" || janeStatus === "receiving_data" || dataMode === "jane") {
+  // Primary signal: active Jane connector status (teams.data_mode no longer used for logic)
+  if (janeStatus === "active" || janeStatus === "receiving_data") {
     return "Jane";
   }
 

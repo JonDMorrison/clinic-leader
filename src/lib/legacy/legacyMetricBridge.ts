@@ -559,17 +559,9 @@ export async function bridgeMultipleMonths(
  * Check if an organization is in "default" (legacy) data mode
  */
 export async function isLegacyDataMode(organizationId: string): Promise<boolean> {
-  const { data: team, error } = await supabase
-    .from("teams")
-    .select("data_mode")
-    .eq("id", organizationId)
-    .single();
-
-  if (error) {
-    console.error("[LegacyBridge] Failed to check data_mode:", error);
-    return false;
-  }
-
-  // Default mode is 'default' (legacy), not 'jane'
-  return team?.data_mode !== "jane";
+  // Use connector-based detection instead of teams.data_mode
+  // Legacy mode = no active automated connector exists
+  const { hasActiveConnectorForOrg } = await import("@/hooks/useActiveConnectors");
+  const hasConnector = await hasActiveConnectorForOrg(organizationId);
+  return !hasConnector;
 }
