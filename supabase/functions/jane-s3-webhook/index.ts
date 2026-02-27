@@ -351,7 +351,7 @@ Deno.serve(async (req) => {
           continue;
         }
         
-        // Route through bulk-ingest-router (handles connector lookup + validation)
+        // Route through bulk-ingest-router (expects 1 connector row or none for org+jane)
         const { data: ingestResult, error: ingestError } = await supabase.functions.invoke(
           "bulk-ingest-router",
           {
@@ -372,8 +372,15 @@ Deno.serve(async (req) => {
         );
         
         if (ingestError) {
+          // Check if router returned 404 (no connector) — treat as ignored, don't retry
+          const errMsg = ingestError.message || "";
+          if (errMsg.includes("No connector found")) {
+            console.warn(`[jane-s3-webhook] No connector for org=${orgId} — ignoring file ${s3Key}`);
+            results.push({ key: s3Key, success: false, error: "No connector configured — ignored" });
+            continue;
+          }
           console.error(`[jane-s3-webhook] Ingest error:`, ingestError);
-          results.push({ key: s3Key, success: false, error: ingestError.message });
+          results.push({ key: s3Key, success: false, error: errMsg });
           continue;
         }
         
@@ -393,9 +400,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    // If every record was ignored (no connector), return 202 so webhooks don't retry
+    const allIgnored = results.length > 0 && results.every(r => !r.success && r.error?.includes("ignored"));
+    const statusCode = allIgnored ? 202 : 200;
+
     return new Response(
       JSON.stringify({ processed: results.length, results }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: statusCode, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
