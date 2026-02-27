@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Look up connector (unique constraint guarantees at most one row) ──
+    // ── Look up connector (expects exactly 1 row or none per org+source) ──
     const { data: connector, error: connectorError } = await supabase
       .from("bulk_analytics_connectors")
       .select("id, status, source_system, locked_account_guid")
@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (connectorError && connectorError.code === "PGRST116") {
+      console.warn(`[bulk-ingest-router] No connector row for org=${organization_id}, source=${source_system} — ignoring`);
       return jsonResponse(404, {
         success: false,
         error: `No connector found for org=${organization_id}, source=${source_system}`,
