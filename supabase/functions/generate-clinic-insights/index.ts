@@ -252,24 +252,29 @@ Deno.serve(async (req) => {
     console.log(`[generate-clinic-insights] run_id=${runId} org=${organization_id} clinic=${clinicGuid}`);
     console.log(`[generate-clinic-insights] current_week=${cw.weekStart}..${cw.weekEnd}, prior_week=${pw.weekStart}..${pw.weekEnd}`);
 
-    // Fetch data for both weeks in parallel
+    // Fetch data for both weeks in parallel (explicit limit to avoid 1000-row default)
+    const SAFE_LIMIT = 10000;
     const fetchWeek = (start: string, end: string) => Promise.all([
       supabase.from("staging_appointments_jane")
         .select("start_at, end_at, cancelled_at, no_show_at, first_visit, price, staff_member_guid, patient_guid")
         .eq("organization_id", organization_id)
-        .gte("start_at", start).lte("start_at", end + "T23:59:59"),
+        .gte("start_at", start).lte("start_at", end + "T23:59:59")
+        .limit(SAFE_LIMIT),
       supabase.from("staging_payments_jane")
         .select("amount, received_at, payment_type, payer_type")
         .eq("organization_id", organization_id)
-        .gte("received_at", start).lte("received_at", end + "T23:59:59"),
+        .gte("received_at", start).lte("received_at", end + "T23:59:59")
+        .limit(SAFE_LIMIT),
       supabase.from("staging_invoices_jane")
         .select("subtotal, amount_paid, invoiced_at, staff_member_guid")
         .eq("organization_id", organization_id)
-        .gte("invoiced_at", start).lte("invoiced_at", end + "T23:59:59"),
+        .gte("invoiced_at", start).lte("invoiced_at", end + "T23:59:59")
+        .limit(SAFE_LIMIT),
       supabase.from("staging_shifts_jane")
         .select("start_at, end_at, staff_member_guid")
         .eq("organization_id", organization_id)
-        .gte("start_at", start).lte("start_at", end + "T23:59:59"),
+        .gte("start_at", start).lte("start_at", end + "T23:59:59")
+        .limit(SAFE_LIMIT),
     ]);
 
     const [cwData, pwData] = await Promise.all([
