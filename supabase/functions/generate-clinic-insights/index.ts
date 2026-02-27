@@ -54,6 +54,7 @@ function priorWeek(weekStart: string): { weekStart: string; weekEnd: string } {
 
 interface Insight {
   clinic_guid: string;
+  organization_id: string;
   insight_key: string;
   title: string;
   summary: string;
@@ -78,13 +79,14 @@ function computeInsights(
   currentInvoices: any[],
   currentShifts: any[],
   clinicGuid: string,
+  organizationId: string,
   periodStart: string,
   periodEnd: string,
   runId: string,
   computedAt: string,
 ): Insight[] {
   const insights: Insight[] = [];
-  const base = { clinic_guid: clinicGuid, period_start: periodStart, period_end: periodEnd, run_id: runId, computed_at: computedAt };
+  const base = { clinic_guid: clinicGuid, organization_id: organizationId, period_start: periodStart, period_end: periodEnd, run_id: runId, computed_at: computedAt };
 
   const cwTotal = currentAppts.length;
   const pwTotal = priorAppts.length;
@@ -285,7 +287,7 @@ Deno.serve(async (req) => {
     // Compute deterministic insights
     const insights = computeInsights(
       cwAppts, pwAppts, cwPayments, pwPayments, cwInvoices, cwShifts,
-      clinicGuid, cw.weekStart, cw.weekEnd, runId, computedAt,
+      clinicGuid, organization_id, cw.weekStart, cw.weekEnd, runId, computedAt,
     );
 
     // Upsert (keyed on clinic_guid + insight_key + period_start)

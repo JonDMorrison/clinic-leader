@@ -890,6 +890,7 @@ export type Database = {
           id: string
           insight_key: string
           money_impact: number | null
+          organization_id: string
           period_end: string | null
           period_start: string
           run_id: string | null
@@ -907,6 +908,7 @@ export type Database = {
           id?: string
           insight_key: string
           money_impact?: number | null
+          organization_id: string
           period_end?: string | null
           period_start: string
           run_id?: string | null
@@ -924,6 +926,7 @@ export type Database = {
           id?: string
           insight_key?: string
           money_impact?: number | null
+          organization_id?: string
           period_end?: string | null
           period_start?: string
           run_id?: string | null
