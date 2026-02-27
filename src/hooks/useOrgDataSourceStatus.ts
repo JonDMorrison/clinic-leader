@@ -266,7 +266,11 @@ export function useOrgDataSourceStatus(): OrgDataSourceStatus {
   // Compute derived values
   const isLoading = userLoading || teamLoading || janeLoading || bulkLoading || statsLoading || ingestLoading;
   
-  const mode: DataMode = team?.data_mode === "jane" ? "jane" : "standard";
+  // Derive mode from active connectors rather than teams.data_mode
+  // teams.data_mode is still available on the team object for backward compat / display
+  const hasJaneConnector = bulkConnector?.source_system === "jane" && 
+    ["active", "receiving_data"].includes(bulkConnector?.status ?? "");
+  const mode: DataMode = hasJaneConnector || team?.data_mode === "jane" ? "jane" : "standard";
   
   // Jane connection status - map from actual DB enum values to our simplified status
   let janeConnectionStatus: "active" | "pending" | "inactive" | "error" | null = null;
