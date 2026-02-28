@@ -1,12 +1,49 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowRight, CheckCircle, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 export const CTASection = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    practice_name: "",
+    email: "",
+    jane_link: "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!form.name || !form.practice_name || !form.email) {
+      toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.functions.invoke("submit-waitlist", {
+        body: form,
+      });
+
+      if (error) throw error;
+
+      setIsSubmitted(true);
+      toast({ title: "You're in! We'll be in touch soon." });
+    } catch {
+      toast({ title: "Something went wrong. Please try again.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <section className="py-24 md:py-32 relative overflow-hidden">
-      {/* Gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/10" />
 
       <motion.div
@@ -15,7 +52,7 @@ export const CTASection = () => {
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <motion.div
           className="text-center space-y-8"
           initial={{ opacity: 0, y: 20 }}
@@ -35,25 +72,94 @@ export const CTASection = () => {
             what's happening and helps your team follow through every week.
           </p>
 
-          <motion.div
-            className="flex flex-col sm:flex-row gap-4 justify-center pt-4"
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-          >
-            <Button size="lg" className="text-lg px-10 py-7 shadow-xl shadow-primary/25 group" asChild>
-              <Link to="/auth">
-                See how it works
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" className="text-lg px-10 py-7 bg-card/80 backdrop-blur-sm" asChild>
-              <Link to="/auth">
-                Book a walkthrough
-              </Link>
-            </Button>
-          </motion.div>
+          {isSubmitted ? (
+            <motion.div
+              className="flex flex-col items-center gap-4 py-8"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              <CheckCircle className="w-12 h-12 text-primary" />
+              <p className="text-xl font-semibold text-foreground">You're on the list!</p>
+              <p className="text-muted-foreground">We'll reach out soon to get you started.</p>
+            </motion.div>
+          ) : (
+            <motion.form
+              onSubmit={handleSubmit}
+              className="text-left space-y-5 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-6 md:p-8 shadow-xl"
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+            >
+              <h3 className="text-lg font-semibold text-foreground text-center">
+                Become a tester
+              </h3>
+              <p className="text-sm text-muted-foreground text-center">
+                We're onboarding a small group of clinics. Sign up and we'll reach out.
+              </p>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="cta-name">Your name <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="cta-name"
+                    placeholder="Jane Smith"
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cta-practice">Practice name <span className="text-destructive">*</span></Label>
+                  <Input
+                    id="cta-practice"
+                    placeholder="Downtown Chiropractic"
+                    value={form.practice_name}
+                    onChange={(e) => setForm((f) => ({ ...f, practice_name: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cta-email">Email address <span className="text-destructive">*</span></Label>
+                <Input
+                  id="cta-email"
+                  type="email"
+                  placeholder="you@yourclinic.com"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cta-jane">Jane link <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Input
+                  id="cta-jane"
+                  placeholder="https://yourclinic.janeapp.com"
+                  value={form.jane_link}
+                  onChange={(e) => setForm((f) => ({ ...f, jane_link: e.target.value }))}
+                />
+              </div>
+
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full text-lg py-7 shadow-xl shadow-primary/25 group"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    Become a tester
+                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </Button>
+            </motion.form>
+          )}
 
           <p className="text-sm text-muted-foreground pt-4">
             Connects to Jane and other EMRs · Your data stays private · HIPAA-aligned security
