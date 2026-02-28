@@ -6,37 +6,67 @@ import { Label } from "@/components/ui/label";
 import { ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 export const CTASection = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "",
     practice_name: "",
     email: "",
+    password: "",
     jane_link: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!form.name || !form.practice_name || !form.email) {
+    if (!form.name || !form.practice_name || !form.email || !form.password) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+
+    if (form.password.length < 6) {
+      toast({ title: "Password must be at least 6 characters", variant: "destructive" });
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.functions.invoke("submit-waitlist", {
-        body: form,
+      // 1. Create the account
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: form.name,
+            practice_name: form.practice_name,
+          },
+        },
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
+
+      // 2. Submit waitlist info (sends notification email to jon@getclear.ca)
+      await supabase.functions.invoke("submit-waitlist", {
+        body: {
+          name: form.name,
+          practice_name: form.practice_name,
+          email: form.email,
+          jane_link: form.jane_link,
+        },
+      });
 
       setIsSubmitted(true);
-      toast({ title: "You're in! We'll be in touch soon." });
-    } catch {
-      toast({ title: "Something went wrong. Please try again.", variant: "destructive" });
+      toast({ title: "Account created! Check your email to confirm." });
+    } catch (error: any) {
+      toast({
+        title: error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -79,8 +109,11 @@ export const CTASection = () => {
               animate={{ opacity: 1, scale: 1 }}
             >
               <CheckCircle className="w-12 h-12 text-primary" />
-              <p className="text-xl font-semibold text-foreground">You're on the list!</p>
-              <p className="text-muted-foreground">We'll reach out soon to get you started.</p>
+              <p className="text-xl font-semibold text-foreground">You're in!</p>
+              <p className="text-muted-foreground">Check your email to confirm your account, then sign in to get started.</p>
+              <Button variant="outline" onClick={() => navigate("/auth")} className="mt-2">
+                Go to Sign In
+              </Button>
             </motion.div>
           ) : (
             <motion.form
@@ -95,7 +128,7 @@ export const CTASection = () => {
                 Become a tester
               </h3>
               <p className="text-sm text-muted-foreground text-center">
-                We're onboarding a small group of clinics. Sign up and we'll reach out.
+                We're onboarding a small group of clinics. Create your account and we'll get you set up.
               </p>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -134,6 +167,19 @@ export const CTASection = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="cta-password">Create a password <span className="text-destructive">*</span></Label>
+                <Input
+                  id="cta-password"
+                  type="password"
+                  placeholder="At least 6 characters"
+                  value={form.password}
+                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="cta-jane">Jane link <span className="text-muted-foreground text-xs">(optional)</span></Label>
                 <Input
                   id="cta-jane"
@@ -158,6 +204,11 @@ export const CTASection = () => {
                   </>
                 )}
               </Button>
+
+              <p className="text-xs text-muted-foreground text-center">
+                Already have an account?{" "}
+                <a href="/auth" className="text-primary hover:underline">Sign in</a>
+              </p>
             </motion.form>
           )}
 
