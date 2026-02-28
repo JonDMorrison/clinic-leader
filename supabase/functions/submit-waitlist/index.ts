@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           from: "ClinicLeader <noreply@clinicleader.com>",
-          to: ["jon@goodclear.ca"],
+          to: ["jon@getclear.ca"],
           subject: `New Tester Signup: ${name} from ${practice_name}`,
           html: `
             <h2>New ClinicLeader Tester Signup</h2>
