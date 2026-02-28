@@ -7675,6 +7675,33 @@ export type Database = {
           },
         ]
       }
+      waitlist_submissions: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          jane_link: string | null
+          name: string
+          practice_name: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          jane_link?: string | null
+          name: string
+          practice_name: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          jane_link?: string | null
+          name?: string
+          practice_name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       benchmark_opted_in_orgs: {
