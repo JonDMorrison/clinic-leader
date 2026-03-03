@@ -1,32 +1,32 @@
 import { motion } from "framer-motion";
-import { AlertTriangle, TrendingDown, UserMinus, DollarSign } from "lucide-react";
+import { DollarSign, TrendingDown, UserMinus, AlertTriangle, ArrowRight } from "lucide-react";
 
 const examples = [
   {
     icon: DollarSign,
     insight: "$4,200 lost to cancellations last week",
-    context: "Across 3 providers, 18 cancelled appointments weren't re-filled.",
+    action: "Flagged as issue. Assigned to front desk lead. New confirmation protocol started. Tracked for 4 weeks.",
     color: "text-destructive",
     bgColor: "bg-destructive/10",
   },
   {
     icon: TrendingDown,
     insight: "Provider utilization dropped to 68%",
-    context: "Two providers have consistent afternoon gaps. The schedule looks full but isn't.",
+    action: "Discussed in L10. Root cause: afternoon no-shows. Intervention: same-day waitlist. Measured week over week.",
     color: "text-warning",
     bgColor: "bg-warning/10",
   },
   {
     icon: UserMinus,
-    insight: "New patient numbers trending down 3 weeks in a row",
-    context: "Referrals are steady, but conversion from inquiry to booked is slipping.",
+    insight: "New patient intake down 3 weeks in a row",
+    action: "Owner assigned to investigate referral-to-booking conversion. Deadline set. Reported back next meeting.",
     color: "text-primary",
     bgColor: "bg-primary/10",
   },
   {
     icon: AlertTriangle,
-    insight: "Monday cancellation rate is 2× the weekly average",
-    context: "Weekend reminder gaps may be the cause. Worth testing a Friday outreach.",
+    insight: "Monday cancellations are 2x the weekly average",
+    action: "Issue created from scorecard alert. Team decided to test Friday reminder calls. Intervention tracked against baseline.",
     color: "text-accent",
     bgColor: "bg-accent/10",
   },
@@ -44,14 +44,13 @@ export const RealExamples = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-            The kind of things{" "}
+            See it. Decide. Act.{" "}
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              you'll see
+              Measure.
             </span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            ClinicLeader surfaces these automatically from your clinic data.
-            No manual reports. No digging through spreadsheets.
+            Every number connects to a decision. Every decision has an owner. Every outcome gets measured.
           </p>
         </motion.div>
 
@@ -71,7 +70,11 @@ export const RealExamples = () => {
                 </div>
                 <div>
                   <p className={`text-lg font-semibold ${example.color}`}>{example.insight}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{example.context}</p>
+                  <div className="flex items-center gap-1.5 mt-2 mb-1">
+                    <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">What happened next</span>
+                  </div>
+                  <p className="text-sm text-foreground/80">{example.action}</p>
                 </div>
               </div>
             </motion.div>

@@ -91,15 +91,14 @@ export const CTASection = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">
-            Stop guessing.{" "}
+            Fix how your leadership team{" "}
             <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
-              Start moving the numbers.
+              actually runs.
             </span>
           </h2>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            You shouldn't have to hope things are improving. ClinicLeader shows you
-            what's happening and helps your team follow through every week.
+            Weekly scorecard. Structured meeting. Clear owners. Measured outcomes. ClinicLeader gives your leadership team a rhythm that turns decisions into results.
           </p>
 
           {isSubmitted ? (

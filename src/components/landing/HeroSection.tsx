@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, Eye, Calendar, TrendingUp, Users } from "lucide-react";
+import { ArrowRight, Play, ClipboardCheck, Repeat, UsersRound } from "lucide-react";
 import { motion } from "framer-motion";
 import heroLeadershipImage from "@/assets/marketing/hero-leadership-meeting.jpg";
 
@@ -34,24 +34,22 @@ export const HeroSection = () => {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-              Your clinic has the data.{" "}
+              Your leadership team has the numbers.{" "}
               <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
-                Now turn it into progress.
+                Now make them do something.
               </span>
             </h1>
 
             <p className="text-xl text-muted-foreground leading-relaxed max-w-xl">
-              Cancellations, no-shows, revenue gaps, provider schedules. The information
-              is there. ClinicLeader helps you see it clearly, decide what to do, and
-              follow through every week.
+              ClinicLeader turns your weekly metrics into structured decisions, clear ownership, and measurable improvement. Not another dashboard. A system for how your leadership team actually runs.
             </p>
 
             {/* Bullet points */}
             <ul className="space-y-3 text-foreground">
               {[
-                { icon: Eye, text: "See cancellations, utilization, and revenue gaps as they happen" },
-                { icon: TrendingUp, text: "Track weekly performance so you know if things are actually improving" },
-                { icon: Users, text: "Align your team around what matters most this week" },
+                { icon: ClipboardCheck, text: "Scorecard to issue to action. Every week, same rhythm, real accountability." },
+                { icon: Repeat, text: "Track every intervention against baseline. Know if it worked or didn't." },
+                { icon: UsersRound, text: "Meetings end with decisions, owners, and deadlines. Not conversation." },
               ].map((item, i) => (
                 <motion.li
                   key={i}
@@ -72,7 +70,7 @@ export const HeroSection = () => {
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 group" asChild>
                 <Link to="/auth">
-                  See how it works
+                  Become a tester
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
