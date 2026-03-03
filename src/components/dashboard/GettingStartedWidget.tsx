@@ -45,18 +45,8 @@ export function GettingStartedWidget() {
         transition={{ duration: 0.4 }}
       >
         <Card className="relative overflow-hidden border-brand/20 bg-gradient-to-br from-brand/5 via-background to-accent/5">
-          {/* Animated background gradient */}
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-brand/10 via-accent/10 to-brand/10 opacity-50"
-            animate={{
-              x: ["-100%", "100%"],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-          />
+          {/* Static background gradient */}
+          <div className="absolute inset-0 bg-gradient-to-r from-brand/10 via-accent/10 to-brand/10 opacity-50" />
 
           <CardHeader className="relative pb-3">
             <div className="flex items-start justify-between">
