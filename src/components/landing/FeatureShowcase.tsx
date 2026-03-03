@@ -1,28 +1,28 @@
 import { motion } from "framer-motion";
-import { Eye, Target, TrendingUp, Shield } from "lucide-react";
+import { ClipboardList, MessageSquareWarning, Repeat, Shield } from "lucide-react";
 
 const outcomes = [
   {
-    icon: Eye,
-    title: "See what's happening",
+    icon: ClipboardList,
+    title: "Weekly scorecard with teeth",
     description:
-      "Cancellations, no-shows, provider utilization, revenue trends. Pulled from your EMR automatically. No spreadsheets required.",
+      "Your KPIs update every week. When a number goes off-track, ClinicLeader flags it as an issue automatically. No more hoping someone notices.",
     bgColor: "bg-primary/10",
     iconColor: "text-primary",
   },
   {
-    icon: Target,
-    title: "Focus your team",
+    icon: MessageSquareWarning,
+    title: "Structured meetings, real decisions",
     description:
-      "Every week, ClinicLeader highlights what needs attention. Your leadership meeting starts with priorities, not guesswork.",
+      "Run your L10 with a built-in agenda. Every issue gets discussed, decided, and assigned. Meetings end with owners and deadlines, not open loops.",
     bgColor: "bg-accent/10",
     iconColor: "text-accent",
   },
   {
-    icon: TrendingUp,
-    title: "Track real improvement",
+    icon: Repeat,
+    title: "Interventions you can actually measure",
     description:
-      "Make a change. See if it worked. Follow up next week. ClinicLeader keeps your team accountable to actual results.",
+      "Made a change? ClinicLeader tracks the intervention against baseline metrics. You'll know if it worked, or if it didn't, so you can adjust.",
     bgColor: "bg-success/10",
     iconColor: "text-success",
   },
@@ -57,13 +57,13 @@ export const FeatureShowcase = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-            From data to{" "}
+            Numbers to decisions to{" "}
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              momentum
+              results
             </span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Data becomes clarity. Clarity becomes decisions. Decisions become results you can measure.
+            Not a reporting tool. A weekly operating rhythm that connects what you measure to what you do about it.
           </p>
         </motion.div>
 

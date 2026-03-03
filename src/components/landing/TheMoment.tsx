@@ -2,20 +2,20 @@ import { motion } from "framer-motion";
 
 const moments = [
   {
-    feeling: "Reports everywhere, but no clear priorities.",
-    detail: "Your EMR has data. Your spreadsheets have data. But when the meeting starts, nobody knows what to focus on first.",
+    feeling: "You review the numbers, but nothing changes.",
+    detail: "The scorecard says utilization is down. Everyone nods. Nobody owns the fix. Next week, same conversation.",
   },
   {
-    feeling: "Meetings end without decisions.",
-    detail: "You talk about the same issues every week. Nothing gets assigned. Nothing gets tracked. The next meeting feels the same.",
+    feeling: "Meetings feel productive but produce nothing.",
+    detail: "You talk about the same issues every week. No one is assigned. No deadline is set. There is no follow-up system.",
   },
   {
-    feeling: "Problems noticed too late.",
-    detail: "By the time you see cancellations climbing or utilization dropping, the damage is already done.",
+    feeling: "You tried something, but can't tell if it worked.",
+    detail: "You changed the cancellation policy three weeks ago. Did it move the number? Nobody tracked it. Nobody knows.",
   },
   {
-    feeling: "Improvements that don't stick.",
-    detail: "You make a change, it works for a week, then nobody follows up. There's no system to track whether things actually got better.",
+    feeling: "Your team is busy, but the clinic isn't improving.",
+    detail: "Everyone is working hard. But without a structured loop from numbers to decisions to outcomes, effort doesn't turn into results.",
   },
 ];
 
@@ -34,13 +34,13 @@ export const TheMoment = () => {
         >
           <div className="text-center">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-              The data is there.{" "}
+              The problem isn't data.{" "}
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                The clarity isn't.
+                It's what happens after you see it.
               </span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Most clinics have plenty of information. What's missing is a way to turn it into focus, decisions, and follow-through.
+              Most clinics have the numbers. What they don't have is a system that turns those numbers into decisions, owners, and follow-through.
             </p>
           </div>
 
@@ -68,7 +68,7 @@ export const TheMoment = () => {
             transition={{ delay: 0.5 }}
           >
             <p className="text-lg text-foreground font-medium">
-              ClinicLeader connects your data to your decisions, so your team actually moves the numbers every week.
+              ClinicLeader closes the loop. Scorecard to issue to action to outcome. Every week.
             </p>
           </motion.div>
         </motion.div>

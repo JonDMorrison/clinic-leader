@@ -1,24 +1,30 @@
 import { motion } from "framer-motion";
-import { PlugZap, BarChart3, Users } from "lucide-react";
+import { PlugZap, BarChart3, Users, Repeat } from "lucide-react";
 
 const steps = [
   {
     icon: PlugZap,
     number: "1",
     title: "Connect your clinic data",
-    description: "Link your EMR (Jane, others) or upload a spreadsheet. Setup takes minutes, not weeks.",
+    description: "Link your EMR, upload a spreadsheet, or enter numbers manually. Setup takes minutes.",
   },
   {
     icon: BarChart3,
     number: "2",
-    title: "See what actually matters",
-    description: "Cancellations, utilization, revenue, trends. Updated weekly so you always know where things stand.",
+    title: "Review your scorecard every week",
+    description: "Your KPIs update automatically. Off-track numbers get flagged as issues. No digging required.",
   },
   {
     icon: Users,
     number: "3",
-    title: "Run better weekly leadership meetings",
-    description: "Your priorities are clear. Your team knows what to focus on. Meetings end with decisions and follow-through.",
+    title: "Run a structured leadership meeting",
+    description: "Follow the L10 format. Discuss issues. Make decisions. Assign owners and deadlines before you leave the room.",
+  },
+  {
+    icon: Repeat,
+    number: "4",
+    title: "Track whether your changes worked",
+    description: "Log interventions. Compare against baseline. Next week, you'll know if the number moved or if you need to try something else.",
   },
 ];
 
@@ -36,9 +42,9 @@ export const HowItWorks = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-            Getting started is{" "}
+            A weekly rhythm your team{" "}
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              simple
+              actually follows
             </span>
           </h2>
         </motion.div>
