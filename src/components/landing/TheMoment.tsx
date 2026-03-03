@@ -3,19 +3,19 @@ import { motion } from "framer-motion";
 const moments = [
   {
     feeling: "You review the numbers, but nothing changes.",
-    detail: "The scorecard says utilization is down. Everyone nods. Nobody owns the fix. Next week, same conversation.",
+    detail: "The scorecard says utilization is down. Everyone nods. Nobody owns the fix. Next week, same number, same conversation.",
   },
   {
     feeling: "Meetings feel productive but produce nothing.",
-    detail: "You talk about the same issues every week. No one is assigned. No deadline is set. There is no follow-up system.",
+    detail: "You talk about the same issues every week. No one is assigned. No deadline is set. No one follows up.",
   },
   {
-    feeling: "You tried something, but can't tell if it worked.",
-    detail: "You changed the cancellation policy three weeks ago. Did it move the number? Nobody tracked it. Nobody knows.",
+    feeling: "You made a change but can't tell if it worked.",
+    detail: "You changed the cancellation policy three weeks ago. Did the number move? Nobody tracked it. Nobody knows.",
   },
   {
     feeling: "Your team is busy, but the clinic isn't improving.",
-    detail: "Everyone is working hard. But without a structured loop from numbers to decisions to outcomes, effort doesn't turn into results.",
+    detail: "Everyone is working hard. But without a system that connects numbers to decisions to measured outcomes, effort doesn't turn into results.",
   },
 ];
 
@@ -40,7 +40,7 @@ export const TheMoment = () => {
               </span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Most clinics have the numbers. What they don't have is a system that turns those numbers into decisions, owners, and follow-through.
+              Most clinics have the numbers. What they don't have is a system that turns those numbers into assigned decisions and measured outcomes.
             </p>
           </div>
 
@@ -68,7 +68,7 @@ export const TheMoment = () => {
             transition={{ delay: 0.5 }}
           >
             <p className="text-lg text-foreground font-medium">
-              ClinicLeader closes the loop. Scorecard to issue to action to outcome. Every week.
+              ClinicLeader fixes the gap between seeing a number and doing something about it. Metric to issue to owner to outcome. Every week.
             </p>
           </motion.div>
         </motion.div>

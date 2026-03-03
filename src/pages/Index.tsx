@@ -36,8 +36,8 @@ const Index = () => {
   return (
     <>
       <Helmet>
-        <title>ClinicLeader — Know What's Happening in Your Clinic</title>
-        <meta name="description" content="ClinicLeader connects to your EMR and shows you cancellations, utilization, revenue, and team performance every week — so you catch problems early and stay in control." />
+        <title>ClinicLeader — Weekly Metrics to Structured Decisions</title>
+        <meta name="description" content="ClinicLeader turns your weekly clinic metrics into structured decisions, clear ownership, and measurable results. Not another dashboard. A leadership operating system." />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-background">

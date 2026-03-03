@@ -98,7 +98,7 @@ export const CTASection = () => {
           </h2>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Weekly scorecard. Structured meeting. Clear owners. Measured outcomes. ClinicLeader gives your leadership team a rhythm that turns decisions into results.
+            Stop reviewing numbers that don't lead anywhere. Start running a weekly system where every metric connects to a decision, an owner, and a measured outcome.
           </p>
 
           {isSubmitted ? (
