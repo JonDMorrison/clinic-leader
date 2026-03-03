@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useVTORealtimeSync } from "@/hooks/useVTORealtimeSync";
 import { HelpHint } from "@/components/help/HelpHint";
+import { useCoreValues } from "@/hooks/useCoreValues";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
 import { BentoGrid, BentoCard } from "@/components/ui/BentoGrid";
@@ -23,6 +24,7 @@ import { VTOSkeleton } from "@/components/skeletons/VTOSkeleton";
 const VTO = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { activeValues: orgCoreValues } = useCoreValues();
 
   // Fetch active VTO for current user's team
   const { data: vtoData, isLoading } = useQuery({
@@ -195,7 +197,7 @@ const VTO = () => {
   const recentVersions = versions?.slice(0, 3) || [];
 
   // Parse data from latestVersion
-  const coreValues = (latestVersion?.core_values as string[] || []);
+  const coreValues = orgCoreValues;
   const coreFocus = latestVersion?.core_focus as { purpose?: string; niche?: string } | null;
   const threeYearPicture = latestVersion?.three_year_picture as { revenue?: string; profit?: string } | null;
   const tenYearTarget = latestVersion?.ten_year_target as string | null;
@@ -266,9 +268,9 @@ const VTO = () => {
         >
           {coreValues.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {coreValues.slice(0, 5).map((value, i) => (
-                <Badge key={i} variant="secondary" className="bg-primary/10 text-primary border-0">
-                  {typeof value === 'string' ? value : (value as any)?.title || value}
+              {coreValues.slice(0, 5).map((value) => (
+                <Badge key={value.id} variant="secondary" className="bg-primary/10 text-primary border-0">
+                  {value.title}
                 </Badge>
               ))}
               {coreValues.length > 5 && (
