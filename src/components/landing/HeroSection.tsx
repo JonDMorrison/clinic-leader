@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, ClipboardCheck, Repeat, UsersRound } from "lucide-react";
+import { ArrowRight, Play, Target, UserCheck, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
 import heroLeadershipImage from "@/assets/marketing/hero-leadership-meeting.jpg";
 
@@ -34,22 +34,22 @@ export const HeroSection = () => {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-              Your leadership team has the numbers.{" "}
+              ClinicLeader turns your weekly clinic metrics into{" "}
               <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
-                Now make them do something.
+                structured decisions, clear ownership, and measurable results.
               </span>
             </h1>
 
             <p className="text-xl text-muted-foreground leading-relaxed max-w-xl">
-              ClinicLeader turns your weekly metrics into structured decisions, clear ownership, and measurable improvement. Not another dashboard. A system for how your leadership team actually runs.
+              Every week, your scorecard flags what's off track. Your team discusses it in a structured meeting. Someone owns the fix. And next week, you measure whether it worked.
             </p>
 
             {/* Bullet points */}
             <ul className="space-y-3 text-foreground">
               {[
-                { icon: ClipboardCheck, text: "Scorecard to issue to action. Every week, same rhythm, real accountability." },
-                { icon: Repeat, text: "Track every intervention against baseline. Know if it worked or didn't." },
-                { icon: UsersRound, text: "Meetings end with decisions, owners, and deadlines. Not conversation." },
+                { icon: Target, text: "Off-track metrics become flagged issues. No more hoping someone notices." },
+                { icon: UserCheck, text: "Every issue gets an owner and a deadline before the meeting ends." },
+                { icon: BarChart3, text: "Every decision is tracked against baseline. You'll know if it worked." },
               ].map((item, i) => (
                 <motion.li
                   key={i}

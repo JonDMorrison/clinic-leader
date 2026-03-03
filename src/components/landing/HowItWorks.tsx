@@ -1,30 +1,25 @@
 import { motion } from "framer-motion";
-import { PlugZap, BarChart3, Users, Repeat } from "lucide-react";
 
 const steps = [
   {
-    icon: PlugZap,
     number: "1",
-    title: "Connect your clinic data",
-    description: "Link your EMR, upload a spreadsheet, or enter numbers manually. Setup takes minutes.",
+    title: "Connect or enter your metrics",
+    description: "Link your EMR, upload a spreadsheet, or enter numbers manually. Setup takes minutes, not weeks.",
   },
   {
-    icon: BarChart3,
     number: "2",
     title: "Review your scorecard every week",
     description: "Your KPIs update automatically. Off-track numbers get flagged as issues. No digging required.",
   },
   {
-    icon: Users,
     number: "3",
     title: "Run a structured leadership meeting",
-    description: "Follow the L10 format. Discuss issues. Make decisions. Assign owners and deadlines before you leave the room.",
+    description: "Follow the L10 format. Discuss flagged issues. Make decisions. Assign owners and deadlines before you leave the room.",
   },
   {
-    icon: Repeat,
     number: "4",
-    title: "Track whether your changes worked",
-    description: "Log interventions. Compare against baseline. Next week, you'll know if the number moved or if you need to try something else.",
+    title: "Track whether your decisions moved the metric",
+    description: "Log the intervention. Compare against baseline. Next week, you'll know if the number moved or if you need to try something else.",
   },
 ];
 

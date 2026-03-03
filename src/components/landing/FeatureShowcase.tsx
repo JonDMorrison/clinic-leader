@@ -1,28 +1,28 @@
 import { motion } from "framer-motion";
-import { ClipboardList, MessageSquareWarning, Repeat, Shield } from "lucide-react";
+import { ClipboardList, MessageSquareWarning, Repeat } from "lucide-react";
 
 const outcomes = [
   {
     icon: ClipboardList,
-    title: "Weekly scorecard with teeth",
+    title: "Scorecard that creates issues automatically",
     description:
-      "Your KPIs update every week. When a number goes off-track, ClinicLeader flags it as an issue automatically. No more hoping someone notices.",
+      "Your KPIs update every week. When a number goes off track, it becomes a flagged issue. One click to assign it. No more hoping someone notices.",
     bgColor: "bg-primary/10",
     iconColor: "text-primary",
   },
   {
     icon: MessageSquareWarning,
-    title: "Structured meetings, real decisions",
+    title: "Structured meetings that end with owners",
     description:
-      "Run your L10 with a built-in agenda. Every issue gets discussed, decided, and assigned. Meetings end with owners and deadlines, not open loops.",
+      "Run your weekly L10 with a built-in agenda. Every issue gets discussed, decided, and assigned an owner with a deadline. Not another conversation that goes nowhere.",
     bgColor: "bg-accent/10",
     iconColor: "text-accent",
   },
   {
     icon: Repeat,
-    title: "Interventions you can actually measure",
+    title: "Interventions tracked against baseline",
     description:
-      "Made a change? ClinicLeader tracks the intervention against baseline metrics. You'll know if it worked, or if it didn't, so you can adjust.",
+      "Made a change? ClinicLeader tracks it against the metric it was meant to fix. Next week you'll know if it worked, or if you need to try something else.",
     bgColor: "bg-success/10",
     iconColor: "text-success",
   },
@@ -57,13 +57,13 @@ export const FeatureShowcase = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-            Numbers to decisions to{" "}
+            Dashboards show data.{" "}
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              results
+              ClinicLeader forces execution.
             </span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Not a reporting tool. A weekly operating rhythm that connects what you measure to what you do about it.
+            Every off-track metric becomes a decision. Every decision has an owner. Every outcome gets measured against baseline.
           </p>
         </motion.div>
 
@@ -99,9 +99,8 @@ export const FeatureShowcase = () => {
           transition={{ delay: 0.5 }}
         >
           <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
-            <Shield className="w-5 h-5 text-primary" />
             <span className="text-sm font-medium">
-              Your data stays yours · Connects to Jane, other EMRs, or spreadsheets
+              Connects to Jane, other EMRs, or spreadsheets. Your data stays yours.
             </span>
           </div>
         </motion.div>
