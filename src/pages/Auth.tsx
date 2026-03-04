@@ -5,14 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ClinicLeaderIcon } from "@/components/ui/ClinicLeaderIcon";
+
+const EMR_OPTIONS = ["Jane", "ChiroTouch", "Notero", "None", "Other"] as const;
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [clinicName, setClinicName] = useState("");
+  const [emrSystem, setEmrSystem] = useState("");
+  const [otherEmr, setOtherEmr] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -49,6 +56,11 @@ const Auth = () => {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              full_name: fullName,
+              clinic_name: clinicName,
+              emr_system: emrSystem === "Other" ? otherEmr : emrSystem,
+            },
           },
         });
         if (error) throw error;
@@ -85,18 +97,37 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl text-center">
-            {isForgotPassword ? "Reset Password" : isLogin ? "Sign In" : "Sign Up"}
+            {isForgotPassword
+              ? "Reset Password"
+              : isLogin
+              ? "Sign In"
+              : "Get Started with ClinicLeader"}
           </CardTitle>
           <p className="text-center text-sm text-muted-foreground">
             {isForgotPassword 
               ? "Enter your email to receive a password reset link" 
               : isLogin 
               ? "Welcome back to ClinicLeader" 
-              : "Create your account"}
+              : "Create your account and tell us about your practice"}
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Sign Up: Account info */}
+            {!isLogin && !isForgotPassword && (
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  placeholder="Dr. Jane Smith"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -108,6 +139,7 @@ const Auth = () => {
                 required
               />
             </div>
+
             {!isForgotPassword && (
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -121,8 +153,63 @@ const Auth = () => {
                 />
               </div>
             )}
+
+            {/* Sign Up: Practice info */}
+            {!isLogin && !isForgotPassword && (
+              <>
+                <div className="pt-2 border-t border-border/40">
+                  <p className="text-xs text-muted-foreground mb-3">Practice Information</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="clinicName">Clinic / Practice Name</Label>
+                  <Input
+                    id="clinicName"
+                    type="text"
+                    placeholder="Acme Chiropractic"
+                    value={clinicName}
+                    onChange={(e) => setClinicName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emrSystem">EMR System</Label>
+                  <Select value={emrSystem} onValueChange={setEmrSystem} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your EMR" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EMR_OPTIONS.map((emr) => (
+                        <SelectItem key={emr} value={emr}>
+                          {emr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {emrSystem === "Other" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="otherEmr">EMR Name</Label>
+                    <Input
+                      id="otherEmr"
+                      type="text"
+                      placeholder="Your EMR system"
+                      value={otherEmr}
+                      onChange={(e) => setOtherEmr(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Loading..." : isForgotPassword ? "Send Reset Link" : isLogin ? "Sign In" : "Sign Up"}
+              {loading
+                ? "Loading..."
+                : isForgotPassword
+                ? "Send Reset Link"
+                : isLogin
+                ? "Sign In"
+                : "Create Account"}
             </Button>
           </form>
           <div className="mt-4 text-center space-y-2">
