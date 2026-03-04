@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, Target, UserCheck, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
 import heroLeadershipImage from "@/assets/marketing/hero-leadership-meeting.jpg";
+import { TypewriterRotate } from "@/components/TypewriterRotate";
 
 export const HeroSection = () => {
   return (
@@ -34,10 +35,17 @@ export const HeroSection = () => {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-              ClinicLeader turns your weekly clinic metrics into{" "}
-              <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
-                structured decisions, clear ownership, and measurable results.
-              </span>
+              Turn your clinic data into{" "}
+              <TypewriterRotate
+                phrases={[
+                  "excellent decisions",
+                  "clear ownership",
+                  "measurable results",
+                  "team buy-in",
+                  "clinic growth",
+                ]}
+                className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift"
+              />
             </h1>
 
             <p className="text-xl text-muted-foreground leading-relaxed max-w-xl">
