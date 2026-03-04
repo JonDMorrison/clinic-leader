@@ -1,40 +1,29 @@
 
-# Data-First Flow: Restructuring the Scorecard Journey
 
-**STATUS: IMPLEMENTED**
+## Plan: Replace Hero Image with AI-Generated Illustration
 
-## Changes Completed
+The current hero uses a stock photo (`hero-leadership-meeting.jpg`). We'll replace it with an AI-generated illustration that matches the brand style — created at build time via an edge function, then saved to storage.
 
-### Phase 6 (Data-First Onboarding) — ✅ Done
-- Scorecard empty state redirects to `/data` with "See Your Data" CTA
-- Dashboard CTA updated from "Set Up Scorecard" → "Connect Your Data" pointing to `/data`
-- ConnectDataCard messaging updated: "Your Scorecard Starts Here"
-- DataMetricsTable: guidance banner + prominent "Track This" buttons on untracked rows
+However, since AI image generation happens at runtime and we need a static asset for the landing page, the most practical approach is:
 
-### Reliability & Regression Prevention — ✅ Done
+1. **Create an edge function** (`generate-hero-image`) that calls the Lovable AI image generation model (`google/gemini-3-pro-image-preview`) with a prompt describing a modern, brand-colored illustration of clinic leadership/data visualization
+2. **Call it once**, download the resulting image, and **save it to Supabase storage** in a public bucket
+3. **Update `HeroSection.tsx`** to reference the stored image URL instead of the local JPG import
 
-| Phase | Description | Status |
-|-------|-------------|--------|
-| 1 | Versioned localStorage + cache reset | ✅ `src/lib/storage/versionedStorage.ts` + all 8 files migrated |
-| 2 | Edge function health check | ✅ `useFunctionHealth` hook + `FunctionHealthBanner` in layout |
-| 3 | Dashboard slot system | ⏭️ Skipped (current fallbacks sufficient) |
-| 4 | Metric rendering semantic rules | ✅ `src/lib/metrics/metricVisibility.ts` |
-| 5 | AI response contract enforcement | ✅ `src/lib/ai/responseSchema.ts` (Zod schema + sanitizer) |
-| 6 | Data-first onboarding | ✅ Already implemented |
-| 7 | Design token ESLint enforcement | ✅ `eslint.config.js` `no-restricted-syntax` rule |
-| 8 | Observability regression table | ✅ `system_regression_events` table + `regressionLogger.ts` |
+**Alternatively** (simpler, faster): I can generate the image during implementation by calling the AI model, save the base64 result directly as a new static asset file in `src/assets/marketing/`, and update the import. This avoids any runtime generation.
 
-## Files Created
-- `src/lib/storage/versionedStorage.ts` — Versioned localStorage wrapper
-- `src/lib/metrics/metricVisibility.ts` — Null/zero/undefined rendering rules
-- `src/lib/ai/responseSchema.ts` — AI response Zod validation + sanitization
-- `src/lib/observability/regressionLogger.ts` — Regression event logging utility
-- `src/hooks/useFunctionHealth.ts` — Edge function health monitoring hook
-- `src/components/layout/FunctionHealthBanner.tsx` — Admin health alert banner
-- `src/components/settings/ResetCacheButton.tsx` — User cache reset UI
+### Recommended approach (static asset replacement)
 
-## Files Modified
-- 8 files migrated from raw `localStorage` to versioned storage
-- `src/App.tsx` — Legacy storage clear on boot + health banner in layout
-- `src/pages/Settings.tsx` — Added Advanced section with cache reset
-- `eslint.config.js` — Added design token enforcement rule
+1. **Generate the illustration** using the AI image model with a prompt like:
+   > "Modern flat illustration of a diverse clinic leadership team reviewing data dashboards and metrics on screens, warm blue and teal color palette, clean minimal style, no text, professional healthcare operations theme, soft gradients"
+
+2. **Save the generated image** as `src/assets/marketing/hero-clinic-illustration.png`
+
+3. **Update `HeroSection.tsx`**:
+   - Change the import from `hero-leadership-meeting.jpg` to the new illustration
+   - Optionally adjust the image container styling (remove the photo-specific border/shadow treatment, or keep it)
+
+### Files to modify
+- `src/components/landing/HeroSection.tsx` — update image import and alt text
+- New file: `src/assets/marketing/hero-clinic-illustration.png` — AI-generated illustration
+
