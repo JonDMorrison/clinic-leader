@@ -26,7 +26,7 @@ export const HeroSection = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-20">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div className="grid lg:grid-cols-[1fr_380px] gap-12 lg:gap-12 items-center">
           {/* Left column - Text */}
           <motion.div
             className="space-y-8"
