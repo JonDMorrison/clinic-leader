@@ -145,6 +145,10 @@ export default {
           "0%, 100%": { backgroundPosition: "0% 50%" },
           "50%": { backgroundPosition: "100% 50%" }
         },
+        "blink": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0" }
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -161,6 +165,7 @@ export default {
         "ripple": "ripple 0.6s ease-out",
         "slide-up": "slide-up 0.6s ease-out",
         "gradient-shift": "gradient-shift 8s ease infinite",
+        "blink": "blink 1s step-end infinite",
       },
     },
   },
