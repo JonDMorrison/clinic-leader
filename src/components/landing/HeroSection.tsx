@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, Target, UserCheck, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
-import heroLeadershipImage from "@/assets/marketing/hero-leadership-meeting.jpg";
+import heroClinicIllustration from "@/assets/marketing/hero-clinic-illustration.png";
 import { TypewriterRotate } from "@/components/TypewriterRotate";
 
 export const HeroSection = () => {
@@ -101,8 +101,8 @@ export const HeroSection = () => {
             <div className="mb-6 relative">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent rounded-2xl blur-xl scale-105" />
               <img
-                src={heroLeadershipImage}
-                alt="Clinic leadership team reviewing weekly performance"
+                src={heroClinicIllustration}
+                alt="Illustration of clinic leadership team reviewing data dashboards"
                 className="relative rounded-2xl shadow-xl border border-border/30 w-full max-w-[520px] mx-auto"
                 loading="eager"
               />
