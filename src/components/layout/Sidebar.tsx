@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { ClinicLeaderLogo } from "@/components/ui/ClinicLeaderLogo";
 import { LOGO_SIZES } from "@/components/brand/logoConstants";
 import {
@@ -81,34 +82,24 @@ export const Sidebar = ({ onItemClick }: { onItemClick?: () => void }) => {
     }
   };
 
-  const { data: currentUser } = useQuery({
-    queryKey: ["currentUser-teamId"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+  const { data: currentUser } = useCurrentUser();
 
-      const { data: teamId } = await supabase.rpc("current_user_team");
-
-      return {
-        team_id: teamId as string | null,
-      };
-    },
-  });
+  const teamId = currentUser?.team_id;
 
   const { data: team } = useQuery({
-    queryKey: ["team", currentUser?.team_id],
+    queryKey: ["team-eos", teamId],
     queryFn: async () => {
-      if (!currentUser?.team_id) return null;
+      if (!teamId) return null;
 
       const { data } = await supabase
         .from("teams")
         .select("eos_enabled")
-        .eq("id", currentUser.team_id)
+        .eq("id", teamId)
         .maybeSingle();
 
       return data;
     },
-    enabled: !!currentUser?.team_id,
+    enabled: !!teamId,
   });
 
   // Use authoritative user_roles via useIsAdmin hook
