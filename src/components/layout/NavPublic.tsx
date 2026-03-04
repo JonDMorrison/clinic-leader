@@ -45,7 +45,7 @@ export const NavPublic = () => {
               <Link to="/auth">Sign In</Link>
             </Button>
             <Button asChild>
-              <Link to="/auth">Apply for Pilot</Link>
+              <a href="#contact">Get Started</a>
             </Button>
           </div>
 
@@ -102,7 +102,7 @@ export const NavPublic = () => {
                 <Link to="/auth">Sign In</Link>
               </Button>
               <Button className="w-full" asChild>
-                <Link to="/auth">Apply for Pilot</Link>
+                <a href="#contact">Get Started</a>
               </Button>
             </div>
           </div>
