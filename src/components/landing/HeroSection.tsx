@@ -35,7 +35,7 @@ export const HeroSection = () => {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-              Turn your clinic data into{" "}
+              <span className="whitespace-nowrap">Turn your clinic data into</span>{" "}
               <TypewriterRotate
                 phrases={[
                   "excellent decisions",
