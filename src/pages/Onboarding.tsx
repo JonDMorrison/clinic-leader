@@ -9,6 +9,7 @@ export default function Onboarding() {
   const [userId, setUserId] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [organizationId, setOrganizationId] = useState<string>("");
+  const [userMeta, setUserMeta] = useState<{ clinic_name?: string; emr_system?: string }>({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -63,6 +64,13 @@ export default function Onboarding() {
 
         setUserId(user.id);
         setUserEmail(user.email || "");
+
+        // Pre-fill from user metadata if available
+        const meta = user.user_metadata || {};
+        if (meta.clinic_name || meta.emr_system) {
+          setUserMeta({ clinic_name: meta.clinic_name, emr_system: meta.emr_system });
+        }
+
         setLoading(false);
       } catch (error) {
         console.error("Error checking onboarding status:", error);
@@ -86,6 +94,7 @@ export default function Onboarding() {
       userId={userId}
       userEmail={userEmail}
       organizationId={organizationId}
+      userMeta={userMeta}
     />
   );
 }

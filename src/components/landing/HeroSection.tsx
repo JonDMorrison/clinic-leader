@@ -77,10 +77,10 @@ export const HeroSection = () => {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <Button size="lg" className="text-lg px-8 py-6 shadow-lg shadow-primary/25 group" asChild>
-                <a href="#contact">
+                <Link to="/auth">
                   Get Started
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </a>
+                </Link>
               </Button>
             </div>
           </motion.div>

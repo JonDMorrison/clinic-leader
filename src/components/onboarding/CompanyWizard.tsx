@@ -28,15 +28,21 @@ interface CompanyWizardProps {
   userId: string;
   userEmail: string;
   organizationId: string;
+  userMeta?: { clinic_name?: string; emr_system?: string };
 }
 
 export const CompanyWizard = ({
   userId,
   userEmail,
   organizationId,
+  userMeta,
 }: CompanyWizardProps) => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [data, setData] = useState<Partial<OnboardingData>>({ email: userEmail });
+  const [data, setData] = useState<Partial<OnboardingData>>({
+    email: userEmail,
+    ...(userMeta?.clinic_name ? { company_name: userMeta.clinic_name } : {}),
+    ...(userMeta?.emr_system ? { ehr_system: userMeta.emr_system as any } : {}),
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
