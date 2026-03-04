@@ -1,29 +1,41 @@
 
 
-## Plan: Replace Hero Image with AI-Generated Illustration
+## Plan: Enhanced Sign Up Flow with Company + EMR Capture
 
-The current hero uses a stock photo (`hero-leadership-meeting.jpg`). We'll replace it with an AI-generated illustration that matches the brand style — created at build time via an edge function, then saved to storage.
+### What Changes
 
-However, since AI image generation happens at runtime and we need a static asset for the landing page, the most practical approach is:
+1. **CTA buttons**: Change "Get Started" links in HeroSection and NavPublic from `#contact` back to `/auth`. The nav "Get Started" and hero CTA both route to `/auth`.
 
-1. **Create an edge function** (`generate-hero-image`) that calls the Lovable AI image generation model (`google/gemini-3-pro-image-preview`) with a prompt describing a modern, brand-colored illustration of clinic leadership/data visualization
-2. **Call it once**, download the resulting image, and **save it to Supabase storage** in a public bucket
-3. **Update `HeroSection.tsx`** to reference the stored image URL instead of the local JPG import
+2. **Auth page redesign** -- Sign Up mode gets additional fields:
+   - **Email** (existing)
+   - **Password** (existing)
+   - **Full Name** (new, required)
+   - **Clinic / Practice Name** (new, required)
+   - **EMR System** (new, dropdown: Jane, ChiroTouch, Notero, Other, None)
+   - Sign In mode stays unchanged (email + password only)
 
-**Alternatively** (simpler, faster): I can generate the image during implementation by calling the AI model, save the base64 result directly as a new static asset file in `src/assets/marketing/`, and update the import. This avoids any runtime generation.
+3. **UX details**:
+   - Sign Up form title: "Get Started with ClinicLeader"
+   - Subtitle: "Create your account and tell us about your practice"
+   - Fields are grouped logically: account info (name, email, password) then practice info (clinic name, EMR)
+   - EMR dropdown uses a Select component with the same options already defined in validators (`Jane`, `ChiroTouch`, `Notero`, `None`, `Other`)
+   - When "Other" is selected, show a text input for the EMR name
+   - All new fields are captured in Supabase auth metadata (`user_metadata`) on signup so they flow into the onboarding session without extra DB calls at signup time
+   - After signup, user is redirected to `/` which hits the onboarding guard as normal -- the onboarding wizard can pre-populate company name and EMR from user metadata
 
-### Recommended approach (static asset replacement)
+4. **Implementation approach**:
+   - Modify `Auth.tsx` to add the new fields in Sign Up mode only
+   - Pass metadata via `supabase.auth.signUp({ data: { full_name, clinic_name, emr_system } })`
+   - Update the `onboarding-save-draft` edge function (or the Onboarding page) to read `user_metadata` and pre-fill the wizard's company name and EMR fields
+   - No new database tables needed -- metadata lives in auth user_metadata and flows into existing onboarding tables
 
-1. **Generate the illustration** using the AI image model with a prompt like:
-   > "Modern flat illustration of a diverse clinic leadership team reviewing data dashboards and metrics on screens, warm blue and teal color palette, clean minimal style, no text, professional healthcare operations theme, soft gradients"
-
-2. **Save the generated image** as `src/assets/marketing/hero-clinic-illustration.png`
-
-3. **Update `HeroSection.tsx`**:
-   - Change the import from `hero-leadership-meeting.jpg` to the new illustration
-   - Optionally adjust the image container styling (remove the photo-specific border/shadow treatment, or keep it)
+5. **Revert CTA links**:
+   - `HeroSection.tsx`: `<a href="#contact">` → `<Link to="/auth">`
+   - `NavPublic.tsx`: both desktop and mobile `<a href="#contact">` → `<Link to="/auth">`
 
 ### Files to modify
-- `src/components/landing/HeroSection.tsx` — update image import and alt text
-- New file: `src/assets/marketing/hero-clinic-illustration.png` — AI-generated illustration
+- `src/pages/Auth.tsx` -- add signup fields, pass metadata
+- `src/components/landing/HeroSection.tsx` -- CTA links to `/auth`
+- `src/components/layout/NavPublic.tsx` -- CTA links to `/auth`
+- `src/pages/Onboarding.tsx` -- read user_metadata to pre-fill wizard data
 
