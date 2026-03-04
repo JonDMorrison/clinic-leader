@@ -44,18 +44,23 @@ export const TheMoment = () => {
             </p>
           </div>
 
-          <div className="space-y-6">
+          <div className="grid sm:grid-cols-2 gap-5">
             {moments.map((moment, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.15 }}
-                className="p-6 rounded-2xl bg-card/80 border border-border/50 hover:border-primary/30 transition-colors"
+                transition={{ delay: i * 0.12 }}
+                className="group relative p-6 rounded-3xl glass border border-primary/10 hover:border-primary/30 transition-all duration-300 hover:shadow-[0_8px_30px_hsl(210_100%_45%_/_0.12)] overflow-hidden"
               >
-                <p className="text-lg font-semibold text-foreground mb-1">"{moment.feeling}"</p>
-                <p className="text-muted-foreground">{moment.detail}</p>
+                {/* Accent gradient bar */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-accent opacity-60 group-hover:opacity-100 transition-opacity" />
+                
+                <div className="relative">
+                  <p className="text-lg font-bold text-foreground mb-2 leading-snug">"{moment.feeling}"</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{moment.detail}</p>
+                </div>
               </motion.div>
             ))}
           </div>
