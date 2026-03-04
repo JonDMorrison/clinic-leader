@@ -71,7 +71,7 @@ export const TypewriterRotate = ({
       <span
         aria-hidden="true"
         className={className}
-        style={{ display: "inline-block", minWidth: `${maxLen}ch` }}
+        style={{ display: "inline-block", minWidth: `${maxLen}ch`, paddingBottom: "0.15em" }}
       >
         {displayed}
         <span className="animate-blink ml-[1px] font-light">|</span>
