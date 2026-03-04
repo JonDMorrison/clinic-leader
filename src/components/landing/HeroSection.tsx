@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, Target, UserCheck, BarChart3 } from "lucide-react";
+import { ArrowRight, Target, UserCheck, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
-import heroClinicIllustration from "@/assets/marketing/hero-clinic-illustration.png";
 import { TypewriterRotate } from "@/components/TypewriterRotate";
+import { ExecutionLoopVisual } from "@/components/landing/ExecutionLoopVisual";
 
 export const HeroSection = () => {
   return (
@@ -92,80 +92,7 @@ export const HeroSection = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <div className="mb-6 relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent rounded-2xl blur-xl scale-105" />
-              <img
-                src={heroClinicIllustration}
-                alt="Illustration of clinic leadership team reviewing data dashboards"
-                className="relative rounded-2xl shadow-xl border border-border/30 w-full max-w-[520px] mx-auto"
-                loading="eager"
-              />
-            </div>
-
-            {/* Dashboard preview */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent rounded-2xl blur-2xl scale-105" />
-              <div className="relative bg-card rounded-2xl shadow-2xl border border-border/50 overflow-hidden">
-                {/* Browser header */}
-                <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 border-b border-border/50">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-destructive/60" />
-                    <div className="w-3 h-3 rounded-full bg-warning/60" />
-                    <div className="w-3 h-3 rounded-full bg-success/60" />
-                  </div>
-                  <div className="flex-1 mx-4">
-                    <div className="bg-background/80 rounded-md px-3 py-1 text-xs text-muted-foreground text-center">
-                      app.clinicleader.com
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dashboard content - Clinic Pulse style */}
-                <div className="p-5 bg-gradient-to-br from-background to-muted/30 space-y-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-primary" />
-                    </div>
-                    <span className="text-sm font-semibold">Clinic Pulse</span>
-                    <span className="text-[10px] text-muted-foreground ml-auto font-mono">Week of Feb 24</span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { label: "Revenue", value: "$18.4K", badge: "positive", badgeColor: "bg-success/15 text-success", trend: "+$1.2K", trendColor: "text-success" },
-                      { label: "No-Shows", value: "4.2%", badge: "info", badgeColor: "bg-muted text-muted-foreground", trend: "−0.8%", trendColor: "text-success" },
-                      { label: "New Patients", value: "12", badge: "positive", badgeColor: "bg-success/15 text-success", trend: "+3", trendColor: "text-success" },
-                    ].map((stat, i) => (
-                      <div key={i} className="bg-card/80 rounded-lg p-2.5 border border-border/30 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground truncate">{stat.label}</span>
-                          <span className={`text-[8px] px-1.5 py-0 rounded-full border ${stat.badgeColor}`}>{stat.badge}</span>
-                        </div>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-lg font-bold tabular-nums">{stat.value}</span>
-                          <span className={`text-[10px] font-medium ${stat.trendColor}`}>{stat.trend}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: "Utilization", value: "82%", badge: "warning", badgeColor: "bg-warning/15 text-warning" },
-                      { label: "Collections", value: "94%", badge: "positive", badgeColor: "bg-success/15 text-success" },
-                    ].map((stat, i) => (
-                      <div key={i} className="bg-card/80 rounded-lg p-2.5 border border-border/30">
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-[10px] text-muted-foreground">{stat.label}</span>
-                          <span className={`text-[8px] px-1.5 py-0 rounded-full border ${stat.badgeColor}`}>{stat.badge}</span>
-                        </div>
-                        <span className="text-lg font-bold tabular-nums">{stat.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ExecutionLoopVisual />
           </motion.div>
         </div>
       </div>
