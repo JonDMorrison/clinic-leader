@@ -25,7 +25,7 @@ import { IntegrationsBanner } from "@/components/data/IntegrationsBanner";
 import { DataSourceStatusLine } from "@/components/data/DataSourcePill";
 import { ChangeDataSourceWizard } from "@/components/data/ChangeDataSourceWizard";
 
-export default function DataJaneHome() {
+export default function DataJaneHome({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const { data: currentUser } = useCurrentUser();
   const [wizardOpen, setWizardOpen] = useState(false);
