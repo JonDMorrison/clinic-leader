@@ -37,7 +37,7 @@ const YTD_TAB_VALUE = "ytd";
 
 
 
-export default function DataDefaultHome() {
+export default function DataDefaultHome({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
