@@ -17,7 +17,7 @@ import {
   FileWarning, FileSpreadsheet, AlertCircle, RotateCcw, Copy, ExternalLink,
   Calendar, FileCheck, TrendingUp, Info, ChevronDown, Cloud
 } from "lucide-react";
-import { bridgeMultipleMonths, isLegacyDataMode, type BridgeResult, type DerivedMetricResult } from "@/lib/legacy/legacyMetricBridge";
+import { bridgeMultipleMonths, type BridgeResult, type DerivedMetricResult } from "@/lib/legacy/legacyMetricBridge";
 import { auditDerivedMetrics, hasBlockingFailures, getBlockingFailures, getInformationalMetrics, type DerivedMetricAuditReport, type MetricAuditResult, type ClassificationInputs } from "@/lib/legacy/legacyDerivedMetricAudit";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
