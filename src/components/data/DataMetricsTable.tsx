@@ -294,9 +294,9 @@ function SortableMetricRow({
           {/* Prominent Track This button for untracked metrics */}
           {!metric.isTracked && !metric.comingSoon && (
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
-              className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+              className="h-7 text-xs"
               onClick={() => handleAddToScorecard(metric)}
             >
               <Target className="w-3 h-3 mr-1" />
@@ -820,7 +820,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
               <TableHead className="text-center font-semibold text-sm">This Month</TableHead>
               <TableHead className="text-center font-semibold text-sm">YTD</TableHead>
               <TableHead className="text-center font-semibold text-sm">MoM</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
+              <TableHead className="w-[140px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
