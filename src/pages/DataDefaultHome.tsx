@@ -234,36 +234,37 @@ export default function DataDefaultHome({ embedded = false }: { embedded?: boole
 
   // Has reports - show dashboard with month tabs
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-1"
-      >
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-brand/10">
-            <Database className="w-6 h-6 text-brand" />
+    <div className={embedded ? "space-y-6" : "container mx-auto py-8 space-y-6"}>
+      {/* Header - hidden when embedded in tabs */}
+      {!embedded && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-1"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-brand/10">
+              <Database className="w-6 h-6 text-brand" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Data</h1>
+              <p className="text-sm text-muted-foreground">Monthly clinic metrics</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">Data</h1>
-            <p className="text-sm text-muted-foreground">Monthly clinic metrics</p>
+          <div className="flex items-center gap-3 mt-2 ml-12">
+            <DataSourceStatusLine />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => navigate("/settings/data")}
+            >
+              <Settings2 className="w-3 h-3 mr-1" />
+              Change
+            </Button>
           </div>
-        </div>
-        {/* Data Source Status Line with Change Action */}
-        <div className="flex items-center gap-3 mt-2 ml-12">
-          <DataSourceStatusLine />
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-6 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => navigate("/settings/data")}
-          >
-            <Settings2 className="w-3 h-3 mr-1" />
-            Change
-          </Button>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
       
       {/* Change Data Source Wizard */}
       <ChangeDataSourceWizard open={wizardOpen} onOpenChange={setWizardOpen} />
