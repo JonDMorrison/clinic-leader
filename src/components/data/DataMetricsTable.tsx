@@ -820,7 +820,7 @@ export function DataMetricsTable({ isConnected }: DataMetricsTableProps) {
               <TableHead className="text-center font-semibold text-sm">This Month</TableHead>
               <TableHead className="text-center font-semibold text-sm">YTD</TableHead>
               <TableHead className="text-center font-semibold text-sm">MoM</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
+              <TableHead className="w-[140px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
