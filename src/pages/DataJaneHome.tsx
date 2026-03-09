@@ -160,7 +160,25 @@ export default function DataJaneHome() {
       <IntegrationsBanner isConnected={isConnected} />
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="hover:border-brand/30 transition-colors cursor-pointer" onClick={() => navigate("/imports/monthly-report")}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-brand" />
+              Import
+            </CardTitle>
+            <CardDescription>
+              Upload a monthly spreadsheet report
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" className="w-full">
+              Import Report
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </CardContent>
+        </Card>
+
         <Card className="hover:border-brand/30 transition-colors cursor-pointer" onClick={() => navigate("/scorecard")}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
