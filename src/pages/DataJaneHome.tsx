@@ -13,6 +13,7 @@ import {
   BarChart3,
   Loader2,
   Settings2,
+  Upload,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
