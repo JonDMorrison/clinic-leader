@@ -800,29 +800,29 @@ const ImportMonthlyReport = () => {
     let bridgeResults: BridgeResult[] = [];
     
     try {
-      const isLegacy = await isLegacyDataMode(currentUser.team_id);
-      if (isLegacy) {
-        const payloadsForBridge = successfulPayloads.map(p => ({
-          period_key: p.period_key,
-          payload: {
-            sheet_name: p.sheet_name,
-            provider_table: p.provider_table,
-            referral_totals: p.referral_totals,
-            referral_sources: p.referral_sources,
-            extra_blocks: p.extra_blocks,
-            warnings: p.warnings,
-            verification: p.verification, // Include verification for month_has_data check
-          },
-        }));
-        
-        if (payloadsForBridge.length > 0) {
-          // Pass per-month blocking failures to bridge
-          bridgeResults = await bridgeMultipleMonths(
-            currentUser.team_id,
-            payloadsForBridge,
-            blockingFailuresByMonth
-          );
-        }
+      // Always bridge workbook data to metric_results when importing.
+      // Previously gated by isLegacyDataMode(), which blocked orgs with
+      // an active Jane connector. Dual-source orgs need both pathways.
+      const payloadsForBridge = successfulPayloads.map(p => ({
+        period_key: p.period_key,
+        payload: {
+          sheet_name: p.sheet_name,
+          provider_table: p.provider_table,
+          referral_totals: p.referral_totals,
+          referral_sources: p.referral_sources,
+          extra_blocks: p.extra_blocks,
+          warnings: p.warnings,
+          verification: p.verification, // Include verification for month_has_data check
+        },
+      }));
+      
+      if (payloadsForBridge.length > 0) {
+        // Pass per-month blocking failures to bridge
+        bridgeResults = await bridgeMultipleMonths(
+          currentUser.team_id,
+          payloadsForBridge,
+          blockingFailuresByMonth
+        );
       }
     } catch (bridgeError: any) {
       console.error('[LoriImport] Bridge failed:', bridgeError);
