@@ -294,9 +294,9 @@ function SortableMetricRow({
           {/* Prominent Track This button for untracked metrics */}
           {!metric.isTracked && !metric.comingSoon && (
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
-              className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+              className="h-7 text-xs"
               onClick={() => handleAddToScorecard(metric)}
             >
               <Target className="w-3 h-3 mr-1" />
