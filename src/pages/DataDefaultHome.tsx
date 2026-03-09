@@ -189,21 +189,23 @@ export default function DataDefaultHome({ embedded = false }: { embedded?: boole
   // Empty state - no reports uploaded yet
   if (!availableMonths || availableMonths.length === 0) {
     return (
-      <div className="container mx-auto py-8 space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3"
-        >
-          <div className="p-3 rounded-xl bg-brand/10">
-            <Database className="w-8 h-8 text-brand" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold">Data</h1>
-            <p className="text-muted-foreground">Monthly clinic metrics from your workbook</p>
-          </div>
-        </motion.div>
+      <div className={embedded ? "space-y-6" : "container mx-auto py-8 space-y-6"}>
+        {/* Header - hidden when embedded */}
+        {!embedded && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3"
+          >
+            <div className="p-3 rounded-xl bg-brand/10">
+              <Database className="w-8 h-8 text-brand" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">Data</h1>
+              <p className="text-muted-foreground">Monthly clinic metrics from your workbook</p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Empty State Card */}
         <motion.div
