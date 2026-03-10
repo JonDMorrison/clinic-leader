@@ -168,7 +168,7 @@ export function SyncWithDataDialog({
       const reportData = latestReport as any;
       if (reportData?.payload) {
         try {
-          const extracted = extractMetricsFromPayload(latestReport.payload as any);
+          const extracted = extractMetricsFromPayload(reportData.payload as any);
           for (const item of extracted) {
             const key = `${item.metric_key}::legacy_workbook`;
             if (!groupMap.has(key) && item.value !== null) {
@@ -178,7 +178,7 @@ export function SyncWithDataDialog({
                 name: item.display_name,
                 source: "legacy_workbook",
                 latest_value: item.value,
-                latest_period: latestReport.report_month ?? null,
+                latest_period: reportData.report_month ?? null,
                 match_score: score,
                 match_reason: reason,
                 is_current: item.metric_key === currentImportKey,
