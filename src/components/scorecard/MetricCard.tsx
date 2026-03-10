@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sparklines, SparklinesLine } from "react-sparklines";
-import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight, Link as LinkIcon, AlertTriangle, MoreHorizontal } from "lucide-react";
+import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight, Link as LinkIcon, AlertTriangle, MoreHorizontal, Database } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,7 @@ import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 import { LinkedRocksBadges } from "./LinkedRocksBadges";
 import { SourceBadge, LastUpdatedText } from "./SourceBadge";
 import { CreateIssueFromMetricModal } from "./CreateIssueFromMetricModal";
+import { SyncWithDataDialog } from "./SyncWithDataDialog";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface MetricData {
@@ -35,6 +36,7 @@ interface MetricData {
   current_value: number | null;
   last_8_weeks: (number | null)[];
   is_favorite?: boolean;
+  import_key?: string | null;
   // Provenance fields
   latest_result_source: string | null;
   latest_result_updated_at: string | null;
@@ -89,6 +91,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
   const { toast } = useToast();
   const [linkToVTOOpen, setLinkToVTOOpen] = useState(false);
   const [createIssueOpen, setCreateIssueOpen] = useState(false);
+  const [syncDataOpen, setSyncDataOpen] = useState(false);
 
   // Determine if metric is off-track
   const isOffTrack = metric.current_value !== null &&
@@ -352,20 +355,27 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
               className="flex-1"
               onClick={(e) => {
                 e.stopPropagation();
-                setLinkToVTOOpen(true);
+                setSyncDataOpen(true);
               }}
             >
-              <LinkIcon className="w-3 h-3 mr-2" />
-              Link V/TO
+              <Database className="w-3 h-3 mr-2" />
+              Sync Data
             </Button>
-            {isOffTrack && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="px-2">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="px-2">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  setLinkToVTOOpen(true);
+                }}>
+                  <LinkIcon className="w-3 h-3 mr-2" />
+                  Link V/TO
+                </DropdownMenuItem>
+                {isOffTrack && (
                   <DropdownMenuItem onClick={(e) => {
                     e.stopPropagation();
                     setCreateIssueOpen(true);
@@ -373,9 +383,9 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
                     <AlertTriangle className="w-3 h-3 mr-2" />
                     Create Issue
                   </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </Card>
@@ -408,6 +418,15 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
           consecutiveOffTrack={consecutiveOffTrack}
         />
       )}
+
+      <SyncWithDataDialog
+        open={syncDataOpen}
+        onClose={() => setSyncDataOpen(false)}
+        metricId={metric.id}
+        metricName={metric.name}
+        currentImportKey={metric.import_key || null}
+        currentSyncSource={metric.sync_source}
+      />
     </div>
   );
 };

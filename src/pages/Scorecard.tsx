@@ -284,6 +284,7 @@ const Scorecard = () => {
             target: metric.target,
             direction: metric.direction,
             sync_source: metric.sync_source,
+            import_key: metric.import_key || null,
             cadence: metric.cadence || "weekly",
             owner_name: metric.owner ? userMap[metric.owner] : null,
             owner_id: metric.owner,
