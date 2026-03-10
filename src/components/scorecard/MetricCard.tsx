@@ -308,9 +308,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
                 <div>
                   <p className="text-xs font-medium opacity-80">This Week</p>
                   <p className="text-lg font-bold">
-                    {metric.current_value !== null
-                      ? `${metric.current_value} ${metric.unit}`
-                      : "No data"}
+                    {formatUnit(metric.current_value, metric.unit)}
                   </p>
                 </div>
                 {metric.current_value !== null && metric.target && (
