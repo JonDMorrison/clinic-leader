@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
+import { LEGACY_METRIC_MAPPINGS, extractMetricsFromPayload } from "@/lib/legacy/legacyMetricMapping";
 
 interface SyncWithDataDialogProps {
   open: boolean;
