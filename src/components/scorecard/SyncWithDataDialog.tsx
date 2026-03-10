@@ -165,7 +165,8 @@ export function SyncWithDataDialog({
         .limit(1)
         .maybeSingle();
 
-      if (latestReport?.payload) {
+      const reportData = latestReport as any;
+      if (reportData?.payload) {
         try {
           const extracted = extractMetricsFromPayload(latestReport.payload as any);
           for (const item of extracted) {
