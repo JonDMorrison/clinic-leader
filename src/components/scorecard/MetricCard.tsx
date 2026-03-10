@@ -36,6 +36,7 @@ interface MetricData {
   current_value: number | null;
   last_8_weeks: (number | null)[];
   is_favorite?: boolean;
+  import_key?: string | null;
   // Provenance fields
   latest_result_source: string | null;
   latest_result_updated_at: string | null;
