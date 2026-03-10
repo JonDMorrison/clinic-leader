@@ -32,7 +32,7 @@ export const KpiCardCompact = ({ kpi, onUpdate }: KpiCardCompactProps) => {
   const trendData = last8Weeks.map((r: any) => parseFloat(String(r.value)));
 
   const formatValue = (value: number) => {
-    if (kpi.unit === "$") return `$${value.toLocaleString()}`;
+    if (kpi.unit === "$" || kpi.unit === "currency") return `$${value.toLocaleString()}`;
     if (kpi.unit === "%") return `${value}%`;
     return value.toString();
   };
