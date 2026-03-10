@@ -330,8 +330,8 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
                     <TrendingDown className="h-3 w-3" />
                   )}
                   <span className="font-medium">
-                    {weekOverWeek.isPositive ? "+" : ""}
-                    {weekOverWeek.change.toFixed(1)} {metric.unit}
+                    {weekOverWeek.isPositive ? "+" : "-"}
+                    {formatUnitDelta(weekOverWeek.change, metric.unit)}
                   </span>
                   <span className="opacity-70">
                     ({weekOverWeek.isPositive ? "+" : ""}
