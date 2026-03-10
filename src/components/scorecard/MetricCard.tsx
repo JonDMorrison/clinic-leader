@@ -354,20 +354,27 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
               className="flex-1"
               onClick={(e) => {
                 e.stopPropagation();
-                setLinkToVTOOpen(true);
+                setSyncDataOpen(true);
               }}
             >
-              <LinkIcon className="w-3 h-3 mr-2" />
-              Link V/TO
+              <Database className="w-3 h-3 mr-2" />
+              Sync Data
             </Button>
-            {isOffTrack && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="px-2">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="px-2">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  setLinkToVTOOpen(true);
+                }}>
+                  <LinkIcon className="w-3 h-3 mr-2" />
+                  Link V/TO
+                </DropdownMenuItem>
+                {isOffTrack && (
                   <DropdownMenuItem onClick={(e) => {
                     e.stopPropagation();
                     setCreateIssueOpen(true);
@@ -375,9 +382,9 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
                     <AlertTriangle className="w-3 h-3 mr-2" />
                     Create Issue
                   </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </Card>
