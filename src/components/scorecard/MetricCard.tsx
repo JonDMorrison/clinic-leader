@@ -261,7 +261,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
                   ) : (
                     <TrendingDown className="w-3 h-3 mr-1" />
                   )}
-                  {metric.target} {metric.unit}
+                  {formatUnit(metric.target, metric.unit)}
                 </Badge>
               </div>
             ) : (
