@@ -287,8 +287,8 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
 
           {/* Sparkline */}
           {hasData && (
-            <div className="h-12 mb-2">
-              <Sparklines data={sparklineData} width={200} height={40}>
+            <div className="h-14 mb-3 overflow-hidden">
+              <Sparklines data={sparklineData} width={200} height={48} margin={4}>
                 <SparklinesLine
                   color={
                     performanceColor === "green" ? "#22c55e" :
