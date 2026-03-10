@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
+import { LEGACY_METRIC_MAPPINGS, extractMetricsFromPayload } from "@/lib/legacy/legacyMetricMapping";
 
 interface SyncWithDataDialogProps {
   open: boolean;
@@ -117,13 +118,15 @@ export function SyncWithDataDialog({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Fetch available data sources from metric_results (distinct import_key + source combos with data)
+  // Fetch available data sources from metric_results AND legacy_monthly_reports
   const { data: candidates, isLoading } = useQuery({
     queryKey: ["sync-data-candidates", orgId, metricId],
     queryFn: async () => {
       if (!orgId) return [];
 
-      // Get all metric_results with distinct source + metric combinations that have actual data
+      const groupMap = new Map<string, DataSourceCandidate>();
+
+      // 1) Pull from metric_results (already-bridged data)
       const { data: results } = await supabase
         .from("metric_results")
         .select("metric_id, value, period_start, source, metrics!inner(name, import_key, organization_id)")
@@ -132,36 +135,62 @@ export function SyncWithDataDialog({
         .order("period_start", { ascending: false })
         .limit(500);
 
-      if (!results || results.length === 0) return [];
-
-      // Group by import_key + source to get unique data items
-      const groupMap = new Map<string, DataSourceCandidate>();
-
-      for (const r of results) {
-        const m = r.metrics as any;
-        if (!m?.import_key) continue;
-        const key = `${m.import_key}::${r.source}`;
-        if (!groupMap.has(key)) {
-          const { score, reason } = computeMatchScore(
-            metricName,
-            m.name,
-            m.import_key,
-            currentImportKey
-          );
-          groupMap.set(key, {
-            import_key: m.import_key,
-            name: m.name,
-            source: r.source as any,
-            latest_value: r.value,
-            latest_period: r.period_start,
-            match_score: score,
-            match_reason: reason,
-            is_current: m.import_key === currentImportKey,
-          });
+      if (results) {
+        for (const r of results) {
+          const m = r.metrics as any;
+          if (!m?.import_key) continue;
+          const key = `${m.import_key}::${r.source}`;
+          if (!groupMap.has(key)) {
+            const { score, reason } = computeMatchScore(metricName, m.name, m.import_key, currentImportKey);
+            groupMap.set(key, {
+              import_key: m.import_key,
+              name: m.name,
+              source: r.source as any,
+              latest_value: r.value,
+              latest_period: r.period_start,
+              match_score: score,
+              match_reason: reason,
+              is_current: m.import_key === currentImportKey,
+            });
+          }
         }
       }
 
-      // Also add Jane supported metrics that may not have results yet
+      // 2) Pull from legacy_monthly_reports — extract real values via LEGACY_METRIC_MAPPINGS
+      const { data: latestReport } = await supabase
+        .from("legacy_monthly_reports" as any)
+        .select("payload, report_month")
+        .eq("organization_id", orgId)
+        .order("report_month", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const reportData = latestReport as any;
+      if (reportData?.payload) {
+        try {
+          const extracted = extractMetricsFromPayload(reportData.payload as any);
+          for (const item of extracted) {
+            const key = `${item.metric_key}::legacy_workbook`;
+            if (!groupMap.has(key) && item.value !== null) {
+              const { score, reason } = computeMatchScore(metricName, item.display_name, item.metric_key, currentImportKey);
+              groupMap.set(key, {
+                import_key: item.metric_key,
+                name: item.display_name,
+                source: "legacy_workbook",
+                latest_value: item.value,
+                latest_period: reportData.report_month ?? null,
+                match_score: score,
+                match_reason: reason,
+                is_current: item.metric_key === currentImportKey,
+              });
+            }
+          }
+        } catch {
+          // Extraction failed, continue with other sources
+        }
+      }
+
+      // 3) Add Jane supported metrics that may not have results yet
       const janeKeys = [
         { key: "jane_total_visits", name: "Total Visits" },
         { key: "jane_new_patient_visits", name: "New Patient Visits" },
@@ -190,29 +219,20 @@ export function SyncWithDataDialog({
         }
       }
 
-      // Also include workbook-derived metrics
-      const workbookKeys = [
-        { key: "total_visits", name: "Total Visits" },
-        { key: "total_new_patients", name: "Total New Patients" },
-        { key: "total_production", name: "Total Production ($)" },
-        { key: "total_charges", name: "Total Charges ($)" },
-        { key: "pain_mgmt_new_patients", name: "Pain Management New Patients" },
-        { key: "pain_mgmt_total_visits", name: "Pain Management Total Visits" },
-      ];
-
-      for (const wk of workbookKeys) {
-        const existingKey = `${wk.key}::legacy_workbook`;
-        if (!groupMap.has(existingKey)) {
-          const { score, reason } = computeMatchScore(metricName, wk.name, wk.key, currentImportKey);
-          groupMap.set(existingKey, {
-            import_key: wk.key,
-            name: wk.name,
+      // 4) Add any remaining LEGACY_METRIC_MAPPINGS that weren't found (no data yet)
+      for (const mapping of LEGACY_METRIC_MAPPINGS) {
+        const key = `${mapping.metric_key}::legacy_workbook`;
+        if (!groupMap.has(key)) {
+          const { score, reason } = computeMatchScore(metricName, mapping.display_name, mapping.metric_key, currentImportKey);
+          groupMap.set(key, {
+            import_key: mapping.metric_key,
+            name: mapping.display_name,
             source: "legacy_workbook",
             latest_value: null,
             latest_period: null,
             match_score: score,
             match_reason: reason,
-            is_current: wk.key === currentImportKey,
+            is_current: mapping.metric_key === currentImportKey,
           });
         }
       }
