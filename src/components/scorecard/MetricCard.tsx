@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sparklines, SparklinesLine } from "react-sparklines";
-import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight, Link as LinkIcon, AlertTriangle, MoreHorizontal } from "lucide-react";
+import { TrendingUp, TrendingDown, ExternalLink, Star, Minus, ArrowRight, Link as LinkIcon, AlertTriangle, MoreHorizontal, Database } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
