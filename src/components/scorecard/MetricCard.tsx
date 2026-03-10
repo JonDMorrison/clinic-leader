@@ -424,7 +424,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
         onClose={() => setSyncDataOpen(false)}
         metricId={metric.id}
         metricName={metric.name}
-        currentImportKey={null}
+        currentImportKey={metric.import_key || null}
         currentSyncSource={metric.sync_source}
       />
     </div>
