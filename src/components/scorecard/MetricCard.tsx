@@ -417,6 +417,15 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
           consecutiveOffTrack={consecutiveOffTrack}
         />
       )}
+
+      <SyncWithDataDialog
+        open={syncDataOpen}
+        onClose={() => setSyncDataOpen(false)}
+        metricId={metric.id}
+        metricName={metric.name}
+        currentImportKey={null}
+        currentSyncSource={metric.sync_source}
+      />
     </div>
   );
 };
