@@ -55,7 +55,7 @@ export function formatMetricValue(
   value: number,
   unit?: string
 ): string {
-  if (unit === "dollars" || unit === "$") {
+  if (unit === "dollars" || unit === "$" || unit === "currency") {
     return `$${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
   }
   if (unit === "%" || unit === "percent") {

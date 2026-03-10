@@ -82,6 +82,21 @@ const getColorClasses = (color: "green" | "amber" | "red" | "gray") => {
   }
 };
 
+const formatUnit = (value: number | null, unit: string): string => {
+  if (value === null) return "No data";
+  const isCurrency = unit === "$" || unit === "currency";
+  if (isCurrency) return `$${value.toLocaleString()}`;
+  if (unit === "%") return `${value}%`;
+  return value.toLocaleString();
+};
+
+const formatUnitDelta = (value: number, unit: string): string => {
+  const isCurrency = unit === "$" || unit === "currency";
+  if (isCurrency) return `$${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 1 })}`;
+  if (unit === "%") return `${value.toFixed(1)}%`;
+  return value.toFixed(1);
+};
+
 export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) => {
   const userQuery = useCurrentUser();
   const currentUser = userQuery.data;
@@ -246,7 +261,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
                   ) : (
                     <TrendingDown className="w-3 h-3 mr-1" />
                   )}
-                  {metric.target} {metric.unit}
+                  {formatUnit(metric.target, metric.unit)}
                 </Badge>
               </div>
             ) : (
@@ -272,7 +287,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
 
           {/* Sparkline */}
           {hasData && (
-            <div className="h-12">
+            <div className="h-12 mb-2">
               <Sparklines data={sparklineData} width={200} height={40}>
                 <SparklinesLine
                   color={
@@ -293,9 +308,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
                 <div>
                   <p className="text-xs font-medium opacity-80">This Week</p>
                   <p className="text-lg font-bold">
-                    {metric.current_value !== null
-                      ? `${metric.current_value} ${metric.unit}`
-                      : "No data"}
+                    {formatUnit(metric.current_value, metric.unit)}
                   </p>
                 </div>
                 {metric.current_value !== null && metric.target && (
@@ -317,8 +330,8 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
                     <TrendingDown className="h-3 w-3" />
                   )}
                   <span className="font-medium">
-                    {weekOverWeek.isPositive ? "+" : ""}
-                    {weekOverWeek.change.toFixed(1)} {metric.unit}
+                    {weekOverWeek.isPositive ? "+" : "-"}
+                    {formatUnitDelta(weekOverWeek.change, metric.unit)}
                   </span>
                   <span className="opacity-70">
                     ({weekOverWeek.isPositive ? "+" : ""}
