@@ -82,6 +82,21 @@ const getColorClasses = (color: "green" | "amber" | "red" | "gray") => {
   }
 };
 
+const formatUnit = (value: number | null, unit: string): string => {
+  if (value === null) return "No data";
+  const isCurrency = unit === "$" || unit === "currency";
+  if (isCurrency) return `$${value.toLocaleString()}`;
+  if (unit === "%") return `${value}%`;
+  return value.toLocaleString();
+};
+
+const formatUnitDelta = (value: number, unit: string): string => {
+  const isCurrency = unit === "$" || unit === "currency";
+  if (isCurrency) return `$${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 1 })}`;
+  if (unit === "%") return `${value.toFixed(1)}%`;
+  return value.toFixed(1);
+};
+
 export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) => {
   const userQuery = useCurrentUser();
   const currentUser = userQuery.data;
