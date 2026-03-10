@@ -20,6 +20,7 @@ import { LinkToVTODialog } from "@/components/vto/LinkToVTODialog";
 import { LinkedRocksBadges } from "./LinkedRocksBadges";
 import { SourceBadge, LastUpdatedText } from "./SourceBadge";
 import { CreateIssueFromMetricModal } from "./CreateIssueFromMetricModal";
+import { SyncWithDataDialog } from "./SyncWithDataDialog";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface MetricData {
