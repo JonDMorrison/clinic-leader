@@ -90,6 +90,7 @@ export const MetricCard = ({ metric, onClick, janeLastSync }: MetricCardProps) =
   const { toast } = useToast();
   const [linkToVTOOpen, setLinkToVTOOpen] = useState(false);
   const [createIssueOpen, setCreateIssueOpen] = useState(false);
+  const [syncDataOpen, setSyncDataOpen] = useState(false);
 
   // Determine if metric is off-track
   const isOffTrack = metric.current_value !== null &&
